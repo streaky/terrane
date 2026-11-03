@@ -78,6 +78,24 @@ pub(super) fn project_callback_generic(
     known: &BTreeMap<String, ProjectedType>,
 ) -> Result<Option<ProjectedType>, String> {
     let bounds = generic_bounds(parameter, function);
+    project_callback_bounds(
+        &parameter.name,
+        &bounds,
+        Some(function),
+        index,
+        paths,
+        known,
+    )
+}
+
+pub(super) fn project_callback_bounds(
+    name: &str,
+    bounds: &[GenericBound],
+    function: Option<&Function>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    known: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<ProjectedType>, String> {
     let callback = bounds.iter().find_map(|bound| {
         let (trait_, generic_params) = trait_bound_name(bound)?;
         Some((
@@ -96,20 +114,20 @@ pub(super) fn project_callback_generic(
         )
     }) {
         return Err(format!(
-            "callback generic `{}` uses higher-ranked type or const parameters",
-            parameter.name
+            "callback generic `{name}` uses higher-ranked type or const parameters"
         ));
     }
     let Some(GenericArgs::Parenthesized { inputs, output }) = trait_.args.as_deref() else {
         return Err(format!(
             "callback generic `{}` bound `{}` has no concrete call signature",
-            parameter.name, trait_.path
+            name, trait_.path
         ));
     };
     let parameters = inputs
         .iter()
         .map(|input| project_type(input, index, paths, known))
         .collect::<Result<Vec<_>, _>>()?;
+    super::callback_inputs::validate_native_inputs(&parameters)?;
     let direct_output = output.clone().unwrap_or(Type::Tuple(Vec::new()));
     let (result, is_async) = if type_contains_lifetime_argument(&direct_output) {
         (
@@ -118,7 +136,11 @@ pub(super) fn project_callback_generic(
             false,
         )
     } else if let Type::Generic(future) = &direct_output {
-        if let Some(output) = future_output(future, function, index, paths, known)? {
+        if let Some(output) = function
+            .map(|function| future_output(future, function, index, paths, known))
+            .transpose()?
+            .flatten()
+        {
             (output, true)
         } else {
             (project_type(&direct_output, index, paths, known)?, false)
@@ -135,8 +157,9 @@ pub(super) fn project_callback_generic(
     let retained = bounds
         .iter()
         .any(|bound| matches!(bound, GenericBound::Outlives(name) if name == "'static" || name == "static"));
-    Ok(Some(ProjectedType::Callback {
-        rust_name: parameter.name.clone(),
+    let mut callback = ProjectedType::Callback {
+        carrier: None,
+        rust_name: name.to_owned(),
         native_bound: None,
         native_method: None,
         native_result: None,
@@ -157,7 +180,9 @@ pub(super) fn project_callback_generic(
         retained,
         send: has_trait("Send"),
         sync: has_trait("Sync"),
-    }))
+    };
+    super::callback_inputs::normalize(&mut callback);
+    Ok(Some(callback))
 }
 pub(super) fn resolved_path_type_arguments(path: &RustdocPath) -> Vec<&Type> {
     let Some(GenericArgs::AngleBracketed { args, .. }) = path.args.as_deref() else {
@@ -175,6 +200,7 @@ fn merge_destination_selected_callable_candidates(
 ) -> Option<CallableAdapterCandidate> {
     let (
         ProjectedType::Callback {
+            carrier,
             rust_name,
             result,
             native_bound,
@@ -199,6 +225,7 @@ fn merge_destination_selected_callable_candidates(
             matches!(
                 candidate,
                 ProjectedType::Callback {
+                    carrier: candidate_carrier,
                     rust_name: candidate_rust_name,
                     result: candidate_result,
                     invocation_mode: candidate_invocation_mode,
@@ -207,7 +234,8 @@ fn merge_destination_selected_callable_candidates(
                     send: candidate_send,
                     sync: candidate_sync,
                     ..
-                } if candidate_rust_name == rust_name
+                } if candidate_carrier == carrier
+                    && candidate_rust_name == rust_name
                     && candidate_result == result
                     && candidate_invocation_mode == invocation_mode
                     && candidate_is_async == is_async
@@ -222,6 +250,7 @@ fn merge_destination_selected_callable_candidates(
     }
     Some((
         ProjectedType::Callback {
+            carrier: *carrier,
             rust_name: rust_name.clone(),
             native_bound: native_bound.clone(),
             native_method: native_method.clone(),
@@ -299,9 +328,16 @@ fn apply_terminal_alias_defaults(
 pub(super) fn has_supported_callable_trait_shape(
     declaration: &rustdoc_types::Trait,
     index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
 ) -> bool {
     !declaration.is_auto
-        && declaration.bounds.is_empty()
+        && declaration.bounds.iter().all(|bound| {
+            trait_bound_name(bound).is_some_and(|(trait_, parameters)| {
+                parameters.is_empty()
+                    && (is_builtin_marker_trait(trait_, paths, "Send")
+                        || is_builtin_marker_trait(trait_, paths, "Sync"))
+            })
+        })
         && declaration.items.len() == 1
         && declaration.items.first().is_some_and(|item_id| {
             matches!(
@@ -355,6 +391,7 @@ pub(super) fn project_callable_adapter_generic(
         index,
         paths,
         known,
+        false,
     )
 }
 pub(super) fn is_callback_parameter(parameter: &GenericParamDef, function: &Function) -> bool {
@@ -568,6 +605,39 @@ pub(super) fn render_generic_bound(
         }
     }
 }
+fn owning_blanket_obligations_supported(
+    implementation: &rustdoc_types::Impl,
+    self_name: &str,
+    self_bounds: &[GenericBound],
+    paths: &HashMap<Id, ItemSummary>,
+) -> bool {
+    self_bounds.iter().all(|bound| match bound {
+        GenericBound::TraitBound { trait_, .. } => {
+            builtin_callable_mode(trait_, paths).is_some()
+                || is_builtin_clone(trait_, paths)
+                || ["Send", "Sync", "Sized"]
+                    .iter()
+                    .any(|name| is_builtin_marker_trait(trait_, paths, name))
+        }
+        GenericBound::Outlives(lifetime) => lifetime == "'static",
+        GenericBound::Use(_) => false,
+    }) && implementation.generics.params.iter().all(|parameter| {
+        parameter.name == self_name
+            || match &parameter.kind {
+                GenericParamDefKind::Type { bounds, .. } => bounds.is_empty(),
+                GenericParamDefKind::Lifetime { outlives } => outlives.is_empty(),
+                GenericParamDefKind::Const { .. } => false,
+            }
+    }) && implementation
+        .generics
+        .where_predicates
+        .iter()
+        .all(|predicate| {
+            matches!(predicate, WherePredicate::BoundPredicate { type_: Type::Generic(name), .. }
+            if name == self_name)
+        })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "callable blanket recipe selection keeps candidate unification and proof metadata together"
@@ -578,6 +648,7 @@ pub(super) fn project_callable_adapter_bounds(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     known: &BTreeMap<String, ProjectedType>,
+    owning_carrier: bool,
 ) -> Result<Option<CallableAdapterCandidate>, String> {
     let mut candidates = Vec::new();
     for bound in bounds {
@@ -592,7 +663,7 @@ pub(super) fn project_callable_adapter_bounds(
             continue;
         };
         let unsupported_shape = builtin_callable_mode(requested_trait, paths).is_none()
-            && !has_supported_callable_trait_shape(declaration, index);
+            && !has_supported_callable_trait_shape(declaration, index, paths);
         if unsupported_shape && !has_callable_blanket(declaration, index, paths) {
             continue;
         }
@@ -702,6 +773,18 @@ pub(super) fn project_callable_adapter_bounds(
             };
             let self_bounds =
                 generic_bounds_from_generics(self_parameter, &implementation.generics);
+            if owning_carrier
+                && !owning_blanket_obligations_supported(
+                    implementation,
+                    self_name,
+                    &self_bounds,
+                    paths,
+                )
+            {
+                return Err(
+                    "owning callable blanket has unsupported additional obligations".to_owned(),
+                );
+            }
             let Some((call_trait, call_higher_ranked, mut invocation_mode)) =
                 self_bounds.iter().find_map(|candidate| {
                     let (trait_, generic_params) = trait_bound_name(candidate)?;
@@ -733,6 +816,7 @@ pub(super) fn project_callable_adapter_bounds(
                         .map_err(|reason| format!("callable input: {reason}"))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
+            super::callback_inputs::validate_native_inputs(&parameters)?;
             let parameter_rust_types = inputs
                 .iter()
                 .map(|input| render_rust_type(input, index, paths, &implementation_types))
@@ -781,10 +865,8 @@ pub(super) fn project_callable_adapter_bounds(
                         )
                     })
                     .collect::<Result<Vec<_>, _>>()?
-            } else if matches!(result, ProjectedType::InvocationScoped { .. }) {
-                Vec::new()
             } else {
-                continue;
+                Vec::new()
             };
             let exact_invocation_result = matches!(result, ProjectedType::InvocationScoped { .. })
                 || (matches!(result, ProjectedType::Generic(_))
@@ -794,9 +876,10 @@ pub(super) fn project_callable_adapter_bounds(
                             .iter()
                             .any(|parameter| result.contains(&parameter.name))
                     }));
-            let candidate = (
+            let mut candidate = (
                 ProjectedType::Callback {
                     rust_name: parameter_name.to_owned(),
+                    carrier: None,
                     native_bound: exact_invocation_result.then(|| native_bound.clone()),
                     native_method: exact_invocation_result
                         .then(|| native_method.clone())
@@ -834,6 +917,7 @@ pub(super) fn project_callable_adapter_bounds(
                 result_bounds,
                 terminal_defaults.clone(),
             );
+            super::callback_inputs::normalize(&mut candidate.0);
             if !candidates.contains(&candidate) {
                 candidates.push(candidate);
             }

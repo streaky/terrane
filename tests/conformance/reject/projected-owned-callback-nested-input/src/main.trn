@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-boundary-reject-witness import consume_nested
+function apply int; operation function to int
+    return operation;
+function main;
+    print; (consume_nested; apply)

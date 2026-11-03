@@ -8,18 +8,20 @@ pub(super) fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
     }
 }
 
-fn value_type_contains_callable(
+pub(super) fn value_type_contains_callable(
     value_type: &ValueType,
-    predicate: &impl Fn(bool, &CallableEffects) -> bool,
+    predicate: &impl Fn(bool, &[CallableParameterType], &CallableEffects) -> bool,
 ) -> bool {
     match value_type {
         ValueType::Function(parameters, result, effects)
         | ValueType::AsyncFunction(parameters, result, _, effects) => {
-            predicate(matches!(value_type, ValueType::AsyncFunction(..)), effects)
-                || parameters.iter().any(|parameter| {
-                    value_type_contains_callable(parameter.value_type_ref(), predicate)
-                })
-                || value_type_contains_callable(result.value_type_ref(), predicate)
+            predicate(
+                matches!(value_type, ValueType::AsyncFunction(..)),
+                parameters,
+                effects,
+            ) || parameters.iter().any(|parameter| {
+                value_type_contains_callable(parameter.value_type_ref(), predicate)
+            }) || value_type_contains_callable(result.value_type_ref(), predicate)
         }
         ValueType::Union(arms) => arms
             .iter()
@@ -412,7 +414,7 @@ fn lower_with_tests(
             .flat_map(|unit| &unit.functions)
             .any(|function| function.name == "main" && function.is_async);
     let package_has_callable =
-        |predicate: &dyn Fn(bool, &CallableEffects) -> bool| {
+        |predicate: &dyn Fn(bool, &[CallableParameterType], &CallableEffects) -> bool| {
             package
                 .units
                 .iter()
@@ -439,17 +441,41 @@ fn lower_with_tests(
                         })
                 })
         };
-    let has_mutable_callables = package_has_callable(&|_, effects| {
-        !effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
+    let has_mutable_callables = package_has_callable(&|is_async, parameters, effects| {
+        !effects.borrowed_environment
+            && effects.modes.written == InvocationMode::Mutable
+            && (is_async || !super::super::borrowed_input_callable::has_borrowed_inputs(parameters))
     });
-    let has_consuming_callables = package_has_callable(&|_, effects| {
-        !effects.borrowed_environment && effects.modes.written == InvocationMode::Consuming
+    let has_consuming_callables = package_has_callable(&|is_async, parameters, effects| {
+        !effects.borrowed_environment
+            && effects.modes.written == InvocationMode::Consuming
+            && (is_async || !super::super::borrowed_input_callable::has_borrowed_inputs(parameters))
     });
-    let has_borrowed_mutable_callables = package_has_callable(&|_, effects| {
-        effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
+    let has_borrowed_mutable_callables = package_has_callable(&|is_async, parameters, effects| {
+        effects.borrowed_environment
+            && effects.modes.written == InvocationMode::Mutable
+            && (is_async || !super::super::borrowed_input_callable::has_borrowed_inputs(parameters))
     });
-    let has_borrowed_consuming_callables = package_has_callable(&|_, effects| {
-        effects.borrowed_environment && effects.modes.written == InvocationMode::Consuming
+    let has_borrowed_consuming_callables =
+        package_has_callable(&|is_async, parameters, effects| {
+            effects.borrowed_environment
+                && effects.modes.written == InvocationMode::Consuming
+                && (is_async
+                    || !super::super::borrowed_input_callable::has_borrowed_inputs(parameters))
+        });
+    // Returning false visits the entire canonical callable type graph, including
+    // annotations that need a runtime type without constructing a local value.
+    let _ = package_has_callable(&|is_async, parameters, effects| {
+        if !is_async
+            && let Some(shape) = super::super::borrowed_input_callable::Shape::new(
+                parameters,
+                effects.modes.written,
+                effects.borrowed_environment,
+            )
+        {
+            registry.borrowed_input_callables.borrow_mut().insert(shape);
+        }
+        false
     });
     let has_channels = package.units.iter().any(|unit| {
         unit.typed_bindings.iter().any(|binding| {
@@ -985,6 +1011,17 @@ fn lower_with_tests(
             })
         })
         .collect::<Result<Vec<_>, LoweringFailure>>()?;
+    if !registry.borrowed_input_callables.borrow().is_empty() {
+        let mut support = String::new();
+        for shape in registry.borrowed_input_callables.borrow().iter() {
+            support.push_str(&shape.runtime());
+        }
+        runtime.push(GeneratedModule {
+            name: "borrowed-input-callables",
+            source_files: Vec::new(),
+            items: vec![Item::generated(&support)],
+        });
+    }
     let has_async_mutable_callables = registry.uses_async_mutable_state.get();
     if has_async_mutable_callables {
         runtime.push(GeneratedModule {

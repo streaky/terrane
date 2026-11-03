@@ -187,7 +187,7 @@ impl Emitter<'_> {
                 || parameter.borrowed && matches!(parameter.ty, ProjectedType::Foreign { .. })
                 || matches!(
                     parameter.ty,
-                    ProjectedType::BoxedInterface { .. } | ProjectedType::Reference { .. }
+                    ProjectedType::OwnedInterface { .. } | ProjectedType::Reference { .. }
                 )
         }) {
             return if projected.is_some_and(ProjectedParameter::borrows_argument) {

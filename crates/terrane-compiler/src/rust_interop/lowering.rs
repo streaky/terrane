@@ -712,7 +712,7 @@ fn projected_generic_names(ty: &crate::rust_interop::projection::ProjectedType) 
                     collect(argument, names);
                 }
             }
-            ProjectedType::BoxedInterface {
+            ProjectedType::OwnedInterface {
                 associated_type: Some(associated),
                 ..
             } => collect(&associated.ty, names),
@@ -845,19 +845,17 @@ pub(super) fn projected_callback_input_expression(
 ) -> String {
     let borrowed = rust_type.trim_start().starts_with('&');
     match ty {
-        crate::rust_interop::projection::ProjectedType::Int => {
-            let value = if borrowed {
-                format!("*{value}")
-            } else {
-                value.to_owned()
-            };
-            format!("terrane_int_support::Int::from(i128::from({value}))")
+        crate::rust_interop::projection::ProjectedType::Int
+        | crate::rust_interop::projection::ProjectedType::RustInt(_)
+            if borrowed =>
+        {
+            projected_result_expression(&format!("*{value}"), ty)
         }
         crate::rust_interop::projection::ProjectedType::String
         | crate::rust_interop::projection::ProjectedType::Bytes
             if borrowed =>
         {
-            format!("(*{value}).clone()")
+            format!("({value}).to_owned()")
         }
         _ => projected_result_expression(value, ty),
     }
@@ -940,23 +938,25 @@ fn projected_callback_argument(
         })
         .collect::<Vec<_>>()
         .join(", ");
-    let terrane_arguments = parameters
+    let call_arguments = parameters
         .iter()
         .enumerate()
         .map(|(index, parameter)| {
             let rust_type = parameter_rust_types
                 .get(index)
                 .map_or_else(|| parameter.rust_type(), Clone::clone);
-            if parameter_borrows.get(index) == Some(&true)
-                && rust_type.trim_start().starts_with('&')
-                && matches!(
-                    parameter,
-                    crate::rust_interop::projection::ProjectedType::String
-                        | crate::rust_interop::projection::ProjectedType::Bytes
-                        | crate::rust_interop::projection::ProjectedType::Bool
-                        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
-                        | crate::rust_interop::projection::ProjectedType::Foreign { .. }
-                )
+            let borrowed = parameter_borrows.get(index) == Some(&true);
+            let reference = if borrowed {
+                match syn::parse_str::<syn::Type>(&rust_type) {
+                    Ok(syn::Type::Reference(reference)) => Some(reference),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            let value = if reference
+                .as_ref()
+                .is_some_and(|reference| parameter.has_identity_callback_borrow(reference))
             {
                 format!("*callback_argument_{index}")
             } else {
@@ -965,20 +965,12 @@ fn projected_callback_argument(
                     parameter,
                     &rust_type,
                 )
-            }
-        })
-        .collect::<Vec<_>>();
-    let call_arguments = terrane_arguments
-        .iter()
-        .enumerate()
-        .map(|(index, argument)| {
-            if parameter_borrows.get(index) == Some(&true) {
-                let mutable = parameter_rust_types.get(index).is_some_and(|rust_type| {
-                    matches!(syn::parse_str::<syn::Type>(rust_type), Ok(syn::Type::Reference(reference)) if reference.mutability.is_some())
-                });
-                format!("&{}{argument}", if mutable { "mut " } else { "" })
+            };
+            if borrowed {
+                let mutable = reference.is_some_and(|reference| reference.mutability.is_some());
+                format!("&{}{value}", if mutable { "mut " } else { "" })
             } else {
-                argument.clone()
+                value
             }
         })
         .collect::<Vec<_>>();
@@ -1047,11 +1039,15 @@ pub(super) fn projected_argument_expression(
         crate::rust_interop::projection::ProjectedType::Char => format!(
             "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
         ),
-        crate::rust_interop::projection::ProjectedType::BoxedInterface { .. } => {
-            format!("Box::new({name})")
+        crate::rust_interop::projection::ProjectedType::OwnedInterface { carrier, .. } => {
+            format!("{}::new({name})", carrier.rust_constructor())
         }
-        crate::rust_interop::projection::ProjectedType::Callback { .. } => {
-            projected_callback_argument(name, ty, package)
+        crate::rust_interop::projection::ProjectedType::Callback { carrier, .. } => {
+            let callback = projected_callback_argument(name, ty, package);
+            match carrier {
+                Some(carrier) => format!("{}::new({callback})", carrier.rust_constructor()),
+                None => callback,
+            }
         }
         crate::rust_interop::projection::ProjectedType::Optional(inner) => {
             if inner.has_identity_representation() {
@@ -1370,6 +1366,14 @@ pub(super) fn emit_dependency_unit(
         }
         if projected.chain_role == Some(crate::rust_interop::projection::ChainRole::Root) {
             continue;
+        }
+        for parameter in &contract.parameters {
+            if let Some(value_type) = &parameter.value_type {
+                registry.require_callable_type(value_type);
+            }
+        }
+        if let Some(value_type) = &contract.return_type {
+            registry.require_callable_type(value_type);
         }
         let invocation_scoped = matches!(
             projected.result,

@@ -290,7 +290,7 @@ fn normalize<'b>(
         ProjectedType::InvocationScoped { owned, .. } => {
             normalize(owned, substitutions, implementations, active, oracle)?;
         }
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type: Some(binding),
             ..
         } => normalize(
@@ -426,7 +426,7 @@ fn visit(
             }
         }
         ProjectedType::InvocationScoped { owned, .. } => child(owned)?,
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type: Some(binding),
             ..
         } => child(&binding.ty)?,
@@ -514,7 +514,7 @@ fn substitute_type(
                     apply(item, substitutions, active)?;
                 }
             }
-            ProjectedType::BoxedInterface {
+            ProjectedType::OwnedInterface {
                 associated_type: Some(binding),
                 ..
             } => apply(&mut binding.ty, substitutions, active)?,

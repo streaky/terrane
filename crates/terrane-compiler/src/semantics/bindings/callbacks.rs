@@ -5,7 +5,12 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode},
 };
 
-use super::{async_tasks::value_type_is_task_transferable, span_key};
+use super::{
+    async_tasks::{
+        AutoTraitObligation, value_type_is_owned_static, value_type_satisfies_auto_trait,
+    },
+    span_key,
+};
 use crate::semantics::{
     analysis::resolved_function_contract,
     diagnostics::{failure, node_text, unary_operator_text},
@@ -89,6 +94,40 @@ fn captured_binding<'a>(
         .iter()
         .find(|binding| binding.span == declaration)
 }
+fn callback_capture_trait_failure(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    contract: &FunctionContract,
+    send: bool,
+    sync: bool,
+) -> Option<(&'static str, &'static str)> {
+    for (required, obligation, code, message) in [
+        (
+            send,
+            AutoTraitObligation::Send,
+            "T0084",
+            "projected callback requires transferable captured values",
+        ),
+        (
+            sync && contract.written_invocation_mode == InvocationMode::Shared,
+            AutoTraitObligation::Sync,
+            "T0085",
+            "projected callback requires shareable captured values (`Sync`)",
+        ),
+    ] {
+        if required
+            && contract.captures.iter().any(|capture| {
+                captured_binding(package, unit, contract, capture).is_some_and(|binding| {
+                    !value_type_satisfies_auto_trait(package, &binding.value_type, obligation)
+                })
+            })
+        {
+            return Some((code, message));
+        }
+    }
+    None
+}
+
 fn validate_projected_callback_contract(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -101,6 +140,7 @@ fn validate_projected_callback_contract(
         invocation_mode,
         retained,
         send,
+        sync,
         parameter_borrows,
         parameter_rust_types,
         ..
@@ -109,6 +149,12 @@ fn validate_projected_callback_contract(
         unreachable!("callback validation requires callback metadata");
     };
     let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
+    if callback.has_unsupported_mutable_callback_borrow() {
+        return reject(
+            "T0119",
+            "mutable callback inputs require an identity-preserving native representation",
+        );
+    }
     for (index, parameter) in contract.parameters.iter().enumerate() {
         if parameter_borrows.get(index) == Some(&true)
             && parameter_rust_types.get(index).is_some_and(|rust_type| {
@@ -160,27 +206,16 @@ fn validate_projected_callback_contract(
     }
     if *retained
         && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
-                matches!(
-                    binding.value_type,
-                    ValueType::Reference(_) | ValueType::MutableReference(_)
-                )
-            })
+            captured_binding(package, unit, contract, capture)
+                .is_some_and(|binding| !value_type_is_owned_static(&binding.value_type))
         })
     {
         return reject("T0083", "retained callback cannot capture a borrowed value");
     }
-    if *send
-        && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
-                !value_type_is_task_transferable(package, &binding.value_type)
-            })
-        })
+    if let Some((code, message)) =
+        callback_capture_trait_failure(package, unit, contract, *send, *sync)
     {
-        return reject(
-            "T0084",
-            "projected callback requires transferable captured values",
-        );
+        return reject(code, message);
     }
     if *invocation_mode == InvocationMode::Consuming
         && value.kind == SyntaxKind::Name

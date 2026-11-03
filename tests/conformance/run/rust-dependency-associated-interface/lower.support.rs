@@ -791,7 +791,7 @@ pub use terrane_associated_witness::Nested;
 pub fn erased_total<
     TerraneBoxed0: terrane_associated_witness::Sequence<Item = i64> + 'static,
 >(value: TerraneBoxed0) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = Box::new(value);
+    let value = std::boxed::Box::new(value);
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_associated_witness::erased_total(value)),
     ) {

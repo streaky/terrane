@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import optional_arc_callback_result as optional-arc-callback-result
+
+function main;
+    optional-arc-callback-result

@@ -52,6 +52,7 @@ fn main() {
         std::sync::Arc::new(move |
             __trn_5f76616c7565: terrane_int_support::Int,
         | -> String {
+            let _ = &__trn_5f76616c7565;
             return String::from("closure");
         })
     };

@@ -59,6 +59,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
         borrowed_str: false,
         name: "operation".to_owned(),
         ty: ProjectedType::Callback {
+            carrier: None,
             rust_name: "F".to_owned(),
             parameters: vec![item],
             native_bound: Some("FnOnce(&T) -> U".to_owned()),

@@ -342,6 +342,27 @@ impl Emitter<'_> {
                 ))
     }
 
+    fn emit_unused_parameters(&mut self, contract: &FunctionContract) {
+        let unused_parameters = contract
+            .parameters
+            .iter()
+            .filter(|parameter| {
+                !binding_store_value_is_read(self.package, parameter.span, parameter.span)
+            })
+            .map(|parameter| {
+                format!(
+                    "&{}",
+                    self.parameter_source_name(&parameter.name, parameter.span)
+                )
+            })
+            .collect::<Vec<_>>();
+        match unused_parameters.as_slice() {
+            [] => {}
+            [parameter] => self.line(&format!("let _ = {parameter};")),
+            parameters => self.line(&format!("let _ = ({});", parameters.join(", "))),
+        }
+    }
+
     fn emit_parameter_carriers(&mut self, contract: &FunctionContract) {
         for parameter in &contract.parameters {
             let shared = self.parameter_needs_shared_storage(parameter);
@@ -687,24 +708,7 @@ impl Emitter<'_> {
         }
         self.emit_parameter_carriers(contract);
         self.emit_function_storage(contract);
-        let unused_parameters = contract
-            .parameters
-            .iter()
-            .filter(|parameter| {
-                !binding_store_value_is_read(self.package, parameter.span, parameter.span)
-            })
-            .map(|parameter| {
-                format!(
-                    "&{}",
-                    self.parameter_source_name(&parameter.name, parameter.span)
-                )
-            })
-            .collect::<Vec<_>>();
-        match unused_parameters.as_slice() {
-            [] => {}
-            [parameter] => self.line(&format!("let _ = {parameter};")),
-            parameters => self.line(&format!("let _ = ({});", parameters.join(", "))),
-        }
+        self.emit_unused_parameters(contract);
         self.emit_select_cursors(contract.span);
         if let Some(block) = block {
             self.block(block);
@@ -956,6 +960,7 @@ impl Emitter<'_> {
             }
             self.emit_parameter_carriers(contract);
             self.emit_function_storage(contract);
+            self.emit_unused_parameters(contract);
             self.block(block);
             if result == ValueType::Scalar(ScalarType::None) && block_may_fall_through(block) {
                 self.line(if contract.throws { "Ok(())" } else { "()" });
@@ -1000,7 +1005,23 @@ impl Emitter<'_> {
                     )
                 })
         });
-        let constructor = if borrowed_environment {
+        let borrowed_inputs_constructor = if contract.is_async {
+            None
+        } else {
+            let inputs = contract
+                .parameters
+                .iter()
+                .filter_map(crate::semantics::ParameterContract::callable_type)
+                .collect::<Vec<_>>();
+            self.registry.borrowed_input_constructor(
+                &inputs,
+                contract.written_invocation_mode,
+                borrowed_environment,
+            )
+        };
+        let constructor = if let Some(constructor) = borrowed_inputs_constructor.as_deref() {
+            constructor
+        } else if borrowed_environment {
             match contract.written_invocation_mode {
                 InvocationMode::Shared => "std::boxed::Box::new",
                 InvocationMode::Mutable => {

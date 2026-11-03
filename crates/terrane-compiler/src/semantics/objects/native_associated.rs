@@ -54,7 +54,7 @@ fn result_uses_associated_owner(ty: &ProjectedType, name: &str) -> bool {
         } => items
             .iter()
             .any(|item| result_uses_associated_owner(item, name)),
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type: Some(binding),
             ..
         } => result_uses_associated_owner(&binding.ty, name),

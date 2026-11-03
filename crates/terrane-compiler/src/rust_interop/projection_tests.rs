@@ -307,6 +307,7 @@ fn unit_rejects_wrong_namespace() {
 #[test]
 fn callback_name_is_lsp_signature() {
     let callback = ProjectedType::Callback {
+        carrier: None,
         rust_name: "F".to_owned(),
         native_bound: None,
         native_method: None,

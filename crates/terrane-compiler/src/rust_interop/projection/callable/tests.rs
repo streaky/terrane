@@ -174,6 +174,10 @@ fn restrictive_custom_traits_decline() {
             ..base
         },
     ] {
-        assert!(!has_supported_callable_trait_shape(&declaration, &index));
+        assert!(!has_supported_callable_trait_shape(
+            &declaration,
+            &index,
+            &HashMap::new()
+        ));
     }
 }

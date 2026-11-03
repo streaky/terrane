@@ -1,0 +1,11 @@
+namespace app
+from /deps/terrane-retained-callback-api import Event as event, MutableEvent as mutable-event, invoke_mut, invoke_once, invoke_shared, invoke_sync, SendOnly as send-only, LocalOnly as local-only
+from /deps/terrane-retained-callback-registry import Registry as registry
+function main;
+    held (ref mutable-event)|none = none
+    callback = mutable function; incoming mutable ref mutable-event
+        held = ref incoming
+    value = instance mutable-event; active = false
+    invoke_mut; move callback, value
+    if held != none
+        print; held.active

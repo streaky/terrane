@@ -957,7 +957,7 @@ pub fn launch<
     application: TerraneBoxed0,
     render: Render,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let application = Box::new(application);
+    let application = std::boxed::Box::new(application);
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| witness::launch(application, render)),
     ) {

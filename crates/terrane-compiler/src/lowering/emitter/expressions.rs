@@ -47,9 +47,15 @@ fn callable_constructor(
     registry: &LoweringRegistry,
     mode: InvocationMode,
     borrowed_environment: bool,
-) -> &'static str {
+    parameters: Option<&[CallableParameterType]>,
+) -> std::borrow::Cow<'static, str> {
+    if let Some(constructor) = parameters.and_then(|parameters| {
+        registry.borrowed_input_constructor(parameters, mode, borrowed_environment)
+    }) {
+        return std::borrow::Cow::Owned(constructor);
+    }
     if borrowed_environment {
-        return match mode {
+        return std::borrow::Cow::Borrowed(match mode {
             InvocationMode::Shared => "std::boxed::Box::new",
             InvocationMode::Mutable => {
                 registry.uses_borrowed_mutable_callable.set(true);
@@ -59,9 +65,9 @@ fn callable_constructor(
                 registry.uses_borrowed_consuming_callable.set(true);
                 "TerraneBorrowedConsumingCallable::new"
             }
-        };
+        });
     }
-    match mode {
+    std::borrow::Cow::Borrowed(match mode {
         InvocationMode::Shared => "std::sync::Arc::new",
         InvocationMode::Mutable => {
             registry.uses_mutable_callable.set(true);
@@ -71,7 +77,7 @@ fn callable_constructor(
             registry.uses_consuming_callable.set(true);
             "TerraneConsumingCallable::new"
         }
-    }
+    })
 }
 
 impl Emitter<'_> {
@@ -1175,6 +1181,7 @@ impl Emitter<'_> {
                     self.registry,
                     expected_mode,
                     expected_effects.borrowed_environment,
+                    None,
                 );
                 let send = if transferability == TaskTransferability::Local {
                     ""
@@ -1271,6 +1278,7 @@ impl Emitter<'_> {
                     self.registry,
                     expected_mode,
                     expected_effects.borrowed_environment,
+                    None,
                 );
                 let send = if transferability == TaskTransferability::Local {
                     ""
@@ -1358,6 +1366,7 @@ impl Emitter<'_> {
                     self.registry,
                     expected_mode,
                     expected_effects.borrowed_environment,
+                    Some(&parameters),
                 );
                 let mutable = if actual_mode == InvocationMode::Mutable {
                     "mut "
@@ -1461,6 +1470,7 @@ impl Emitter<'_> {
                     self.registry,
                     expected_mode,
                     expected_effects.borrowed_environment,
+                    Some(&parameters),
                 );
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let actual = self.value_type(node);
@@ -1552,6 +1562,7 @@ impl Emitter<'_> {
                         self.registry,
                         expected_mode,
                         expected_effects.borrowed_environment,
+                        None,
                     );
                     let capture = if actual_mode == InvocationMode::Consuming
                         || actual.as_ref().is_some_and(|value_type| {
@@ -1607,6 +1618,7 @@ impl Emitter<'_> {
                         self.registry,
                         expected_mode,
                         expected_effects.borrowed_environment,
+                        Some(&parameters),
                     );
                     let capture = if actual_mode == InvocationMode::Consuming {
                         callable

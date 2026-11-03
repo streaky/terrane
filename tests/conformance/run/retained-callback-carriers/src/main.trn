@@ -1,0 +1,118 @@
+namespace app
+from /deps/terrane-retained-callback-api import Event as event, Signal as signal, WeakListener as weak-listener, Sink as sink
+from /deps/terrane-retained-callback-api import MutableEvent as mutable-event
+from /deps/terrane-retained-callback-api import SendOnly as send-only, invoke_send_mut
+from /deps/terrane-retained-callback-api import invoke_borrowed_once
+from /deps/terrane-retained-callback-api import invoke_object_alias, invoke_text, invoke_number
+from /deps/terrane-retained-callback-api import invoke_mut, invoke_once, invoke_shared, invoke_sink, event_clones
+from /deps/terrane-retained-callback-registry import Registry as registry
+
+class counter
+    value int = 0
+
+class offset-sink implements sink
+    function accept int; incoming ref event
+        return incoming.value + 10
+
+function named-event; incoming ref event
+    print; incoming.value
+
+function add-tracked (weak-listener of event); listeners ref registry, state shared ref counter
+    owned = signal::new;
+    callback = function; incoming ref event
+        state.value = state.value + incoming.value + (owned.inspect;)
+    return listeners.register; callback
+
+function forget-token; listeners ref registry
+    listeners.register; named-event
+
+function main;
+    state = shared ref (instance counter;)
+    callback = function; incoming ref event
+        state.value = state.value + incoming.value
+    listeners = registry::new;
+    token = listeners.register; callback
+    copied-token = registry::clone_token; token
+    print; (registry::same_token; token, copied-token)
+    unrelated-owner = registry::new;
+    unrelated = unrelated-owner.register; named-event
+    print; (listeners.remove; unrelated)
+    listeners.emit; (instance event; value = 3)
+    print; state.value
+    print; (event_clones;)
+    print; (listeners.remove; copied-token)
+    print; (listeners.remove; token)
+    print; (registry::token_alive; token)
+    listeners.emit; (instance event; value = 4)
+    print; state.value
+
+    tracked = add-tracked; listeners, state
+    print; (signal::drops;)
+    print; (listeners.snapshot_then_remove_and_deliver; tracked, (instance event; value = 5))
+    print; state.value
+    print; (signal::drops;)
+    print; (registry::token_alive; tracked)
+
+    forget-token; listeners
+    print; (listeners.count;)
+    listeners.emit; (instance event; value = 7)
+    weak-owner = listeners.weak_owner;
+    reentrant = function; incoming ref event
+        weak-owner.clear;
+        state.value = state.value + 1
+    reentrant-token = listeners.register; reentrant
+    listeners.emit; (instance event; value = 9)
+    print; (listeners.count;)
+    print; state.value
+    print; (registry::token_alive; reentrant-token)
+
+    destroyed = add-tracked; listeners, state
+    print; (signal::drops;)
+    listeners.destroy;
+    print; (registry::token_alive; destroyed)
+    print; (signal::drops;)
+
+    changes = 0
+    change = mutable function; incoming mutable ref mutable-event
+        changes = changes + 1
+        current = mutable ref incoming
+        current.active = changes == 2
+    copied-change = change
+    changing-event = instance mutable-event; active = false
+    invoke_mut; move change, changing-event
+    print; changing-event.active
+    changing-event.active = false
+    invoke_mut; move copied-change, changing-event
+    print; changing-event.active
+    send-only-state = send-only::new;
+    send-only-callback = mutable function; incoming mutable ref mutable-event
+        incoming.active = (send-only-state.bump;) == 2
+    changing-event.active = false
+    invoke_send_mut; move send-only-callback, changing-event
+    print; changing-event.active
+    finish = consuming function; incoming event
+        print; incoming.value
+    invoke_once; move finish, (instance event; value = 20)
+    invoke_shared; named-event, (instance event; value = 30)
+    print; (invoke_sink; (instance offset-sink;), (instance event; value = 2))
+    erased sink = instance offset-sink;
+    print; (invoke_sink; erased, (instance event; value = 3))
+    finish-borrowed = consuming function; incoming ref event
+        print; incoming.value
+    invoke_borrowed_once; move finish-borrowed, (instance event; value = 40)
+    invoke_object_alias; named-event, (instance event; value = 50)
+    text-callback = mutable function; text ref string
+        print; text
+    invoke_text; move text-callback
+    number-callback = mutable function; value mutable ref int64
+        value = 8
+    print; (invoke_number; move number-callback)
+    saved event|none = instance event; value = 60
+    snapshotter = mutable function; incoming ref event
+        if saved != none
+            print; saved.value
+        saved = incoming.clone;
+        if saved != none
+            print; saved.value
+    snapshot-event = instance event; value = 61
+    snapshotter; snapshot-event

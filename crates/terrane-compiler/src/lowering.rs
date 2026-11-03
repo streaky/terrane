@@ -1,5 +1,6 @@
 // Stateful whole-package lowering. Emitter implementations are nested here so their
 // shared control context remains private to the emitter subsystem.
+mod borrowed_input_callable;
 mod emitter;
 
 // Generated dependencies, runtime support, and backend-independent rendering helpers.

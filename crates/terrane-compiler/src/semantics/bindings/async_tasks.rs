@@ -302,6 +302,9 @@ pub(super) fn value_type_is_task_transferable(
 pub(in crate::semantics) fn value_type_is_owned_static(value_type: &ValueType) -> bool {
     match value_type {
         ValueType::Reference(_) | ValueType::MutableReference(_) => false,
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+            !effects.borrowed_environment
+        }
         ValueType::Optional(inner) => value_type_is_owned_static(inner),
         ValueType::Union(arms) => arms.iter().all(value_type_is_owned_static),
         ValueType::Iterator(inner)

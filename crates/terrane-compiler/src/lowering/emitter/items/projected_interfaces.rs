@@ -192,6 +192,12 @@ impl Emitter<'_> {
                     .parameters
                     .iter()
                     .map(|parameter| {
+                        if !projected.provided
+                            && parameter.borrowed
+                            && parameter.ty.has_identity_representation()
+                        {
+                            return rust_name(&parameter.name);
+                        }
                         projected_callback_input_expression(
                             &rust_name(&parameter.name),
                             &parameter.ty,

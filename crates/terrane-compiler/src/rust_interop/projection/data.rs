@@ -311,7 +311,7 @@ fn rebind_owner_type(ty: &mut ProjectedType, native: &ProjectedType, facade: &Pr
                 rebind_owner_type(substitution, native, facade);
             }
         }
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type: Some(associated),
             ..
         } => rebind_owner_type(&mut associated.ty, native, facade),

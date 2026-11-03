@@ -57,9 +57,57 @@ pub(super) struct LoweringRegistry {
     pub(super) uses_borrowed_mutable_callable: Cell<bool>,
     pub(super) uses_borrowed_consuming_callable: Cell<bool>,
     pub(super) mutable_native_callback_parameters: RefCell<BTreeSet<CallbackParameterKey>>,
+    pub(super) borrowed_input_callables: RefCell<BTreeSet<super::borrowed_input_callable::Shape>>,
 }
 
 impl LoweringRegistry {
+    pub(super) fn borrowed_input_constructor(
+        &self,
+        parameters: &[crate::semantics::CallableParameterType],
+        mode: crate::semantics::InvocationMode,
+        borrowed_environment: bool,
+    ) -> Option<String> {
+        let shape =
+            super::borrowed_input_callable::Shape::new(parameters, mode, borrowed_environment)?;
+        let constructor = format!("{}::new", shape.name());
+        self.borrowed_input_callables.borrow_mut().insert(shape);
+        Some(constructor)
+    }
+
+    /// Native helper signatures can mention a callable even when no source
+    /// expression constructs one. Register their runtime ABI from the same
+    /// canonical type graph as source annotations.
+    pub(crate) fn require_callable_type(&self, value_type: &crate::semantics::ValueType) {
+        use crate::semantics::InvocationMode;
+        let _ =
+            pipeline::value_type_contains_callable(value_type, &|is_async, parameters, effects| {
+                if !is_async
+                    && let Some(shape) = super::borrowed_input_callable::Shape::new(
+                        parameters,
+                        effects.modes.written,
+                        effects.borrowed_environment,
+                    )
+                {
+                    self.borrowed_input_callables.borrow_mut().insert(shape);
+                } else {
+                    match (effects.borrowed_environment, effects.modes.written) {
+                        (false, InvocationMode::Mutable) => self.uses_mutable_callable.set(true),
+                        (false, InvocationMode::Consuming) => {
+                            self.uses_consuming_callable.set(true);
+                        }
+                        (true, InvocationMode::Mutable) => {
+                            self.uses_borrowed_mutable_callable.set(true);
+                        }
+                        (true, InvocationMode::Consuming) => {
+                            self.uses_borrowed_consuming_callable.set(true);
+                        }
+                        (_, InvocationMode::Shared) => {}
+                    }
+                }
+                false
+            });
+    }
+
     pub(super) fn intern(values: &RefCell<Vec<String>>, value: &str) -> u32 {
         let mut values = values.borrow_mut();
         if let Some(index) = values.iter().position(|candidate| candidate == value) {

@@ -2474,7 +2474,7 @@ pub fn retain_boxed_adjustable<
     TerraneBoxed0: terrane_callback_witness::Adjustable + core::marker::Send
         + core::marker::Sync + 'static,
 >(value: TerraneBoxed0) -> Result<AdjustableOwner, crate::TerraneForeignError> {
-    let value = Box::new(value);
+    let value = std::boxed::Box::new(value);
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_callback_witness::retain_boxed_adjustable(
             value,
