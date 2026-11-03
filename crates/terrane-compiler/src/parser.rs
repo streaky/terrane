@@ -570,19 +570,66 @@ impl Parser<'_> {
         self.bump();
         let mut children = vec![self.parse_namespace_path()];
         self.expect_text("import", "S1026", "expected `import` after namespace path");
+        let grouped = self.eat(TokenKind::Newline);
+        if grouped {
+            self.skip_newlines();
+            if !self.eat(TokenKind::Indent) {
+                self.error_here("S1026", "expected an indented import list after `import`");
+                return self.node(
+                    SyntaxKind::ImportDeclaration,
+                    start,
+                    self.position,
+                    children,
+                );
+            }
+            self.skip_newlines();
+        }
         if self.at_line_end() {
             self.error_here("S1026", "expected an object name after `import`");
         } else {
             loop {
-                children.push(self.parse_object_import());
-                if !self.eat(TokenKind::Comma) {
+                if self.at(TokenKind::Indent) {
+                    self.error_here("S1026", "import items must use the same indentation");
+                    self.bump();
+                    self.recover_nested_block();
+                    self.skip_newlines();
                     break;
+                }
+                children.push(self.parse_object_import());
+                let comma_position = self.position;
+                let comma = self.eat(TokenKind::Comma);
+                if grouped && self.at(TokenKind::Newline) {
+                    self.skip_newlines();
                 }
                 if self.at_line_end() {
-                    self.error_here("S1026", "expected an object name after `,`");
+                    if comma {
+                        self.error_at(
+                            comma_position,
+                            "S1026",
+                            "an import list must not have a trailing comma",
+                        );
+                    }
                     break;
                 }
+                if !comma {
+                    if !grouped {
+                        break;
+                    }
+                    self.error_here("S1026", "expected `,` between imported names");
+                    self.recover_line();
+                    self.skip_newlines();
+                    if self.at_line_end() {
+                        break;
+                    }
+                }
             }
+        }
+        if grouped {
+            self.expect(
+                TokenKind::Dedent,
+                "S1026",
+                "expected end of indented import list",
+            );
         }
         self.node(
             SyntaxKind::ImportDeclaration,

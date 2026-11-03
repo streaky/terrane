@@ -648,6 +648,72 @@ fn parses_structural_import_forms_and_named_arguments() {
 }
 
 #[test]
+fn grouped_imports_preserve_aliases_and_lexical_boundaries() {
+    for ending in ["", "\n", "\nvalue = 1\n"] {
+        let tree = parse_source(&format!(
+            "from /core/types import\n\tint8 as byte, int16,\n\tint32 as word{ending}"
+        ));
+        let import = &tree.root.children[0];
+        assert_eq!(import.children.len(), 4);
+        assert_eq!(import.children[1].children[1].kind, SyntaxKind::ImportAlias);
+        assert_eq!(import.children[3].children[1].kind, SyntaxKind::ImportAlias);
+        if !ending.contains("value") {
+            assert_eq!(tree.root.children.len(), 1);
+        } else {
+            assert_eq!(tree.root.children[1].kind, SyntaxKind::Assignment);
+        }
+    }
+    let tree = parse_source(
+        "function main;\n\tfrom /core/types import\n\t\tint8 as byte,\n\t\tint16\n\tvalue byte = 1\nprint; 2\n",
+    );
+    assert_eq!(
+        tree.root.children[0]
+            .children
+            .last()
+            .unwrap()
+            .children
+            .len(),
+        2
+    );
+    assert_eq!(tree.root.children.len(), 2);
+}
+
+#[test]
+fn rejects_invalid_grouped_import_boundaries() {
+    for text in [
+        "from /core/types import\nint8\n",
+        "from /core/types import\n",
+        "from /core/types import int8,\n\tint16\n",
+        "from /core/types import int8\n\tint16\n",
+        "from /core/types import\n\tint8\n\tint16\n",
+        "from /core/types import\n\tint8 int16\n",
+        "from /core/types import\n\tint8,\n\t\tint16\n",
+        "from /core/types import\n\tint8 as\n\tbyte\n",
+    ] {
+        let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
+        assert!(
+            !parse(&source, lex(&source).unwrap()).diagnostics.is_empty(),
+            "{text}"
+        );
+    }
+    for text in [
+        "from /core/types import int8,\n",
+        "from /core/types import\n\tint8,\n",
+        "from /core/types import\n\tint8,\n\tint16,",
+    ] {
+        let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
+        let parsed = parse(&source, lex(&source).unwrap());
+        assert!(
+            parsed.diagnostics.iter().any(|diagnostic| {
+                diagnostic.code == "S1026" && diagnostic.message.contains("trailing comma")
+            }),
+            "{:#?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+#[test]
 fn two_token_import_binding_does_not_consume_structural_imports() {
     let tree = parse_source("import value = 1\nfrom /core/output import print\n");
 
