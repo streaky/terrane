@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-boundary-reject-witness import Event as event, retain_trait
+function create event;
+    return instance event; active = true
+function main;
+    print; (retain_trait; create)

@@ -35,6 +35,7 @@ pub(super) fn project_owned_callback(
         index,
         paths,
         known,
+        true,
     )?;
     let selected = match direct {
         Some(callback) => Some(callback),
@@ -51,6 +52,7 @@ pub(super) fn project_owned_callback(
     let Some(mut selected) = selected else {
         return Ok(None);
     };
+    super::callable::validate_owning_trait_arguments(dynamic, index, paths, known)?;
     let ProjectedType::Callback {
         carrier: selected_carrier,
         rust_name,

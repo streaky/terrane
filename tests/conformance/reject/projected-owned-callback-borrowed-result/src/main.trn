@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-boundary-reject-witness import Event as event, retain
+function copy event; incoming ref event
+    return incoming.clone;
+function main;
+    print; (retain; copy, (instance event; active = true))

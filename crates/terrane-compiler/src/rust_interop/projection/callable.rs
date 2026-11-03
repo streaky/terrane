@@ -85,7 +85,63 @@ pub(super) fn project_callback_generic(
         index,
         paths,
         known,
+        false,
     )
+}
+
+/// An owning adapter erases a source callable with an owned result. Borrowed
+/// results need a result lifetime bound to invocation inputs, not an owned
+/// snapshot of the referent. Keep the existing raw generic callback path intact.
+fn validate_owning_result(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    known: &BTreeMap<String, ProjectedType>,
+) -> Result<(), String> {
+    if super::types::type_contains_borrowed_ref(ty) || type_contains_lifetime_argument(ty) {
+        return Err("owning callbacks require owned results; borrowed results need an invocation-bound result adapter".to_owned());
+    }
+    if let Type::ResolvedPath(path) = ty {
+        if matches!(
+            index.get(&path.id).map(|item| &item.inner),
+            Some(ItemEnum::TypeAlias(_))
+        ) {
+            let (output, bindings) =
+                super::methods::expand_output_alias(ty.clone(), index, paths, known.clone())?;
+            return validate_owning_result(&output, index, paths, &bindings);
+        }
+        for argument in super::types::type_arguments(ty) {
+            validate_owning_result(argument, index, paths, known)?;
+        }
+    } else if let Type::Tuple(items) = ty {
+        for item in items {
+            validate_owning_result(item, index, paths, known)?;
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn validate_owning_trait_arguments(
+    dynamic: &rustdoc_types::DynTrait,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    known: &BTreeMap<String, ProjectedType>,
+) -> Result<(), String> {
+    // Source type substitution erases native references. Do not let a borrowed
+    // argument (including an alias) silently become an owned callback result.
+    for principal in &dynamic.traits {
+        let Some(GenericArgs::AngleBracketed { args, .. }) = principal.trait_.args.as_deref()
+        else {
+            continue;
+        };
+        for argument in args {
+            if let GenericArg::Type(argument) = argument {
+                validate_owning_result(argument, index, paths, known)
+                    .map_err(|reason| format!("owning callback type argument: {reason}"))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn project_callback_bounds(
@@ -95,6 +151,7 @@ pub(super) fn project_callback_bounds(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     known: &BTreeMap<String, ProjectedType>,
+    owning_carrier: bool,
 ) -> Result<Option<ProjectedType>, String> {
     let callback = bounds.iter().find_map(|bound| {
         let (trait_, generic_params) = trait_bound_name(bound)?;
@@ -129,6 +186,9 @@ pub(super) fn project_callback_bounds(
         .collect::<Result<Vec<_>, _>>()?;
     super::callback_inputs::validate_native_inputs(&parameters)?;
     let direct_output = output.clone().unwrap_or(Type::Tuple(Vec::new()));
+    if owning_carrier {
+        validate_owning_result(&direct_output, index, paths, known)?;
+    }
     let (result, is_async) = if type_contains_lifetime_argument(&direct_output) {
         (
             project_invocation_scoped_type(&direct_output, index, paths, known)
@@ -823,6 +883,9 @@ pub(super) fn project_callable_adapter_bounds(
                 .collect::<Result<Vec<_>, _>>()?;
             let unit = Type::Tuple(Vec::new());
             let direct_output = output.as_ref().unwrap_or(&unit);
+            if owning_carrier {
+                validate_owning_result(direct_output, index, paths, &implementation_types)?;
+            }
             let (result, is_async) = if let Type::Generic(future) = direct_output
                 && let Some(output) = future_output_from_generics(
                     future,
