@@ -26,7 +26,7 @@ mod collections;
 mod contracts;
 mod descriptors;
 mod display;
-mod documents;
+pub(crate) mod documents;
 mod expressions;
 mod logging;
 mod macros;

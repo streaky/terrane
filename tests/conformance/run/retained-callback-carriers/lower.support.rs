@@ -984,6 +984,7 @@ pub use terrane_retained_callback_api::MutableEvent;
 pub use terrane_retained_callback_registry::Registry;
 pub use terrane_retained_callback_api::SendOnly;
 pub use terrane_retained_callback_api::Signal;
+pub use std::sync::Weak;
 pub use terrane_retained_callback_api::WeakListener;
 pub use terrane_retained_callback_registry::WeakRegistry;
 pub fn terrane_static_trn_53656e644f6e6c79_new() -> Result<
@@ -1357,8 +1358,10 @@ pub fn invoke_text(
 // Source: <terrane>/projected/deps/terrane-retained-callback-registry.trn
 // Namespace: deps/terrane-retained-callback-registry
 pub fn terrane_static_trn_5265676973747279_clone_token(
-    token: &terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    token: &std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >,
 ) -> Result<
     terrane_retained_callback_api::WeakListener<terrane_retained_callback_api::Event>,
@@ -1401,11 +1404,15 @@ pub fn terrane_static_trn_5265676973747279_new() -> Result<
     }
 }
 pub fn terrane_static_trn_5265676973747279_same_token(
-    left: &terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    left: &std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >,
-    right: &terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    right: &std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >,
 ) -> Result<bool, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
@@ -1427,8 +1434,10 @@ pub fn terrane_static_trn_5265676973747279_same_token(
     }
 }
 pub fn terrane_static_trn_5265676973747279_token_alive(
-    token: &terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    token: &std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >,
 ) -> Result<bool, crate::TerraneForeignError> {
     match std::panic::catch_unwind(

@@ -1,0 +1,11 @@
+namespace app
+from /core/documents import document-encodable, document-decodable
+from /core/documents/json import encode-typed-json, decode-typed-json, default-json-options
+class unused implements document-encodable, document-decodable
+    callback function to int = function int;
+        return 1
+function main;
+    encoded = encode-typed-json; 1, (default-json-options;)
+    print; encoded.value
+    decoded = decode-typed-json; '3', 0, (default-json-options;), false
+    print; decoded.value

@@ -1,0 +1,7 @@
+namespace typed-serialization-private-field
+from /core/documents import document-encodable
+from /core/documents/json import encode-typed-json, default-json-options
+class value implements document-encodable
+    private secret string = ''
+function main;
+    encoded = encode-typed-json; (instance value;), (default-json-options;)

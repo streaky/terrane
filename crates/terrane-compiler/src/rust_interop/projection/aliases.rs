@@ -115,11 +115,11 @@ impl super::Projection {
                     active.remove(&canonical_base);
                     return result;
                 }
-                *base_rust_path = canonical_base;
+                *base_rust_path = self.resolve_alias_rust(&canonical_base, bindings, &[]);
                 // The arguments are authoritative metadata, not parsed Rust fragments.
                 // Preserve a legacy path without arguments rather than erasing its selection.
                 *rust_path = if arguments.is_empty() {
-                    self.canonical_native_type(rust_path).into_owned()
+                    self.resolve_alias_rust(rust_path, bindings, &[])
                 } else {
                     format!(
                         "{base_rust_path}<{}>",
@@ -130,8 +130,9 @@ impl super::Projection {
                             .join(", ")
                     )
                 };
+                let constructor = crate::rust_ir::rust_type_constructor(base_rust_path)?;
                 *name = super::instantiated_nominal_name(
-                    base_rust_path.rsplit("::").next().unwrap_or(name),
+                    constructor.rsplit("::").next().unwrap_or(name),
                     rust_path,
                     arguments,
                 );
@@ -372,7 +373,7 @@ pub(super) fn project_closed_alias_members(
             };
             let alias_parameters = alias_generics.parameters;
             let generic_defaults = alias_generics.defaults;
-            let Ok(native_type) = project_type(
+            let Ok(native_type) = super::types::project_alias_identity(
                 &alias.type_,
                 &source.index,
                 source_paths,

@@ -1361,8 +1361,8 @@ pub fn rc(
     }
 }
 pub fn same_arc(
-    left: &ArcOfReceiverApiRecord,
-    right: &ArcOfReceiverApiRecord,
+    left: &std::sync::Arc<receiver_api::Record>,
+    right: &std::sync::Arc<receiver_api::Record>,
 ) -> Result<bool, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| receiver_api::same_arc(left, right)),

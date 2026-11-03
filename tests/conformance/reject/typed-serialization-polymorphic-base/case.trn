@@ -1,0 +1,9 @@
+namespace app
+from /core/documents import document-encodable
+from /core/documents/json import encode-typed-json, default-json-options
+class parent implements document-encodable
+    number int = 0
+class child extends parent
+function main;
+    encoded = encode-typed-json; (instance parent;), (default-json-options;)
+    print; encoded.value

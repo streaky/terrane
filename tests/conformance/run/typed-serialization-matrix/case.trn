@@ -1,0 +1,51 @@
+namespace typed-serialization-matrix
+
+from /core/documents import document-encodable, document-decodable, document-validatable
+from /core/documents/json import encode-typed-json, decode-typed-json, default-json-options
+from /core/documents/yaml import encode-typed-yaml, decode-typed-yaml, default-yaml-options
+from /core/collections import entry, list, map, tuple
+
+class item implements document-encodable, document-decodable
+    display string = '' metadata (external-name = 'displayName')
+    amount int = 0
+
+class record implements document-encodable, document-decodable, document-validatable
+    name string = 'default'
+    item item = instance item;
+    numbers list of int = list; 0
+    names map of string, string = map; (entry; '', '')
+    pair tuple of int = tuple; 0
+    optional string|none = 'kept'
+    function validate-document string|none;
+        if this.name == 'bad'
+            return 'reserved'
+        return none
+
+function main;
+    value = instance record;
+    value.name = 'ok'
+    child = instance item;
+    child.display = 'nested'
+    child.amount = 7
+    value.item = child
+    value.numbers = list; 2, 4
+    value.names = map; (entry; 'zone', 'west')
+    value.pair = tuple; 8, 9
+    json = encode-typed-json; value, (default-json-options;)
+    yaml = encode-typed-yaml; value, (default-yaml-options;)
+    print; json.failed, '|', json.value
+    print; yaml.failed, '|', yaml.value
+    decoded = decode-typed-json; json.value, record, (default-json-options;), false
+    print; decoded.failed, '|', decoded.value.name, '|', decoded.value.item.display, '|', decoded.value.numbers[1], '|', decoded.value.names['zone'], '|', decoded.value.pair[1], '|', decoded.value.optional
+    from-yaml = decode-typed-yaml; yaml.value, record, (default-yaml-options;), false
+    print; from-yaml.failed, '|', from-yaml.value.name, '|', from-yaml.value.item.amount
+    defaults = decode-typed-json; '{"item":{"displayName":"x","amount":1},"unknown":2}', record, (default-json-options;), true
+    print; defaults.failed, '|', defaults.value.name, '|', defaults.value.optional, '|', defaults.value.pair[0]
+    invalid = decode-typed-json; '{"name":"bad","item":{"displayName":false,"amount":"x"},"numbers":[1,"x"],"pair":[1]}', record, (default-json-options;), false
+    print; invalid.failed, '|', invalid.diagnostics.length
+    for diagnostic in invalid.diagnostics
+        print; diagnostic.path, '|', diagnostic.reason
+    validated = decode-typed-json; '{"name":"bad","optional":null}', record, (default-json-options;), false
+    print; validated.failed, '|', validated.diagnostics.length
+    nulled = decode-typed-json; '{"optional":null}', record, (default-json-options;), false
+    print; nulled.failed, '|', nulled.value.optional

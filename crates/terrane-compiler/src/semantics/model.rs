@@ -1649,6 +1649,7 @@ pub struct ObjectFieldMetadata {
     pub defaulted: bool,
     pub optional: bool,
     pub secret: bool,
+    pub visibility: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

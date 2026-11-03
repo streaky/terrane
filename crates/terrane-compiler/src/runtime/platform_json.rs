@@ -7,3 +7,7 @@ pub fn terrane_json_parse(input: String, max_depth: terrane_int_support::Int, ma
 pub fn terrane_json_canonical(value: &terrane_document_support::DataResult) -> terrane_document_support::DataResult {
     terrane_document_support::canonical_json(value)
 }
+
+pub fn terrane_json_stringify(value: &terrane_document_support::DataResult, max_depth: terrane_int_support::Int, max_bytes: terrane_int_support::Int) -> terrane_document_support::DataResult {
+    terrane_document_support::stringify_json_bounded(value, terrane_limit(&max_depth), terrane_limit(&max_bytes))
+}

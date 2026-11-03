@@ -251,15 +251,25 @@ pub(crate) fn rewrite_type_paths<'a>(
     if !rewrite.changed {
         return std::borrow::Cow::Borrowed(rust);
     }
+    std::borrow::Cow::Owned(render_native_type_ast(&ty))
+}
+
+/// Canonical native type spelling for identities assembled through distinct
+/// alias/direct-signature paths. Formatting is not part of Rust type identity.
+pub(crate) fn format_native_type(rust: &str) -> Option<String> {
+    Some(render_native_type_ast(
+        &syn::parse_str::<syn::Type>(rust).ok()?,
+    ))
+}
+
+fn render_native_type_ast(ty: &syn::Type) -> String {
     let file: syn::File = syn::parse_quote!(type __TerraneNative = #ty;);
     let rendered = prettyplease::unparse(&file);
-    std::borrow::Cow::Owned(
-        rendered
-            .strip_prefix("type __TerraneNative = ")
-            .and_then(|rendered| rendered.strip_suffix(";\n"))
-            .unwrap_or(rust)
-            .to_owned(),
-    )
+    rendered
+        .strip_prefix("type __TerraneNative = ")
+        .and_then(|rendered| rendered.strip_suffix(";\n"))
+        .expect("a type alias has a fixed pretty-printed declaration wrapper")
+        .to_owned()
 }
 
 struct NativeOwnerPaths<'a> {

@@ -26,7 +26,8 @@ function parse-yaml document-result; input string, options yaml-options
 
 function stringify-yaml document-result; value document-value
     # The safe core writer deliberately emits JSON, which is a valid YAML 1.2 document.
-    raw = host-json-canonical; value.raw
+    options = default-yaml-options;
+    raw = host-json-stringify; value.raw, options.max-depth, options.max-bytes
     return make-document-result; raw
 
 function decode-yaml document-result; input string, mapping deserializable, options yaml-options

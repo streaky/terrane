@@ -469,8 +469,15 @@ pub(super) fn validate_control_flow(
                 continue;
             }
             let bindings = call_site_bindings(unit, Some(contract));
-            let falls_through =
-                validate_flow_block(unit, block, contract, &bindings, 0, &mut unreachable)?;
+            let falls_through = validate_flow_block(
+                package,
+                unit,
+                block,
+                contract,
+                &bindings,
+                0,
+                &mut unreachable,
+            )?;
             if contract.return_type.clone().is_some() && falls_through {
                 return Err(failure(
                     &unit.source,
@@ -530,6 +537,7 @@ pub(super) fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
 }
 
 pub(super) fn validate_flow_block(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     block: &SyntaxNode,
     contract: &FunctionContract,
@@ -543,8 +551,15 @@ pub(super) fn validate_flow_block(
             unreachable.push(statement.span);
             continue;
         }
-        falls_through =
-            validate_flow_statement(unit, statement, contract, bindings, loop_depth, unreachable)?;
+        falls_through = validate_flow_statement(
+            package,
+            unit,
+            statement,
+            contract,
+            bindings,
+            loop_depth,
+            unreachable,
+        )?;
     }
     Ok(falls_through)
 }
@@ -554,6 +569,7 @@ pub(super) fn validate_flow_block(
     reason = "flow validation keeps every statement transition in one exhaustive dispatch"
 )]
 pub(super) fn validate_flow_statement(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     statement: &SyntaxNode,
     contract: &FunctionContract,
@@ -563,7 +579,7 @@ pub(super) fn validate_flow_statement(
 ) -> Result<bool, SemanticFailure> {
     match statement.kind {
         SyntaxKind::ReturnStatement => {
-            validate_return(unit, statement, contract, bindings)?;
+            validate_return(package, unit, statement, contract, bindings)?;
             Ok(false)
         }
         SyntaxKind::ThrowStatement => Ok(false),
@@ -604,7 +620,15 @@ pub(super) fn validate_flow_statement(
                 .iter()
                 .find(|child| child.kind == SyntaxKind::Block)
             {
-                validate_flow_block(unit, block, contract, bindings, loop_depth, unreachable)
+                validate_flow_block(
+                    package,
+                    unit,
+                    block,
+                    contract,
+                    bindings,
+                    loop_depth,
+                    unreachable,
+                )
             } else {
                 Err(failure(
                     &unit.source,
@@ -614,9 +638,15 @@ pub(super) fn validate_flow_statement(
                 ))
             }
         }
-        SyntaxKind::IfStatement => {
-            validate_if_flow(unit, statement, contract, bindings, loop_depth, unreachable)
-        }
+        SyntaxKind::IfStatement => validate_if_flow(
+            package,
+            unit,
+            statement,
+            contract,
+            bindings,
+            loop_depth,
+            unreachable,
+        ),
         SyntaxKind::MatchStatement => {
             let mut any_falls_through = false;
             for case in statement.children.iter().filter(|child| {
@@ -624,6 +654,7 @@ pub(super) fn validate_flow_statement(
             }) {
                 if let Some(block) = case.children.last() {
                     any_falls_through |= validate_flow_block(
+                        package,
                         unit,
                         block,
                         contract,
@@ -640,6 +671,7 @@ pub(super) fn validate_flow_statement(
             for case in &statement.children {
                 if let Some(block) = case.children.last() {
                     any_falls_through |= validate_flow_block(
+                        package,
                         unit,
                         block,
                         contract,
@@ -688,6 +720,7 @@ pub(super) fn validate_flow_statement(
                 }
                 if let Some(block) = case.children.last() {
                     any_falls_through |= validate_flow_block(
+                        package,
                         unit,
                         block,
                         contract,
@@ -701,7 +734,15 @@ pub(super) fn validate_flow_statement(
         }
         SyntaxKind::TryStatement => {
             let try_falls_through = if let Some(block) = statement.children.first() {
-                validate_flow_block(unit, block, contract, bindings, loop_depth, unreachable)?
+                validate_flow_block(
+                    package,
+                    unit,
+                    block,
+                    contract,
+                    bindings,
+                    loop_depth,
+                    unreachable,
+                )?
             } else {
                 true
             };
@@ -717,6 +758,7 @@ pub(super) fn validate_flow_statement(
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
                     catch_falls_through |= validate_flow_block(
+                        package,
                         unit,
                         block,
                         contract,
@@ -731,7 +773,15 @@ pub(super) fn validate_flow_statement(
                 .iter()
                 .find(|child| child.kind == SyntaxKind::FinallyClause)
                 .and_then(|clause| clause.children.first())
-                && !validate_flow_block(unit, finally, contract, bindings, loop_depth, unreachable)?
+                && !validate_flow_block(
+                    package,
+                    unit,
+                    finally,
+                    contract,
+                    bindings,
+                    loop_depth,
+                    unreachable,
+                )?
             {
                 return Ok(false);
             }
@@ -746,7 +796,15 @@ pub(super) fn validate_flow_statement(
                 .iter()
                 .find(|child| child.kind == SyntaxKind::Block)
             {
-                validate_flow_block(unit, block, contract, bindings, loop_depth + 1, unreachable)?;
+                validate_flow_block(
+                    package,
+                    unit,
+                    block,
+                    contract,
+                    bindings,
+                    loop_depth + 1,
+                    unreachable,
+                )?;
             }
             Ok(true)
         }
@@ -783,6 +841,7 @@ pub(super) fn validate_flow_statement(
                 .find(|child| child.kind == SyntaxKind::Block)
             {
                 validate_flow_block(
+                    package,
                     unit,
                     block,
                     contract,
@@ -862,6 +921,7 @@ pub(super) fn validate_bool_condition(
 }
 
 pub(super) fn validate_if_flow(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     statement: &SyntaxNode,
     contract: &FunctionContract,
@@ -900,6 +960,7 @@ pub(super) fn validate_if_flow(
         };
         if let Some(block) = block {
             branch_falls_through.push(validate_flow_block(
+                package,
                 unit,
                 block,
                 contract,
@@ -1043,6 +1104,7 @@ fn post_if_initialized_member_type(
 }
 
 pub(super) fn validate_return(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     statement: &SyntaxNode,
     contract: &FunctionContract,
@@ -1108,6 +1170,12 @@ pub(super) fn validate_return(
             };
             let actual =
                 post_if_initialized_member_type(unit, value, &actual, bindings)?.unwrap_or(actual);
+            // Alias and direct native signatures can share storage while using
+            // distinct source nominals. Preserve that identity on returns too.
+            let mut expected = expected;
+            let mut actual = actual;
+            super::objects::canonicalize_native_value_type(package, &mut expected);
+            super::objects::canonicalize_native_value_type(package, &mut actual);
             let expected = match &expected {
                 ValueType::Reference(inner) | ValueType::MutableReference(inner)
                     if inner.value_type_ref() == &actual =>

@@ -530,24 +530,24 @@ mod __terrane_trace {
         { Site { function: 2, file: 1, line: 74, column: 39, end_line: 74, end_column: 73 } },
         /* terrane-site-row: site 26: /generated/annotation-codec/codec-model/account::decode-account (.trn/generated/codec/typed-codec-_2fcodec-model_3a_3aaccount.trn:74:38-74:74) */
         { Site { function: 2, file: 1, line: 74, column: 38, end_line: 74, end_column: 74 } },
-        /* terrane-site-row: site 27: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
-        { Site { function: 3, file: 2, line: 140, column: 47, end_line: 140, end_column: 60 } },
-        /* terrane-site-row: site 28: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
-        { Site { function: 4, file: 2, line: 153, column: 17, end_line: 153, end_column: 30 } },
-        /* terrane-site-row: site 29: /core/documents::mapping-required-fields (core/documents.trn:157:16-157:47) */
-        { Site { function: 4, file: 2, line: 157, column: 16, end_line: 157, end_column: 47 } },
-        /* terrane-site-row: site 30: /core/documents::mapping-required-fields (core/documents.trn:163:16-163:45) */
-        { Site { function: 4, file: 2, line: 163, column: 16, end_line: 163, end_column: 45 } },
-        /* terrane-site-row: site 31: /core/documents::decode-document (core/documents.trn:176:12-176:44) */
-        { Site { function: 5, file: 2, line: 176, column: 12, end_line: 176, end_column: 44 } },
-        /* terrane-site-row: site 32: /core/documents::decode-document (core/documents.trn:177:37-177:69) */
-        { Site { function: 5, file: 2, line: 177, column: 37, end_line: 177, end_column: 69 } },
-        /* terrane-site-row: site 33: /core/documents::decode-document (core/documents.trn:183:12-183:49) */
-        { Site { function: 5, file: 2, line: 183, column: 12, end_line: 183, end_column: 49 } },
-        /* terrane-site-row: site 34: /core/documents::decode-document (core/documents.trn:184:36-184:73) */
-        { Site { function: 5, file: 2, line: 184, column: 36, end_line: 184, end_column: 73 } },
-        /* terrane-site-row: site 35: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
+        /* terrane-site-row: site 27: /core/documents::make-document-list (core/documents.trn:141:47-141:60) */
+        { Site { function: 3, file: 2, line: 141, column: 47, end_line: 141, end_column: 60 } },
+        /* terrane-site-row: site 28: /core/documents::mapping-required-fields (core/documents.trn:154:17-154:30) */
+        { Site { function: 4, file: 2, line: 154, column: 17, end_line: 154, end_column: 30 } },
+        /* terrane-site-row: site 29: /core/documents::mapping-required-fields (core/documents.trn:158:16-158:47) */
+        { Site { function: 4, file: 2, line: 158, column: 16, end_line: 158, end_column: 47 } },
+        /* terrane-site-row: site 30: /core/documents::mapping-required-fields (core/documents.trn:164:16-164:45) */
+        { Site { function: 4, file: 2, line: 164, column: 16, end_line: 164, end_column: 45 } },
+        /* terrane-site-row: site 31: /core/documents::decode-document (core/documents.trn:177:12-177:44) */
+        { Site { function: 5, file: 2, line: 177, column: 12, end_line: 177, end_column: 44 } },
+        /* terrane-site-row: site 32: /core/documents::decode-document (core/documents.trn:178:37-178:69) */
+        { Site { function: 5, file: 2, line: 178, column: 37, end_line: 178, end_column: 69 } },
+        /* terrane-site-row: site 33: /core/documents::decode-document (core/documents.trn:184:12-184:49) */
+        { Site { function: 5, file: 2, line: 184, column: 12, end_line: 184, end_column: 49 } },
+        /* terrane-site-row: site 34: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
         { Site { function: 5, file: 2, line: 185, column: 36, end_line: 185, end_column: 73 } },
+        /* terrane-site-row: site 35: /core/documents::decode-document (core/documents.trn:186:36-186:73) */
+        { Site { function: 5, file: 2, line: 186, column: 36, end_line: 186, end_column: 73 } },
     ];
     #[cold]
     #[inline(never)]
@@ -719,6 +719,17 @@ pub fn terrane_json_canonical(
 ) -> terrane_document_support::DataResult {
     terrane_document_support::canonical_json(value)
 }
+pub fn terrane_json_stringify(
+    value: &terrane_document_support::DataResult,
+    max_depth: terrane_int_support::Int,
+    max_bytes: terrane_int_support::Int,
+) -> terrane_document_support::DataResult {
+    terrane_document_support::stringify_json_bounded(
+        value,
+        terrane_limit(&max_depth),
+        terrane_limit(&max_bytes),
+    )
+}
 fn __terrane_uninitialized_binding(
     name: &str,
     path: &str,
@@ -781,8 +792,11 @@ pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
 }
 pub fn stringify_json(value: DocumentValue, options: JsonOptions) -> DocumentResult {
     let raw: terrane_document_support::DataResult;
-    let _ = &options;
-    raw = terrane_json_canonical(&value.raw);
+    raw = terrane_json_stringify(
+        &value.raw,
+        options.max_depth.clone(),
+        options.max_bytes.clone(),
+    );
     return make_document_result(raw);
 }
 pub fn canonical_json(value: DocumentValue) -> DocumentResult {
@@ -957,6 +971,26 @@ impl Clone for DocumentDecodable {
     }
 }
 impl DocumentDecodable {}
+pub trait DocumentEncodableProtocol: Send + Sync {
+    fn clone_box(&self) -> Box<dyn DocumentEncodableProtocol>;
+    fn separate_box(&self) -> Box<dyn DocumentEncodableProtocol>;
+}
+impl Clone for Box<dyn DocumentEncodableProtocol> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+#[allow(
+    dead_code,
+    reason = "marker interface storage is materialized only when a value is erased to that marker"
+)]
+pub struct DocumentEncodable(Box<dyn DocumentEncodableProtocol>);
+impl Clone for DocumentEncodable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl DocumentEncodable {}
 pub trait DocumentValidatableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn DocumentValidatableProtocol>;
     fn separate_box(&self) -> Box<dyn DocumentValidatableProtocol>;
@@ -1295,10 +1329,10 @@ pub fn make_document_list(
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                27 /* terrane-site: core/documents.trn:140:47-140:60 */,
+                                27 /* terrane-site: core/documents.trn:141:47-141:60 */,
                             ),
                         ),
-                    27 /* terrane-site: core/documents.trn:140:47-140:60 */,
+                    27 /* terrane-site: core/documents.trn:141:47-141:60 */,
                 )
                 .raw,
         );
@@ -1335,10 +1369,10 @@ pub fn mapping_required_fields(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            28 /* terrane-site: core/documents.trn:153:17-153:30 */,
+                            28 /* terrane-site: core/documents.trn:154:17-154:30 */,
                         ),
                     ),
-                28 /* terrane-site: core/documents.trn:153:17-153:30 */,
+                28 /* terrane-site: core/documents.trn:154:17-154:30 */,
             );
             optional = false;
             optional_index = terrane_int_support::Int::from(0_i128);
@@ -1352,10 +1386,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &optional_index.clone(),
                                     ),
-                                    29 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                                    29 /* terrane-site: core/documents.trn:158:16-158:47 */,
                                 ),
                             ),
-                        29 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                        29 /* terrane-site: core/documents.trn:158:16-158:47 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -1375,10 +1409,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    30 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                                    30 /* terrane-site: core/documents.trn:164:16-164:45 */,
                                 ),
                             ),
-                        30 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                        30 /* terrane-site: core/documents.trn:164:16-164:45 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -1425,10 +1459,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &field_index.clone(),
                                 ),
-                                31 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                                31 /* terrane-site: core/documents.trn:177:12-177:44 */,
                             ),
                         ),
-                    31 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                    31 /* terrane-site: core/documents.trn:177:12-177:44 */,
                 )
                 .as_str() != ""
             {
@@ -1441,10 +1475,10 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &field_index.clone(),
                                     ),
-                                    32 /* terrane-site: core/documents.trn:177:37-177:69 */,
+                                    32 /* terrane-site: core/documents.trn:178:37-178:69 */,
                                 ),
                             ),
-                        32 /* terrane-site: core/documents.trn:177:37-177:69 */,
+                        32 /* terrane-site: core/documents.trn:178:37-178:69 */,
                     );
                     __terrane_list_append_1.push(__terrane_collection_argument_0);
                 };
@@ -1467,10 +1501,10 @@ pub fn decode_document(
                             terrane_collection_support::index_from_int(
                                 &default_index.clone(),
                             ),
-                            33 /* terrane-site: core/documents.trn:183:12-183:49 */,
+                            33 /* terrane-site: core/documents.trn:184:12-184:49 */,
                         ),
                     ),
-                33 /* terrane-site: core/documents.trn:183:12-183:49 */,
+                33 /* terrane-site: core/documents.trn:184:12-184:49 */,
             )
             .as_str() != ""
         {
@@ -1483,10 +1517,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &default_index.clone(),
                                 ),
-                                34 /* terrane-site: core/documents.trn:184:36-184:73 */,
+                                34 /* terrane-site: core/documents.trn:185:36-185:73 */,
                             ),
                         ),
-                    34 /* terrane-site: core/documents.trn:184:36-184:73 */,
+                    34 /* terrane-site: core/documents.trn:185:36-185:73 */,
                 );
                 default_fields.append(__terrane_collection_argument_0);
             };
@@ -1499,10 +1533,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &default_index.clone(),
                                 ),
-                                35 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                                35 /* terrane-site: core/documents.trn:186:36-186:73 */,
                             ),
                         ),
-                    35 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                    35 /* terrane-site: core/documents.trn:186:36-186:73 */,
                 );
                 default_values.append(__terrane_collection_argument_0);
             };

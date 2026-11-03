@@ -799,15 +799,34 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         {
             "TerraneError".to_owned()
         }
-        ValueType::Object(identity) => identity.native_projection.as_deref().map_or_else(
-            || rust_object_type_name(package, &identity),
-            |native| {
-                package
+        ValueType::Object(identity) => {
+            let native = identity.native_projection.as_deref().or_else(|| {
+                let item = package
                     .projection
-                    .canonical_native_type(native)
-                    .into_owned()
-            },
-        ),
+                    .item(&identity.namespace, &identity.name)?;
+                let crate::rust_interop::projection::ProjectedKind::ForeignType {
+                    generic_parameters,
+                    ..
+                } = &item.kind
+                else {
+                    return None;
+                };
+                // A synthesized opaque nominal can own a closed native
+                // application without exposing any source type parameters.
+                // Its constructor alone would erase that concrete storage.
+                (generic_parameters.is_empty() && item.rust_path.contains('<'))
+                    .then_some(item.rust_path.as_str())
+            });
+            native.map_or_else(
+                || rust_object_type_name(package, &identity),
+                |native| {
+                    package
+                        .projection
+                        .canonical_native_type(native)
+                        .into_owned()
+                },
+            )
+        }
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<TerraneSharedCell<{}>>",
             rust_element_type(package, item)

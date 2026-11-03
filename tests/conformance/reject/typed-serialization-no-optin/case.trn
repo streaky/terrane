@@ -1,0 +1,6 @@
+namespace typed-serialization-no-optin
+from /core/documents/json import encode-typed-json, default-json-options
+class value
+    text string = ''
+function main;
+    encoded = encode-typed-json; (instance value;), (default-json-options;)

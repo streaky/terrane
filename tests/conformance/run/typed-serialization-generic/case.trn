@@ -1,0 +1,10 @@
+namespace app
+from /core/documents import document-encodable, document-decodable
+from /core/documents/json import encode-typed-json, decode-typed-json, default-json-options
+class holder of (T) implements document-encodable, document-decodable
+    count int = 0
+function main;
+    encoded = encode-typed-json; (instance holder of string;), (default-json-options;)
+    print; encoded.value
+    decoded = decode-typed-json; '{"count":9}', (instance holder of string;), (default-json-options;), false
+    print; decoded.value.count

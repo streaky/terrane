@@ -25,6 +25,7 @@ interface deserializable
     function from-document document-result; value document-value
 
 interface document-decodable
+interface document-encodable
 
 interface document-validatable
     function validate-document string|none;

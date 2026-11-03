@@ -1,0 +1,28 @@
+namespace typed-serialization-custom
+from /core/documents import document-encodable, serializable, deserializable, document-value, document-result, make-document-string
+from /core/documents/json import encode-typed-json, decode-json, default-json-options, parse-json
+from /core/documents/yaml import encode-typed-yaml, decode-yaml, default-yaml-options
+
+class code implements serializable, deserializable
+    private hidden string = 'must-not-leak'
+    text string = 'public-code'
+    function to-document document-value;
+        return make-document-string; this.text
+    function from-document document-result; value document-value
+        return parse-json; value.scalar, (default-json-options;)
+
+class envelope implements document-encodable
+    code code = instance code;
+
+function main;
+    custom = instance code;
+    direct = encode-typed-json; custom, (default-json-options;)
+    print; direct.failed, '|', direct.value
+    wrapped = encode-typed-json; (instance envelope;), (default-json-options;)
+    print; wrapped.failed, '|', wrapped.value
+    yaml = encode-typed-yaml; custom, (default-yaml-options;)
+    print; yaml.failed, '|', yaml.value
+    decoded = decode-json; '"7"', custom, (default-json-options;)
+    print; decoded.failed, '|', decoded.value.scalar
+    from-yaml = decode-yaml; '"9"', custom, (default-yaml-options;)
+    print; from-yaml.failed, '|', from-yaml.value.scalar

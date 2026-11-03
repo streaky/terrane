@@ -13,7 +13,7 @@ use crate::{
             rust_value_type,
         },
         required_init::constructor_proves_fields,
-        runtime_support::package_uses_typed_documents,
+        runtime_support::package_typed_document_operations,
     },
     semantics::{
         CanonicalDefault, DescriptorContract, EffectiveObjectField, FunctionContract,
@@ -103,6 +103,7 @@ impl<'a> Emitter<'a> {
         &mut self,
         object: &DescriptorContract,
         class_type: &str,
+        generic_declaration: &str,
         fields: &[EffectiveObjectField<'_>],
     ) {
         let (class_line, class_column) = self.source.line_column(object.span.start);
@@ -112,7 +113,9 @@ impl<'a> Emitter<'a> {
             .map(|field| format!("{:?}", field.metadata.external_name))
             .collect::<Vec<_>>()
             .join(", ");
-        self.line(&format!("impl TerraneDocumentDecode for {class_type} {{"));
+        self.line(&format!(
+            "impl{generic_declaration} TerraneDocumentDecode for {class_type} {{"
+        ));
         self.indent += 1;
         self.line("fn terrane_decode_document(");
         self.indent += 1;
@@ -236,6 +239,44 @@ impl<'a> Emitter<'a> {
         self.line("Err(diagnostics)");
         self.indent -= 1;
         self.line("}");
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+    }
+
+    fn object_document_encoder(
+        &mut self,
+        class_type: &str,
+        generic_declaration: &str,
+        fields: &[EffectiveObjectField<'_>],
+        custom: bool,
+    ) {
+        self.line(&format!(
+            "impl{generic_declaration} TerraneDocumentEncode for {class_type} {{"
+        ));
+        self.indent += 1;
+        self.line("fn terrane_encode_document(&self, writer: &mut terrane_document_support::JsonWriter) -> Result<(), terrane_document_support::DocumentError> {");
+        self.indent += 1;
+        if custom {
+            self.line(
+                "terrane_document_support::write_document_value(writer, &self.to_document().raw)",
+            );
+            self.indent -= 1;
+            self.line("}");
+            self.indent -= 1;
+            self.line("}");
+            return;
+        }
+        self.line("writer.begin_object()?;");
+        for field in fields {
+            self.line(&format!("writer.key({:?})?;", field.metadata.external_name));
+            self.line(&format!(
+                "TerraneDocumentEncode::terrane_encode_document(&self.{}, writer)?;",
+                rust_name(&field.name)
+            ));
+        }
+        self.line("writer.end_object()");
         self.indent -= 1;
         self.line("}");
         self.indent -= 1;
@@ -930,7 +971,7 @@ impl<'a> Emitter<'a> {
                 self.current_object = previous_object;
                 self.indent -= 1;
                 self.line("}");
-                if package_uses_typed_documents(self.package)
+                if package_typed_document_operations(self.package).decode
                     && object.interfaces.iter().any(|interface| {
                         interface.namespace == "/core/documents"
                             && interface.name == "document-decodable"
@@ -939,8 +980,53 @@ impl<'a> Emitter<'a> {
                     && descendants.is_empty()
                     && !object.resource_owning
                     && !methods.iter().any(|method| method.name == "construct")
+                    && instance_fields.iter().all(|field| {
+                        crate::semantics::documents::supported_document_field(
+                            self.unit,
+                            &field.field.value_type,
+                            &mut BTreeSet::new(),
+                        )
+                    })
                 {
-                    self.object_document_decoder(object, &class_type, &instance_fields);
+                    self.object_document_decoder(
+                        object,
+                        &class_type,
+                        &generic_declaration,
+                        &instance_fields,
+                    );
+                }
+                if package_typed_document_operations(self.package).encode
+                    && object.interfaces.iter().any(|interface| {
+                        interface.namespace == "/core/documents"
+                            && matches!(
+                                interface.name.as_str(),
+                                "document-encodable" | "serializable"
+                            )
+                    })
+                    && object.base.is_none()
+                    && descendants.is_empty()
+                    && !object.resource_owning
+                    && (object.interfaces.iter().any(|interface| {
+                        interface.namespace == "/core/documents" && interface.name == "serializable"
+                    }) || !instance_fields.iter().any(|field| {
+                        field.metadata.secret
+                            || field.metadata.visibility != "public"
+                            || !crate::semantics::documents::supported_document_encodable_field(
+                                self.unit,
+                                &field.field.value_type,
+                                &mut BTreeSet::new(),
+                            )
+                    }))
+                {
+                    let custom = object.interfaces.iter().any(|interface| {
+                        interface.namespace == "/core/documents" && interface.name == "serializable"
+                    });
+                    self.object_document_encoder(
+                        &class_type,
+                        &generic_declaration,
+                        &instance_fields,
+                        custom,
+                    );
                 }
                 if !descendants.is_empty() {
                     if can_clone {

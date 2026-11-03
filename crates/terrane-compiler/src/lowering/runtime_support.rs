@@ -82,35 +82,47 @@ pub(super) fn package_uses_log_error(package: &SemanticPackage) -> bool {
         .any(|unit| contains(package, unit, &unit.tree.root))
 }
 
-pub(super) fn package_uses_typed_documents(package: &SemanticPackage) -> bool {
-    fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+#[derive(Default)]
+pub(super) struct TypedDocumentOperations {
+    pub decode: bool,
+    pub encode: bool,
+}
+
+pub(super) fn package_typed_document_operations(
+    package: &SemanticPackage,
+) -> TypedDocumentOperations {
+    fn collect(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        operations: &mut TypedDocumentOperations,
+    ) {
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::Name
-            && package
-                .resolve_name_at(
-                    unit,
-                    callee.span.start,
-                    &unit.source.text()[callee.span.start..callee.span.end],
-                )
-                .is_some_and(|symbol| {
-                    matches!(
-                        symbol.identity.as_str(),
-                        "/core/documents/json::decode-typed-json"
-                            | "/core/documents/yaml::decode-typed-yaml"
-                    )
-                })
+            && let Some(symbol) = package.resolve_name_at(
+                unit,
+                callee.span.start,
+                &unit.source.text()[callee.span.start..callee.span.end],
+            )
         {
-            return true;
+            match symbol.identity.as_str() {
+                "/core/documents/json::decode-typed-json"
+                | "/core/documents/yaml::decode-typed-yaml" => operations.decode = true,
+                "/core/documents/json::encode-typed-json"
+                | "/core/documents/yaml::encode-typed-yaml" => operations.encode = true,
+                _ => {}
+            }
         }
-        node.children
-            .iter()
-            .any(|child| contains(package, unit, child))
+        for child in &node.children {
+            collect(package, unit, child, operations);
+        }
     }
-    package
-        .units
-        .iter()
-        .any(|unit| contains(package, unit, &unit.tree.root))
+    let mut operations = TypedDocumentOperations::default();
+    for unit in &package.units {
+        collect(package, unit, &unit.tree.root, &mut operations);
+    }
+    operations
 }
 
 fn value_type_contains_throwable(value_type: &ValueType) -> bool {

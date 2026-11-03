@@ -628,51 +628,20 @@ fn main() {
         );
         let __terrane_document_options = &default_json_options();
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <ServiceConfig as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:36:15",
-                    "case.trn:36:15",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: ServiceConfig::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: ServiceConfig::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "service-config", "invalid", "parse", error.message,
-                            "case.trn:36:15", "case.trn:12:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            ServiceConfig,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || ServiceConfig::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:36:15",
+            "service-config",
+            None,
+        )
     };
     println!(
         "{}{}{}{}", terrane_scalar_support::scalar_text(&(decoded.diagnostics.length() !=
@@ -700,51 +669,20 @@ fn main() {
         );
         let __terrane_document_options = &default_json_options();
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <ServiceConfig as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:40:17",
-                    "case.trn:40:17",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: ServiceConfig::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: ServiceConfig::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "service-config", "invalid", "parse", error.message,
-                            "case.trn:40:17", "case.trn:12:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            ServiceConfig,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || ServiceConfig::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:40:17",
+            "service-config",
+            None,
+        )
     };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(malformed.diagnostics.length() !=
@@ -789,51 +727,20 @@ fn main() {
         );
         let __terrane_document_options = &default_json_options();
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <ServiceConfig as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:46:15",
-                    "case.trn:46:15",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: ServiceConfig::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: ServiceConfig::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "service-config", "invalid", "parse", error.message,
-                            "case.trn:46:15", "case.trn:12:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            ServiceConfig,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || ServiceConfig::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:46:15",
+            "service-config",
+            None,
+        )
     };
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&(invalid.diagnostics.length() !=
@@ -852,51 +759,20 @@ fn main() {
         );
         let __terrane_document_options = &default_json_options();
         let __terrane_document_allow_unknown = true;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <ServiceConfig as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:49:18",
-                    "case.trn:49:18",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: ServiceConfig::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: ServiceConfig::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "service-config", "invalid", "parse", error.message,
-                            "case.trn:49:18", "case.trn:12:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            ServiceConfig,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || ServiceConfig::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:49:18",
+            "service-config",
+            None,
+        )
     };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(permissive.diagnostics.length() !=
@@ -908,52 +784,21 @@ fn main() {
         );
         let __terrane_document_options = &default_yaml_options();
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_yaml_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-            terrane_limit(&__terrane_document_options.max_alias_nodes),
-        ) {
-            Ok(mut input) => {
-                match <ServiceConfig as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:52:12",
-                    "case.trn:52:12",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: ServiceConfig::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: ServiceConfig::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "service-config", "invalid", "parse", error.message,
-                            "case.trn:52:12", "case.trn:12:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            ServiceConfig,
+        >(
+            terrane_document_support::parse_yaml_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+                terrane_limit(&__terrane_document_options.max_alias_nodes),
+            ),
+            || ServiceConfig::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:52:12",
+            "service-config",
+            None,
+        )
     };
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&(yaml.diagnostics.length() != 0)),
@@ -966,51 +811,20 @@ fn main() {
         );
         let __terrane_document_options = &default_json_options();
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Route as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:55:15",
-                    "case.trn:55:15",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Route::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Route::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "route", "invalid", "parse", error.message, "case.trn:55:15",
-                            "case.trn:30:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Route,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Route::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:55:15",
+            "route",
+            None,
+        )
     };
     println!(
         "{}{}{}{}", terrane_scalar_support::scalar_text(&(journey.diagnostics.length() !=

@@ -982,7 +982,7 @@ fn main() {
     let second: SharedReply;
     let third: AlphaReply;
     let fourth: AlphaReply;
-    let shared: ArcOfTerraneAssociatedCallExecutor;
+    let shared: std::sync::Arc<witness::Executor>;
     let pointer: SharedCommand;
     let through_pointer: AlphaReply;
     let nested: NestedCommand;

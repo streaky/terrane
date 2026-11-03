@@ -460,10 +460,10 @@ fn named_view() -> terrane_int_support::Int {
     );
 }
 fn pointers_and_guards() {
-    let shared: ArcOfReceiverApiRecord;
-    let twin: ArcOfReceiverApiRecord;
-    let local: RcOfReceiverApiRecord;
-    let mut owned: BoxOfReceiverApiRecord;
+    let shared: std::sync::Arc<receiver_api::Record>;
+    let twin: std::sync::Arc<receiver_api::Record>;
+    let local: std::rc::Rc<receiver_api::Record>;
+    let mut owned: std::boxed::Box<receiver_api::Record>;
     let mut custom: RecordHandle;
     let locks: Locks;
     let view_value: terrane_int_support::Int;

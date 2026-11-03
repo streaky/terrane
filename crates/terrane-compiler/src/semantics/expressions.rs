@@ -661,6 +661,9 @@ fn infer_nonbinary_value_type(
         if let Some(value_type) = infer_typed_document_decode(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
+        if let Some(value_type) = infer_typed_document_encode(unit, node, bindings)? {
+            return Ok(Some(value_type));
+        }
         if let Some(value_type) = infer_structured_log_emit(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
@@ -1246,6 +1249,7 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:data::document-map-insert"
                     | "intrinsic:data::json-parse"
                     | "intrinsic:data::json-canonical"
+                    | "intrinsic:data::json-stringify"
                     | "intrinsic:data::yaml-parse"
                     | "intrinsic:data::document-item"
                     | "intrinsic:data::document-field"

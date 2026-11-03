@@ -1,0 +1,8 @@
+namespace typed-serialization-unsupported-field
+from /core/documents import document-encodable
+from /core/documents/json import encode-typed-json, default-json-options
+class value implements document-encodable
+    callback function to int = function int;
+        return 0
+function main;
+    encoded = encode-typed-json; (instance value;), (default-json-options;)

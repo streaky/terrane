@@ -1,0 +1,30 @@
+namespace typed-serialization-destinations
+from /core/documents/json import decode-typed-json, encode-typed-json, default-json-options
+from /core/documents/yaml import decode-typed-yaml, encode-typed-yaml, default-yaml-options
+from /core/collections import list, map, entry, tuple
+
+function main;
+    options = default-json-options;
+    scalar = decode-typed-json; '"hello"', string, options, false
+    print; scalar.failed, '|', scalar.value
+    numbers = decode-typed-json; '[3,5]', (list; 0), options, false
+    print; numbers.failed, '|', numbers.value[0], '|', numbers.value[1]
+    keys = decode-typed-yaml; 'left: 9', (map; (entry; '', 0)), (default-yaml-options;), false
+    print; keys.failed, '|', keys.value['left']
+    pair = decode-typed-json; '[4,6]', (tuple; 0, 0), options, false
+    print; pair.failed, '|', pair.value[0], '|', pair.value[1]
+    wrong = decode-typed-json; '[4]', (tuple; 1, 2), options, false
+    print; wrong.failed, '|', wrong.value[0], '|', wrong.value[1]
+    prototype string|none = 'fallback'
+    nulled = decode-typed-json; 'null', prototype, options, false
+    print; nulled.failed, '|', nulled.value
+    present = decode-typed-json; '"present"', prototype, options, false
+    print; present.failed, '|', present.value
+    invalid = decode-typed-json; 'false', prototype, options, false
+    print; invalid.failed, '|', invalid.value
+    encoded = encode-typed-json; (list; 3, 5), options
+    print; encoded.failed, '|', encoded.value
+    encoded-yaml = encode-typed-yaml; (map; (entry; 'left', 9)), (default-yaml-options;)
+    print; encoded-yaml.failed, '|', encoded-yaml.value
+    encoded-none = encode-typed-json; nulled.value, options
+    print; encoded-none.failed, '|', encoded-none.value

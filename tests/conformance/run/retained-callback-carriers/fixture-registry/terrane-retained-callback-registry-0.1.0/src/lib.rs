@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex, Weak};
-use terrane_retained_callback_api::{Event, ListenerAlias, SharedListener, WeakListener};
+use terrane_retained_callback_api::{Event, EventListener, ListenerAlias, SharedListener, WeakListener};
 
 type Listeners = Mutex<Vec<SharedListener<Event>>>;
 #[derive(Clone, Default)]
@@ -9,7 +9,7 @@ pub struct WeakRegistry { listeners: Weak<Listeners> }
 
 impl Registry {
     pub fn new() -> Self { Self::default() }
-    pub fn register(&self, listener: ListenerAlias<Event>) -> WeakListener<Event> {
+    pub fn register(&self, listener: ListenerAlias<Event>) -> Weak<dyn EventListener<Event> + Send + Sync> {
         let token = Arc::downgrade(&listener);
         self.listeners.lock().unwrap().push(listener);
         token
