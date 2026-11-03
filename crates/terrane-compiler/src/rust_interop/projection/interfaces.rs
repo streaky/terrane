@@ -241,10 +241,10 @@ fn project_interface_inner(
             && projected
                 .parameters
                 .iter()
-                .any(|parameter| parameter.borrowed)
+                .any(|parameter| parameter.borrowed && !parameter.ty.has_identity_representation())
         {
             return Err(format!(
-                "trait member `{name}`: required borrowed parameters are deferred"
+                "trait member `{name}`: required borrowed parameters need an identity-preserving native representation"
             ));
         }
         debug_assert!(projected.receiver.is_some());

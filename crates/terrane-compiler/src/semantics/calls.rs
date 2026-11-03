@@ -617,7 +617,7 @@ fn validate_projected_generic_arguments(
             .unwrap_or(parameter);
         let boxed_interface = matches!(
             parameter.ty,
-            crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
+            crate::rust_interop::projection::ProjectedType::OwnedInterface { .. }
         );
         let source_interface = parameter.generic_interface.is_some() || boxed_interface;
         if parameter.generic_parameter.is_none()
@@ -707,7 +707,7 @@ fn validate_projected_generic_arguments(
             ));
         };
         let expected_rust_path = match &parameter.ty {
-            crate::rust_interop::projection::ProjectedType::BoxedInterface {
+            crate::rust_interop::projection::ProjectedType::OwnedInterface {
                 trait_path, ..
             } => trait_path.clone(),
             crate::rust_interop::projection::ProjectedType::Generic(_) => parameter
@@ -802,7 +802,7 @@ fn validate_projected_generic_arguments(
             ));
         }
         if implementor.kind == ObjectKind::Interface
-            && let crate::rust_interop::projection::ProjectedType::BoxedInterface {
+            && let crate::rust_interop::projection::ProjectedType::OwnedInterface {
                 auto_traits,
                 ..
             } = &parameter.ty
@@ -1665,9 +1665,13 @@ fn validate_argument_destination(
     {
         return Ok(());
     }
+    let mut callable_destination = expected;
+    while let ValueType::Optional(inner) = callable_destination {
+        callable_destination = inner;
+    }
     let canonical_callable_types = (expected != actual
         && matches!(
-            expected,
+            callable_destination,
             ValueType::Function(..) | ValueType::AsyncFunction(..)
         ))
     .then(|| {

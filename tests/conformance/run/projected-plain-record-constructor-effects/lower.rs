@@ -52,7 +52,7 @@ fn make_nested(
                         .map(|item| -> Result<_, crate::TerraneForeignError> {
                             Ok(
                                 item
-                                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                                    .map(|value| -> Result<char, crate::TerraneForeignError> {
                                         Ok(
                                             value
                                                 .parse::<char>()
@@ -85,7 +85,7 @@ fn empty_mark() -> OptionalMark {
                         let __terrane_field_argument: Option<String> = __terrane_conversion_input_0;
                         __terrane_field_argument
                     }
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        .map(|value| -> Result<char, crate::TerraneForeignError> {
                             Ok(
                                 value
                                     .parse::<char>()
@@ -227,7 +227,7 @@ fn literal_optional() -> OptionalMark {
                         let __terrane_field_argument: Option<String> = __terrane_conversion_input_0;
                         __terrane_field_argument
                     }
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        .map(|value| -> Result<char, crate::TerraneForeignError> {
                             Ok(
                                 value
                                     .parse::<char>()

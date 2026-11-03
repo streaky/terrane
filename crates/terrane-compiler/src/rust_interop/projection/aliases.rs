@@ -183,7 +183,7 @@ impl super::Projection {
                     self.resolve_alias_rust(rust_type, bindings, &[(old, owned.rust_type())]);
                 *name = owned.terrane_name();
             }
-            ProjectedType::BoxedInterface {
+            ProjectedType::OwnedInterface {
                 rust_path,
                 trait_path,
                 associated_type,

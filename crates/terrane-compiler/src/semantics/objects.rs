@@ -2276,7 +2276,15 @@ pub(super) fn infer_and_validate_invocation_modes(
     ) -> bool {
         root_name(node).is_some_and(|root| {
             let name = node_text(&unit.source, root);
-            name == "this" || contract.captures.iter().any(|capture| capture == name)
+            let tracked = name == "this" || contract.captures.iter().any(|capture| capture == name);
+            // Mutating a checked shared payload does not replace the captured
+            // ownership handle. Only a write to the handle itself needs FnMut.
+            tracked
+                && !(node.kind != SyntaxKind::Name
+                    && matches!(
+                        infer_value_type(unit, root, &unit.typed_bindings),
+                        Ok(Some(ValueType::SharedReference(_)))
+                    ))
         })
     }
 
@@ -2301,6 +2309,14 @@ pub(super) fn infer_and_validate_invocation_modes(
             return InvocationMode::Shared;
         };
         if !tracked_receiver(unit, contract, receiver) {
+            return InvocationMode::Shared;
+        }
+        if root_name(receiver).is_some_and(|root| {
+            matches!(
+                infer_value_type(unit, root, &unit.typed_bindings),
+                Ok(Some(ValueType::SharedReference(_)))
+            )
+        }) {
             return InvocationMode::Shared;
         }
         let Ok(Some(receiver_type)) =
@@ -3875,7 +3891,7 @@ fn collect_projected_generic_names(
         ProjectedType::InvocationScoped { owned, .. } => {
             collect_projected_generic_names(owned, names);
         }
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type: Some(binding),
             ..
         } => collect_projected_generic_names(&binding.ty, names),
@@ -3901,7 +3917,7 @@ fn collect_projected_generic_names(
         | ProjectedType::BorrowedString
         | ProjectedType::Bytes
         | ProjectedType::AsyncSinkOutcome
-        | ProjectedType::BoxedInterface {
+        | ProjectedType::OwnedInterface {
             associated_type: None,
             ..
         } => {}
@@ -4611,6 +4627,7 @@ fn merge_projected_callback_shape(
     use crate::rust_interop::projection::ProjectedType;
     let (
         ProjectedType::Callback {
+            carrier,
             rust_name,
             native_bound,
             native_method,
@@ -4669,6 +4686,7 @@ fn merge_projected_callback_shape(
         }
     }
     ProjectedType::Callback {
+        carrier: *carrier,
         rust_name: rust_name.clone(),
         native_bound: native_bound
             .as_ref()
@@ -7466,7 +7484,7 @@ fn closed_projected_value_type_with_context(
             closed_projected_value_type_with_context(package, inner, native_argument)?,
         )),
         ProjectedType::Foreign { .. } => closed_projected_foreign_value_type(package, projected)?,
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type, ..
         } => {
             let (namespace, name) = package.projection.owner_for_projected_type(projected)?;
@@ -8182,6 +8200,7 @@ fn destination_projected_callback(
         .map(crate::rust_interop::projection::ProjectedType::rust_type)
         .collect();
     Ok(crate::rust_interop::projection::ProjectedType::Callback {
+        carrier: None,
         rust_name,
         native_bound: None,
         native_method: None,
@@ -8588,6 +8607,7 @@ pub(super) fn substitute_projected_generic(
             substitute_projected_generic(item, parameter, destination),
         )),
         ProjectedType::Callback {
+            carrier,
             rust_name,
             native_bound,
             native_method,
@@ -8604,6 +8624,7 @@ pub(super) fn substitute_projected_generic(
             send,
             sync,
         } => ProjectedType::Callback {
+            carrier: *carrier,
             rust_name: rust_name.clone(),
             native_bound: native_bound.as_ref().map(|bound| {
                 crate::rust_ir::instantiate_rust_generics(

@@ -5,7 +5,12 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode},
 };
 
-use super::{async_tasks::value_type_is_task_transferable, span_key};
+use super::{
+    async_tasks::{
+        AutoTraitObligation, value_type_is_owned_static, value_type_satisfies_auto_trait,
+    },
+    span_key,
+};
 use crate::semantics::{
     analysis::resolved_function_contract,
     diagnostics::{failure, node_text, unary_operator_text},
@@ -44,6 +49,14 @@ pub(crate) fn callback_contract<'a>(
     unit: &'a SemanticUnit,
     value: &SyntaxNode,
 ) -> Option<&'a FunctionContract> {
+    if value.kind == SyntaxKind::GroupExpression {
+        return callback_contract(package, unit, value.children.first()?);
+    }
+    if value.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, value).as_deref() == Some("move")
+    {
+        return callback_contract(package, unit, value.children.last()?);
+    }
     if value.kind == SyntaxKind::Name {
         if let Some(contract) =
             resolved_function_contract(unit, node_text(&unit.source, value), value.span.start)
@@ -89,6 +102,42 @@ fn captured_binding<'a>(
         .iter()
         .find(|binding| binding.span == declaration)
 }
+fn callback_capture_trait_failure(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    contract: &FunctionContract,
+    send: bool,
+    sync: bool,
+) -> Option<(&'static str, &'static str)> {
+    for (required, obligation, code, message) in [
+        (
+            send,
+            AutoTraitObligation::Send,
+            "T0084",
+            "projected callback requires transferable captured values",
+        ),
+        // Mutable/consuming bodies are stored behind exclusive ownership or a
+        // Mutex: Send suffices for the carrier's Sync, unlike shared Fn bodies.
+        (
+            sync && contract.written_invocation_mode == InvocationMode::Shared,
+            AutoTraitObligation::Sync,
+            "T0085",
+            "projected callback requires shareable captured values (`Sync`)",
+        ),
+    ] {
+        if required
+            && contract.captures.iter().any(|capture| {
+                captured_binding(package, unit, contract, capture).is_some_and(|binding| {
+                    !value_type_satisfies_auto_trait(package, &binding.value_type, obligation)
+                })
+            })
+        {
+            return Some((code, message));
+        }
+    }
+    None
+}
+
 fn validate_projected_callback_contract(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -101,6 +150,7 @@ fn validate_projected_callback_contract(
         invocation_mode,
         retained,
         send,
+        sync,
         parameter_borrows,
         parameter_rust_types,
         ..
@@ -109,6 +159,12 @@ fn validate_projected_callback_contract(
         unreachable!("callback validation requires callback metadata");
     };
     let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
+    if callback.has_unsupported_mutable_callback_borrow() {
+        return reject(
+            "T0119",
+            "mutable callback inputs require an identity-preserving native representation",
+        );
+    }
     for (index, parameter) in contract.parameters.iter().enumerate() {
         if parameter_borrows.get(index) == Some(&true)
             && parameter_rust_types.get(index).is_some_and(|rust_type| {
@@ -160,27 +216,16 @@ fn validate_projected_callback_contract(
     }
     if *retained
         && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
-                matches!(
-                    binding.value_type,
-                    ValueType::Reference(_) | ValueType::MutableReference(_)
-                )
-            })
+            captured_binding(package, unit, contract, capture)
+                .is_some_and(|binding| !value_type_is_owned_static(&binding.value_type))
         })
     {
         return reject("T0083", "retained callback cannot capture a borrowed value");
     }
-    if *send
-        && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
-                !value_type_is_task_transferable(package, &binding.value_type)
-            })
-        })
+    if let Some((code, message)) =
+        callback_capture_trait_failure(package, unit, contract, *send, *sync)
     {
-        return reject(
-            "T0084",
-            "projected callback requires transferable captured values",
-        );
+        return reject(code, message);
     }
     if *invocation_mode == InvocationMode::Consuming
         && value.kind == SyntaxKind::Name
@@ -1539,28 +1584,29 @@ fn validate_projected_callback_node(
                     value.span,
                 ));
             }
-            if !matches!(
-                parameter.ty,
-                crate::rust_interop::projection::ProjectedType::Callback { .. }
-            ) {
-                continue;
-            }
-            let Some(contract) = callback_contract(package, unit, value) else {
-                continue;
-            };
             let callback_parameter = unit
                 .projected_call_specializations
                 .get(&span_key(node.span))
                 .and_then(|selection| selection.projected_parameters.get(index))
                 .unwrap_or(parameter);
-            validate_projected_callback_contract(
-                package,
-                unit,
-                value,
-                contract,
-                &callback_parameter.ty,
-                consumed_once,
-            )?;
+            let mut callback = &callback_parameter.ty;
+            while let crate::rust_interop::projection::ProjectedType::Optional(inner) = callback {
+                callback = inner;
+            }
+            if matches!(
+                callback,
+                crate::rust_interop::projection::ProjectedType::Callback { .. }
+            ) && let Some(contract) = callback_contract(package, unit, value)
+            {
+                validate_projected_callback_contract(
+                    package,
+                    unit,
+                    value,
+                    contract,
+                    callback,
+                    consumed_once,
+                )?;
+            }
         }
     }
     for child in &node.children {
@@ -1579,10 +1625,44 @@ fn validate_projected_callback_node(
     Ok(())
 }
 
+fn validate_owned_callable_captures(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+) -> Result<(), SemanticFailure> {
+    for contract in &unit.functions {
+        if contract.captures.is_empty() {
+            continue;
+        }
+        let Some(node) = find_node_by_span(&unit.tree.root, contract.span) else {
+            continue;
+        };
+        // Borrowed-environment carriers have a distinct lexical runtime with
+        // no Send bound. Consult the finalized callable type, not its syntax.
+        if node.kind == SyntaxKind::AnonymousFunction
+            && infer_value_type(unit, node, &unit.typed_bindings)?
+                .as_ref()
+                .is_some_and(|value| !value_type_is_owned_static(value))
+        {
+            continue;
+        }
+        if let Some((code, _)) = callback_capture_trait_failure(package, unit, contract, true, true)
+        {
+            let message = if code == "T0084" {
+                "owned callable requires transferable captured values (`Send`)"
+            } else {
+                "owned shared callable requires shareable captured values (`Sync`)"
+            };
+            return Err(failure(&unit.source, code, message, contract.span));
+        }
+    }
+    Ok(())
+}
+
 pub(in crate::semantics) fn validate_projected_callback_arguments(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     for unit in &package.units {
+        validate_owned_callable_captures(package, unit)?;
         let mut chain_receivers = BTreeSet::new();
         collect_chain_receivers(package, unit, &unit.tree.root, &mut chain_receivers);
         validate_projected_callback_node(

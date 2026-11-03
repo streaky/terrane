@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-boundary-reject-witness import consume_restricted
+function signal int;
+    return 1
+function main;
+    print; (consume_restricted; signal)

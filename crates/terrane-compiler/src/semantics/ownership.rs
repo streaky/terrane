@@ -2156,6 +2156,7 @@ fn record_reference_provenance(
         proven.insert((binding.span.start, binding.span.end), provenance);
     }
     record_reference_assignment(package, unit, node, proven, return_lenders)?;
+    validate_parameter_reference_storage(package, unit, node, proven, return_lenders)?;
     validate_borrowed_callable_storage(package, unit, node)?;
     validate_reference_return(package, unit, node, proven, return_lenders)?;
     if node.kind == SyntaxKind::ForStatement
@@ -2277,6 +2278,90 @@ fn record_implicit_reference_owners(
     for child in &node.children {
         record_implicit_reference_owners(package, unit, child, proven, return_lenders, owners);
     }
+}
+
+fn parameter_region(node: &SyntaxNode, owner: Span) -> Option<Span> {
+    if node.span.file != owner.file || node.span.start > owner.start || node.span.end < owner.end {
+        return None;
+    }
+    node.children
+        .iter()
+        .find_map(|child| parameter_region(child, owner))
+        .or_else(|| {
+            matches!(
+                node.kind,
+                SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+            )
+            .then_some(node.span)
+        })
+}
+
+fn validate_parameter_reference_storage(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
+    return_lenders: &BTreeMap<FunctionKey, usize>,
+) -> Result<(), SemanticFailure> {
+    if node.kind != SyntaxKind::Assignment {
+        return Ok(());
+    }
+    let [target, value] = node.children.as_slice() else {
+        return Ok(());
+    };
+    // Assigning an owned snapshot of a borrowed input is not a loan escape.
+    // Use declared storage for names: flow narrowing may currently see only none.
+    let inferred;
+    let target_type = if let Some(binding) = binding_at(unit, target) {
+        &binding.value_type
+    } else {
+        inferred = infer_value_type(unit, target, &unit.typed_bindings)?;
+        let Some(value_type) = inferred.as_ref() else {
+            return Ok(());
+        };
+        value_type
+    };
+    // Mutable-reference assignment writes the payload; it does not retarget
+    // the reference handle or save a borrowed source merely by reading it.
+    let target_type = match target_type {
+        ValueType::MutableReference(payload) => payload.value_type_ref(),
+        value_type => value_type,
+    };
+    if super::bindings::value_type_is_owned_static(target_type) {
+        return Ok(());
+    }
+    let Some(provenance) = expression_provenance(package, unit, value, proven, return_lenders)
+        .filter(|provenance| span_is_parameter(&unit.tree.root, provenance.owner))
+    else {
+        return Ok(());
+    };
+    let Some(region) = parameter_region(&unit.tree.root, provenance.owner) else {
+        return Ok(());
+    };
+    let mut root = target;
+    while matches!(
+        root.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+    ) {
+        let Some(receiver) = root.children.first() else {
+            break;
+        };
+        root = receiver;
+    }
+    if !binding_at(unit, root).is_some_and(|binding| {
+        binding.span.start >= region.start
+            && binding.span.end <= region.end
+            && (target.kind == SyntaxKind::Name
+                || !span_is_parameter(&unit.tree.root, binding.span))
+    }) {
+        return Err(failure(
+            &unit.source,
+            "T0059",
+            "a borrowed parameter cannot be stored outside its invocation",
+            value.span,
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn analyze_reference_provenance(

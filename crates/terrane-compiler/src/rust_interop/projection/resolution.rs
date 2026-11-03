@@ -494,6 +494,7 @@ pub fn resolve(
         },
         removed: Vec::new(),
     };
+    super::owning_callbacks::canonicalize_parameters(&mut projection);
     write_workspace_with_bound_dependencies(
         &workspace,
         dependencies,

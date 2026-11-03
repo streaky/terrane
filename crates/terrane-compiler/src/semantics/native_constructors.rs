@@ -1056,7 +1056,7 @@ fn selected_signature_type_uncached(
     }
     if matches!(
         projected,
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type: None,
             ..
         }
@@ -1066,7 +1066,7 @@ fn selected_signature_type_uncached(
         // Missing native slot metadata does not erase a written associated application.
         return Some(current.clone());
     }
-    if let ProjectedType::BoxedInterface { .. } = projected
+    if let ProjectedType::OwnedInterface { .. } = projected
         && let Some(normalized) =
             cached_closed_projected_value_type(native_cache, package, projected)
     {

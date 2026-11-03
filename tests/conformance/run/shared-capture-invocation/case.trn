@@ -1,0 +1,19 @@
+namespace app
+class counter
+    value int = 0
+    mutable function add; amount int
+        this.value = this.value + amount
+function invoke int; callback function to int
+    return callback;
+function main;
+    state = shared ref (instance counter;)
+    write = function int;
+        state.value = state.value + 1
+        return state.value
+    method = function int;
+        state.add; 3
+        return state.value
+    print; (invoke; write)
+    print; (invoke; method)
+    print; (invoke; write)
+    print; state.value

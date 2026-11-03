@@ -500,7 +500,7 @@ pub(super) fn rust_empty_collection(
     }
 }
 
-fn rust_callable_parameter_type(
+pub(super) fn rust_callable_parameter_type(
     package: &SemanticPackage,
     parameter: &CallableParameterType,
 ) -> String {
@@ -664,6 +664,13 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             } else {
                 result
             };
+            if let Some(shape) = super::borrowed_input_callable::Shape::new(
+                &parameters,
+                effects.modes.written,
+                effects.borrowed_environment,
+            ) {
+                return shape.rust_type(package, &parameters, &output);
+            }
             if effects.borrowed_environment {
                 if effects.modes.written == InvocationMode::Shared {
                     return format!(

@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-callable-send-witness import Local as local
+function main;
+    state = local::new;
+    callback = function;
+        print; (state.get;)
+    callback;

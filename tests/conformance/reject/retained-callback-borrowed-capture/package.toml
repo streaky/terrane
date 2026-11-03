@@ -1,0 +1,12 @@
+package = "retained-callback-carriers"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-retained-callback-api]
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.terrane-retained-callback-registry]
+version = "=0.1.0"
+effects = ["build"]

@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/terrane-boundary-reject-witness import boxed_callback_result as boxed-callback-result
+
+function main;
+    boxed-callback-result

@@ -52,6 +52,7 @@ mod associated_types;
 mod borrowed_graph;
 mod cache_identity;
 mod callable;
+mod callback_inputs;
 mod cargo_workspace;
 pub(crate) mod core_native;
 mod data;
@@ -65,6 +66,7 @@ mod items;
 mod macros;
 mod methods;
 mod namespace_overlays;
+mod owning_callbacks;
 mod partial;
 mod reexports;
 mod resolution;
@@ -160,7 +162,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "328";
+const PROJECTION_SCHEMA: &str = "333";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -768,6 +770,23 @@ pub enum AssociatedNormalizationError {
     Unsupported,
 }
 
+/// Native ownership around an adapted interface or callback, independent of
+/// invocation authority. In particular, an `Arc` never manufactures `FnMut` access.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum OwningCarrier {
+    Box,
+    Arc,
+}
+
+impl OwningCarrier {
+    pub(crate) const fn rust_constructor(self) -> &'static str {
+        match self {
+            Self::Box => "std::boxed::Box",
+            Self::Arc => "std::sync::Arc",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedType {
     None,
@@ -828,7 +847,8 @@ pub enum ProjectedType {
         expression_scoped: bool,
         owned: Box<ProjectedType>,
     },
-    BoxedInterface {
+    OwnedInterface {
+        carrier: OwningCarrier,
         rust_path: String,
         trait_path: String,
         name: String,
@@ -838,6 +858,8 @@ pub enum ProjectedType {
         associated_type: Option<ProjectedAssociatedBinding>,
     },
     Callback {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        carrier: Option<OwningCarrier>,
         rust_name: String,
         parameters: Vec<ProjectedType>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -957,7 +979,7 @@ impl ProjectedType {
             | Self::Mapping { rust_path, .. }
             | Self::Set { rust_path, .. }
             | Self::Foreign { rust_path, .. }
-            | Self::BoxedInterface { rust_path, .. } => rust_path.clone(),
+            | Self::OwnedInterface { rust_path, .. } => rust_path.clone(),
             Self::InvocationScoped { rust_type, .. } => rust_type.clone(),
             Self::AsyncIterationStep(item) => {
                 format!("Option<{}>", item.rust_type())
@@ -1001,7 +1023,7 @@ impl ProjectedType {
                 }
             }
             Self::InvocationScoped { owned, .. } => owned.bind_associated(reference, replacement),
-            Self::BoxedInterface {
+            Self::OwnedInterface {
                 associated_type: Some(associated),
                 ..
             } => associated.ty.bind_associated(reference, replacement),
@@ -1020,7 +1042,7 @@ impl ProjectedType {
             Self::Tuple(items) => items.iter().any(Self::contains_opaque),
             Self::Foreign { arguments, .. } => arguments.iter().any(Self::contains_opaque),
             Self::InvocationScoped { owned, .. } => owned.contains_opaque(),
-            Self::BoxedInterface {
+            Self::OwnedInterface {
                 associated_type, ..
             } => associated_type
                 .as_ref()
@@ -1047,7 +1069,7 @@ impl ProjectedType {
                 .iter()
                 .any(|argument| argument.contains_generic(generic)),
             Self::InvocationScoped { owned, .. } => owned.contains_generic(generic),
-            Self::BoxedInterface {
+            Self::OwnedInterface {
                 associated_type, ..
             } => associated_type
                 .as_ref()
@@ -1077,7 +1099,7 @@ impl ProjectedType {
             Self::Tuple(items) => items.iter().any(Self::contains_open_generic),
             Self::Foreign { arguments, .. } => arguments.iter().any(Self::contains_open_generic),
             Self::InvocationScoped { owned, .. } => owned.contains_open_generic(),
-            Self::BoxedInterface {
+            Self::OwnedInterface {
                 associated_type, ..
             } => associated_type
                 .as_ref()
@@ -1121,7 +1143,7 @@ impl ProjectedType {
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String | Self::BorrowedString => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
-            Self::BoxedInterface { name, .. }
+            Self::OwnedInterface { name, .. }
             | Self::Foreign { name, .. }
             | Self::InvocationScoped { name, .. } => name.clone(),
             Self::Sequence { item, .. } => format!("list of {}", item.terrane_name()),
@@ -1197,6 +1219,45 @@ impl ProjectedType {
         }
     }
 
+    pub(crate) fn has_identity_callback_borrow(&self, reference: &syn::TypeReference) -> bool {
+        // `str` and slices project to owned source containers, unlike borrows of
+        // String/Vec themselves. They need a bounded read snapshot, not aliasing.
+        match self {
+            Self::String | Self::Bytes => {
+                let syn::Type::Path(path) = reference.elem.as_ref() else {
+                    return false;
+                };
+                path.path.segments.last().is_some_and(|segment| {
+                    segment.ident
+                        == if matches!(self, Self::String) {
+                            "String"
+                        } else {
+                            "Vec"
+                        }
+                })
+            }
+            Self::Generic { .. } => true,
+            _ => self.has_identity_representation(),
+        }
+    }
+
+    pub(crate) fn has_unsupported_mutable_callback_borrow(&self) -> bool {
+        let Self::Callback {
+            parameters,
+            parameter_rust_types,
+            parameter_borrows,
+            ..
+        } = self
+        else {
+            return false;
+        };
+        parameters.iter().zip(parameter_rust_types).enumerate().any(|(index, (parameter, native))| {
+            parameter_borrows.get(index) == Some(&true)
+                && matches!(syn::parse_str::<syn::Type>(native), Ok(syn::Type::Reference(reference))
+                    if reference.mutability.is_some() && !parameter.has_identity_callback_borrow(&reference))
+        })
+    }
+
     pub(crate) fn contains_borrowed_result(&self) -> bool {
         match self {
             Self::BorrowedString
@@ -1257,7 +1318,7 @@ fn collect_nested_projected_types(
         ProjectedType::Foreign {
             name: candidate,
             ..
-        } | ProjectedType::BoxedInterface {
+        } | ProjectedType::OwnedInterface {
             name: candidate,
             ..
         } if candidate == name
@@ -1289,7 +1350,7 @@ fn collect_nested_projected_types(
         ProjectedType::InvocationScoped { owned, .. } => {
             collect_nested_projected_types(owned, name, candidates);
         }
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             associated_type: Some(associated),
             ..
         } => collect_nested_projected_types(&associated.ty, name, candidates),
@@ -1325,7 +1386,7 @@ fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
                 .split_once('<')
                 .map_or(base_rust_path, |(constructor, _)| constructor),
         ),
-        ProjectedType::BoxedInterface { trait_path, .. } => Some(
+        ProjectedType::OwnedInterface { trait_path, .. } => Some(
             trait_path
                 .split_once('<')
                 .map_or(trait_path, |(constructor, _)| constructor),
@@ -2295,7 +2356,7 @@ impl Projection {
         let instantiated = self.projected_type(namespace, name).and_then(|projected| {
             let base = match projected {
                 ProjectedType::Foreign { base_rust_path, .. } => base_rust_path,
-                ProjectedType::BoxedInterface { trait_path, .. } => trait_path,
+                ProjectedType::OwnedInterface { trait_path, .. } => trait_path,
                 _ => return None,
             };
             self.dependencies

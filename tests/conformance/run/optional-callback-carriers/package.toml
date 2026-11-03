@@ -1,0 +1,6 @@
+package = "optional-callback-carriers"
+[namespaces]
+app = "src"
+[rust-dependencies.optional-callback-api]
+version = "=0.1.0"
+effects = ["build"]

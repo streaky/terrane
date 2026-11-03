@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-callable-send-witness import SendOnly as send-only
+function main;
+    state = send-only::new;
+    callback = function;
+        print; (state.get;)
+    callback;

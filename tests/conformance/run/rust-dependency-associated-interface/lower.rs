@@ -79,7 +79,7 @@ impl terrane_associated_witness::Sequence for Ints {
             let __terrane_value = <Ints>::first(&*self);
             Ok(
                 __terrane_value
-                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    .map(|value| -> Result<i64, crate::TerraneForeignError> {
                         Ok(
                             terrane_int_support::coerce::<i64>(&value)
                                 .map_err(|error| crate::TerraneForeignError(
@@ -148,7 +148,7 @@ impl terrane_associated_witness::Sequence for MoreInts {
             let __terrane_value = <MoreInts>::first(&*self);
             Ok(
                 __terrane_value
-                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    .map(|value| -> Result<i64, crate::TerraneForeignError> {
                         Ok(
                             terrane_int_support::coerce::<i64>(&value)
                                 .map_err(|error| crate::TerraneForeignError(
@@ -308,7 +308,7 @@ impl terrane_associated_witness::Sequence for NamedInts {
             let __terrane_value = <NamedInts>::first(&*self);
             Ok(
                 __terrane_value
-                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    .map(|value| -> Result<i64, crate::TerraneForeignError> {
                         Ok(
                             terrane_int_support::coerce::<i64>(&value)
                                 .map_err(|error| crate::TerraneForeignError(
@@ -399,7 +399,9 @@ impl terrane_associated_witness::Sequence for Lists {
             let __terrane_value = <Lists>::first(&*self);
             Ok(
                 __terrane_value
-                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    .map(|
+                        value,
+                    | -> Result<std::vec::Vec<i64>, crate::TerraneForeignError> {
                         Ok(
                             value
                                 .into_vec()

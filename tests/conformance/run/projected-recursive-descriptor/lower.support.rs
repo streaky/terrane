@@ -663,7 +663,7 @@ impl Descriptor {
                 .collect::<Result<Vec<String>, _>>()?,
             window_size: window_size
                 .into()
-                .map(|value| -> Result<_, crate::TerraneForeignError> {
+                .map(|value| -> Result<(u32, u32), crate::TerraneForeignError> {
                     Ok({
                         let tuple_value = value;
                         if tuple_value.length() != 2 {
@@ -689,7 +689,9 @@ impl Descriptor {
                 .transpose()?,
             nested: nested
                 .into()
-                .map(|value| -> Result<_, crate::TerraneForeignError> {
+                .map(|
+                    value,
+                | -> Result<(Option<u32>, Option<u32>), crate::TerraneForeignError> {
                     Ok({
                         let tuple_value = value;
                         if tuple_value.length() != 2 {
@@ -715,7 +717,12 @@ impl Descriptor {
                 .transpose()?,
             labels: labels
                 .into()
-                .map(|value| -> Result<_, crate::TerraneForeignError> {
+                .map(|
+                    value,
+                | -> Result<
+                    std::collections::HashMap<String, String>,
+                    crate::TerraneForeignError,
+                > {
                     Ok(
                         value
                             .into_iter()
@@ -796,7 +803,7 @@ impl MixedDescriptor {
                 >()?,
             pair: pair
                 .into()
-                .map(|value| -> Result<_, crate::TerraneForeignError> {
+                .map(|value| -> Result<(String, String), crate::TerraneForeignError> {
                     Ok({
                         let tuple_value = value;
                         if tuple_value.length() != 2 {

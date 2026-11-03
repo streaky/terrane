@@ -1,0 +1,4 @@
+namespace app
+from /deps/terrane-owning-review-witness import arc_worker
+function main;
+    arc_worker;

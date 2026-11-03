@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-owning-review-witness import slice_result
+function create int;
+    return 1
+function main;
+    slice_result; create

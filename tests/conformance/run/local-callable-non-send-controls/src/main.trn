@@ -1,0 +1,15 @@
+namespace app
+from /deps/terrane-callable-send-witness import Local as local
+function main;
+    state = local::new;
+    observer = ref state
+    shared = function;
+        print; (observer.get;)
+    shared;
+    change = mutable function;
+        print; (observer.get;)
+    change;
+    change;
+    finish = consuming function;
+        print; (observer.get;)
+    finish;

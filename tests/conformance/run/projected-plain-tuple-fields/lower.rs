@@ -70,7 +70,7 @@ fn main() {
         .next().expect("validated projected tuple length"),) }) }).collect:: < Result <
         Vec < (u32, u32,) >, _ > > () ?, size : { let __terrane_field_argument : Option <
         terrane_collection_support::Tuple < u32 > > = __terrane_conversion_input_1;
-        __terrane_field_argument } .map(| value | -> Result < _, crate
+        __terrane_field_argument } .map(| value | -> Result < (u32, u32,), crate
         ::TerraneForeignError > { Ok({ let tuple_value = value; if tuple_value.length()
         != 2 { return Err(crate ::TerraneForeignError(crate
         ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,

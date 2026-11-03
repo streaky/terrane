@@ -1,6 +1,8 @@
 // Stateful whole-package lowering. Emitter implementations are nested here so their
 // shared control context remains private to the emitter subsystem.
+mod borrowed_input_callable;
 mod emitter;
+mod mutable_callable;
 
 // Generated dependencies, runtime support, and backend-independent rendering helpers.
 #[path = "rust_interop/lowering.rs"]

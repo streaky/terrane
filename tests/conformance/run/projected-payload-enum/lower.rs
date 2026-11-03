@@ -480,7 +480,7 @@ fn main() {
                             > = __terrane_conversion_input_0;
                             __terrane_field_argument
                         }
-                            .map(|value| -> Result<_, crate::TerraneForeignError> {
+                            .map(|value| -> Result<u32, crate::TerraneForeignError> {
                                 Ok(
                                     terrane_int_support::coerce::<u32>(&value)
                                         .map_err(|error| crate::TerraneForeignError(

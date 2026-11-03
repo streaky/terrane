@@ -1,10 +1,10 @@
 //! Projects Rust types and borrowed/invocation-scoped type shapes.
 use super::{
     AssocItemConstraintKind, BTreeMap, GenericArg, GenericArgs, GenericBound, GenericParamDefKind,
-    HashMap, Id, Item, ItemEnum, ItemSummary, ProjectedAssociatedBinding, ProjectedType,
-    RustdocPath, Term, Type, alias_type_substitutions, instantiated_nominal_name, nominal_generics,
-    project_interface, render_generic_bound, render_resolved_path, render_rust_type,
-    resolved_path_name, rust_lifetimes, rust_path_owner, trait_bound_name,
+    HashMap, Id, Item, ItemEnum, ItemSummary, OwningCarrier, ProjectedAssociatedBinding,
+    ProjectedType, RustdocPath, Term, Type, alias_type_substitutions, instantiated_nominal_name,
+    nominal_generics, project_interface, render_generic_bound, render_resolved_path,
+    render_rust_type, resolved_path_name, rust_lifetimes, rust_path_owner, trait_bound_name,
     type_contains_lifetime_argument,
 };
 
@@ -757,7 +757,8 @@ pub(super) fn project_dyn_interface(
         .chain(auto_traits.iter().map(String::as_str))
         .collect::<Vec<_>>()
         .join(" + ");
-    Ok(ProjectedType::BoxedInterface {
+    Ok(ProjectedType::OwnedInterface {
+        carrier: OwningCarrier::Box,
         rust_path: format!("dyn {dynamic_bounds}"),
         trait_path,
         name: trait_
@@ -768,6 +769,61 @@ pub(super) fn project_dyn_interface(
             .to_owned(),
         auto_traits,
         associated_type,
+    })
+}
+
+fn project_owned_trait_object(
+    dynamic: &rustdoc_types::DynTrait,
+    carrier: OwningCarrier,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    if let Some(callback) =
+        super::owning_callbacks::project_owned_callback(dynamic, carrier, index, paths, generics)?
+    {
+        return Ok(callback);
+    }
+    let ProjectedType::OwnedInterface {
+        rust_path: dynamic,
+        trait_path,
+        name,
+        auto_traits,
+        associated_type,
+        ..
+    } = project_dyn_interface(dynamic, index, paths, generics)?
+    else {
+        unreachable!("dynamic interface projection returns its owned-interface shape");
+    };
+    Ok(ProjectedType::OwnedInterface {
+        carrier,
+        rust_path: format!("{}<{dynamic}>", carrier.rust_constructor()),
+        trait_path,
+        name,
+        auto_traits,
+        associated_type,
+    })
+}
+
+fn render_collection_path(
+    path: &RustdocPath,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    items: &[&ProjectedType],
+) -> Result<String, String> {
+    render_resolved_path(path, index, paths, generics).map_err(|reason| {
+        // A dyn Fn nested in a carrier is not an unresolved generic interface.
+        // Classify the failed collection reconstruction without changing which
+        // successfully reconstructed collection shapes are admitted.
+        if items
+            .iter()
+            .any(|item| super::functions::contains_owned_callback(item))
+        {
+            "callback carriers inside native collections are not supported".to_owned()
+        } else {
+            reason
+        }
     })
 }
 
@@ -811,28 +867,31 @@ fn project_resolved_type(
             project_type_with_context(inner, index, paths, generics, active)?,
         )));
     }
-    let boxed = matches!(resolved.as_str(), "alloc::boxed::Box" | "std::boxed::Box");
-    if boxed && arguments.is_empty() {
-        return Err("Box has no value type".to_owned());
+    let carrier = match resolved.as_str() {
+        "alloc::boxed::Box" | "std::boxed::Box" => Some(OwningCarrier::Box),
+        "alloc::sync::Arc" | "std::sync::Arc" => Some(OwningCarrier::Arc),
+        _ => None,
+    };
+    if carrier.is_some() && arguments.is_empty() {
+        return Err("owning carrier has no value type".to_owned());
     }
-    if boxed && let Some(Type::DynTrait(dynamic)) = arguments.first().copied() {
-        let ProjectedType::BoxedInterface {
-            rust_path: dynamic,
-            trait_path,
-            name,
-            auto_traits,
-            associated_type,
-        } = project_dyn_interface(dynamic, index, paths, generics)?
-        else {
-            unreachable!("dynamic interface projection returns its boxed-interface shape");
-        };
-        return Ok(ProjectedType::BoxedInterface {
-            rust_path: format!("Box<{dynamic}>"),
-            trait_path,
-            name,
-            auto_traits,
-            associated_type,
-        });
+    if let Some(carrier) = carrier {
+        let pointee = arguments[0];
+        if let Type::DynTrait(dynamic) = pointee {
+            return project_owned_trait_object(dynamic, carrier, index, paths, generics);
+        }
+        if let Type::ResolvedPath(path) = pointee
+            && matches!(
+                index.get(&path.id).map(|item| &item.inner),
+                Some(ItemEnum::TypeAlias(_))
+            )
+        {
+            let (expanded, substitutions) =
+                super::expand_output_alias(pointee.clone(), index, paths, generics.clone())?;
+            if let Type::DynTrait(dynamic) = expanded {
+                return project_owned_trait_object(&dynamic, carrier, index, paths, &substitutions);
+            }
+        }
     }
     if matches!(resolved.as_str(), "alloc::vec::Vec" | "std::vec::Vec") {
         let item = arguments
@@ -842,13 +901,12 @@ fn project_resolved_type(
         if item == ProjectedType::RustInt("u8".to_owned()) {
             return Ok(ProjectedType::Bytes);
         }
-        let rust_path = render_resolved_path(path, index, paths, generics)?;
+        let rust_path = render_collection_path(path, index, paths, generics, &[&item])?;
         return Ok(ProjectedType::Sequence {
             rust_path,
             item: Box::new(item),
         });
     }
-    let rust_path = render_resolved_path(path, index, paths, generics)?;
     if matches!(
         resolved.as_str(),
         "std::collections::HashMap"
@@ -860,15 +918,15 @@ fn project_resolved_type(
             return Err("map type does not have exactly two type arguments".to_owned());
         };
         let key = project_type_with_context(key, index, paths, generics, active)?;
+        let value = project_type_with_context(value, index, paths, generics, active)?;
+        let rust_path = render_collection_path(path, index, paths, generics, &[&key, &value])?;
         if !key.is_terrane_scalar() {
             return Err("map key is not a Terrane scalar".to_owned());
         }
         return Ok(ProjectedType::Mapping {
             rust_path,
             key: Box::new(key),
-            value: Box::new(project_type_with_context(
-                value, index, paths, generics, active,
-            )?),
+            value: Box::new(value),
             ordered: resolved.contains("BTree"),
         });
     }
@@ -883,6 +941,7 @@ fn project_resolved_type(
             .first()
             .ok_or_else(|| "set has no item type".to_owned())?;
         let item = project_type_with_context(item, index, paths, generics, active)?;
+        let rust_path = render_collection_path(path, index, paths, generics, &[&item])?;
         if !item.is_terrane_scalar() {
             return Err("set item is not a Terrane scalar".to_owned());
         }
@@ -892,6 +951,7 @@ fn project_resolved_type(
             ordered: resolved.contains("BTree"),
         });
     }
+    let rust_path = render_resolved_path(path, index, paths, generics)?;
     let short = resolved
         .rsplit("::")
         .next()

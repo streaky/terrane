@@ -598,7 +598,7 @@ impl terrane_associated_witness::Sequence for NamedSequence<terrane_int_support:
             >>::first(&*self);
             Ok(
                 __terrane_value
-                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    .map(|value| -> Result<i64, crate::TerraneForeignError> {
                         Ok(
                             terrane_int_support::coerce::<i64>(&value)
                                 .map_err(|error| crate::TerraneForeignError(
@@ -693,7 +693,9 @@ for Sequence<terrane_collection_support::List<terrane_int_support::Int>> {
             >>::first(&*self);
             Ok(
                 __terrane_value
-                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    .map(|
+                        value,
+                    | -> Result<std::vec::Vec<i64>, crate::TerraneForeignError> {
                         Ok(
                             value
                                 .into_vec()
@@ -761,7 +763,7 @@ impl terrane_associated_witness::Sequence for Sequence<terrane_int_support::Int>
             let __terrane_value = <Sequence<terrane_int_support::Int>>::first(&*self);
             Ok(
                 __terrane_value
-                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    .map(|value| -> Result<i64, crate::TerraneForeignError> {
                         Ok(
                             terrane_int_support::coerce::<i64>(&value)
                                 .map_err(|error| crate::TerraneForeignError(
@@ -791,7 +793,7 @@ pub use terrane_associated_witness::Nested;
 pub fn erased_total<
     TerraneBoxed0: terrane_associated_witness::Sequence<Item = i64> + 'static,
 >(value: TerraneBoxed0) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = Box::new(value);
+    let value = std::boxed::Box::new(value);
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_associated_witness::erased_total(value)),
     ) {

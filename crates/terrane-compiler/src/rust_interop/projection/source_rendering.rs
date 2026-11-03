@@ -748,7 +748,7 @@ pub(super) fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<St
                 collect_foreign_type(argument, foreign);
             }
         }
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             trait_path,
             name,
             associated_type,
@@ -1134,8 +1134,17 @@ fn render_interface_method(
             }
             write!(
                 output,
-                "{} {}",
+                "{} {}{}",
                 parameter.name,
+                if !method.provided && parameter.borrowed {
+                    if parameter.mutable_borrow {
+                        "mutable ref "
+                    } else {
+                        "ref "
+                    }
+                } else {
+                    ""
+                },
                 projected_type_name(&parameter.ty, foreign_aliases)
             )
             .expect("writing to a string cannot fail");
@@ -1265,14 +1274,14 @@ pub(super) fn render_function(
 fn projected_parameter_type_name(ty: &ProjectedType, aliases: &BTreeMap<String, String>) -> String {
     match ty {
         ProjectedType::Optional(inner) => {
-            format!("{}|none", projected_parameter_type_name(inner, aliases))
+            format!("({}|none)", projected_parameter_type_name(inner, aliases))
         }
-        ProjectedType::Sequence { .. }
+        ProjectedType::Callback { .. }
+        | ProjectedType::Sequence { .. }
         | ProjectedType::Mapping { .. }
         | ProjectedType::Set { .. }
         | ProjectedType::Tuple(_)
-        | ProjectedType::AsyncIterationStep(_)
-        | ProjectedType::BoxedInterface {
+        | ProjectedType::OwnedInterface {
             associated_type: Some(_),
             ..
         } => {
@@ -1354,7 +1363,7 @@ fn projected_type_name_in_context(
             nested(owned)
         }
         ProjectedType::InvocationScoped { .. } => "host-invocation-scoped-native".to_owned(),
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
             trait_path,
             name,
             associated_type,

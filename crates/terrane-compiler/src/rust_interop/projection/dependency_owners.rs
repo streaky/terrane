@@ -1175,7 +1175,8 @@ pub(super) fn rewrite_projected_rust_root(
             rewrite_projected_rust_root(owned, package_root, dependency_root);
             *rust_type = rewrite_rust_bound_root(rust_type, package_root, dependency_root);
         }
-        ProjectedType::BoxedInterface {
+        ProjectedType::OwnedInterface {
+            carrier,
             rust_path,
             trait_path,
             auto_traits,
@@ -1200,7 +1201,8 @@ pub(super) fn rewrite_projected_rust_root(
                 },
             );
             *rust_path = format!(
-                "Box<dyn {}>",
+                "{}<dyn {}>",
+                carrier.rust_constructor(),
                 std::iter::once(principal.as_str())
                     .chain(auto_traits.iter().map(String::as_str))
                     .collect::<Vec<_>>()

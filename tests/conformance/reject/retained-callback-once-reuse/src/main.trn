@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-retained-callback-api import Event as event, MutableEvent as mutable-event, invoke_mut, invoke_once, invoke_shared, invoke_sync, SendOnly as send-only, LocalOnly as local-only
+from /deps/terrane-retained-callback-registry import Registry as registry
+function main;
+    callback = consuming function; incoming event
+        print; incoming.value
+    invoke_once; callback, (instance event; value = 1)
+    invoke_once; callback, (instance event; value = 2)

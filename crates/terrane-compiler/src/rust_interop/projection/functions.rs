@@ -140,6 +140,27 @@ fn is_boxed_dynamic_error(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> bool {
     })
 }
 
+pub(super) fn contains_owned_callback(ty: &ProjectedType) -> bool {
+    match ty {
+        ProjectedType::Callback {
+            carrier: Some(_), ..
+        } => true,
+        ProjectedType::Sequence { item, .. }
+        | ProjectedType::Set { item, .. }
+        | ProjectedType::AsyncIterationStep(item)
+        | ProjectedType::Optional(item)
+        | ProjectedType::Reference { inner: item, .. } => contains_owned_callback(item),
+        ProjectedType::Mapping { key, value, .. } => {
+            contains_owned_callback(key) || contains_owned_callback(value)
+        }
+        ProjectedType::Tuple(items) => items.iter().any(contains_owned_callback),
+        ProjectedType::Foreign { arguments, .. } => arguments.iter().any(contains_owned_callback),
+        ProjectedType::InvocationScoped { owned, .. } => contains_owned_callback(owned),
+        ProjectedType::Callback { result, .. } => contains_owned_callback(result),
+        _ => false,
+    }
+}
+
 pub(super) fn project_function_with_generics(
     function: &Function,
     index: &HashMap<Id, Item>,
@@ -444,9 +465,14 @@ pub(super) fn project_function_inner(
         let (projected_type, impl_trait_parameter, inline_adapter_bounds) =
             if let Some(bounds) = impl_trait_bounds(ty) {
                 let generic = format!("TerraneImpl{parameter_index}");
-                if let Some((callback, result_bounds, _)) =
-                    project_callable_adapter_bounds(&generic, bounds, index, paths, &generic_types)?
-                {
+                if let Some((callback, result_bounds, _)) = project_callable_adapter_bounds(
+                    &generic,
+                    bounds,
+                    index,
+                    paths,
+                    &generic_types,
+                    false,
+                )? {
                     (callback, Some(generic), Some(result_bounds))
                 } else if let Some(projected) = invocation_scoped_sequence_impl_trait_input(
                     bounds,
@@ -527,7 +553,7 @@ pub(super) fn project_function_inner(
             return Err("mutable borrowed primitive parameters are not representable".to_owned());
         }
         let boxed_adapter = match &projected_type {
-            ProjectedType::BoxedInterface {
+            ProjectedType::OwnedInterface {
                 trait_path,
                 auto_traits,
                 associated_type,
@@ -635,7 +661,7 @@ pub(super) fn project_function_inner(
         } else {
             Vec::new()
         };
-        let associated_type = if let ProjectedType::BoxedInterface {
+        let associated_type = if let ProjectedType::OwnedInterface {
             associated_type, ..
         } = &projected_type
         {
@@ -911,8 +937,13 @@ pub(super) fn project_function_inner(
     {
         return Err("lifetime-bearing chain result has unresolved generic state".to_owned());
     }
-    if matches!(result, ProjectedType::BoxedInterface { .. }) {
-        return Err("boxed trait-object results cannot cross a projected boundary".to_owned());
+    if matches!(result, ProjectedType::OwnedInterface { .. }) {
+        return Err(
+            "owning trait-object carrier results cannot cross a projected boundary".to_owned(),
+        );
+    }
+    if contains_owned_callback(&result) {
+        return Err("owned callback results cannot cross a projected boundary".to_owned());
     }
     let mut generic_parameters = function
         .generics

@@ -1,0 +1,9 @@
+namespace app
+function main;
+    held (ref int)|none = none
+    callback = mutable function; incoming ref int
+        held = ref incoming
+    value = 7
+    callback; value
+    if held != none
+        print; held

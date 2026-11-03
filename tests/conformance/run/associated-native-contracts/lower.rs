@@ -1403,7 +1403,9 @@ fn main() {
                         > = __terrane_conversion_input_1;
                         __terrane_field_argument
                     }
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        .map(|
+                            value,
+                        | -> Result<Vec<witness::Tree>, crate::TerraneForeignError> {
                             Ok(
                                 value
                                     .into_iter()
@@ -1441,7 +1443,9 @@ fn main() {
                         > = __terrane_conversion_input_1;
                         __terrane_field_argument
                     }
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        .map(|
+                            value,
+                        | -> Result<Vec<witness::Tree>, crate::TerraneForeignError> {
                             Ok(
                                 value
                                     .into_iter()

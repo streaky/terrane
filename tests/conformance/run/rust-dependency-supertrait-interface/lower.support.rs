@@ -811,7 +811,7 @@ pub fn erased_child_total<
     TerraneBoxed0: terrane_supertrait_witness::Child + core::marker::Send
         + core::marker::Sync + 'static,
 >(value: TerraneBoxed0) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = Box::new(value);
+    let value = std::boxed::Box::new(value);
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_supertrait_witness::erased_child_total(
             value,

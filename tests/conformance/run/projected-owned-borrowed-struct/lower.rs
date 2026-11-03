@@ -98,7 +98,7 @@ fn main() {
                         let __terrane_field_argument: Option<terrane_int_support::Int> = __terrane_conversion_input_3;
                         __terrane_field_argument
                     }
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        .map(|value| -> Result<i64, crate::TerraneForeignError> {
                             Ok(
                                 terrane_int_support::coerce::<i64>(&value)
                                     .map_err(|error| crate::TerraneForeignError(
@@ -162,7 +162,7 @@ fn main() {
                         let __terrane_field_argument: Option<terrane_int_support::Int> = __terrane_conversion_input_3;
                         __terrane_field_argument
                     }
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        .map(|value| -> Result<i64, crate::TerraneForeignError> {
                             Ok(
                                 terrane_int_support::coerce::<i64>(&value)
                                     .map_err(|error| crate::TerraneForeignError(

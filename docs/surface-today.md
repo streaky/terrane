@@ -1097,11 +1097,12 @@ Projected interfaces preserve shared, mutable, and consuming receivers plus requ
 membership. Local classes adopt them with ordinary `implements`; generated Rust impls delegate
 required methods to Terrane bodies. Rust defaults remain callable; Terrane overrides are currently
 limited to owned, non-`Result` signatures. Owned concrete generic and `impl Trait` inputs retain
-their lifetime, `Send`, and `Sync` bounds and specialize from the written class argument. Only
-owning `Box<dyn Interface + Send/Sync>` parameters project: every object auto-trait is retained,
-and the shim boxes a conforming concrete class or exact generated wrapper. Bare or borrowed trait
-objects, non-interface boxes, multiple principal traits, boxed trait-object results, and wrappers
-missing requested auto traits decline. The oracle records closed foreign `Send` and `Sync`
+their lifetime, `Send`, and `Sync` bounds and specialize from the written class argument. Owning
+`Box<dyn Interface + Send/Sync>` and `Arc<dyn Interface + Send/Sync>` inputs project: every
+object auto-trait is retained, and the shim constructs the selected carrier around a conforming
+concrete class or exact generated wrapper. Bare or borrowed trait objects, non-interface boxes,
+multiple principal traits, owning trait-object carrier results, and wrappers missing requested
+auto traits decline. The oracle records closed foreign `Send` and `Sync`
 separately; conformance recursively checks the complete effective local-class field graph.
 Canonical Rust `Drop` supertraits require Terrane `consuming destruct` and reuse the class's single
 lineage-aware `Drop`; direct and reexported canonical `Drop` imports decline with that guidance.
