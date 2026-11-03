@@ -101,22 +101,41 @@ fn validate_owning_result(
     if super::types::type_contains_borrowed_ref(ty) || type_contains_lifetime_argument(ty) {
         return Err("owning callbacks require owned results; borrowed results need an invocation-bound result adapter".to_owned());
     }
-    if let Type::ResolvedPath(path) = ty {
-        if matches!(
-            index.get(&path.id).map(|item| &item.inner),
-            Some(ItemEnum::TypeAlias(_))
-        ) {
-            let (output, bindings) =
-                super::methods::expand_output_alias(ty.clone(), index, paths, known.clone())?;
-            return validate_owning_result(&output, index, paths, &bindings);
+    match ty {
+        Type::ResolvedPath(path) => {
+            if matches!(
+                index.get(&path.id).map(|item| &item.inner),
+                Some(ItemEnum::TypeAlias(_))
+            ) {
+                let (output, bindings) =
+                    super::methods::expand_output_alias(ty.clone(), index, paths, known.clone())?;
+                return validate_owning_result(&output, index, paths, &bindings);
+            }
+            for argument in super::types::type_arguments(ty) {
+                validate_owning_result(argument, index, paths, known)?;
+            }
         }
-        for argument in super::types::type_arguments(ty) {
-            validate_owning_result(argument, index, paths, known)?;
+        Type::Tuple(items) => {
+            for item in items {
+                validate_owning_result(item, index, paths, known)?;
+            }
         }
-    } else if let Type::Tuple(items) = ty {
-        for item in items {
+        Type::Slice(item)
+        | Type::Array { type_: item, .. }
+        | Type::Pat { type_: item, .. }
+        | Type::RawPointer { type_: item, .. } => {
             validate_owning_result(item, index, paths, known)?;
         }
+        // Associated projections need ownership proof after normalization.
+        // Neither an owned Self nor absence of written lifetimes proves Output
+        // is owned; it can resolve to an alias of a reference.
+        Type::QualifiedPath { .. } => {
+            return Err(
+                "owning callback associated results require a resolved owned representation"
+                    .to_owned(),
+            );
+        }
+        _ => {}
     }
     Ok(())
 }
@@ -711,6 +730,7 @@ pub(super) fn project_callable_adapter_bounds(
     owning_carrier: bool,
 ) -> Result<Option<CallableAdapterCandidate>, String> {
     let mut candidates = Vec::new();
+    let mut unsupported_owning_blanket = false;
     for bound in bounds {
         let Some((requested_trait, requested_higher_ranked)) = trait_bound_name(bound) else {
             continue;
@@ -841,9 +861,8 @@ pub(super) fn project_callable_adapter_bounds(
                     paths,
                 )
             {
-                return Err(
-                    "owning callable blanket has unsupported additional obligations".to_owned(),
-                );
+                unsupported_owning_blanket = true;
+                continue;
             }
             let Some((call_trait, call_higher_ranked, mut invocation_mode)) =
                 self_bounds.iter().find_map(|candidate| {
@@ -987,6 +1006,9 @@ pub(super) fn project_callable_adapter_bounds(
         }
     }
     match candidates.as_slice() {
+        [] if unsupported_owning_blanket => Err(
+            "owning callable blanket has unsupported additional obligations".to_owned(),
+        ),
         [] => Ok(None),
         [candidate] => Ok(Some(candidate.clone())),
         _ => merge_destination_selected_callable_candidates(&candidates)

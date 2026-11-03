@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-owning-review-witness import Event as event, invoke_good
+function inspect int; value ref event
+    return value.value + 2
+function main;
+    print; (invoke_good; inspect, (instance event; value = 5))

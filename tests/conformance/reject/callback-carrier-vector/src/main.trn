@@ -1,0 +1,9 @@
+namespace app
+from /deps/optional-callback-api import Event as event, invoke_vec
+from /core/collections import list
+function inspect bool; current ref event
+    return current.value == 7
+function main;
+    value = instance event; value = 7
+    callbacks = list; inspect
+    print; (invoke_vec; callbacks, value)

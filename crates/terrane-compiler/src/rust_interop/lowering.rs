@@ -1054,8 +1054,9 @@ pub(super) fn projected_argument_expression(
                 name.to_owned()
             } else {
                 let converted = projected_argument_expression("value", inner, package);
+                let native = inner.rust_type();
                 format!(
-                    "{name}.map(|value| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
+                    "{name}.map(|value| -> Result<{native}, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
                 )
             }
         }

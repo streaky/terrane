@@ -1274,13 +1274,13 @@ pub(super) fn render_function(
 fn projected_parameter_type_name(ty: &ProjectedType, aliases: &BTreeMap<String, String>) -> String {
     match ty {
         ProjectedType::Optional(inner) => {
-            format!("{}|none", projected_parameter_type_name(inner, aliases))
+            format!("({}|none)", projected_parameter_type_name(inner, aliases))
         }
-        ProjectedType::Sequence { .. }
+        ProjectedType::Callback { .. }
+        | ProjectedType::Sequence { .. }
         | ProjectedType::Mapping { .. }
         | ProjectedType::Set { .. }
         | ProjectedType::Tuple(_)
-        | ProjectedType::AsyncIterationStep(_)
         | ProjectedType::OwnedInterface {
             associated_type: Some(_),
             ..

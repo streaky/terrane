@@ -1,0 +1,8 @@
+namespace app
+from /deps/optional-callback-api import Event as event, invoke_optional_direct
+function main;
+    value = instance event; value = 7
+    observer = ref value
+    callback = function bool; current ref event
+        return observer.value == current.value
+    print; (invoke_optional_direct; callback, value)

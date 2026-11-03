@@ -576,7 +576,7 @@ impl Descriptor {
             note: note.into(),
             extra: extra
                 .into()
-                .map(|value| -> Result<_, crate::TerraneForeignError> {
+                .map(|value| -> Result<Vec<String>, crate::TerraneForeignError> {
                     Ok(
                         value
                             .into_iter()

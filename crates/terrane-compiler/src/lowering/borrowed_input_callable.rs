@@ -119,7 +119,7 @@ impl Shape {
         };
         let name = self.name();
         if !self.borrowed_environment && self.mutable {
-            return Self::owned_mutable_runtime(&name, &types, &tuple);
+            return super::mutable_callable::runtime(&name, &types, &tuple);
         }
         let lifetime = if self.borrowed_environment {
             "'env, "
@@ -146,40 +146,6 @@ impl Shape {
             fn call({receiver}, arguments: {tuple}) -> Output {{ (self.body)(arguments) }}
         }}
         "
-        )
-    }
-
-    fn owned_mutable_runtime(name: &str, types: &str, tuple: &str) -> String {
-        format!(
-            r#"
-        trait {name}Body<{types}>: Send {{
-            fn call(&mut self, arguments: {tuple}) -> Output;
-            fn clone_box(&self) -> Box<dyn {name}Body<{types}>>;
-        }}
-        impl<{types}, Function> {name}Body<{types}> for Function
-        where Function: FnMut({tuple}) -> Output + Clone + Send + 'static {{
-            fn call(&mut self, arguments: {tuple}) -> Output {{ self(arguments) }}
-            fn clone_box(&self) -> Box<dyn {name}Body<{types}>> {{ Box::new(self.clone()) }}
-        }}
-        pub struct {name}<{types}> {{
-            body: std::sync::Mutex<Box<dyn {name}Body<{types}>>>,
-        }}
-        impl<{types}> {name}<{types}> {{
-            fn new<Function>(function: Function) -> Self
-            where Function: FnMut({tuple}) -> Output + Clone + Send + 'static {{
-                Self {{ body: std::sync::Mutex::new(Box::new(function)) }}
-            }}
-            fn call(&self, arguments: {tuple}) -> Output {{
-                self.body.lock().expect("mutable callable lock poisoned").call(arguments)
-            }}
-        }}
-        impl<{types}> Clone for {name}<{types}> {{
-            fn clone(&self) -> Self {{
-                let body = self.body.lock().expect("mutable callable lock poisoned").clone_box();
-                Self {{ body: std::sync::Mutex::new(body) }}
-            }}
-        }}
-        "#
         )
     }
 }

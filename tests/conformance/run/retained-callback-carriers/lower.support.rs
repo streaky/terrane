@@ -826,7 +826,9 @@ impl<A0, Output> TerraneOwnedConsumingInputsR<A0, Output> {
 }
 trait TerraneOwnedMutableInputsRBody<A0, Output>: Send {
     fn call(&mut self, arguments: (&A0,)) -> Output;
-    fn clone_box(&self) -> Box<dyn TerraneOwnedMutableInputsRBody<A0, Output>>;
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneOwnedMutableInputsRBody<A0, Output>>;
 }
 impl<A0, Output, Function> TerraneOwnedMutableInputsRBody<A0, Output> for Function
 where
@@ -835,12 +837,16 @@ where
     fn call(&mut self, arguments: (&A0,)) -> Output {
         self(arguments)
     }
-    fn clone_box(&self) -> Box<dyn TerraneOwnedMutableInputsRBody<A0, Output>> {
-        Box::new(self.clone())
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneOwnedMutableInputsRBody<A0, Output>> {
+        std::boxed::Box::new(self.clone())
     }
 }
 pub struct TerraneOwnedMutableInputsR<A0, Output> {
-    body: std::sync::Mutex<Box<dyn TerraneOwnedMutableInputsRBody<A0, Output>>>,
+    body: std::sync::Mutex<
+        std::boxed::Box<dyn TerraneOwnedMutableInputsRBody<A0, Output>>,
+    >,
 }
 impl<A0, Output> TerraneOwnedMutableInputsR<A0, Output> {
     fn new<Function>(function: Function) -> Self
@@ -848,7 +854,7 @@ impl<A0, Output> TerraneOwnedMutableInputsR<A0, Output> {
         Function: FnMut((&A0,)) -> Output + Clone + Send + 'static,
     {
         Self {
-            body: std::sync::Mutex::new(Box::new(function)),
+            body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
     fn call(&self, arguments: (&A0,)) -> Output {
@@ -865,7 +871,9 @@ impl<A0, Output> Clone for TerraneOwnedMutableInputsR<A0, Output> {
 }
 trait TerraneOwnedMutableInputsMBody<A0, Output>: Send {
     fn call(&mut self, arguments: (&mut A0,)) -> Output;
-    fn clone_box(&self) -> Box<dyn TerraneOwnedMutableInputsMBody<A0, Output>>;
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneOwnedMutableInputsMBody<A0, Output>>;
 }
 impl<A0, Output, Function> TerraneOwnedMutableInputsMBody<A0, Output> for Function
 where
@@ -874,12 +882,16 @@ where
     fn call(&mut self, arguments: (&mut A0,)) -> Output {
         self(arguments)
     }
-    fn clone_box(&self) -> Box<dyn TerraneOwnedMutableInputsMBody<A0, Output>> {
-        Box::new(self.clone())
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneOwnedMutableInputsMBody<A0, Output>> {
+        std::boxed::Box::new(self.clone())
     }
 }
 pub struct TerraneOwnedMutableInputsM<A0, Output> {
-    body: std::sync::Mutex<Box<dyn TerraneOwnedMutableInputsMBody<A0, Output>>>,
+    body: std::sync::Mutex<
+        std::boxed::Box<dyn TerraneOwnedMutableInputsMBody<A0, Output>>,
+    >,
 }
 impl<A0, Output> TerraneOwnedMutableInputsM<A0, Output> {
     fn new<Function>(function: Function) -> Self
@@ -887,7 +899,7 @@ impl<A0, Output> TerraneOwnedMutableInputsM<A0, Output> {
         Function: FnMut((&mut A0,)) -> Output + Clone + Send + 'static,
     {
         Self {
-            body: std::sync::Mutex::new(Box::new(function)),
+            body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
     fn call(&self, arguments: (&mut A0,)) -> Output {

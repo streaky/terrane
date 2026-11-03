@@ -1,0 +1,20 @@
+namespace app
+from /deps/optional-callback-api import Event as event, MutableEvent as mutable-event
+from /deps/optional-callback-api import invoke_optional_direct, invoke_optional_alias, invoke_optional_box
+
+function main;
+    callback = function bool; incoming ref event
+        return incoming.value == 7
+    incoming = instance event; value = 7
+    print; (invoke_optional_direct; callback, incoming)
+    print; (invoke_optional_direct; none, incoming)
+    print; (invoke_optional_alias; callback, incoming)
+    print; (invoke_optional_alias; none, incoming)
+    change = mutable function bool; current mutable ref mutable-event
+        current.active = not current.active
+        return current.active
+    current = instance mutable-event; active = false
+    print; (invoke_optional_box; move change, current)
+    print; current.active
+    print; (invoke_optional_box; none, current)
+    print; current.active

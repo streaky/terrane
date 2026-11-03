@@ -541,8 +541,10 @@ fn lower_with_tests(
         runtime.push(GeneratedModule {
             name: "mutable-callable",
             source_files: vec!["mutable_callable.rs"],
-            items: vec![Item::generated(include_str!(
-                "../../runtime/mutable_callable.rs"
+            items: vec![Item::generated(&super::super::mutable_callable::runtime(
+                "TerraneMutableCallable",
+                "Arguments, Output",
+                "Arguments",
             ))],
         });
     }
@@ -1036,8 +1038,10 @@ fn lower_with_tests(
         runtime.push(GeneratedModule {
             name: "mutable-callable",
             source_files: vec!["mutable_callable.rs"],
-            items: vec![Item::generated(include_str!(
-                "../../runtime/mutable_callable.rs"
+            items: vec![Item::generated(&super::super::mutable_callable::runtime(
+                "TerraneMutableCallable",
+                "Arguments, Output",
+                "Arguments",
             ))],
         });
     }

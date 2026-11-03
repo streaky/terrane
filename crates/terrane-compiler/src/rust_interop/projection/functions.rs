@@ -940,7 +940,9 @@ pub(super) fn project_function_inner(
         return Err("lifetime-bearing chain result has unresolved generic state".to_owned());
     }
     if matches!(result, ProjectedType::OwnedInterface { .. }) {
-        return Err("boxed trait-object results cannot cross a projected boundary".to_owned());
+        return Err(
+            "owning trait-object carrier results cannot cross a projected boundary".to_owned(),
+        );
     }
     if contains_owned_callback_output(&result) {
         return Err("owned callback results cannot cross a projected boundary".to_owned());

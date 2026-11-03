@@ -1665,9 +1665,13 @@ fn validate_argument_destination(
     {
         return Ok(());
     }
+    let mut callable_destination = expected;
+    while let ValueType::Optional(inner) = callable_destination {
+        callable_destination = inner;
+    }
     let canonical_callable_types = (expected != actual
         && matches!(
-            expected,
+            callable_destination,
             ValueType::Function(..) | ValueType::AsyncFunction(..)
         ))
     .then(|| {

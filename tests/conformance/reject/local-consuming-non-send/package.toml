@@ -1,0 +1,8 @@
+package = "local-consuming-non-send"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-callable-send-witness]
+version = "=0.1.0"
+effects = ["build"]

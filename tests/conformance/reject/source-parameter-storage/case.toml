@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0059"
+contains = "borrowed parameter cannot be stored outside its invocation"

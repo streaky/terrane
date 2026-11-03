@@ -1,0 +1,8 @@
+namespace app
+from /deps/optional-callback-api import use_handler
+
+function truth bool; value int
+    return value == 7
+
+function main;
+    print; (use_handler; truth)
