@@ -3209,7 +3209,11 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
                 }
             }
             SyntaxKind::CatchClause => {
-                if let Some(descriptor) = node.children.first() {
+                for descriptor in node
+                    .children
+                    .iter()
+                    .take_while(|child| child.kind == SyntaxKind::Name)
+                {
                     visit(package, unit, descriptor, named_function)?;
                 }
                 if let Some(block) = node.children.last()

@@ -1,0 +1,9 @@
+namespace unlisted
+from /core/errors import coercion-error, arithmetic-overflow, index-error
+function work throws coercion-error;
+    try
+        throw index-error
+    catch coercion-error, arithmetic-overflow
+        return
+function main;
+    work;

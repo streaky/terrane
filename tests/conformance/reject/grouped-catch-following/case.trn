@@ -1,0 +1,9 @@
+namespace invalid-catch
+from /core/errors import coercion-error, arithmetic-overflow, throwable
+function main;
+    try
+        throw coercion-error
+    catch coercion-error, arithmetic-overflow
+        return
+    catch arithmetic-overflow
+        return

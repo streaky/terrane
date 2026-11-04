@@ -23,6 +23,17 @@ fn rejected(text: &str, code: &str) {
 }
 
 #[test]
+fn rejects_missing_grouped_catch_descriptors() {
+    for header in [
+        "catch first-error,",
+        "catch first-error, as error",
+        "catch first-error,, second-error",
+    ] {
+        rejected(&format!("try\n    return\n{header}\n    return\n"), "S1031");
+    }
+}
+
+#[test]
 fn rejects_invalid_switch_clause_shapes() {
     for (body, code) in [
         ("switch 1\n    print; 'not a case'\n", "S1110"),

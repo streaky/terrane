@@ -760,34 +760,38 @@ fn direct_errors(
             .first()
             .map_or_else(BTreeSet::new, |block| direct_errors(package, unit, block));
         let mut clauses_finished = false;
+        let mut handler_errors = BTreeSet::new();
         for child in node.children.iter().skip(1) {
             if child.kind == SyntaxKind::CatchClause {
-                let descriptor = child
+                let mut descriptors = child
                     .children
-                    .first()
-                    .filter(|candidate| candidate.kind == SyntaxKind::Name);
-                if let Some(descriptor) = descriptor
-                    && let Some(symbol) = package.resolve_name_at(
+                    .iter()
+                    .take_while(|candidate| candidate.kind == SyntaxKind::Name)
+                    .peekable();
+                if descriptors.peek().is_none() {
+                    errors.clear();
+                }
+                for descriptor in descriptors {
+                    if let Some(symbol) = package.resolve_name_at(
                         unit,
                         descriptor.span.start,
                         node_text(&unit.source, descriptor),
-                    )
-                {
-                    if symbol.identity == "/core/errors::throwable" {
-                        errors.clear();
-                    } else {
-                        errors.remove(&symbol.identity);
+                    ) {
+                        if symbol.identity == "/core/errors::throwable" {
+                            errors.clear();
+                        } else {
+                            errors.remove(&symbol.identity);
+                        }
                     }
-                } else {
-                    errors.clear();
                 }
                 if let Some(block) = child.children.last() {
-                    errors.extend(direct_errors(package, unit, block));
+                    handler_errors.extend(direct_errors(package, unit, block));
                 }
                 clauses_finished = true;
             } else if child.kind == SyntaxKind::FinallyClause
                 && let Some(block) = child.children.last()
             {
+                errors.append(&mut handler_errors);
                 let finally_errors = direct_errors(package, unit, block);
                 if super::scope_validation::block_may_fall_through(block) {
                     errors.extend(finally_errors);
@@ -798,6 +802,7 @@ fn direct_errors(
                 errors.extend(direct_errors(package, unit, child));
             }
         }
+        errors.extend(handler_errors);
         return errors;
     }
     node.children
@@ -1533,34 +1538,38 @@ pub(super) fn escaping_throwables(
             escaping_throwables(package, unit, block, inferred)
         });
         let mut clauses_finished = false;
+        let mut handler_errors = BTreeSet::new();
         for child in node.children.iter().skip(1) {
             if child.kind == SyntaxKind::CatchClause {
-                let descriptor = child
+                let mut descriptors = child
                     .children
-                    .first()
-                    .filter(|candidate| candidate.kind == SyntaxKind::Name);
-                if let Some(descriptor) = descriptor
-                    && let Some(symbol) = package.resolve_name_at(
+                    .iter()
+                    .take_while(|candidate| candidate.kind == SyntaxKind::Name)
+                    .peekable();
+                if descriptors.peek().is_none() {
+                    errors.clear();
+                }
+                for descriptor in descriptors {
+                    if let Some(symbol) = package.resolve_name_at(
                         unit,
                         descriptor.span.start,
                         node_text(&unit.source, descriptor),
-                    )
-                {
-                    if symbol.identity == "/core/errors::throwable" {
-                        errors.clear();
-                    } else {
-                        errors.remove(&symbol.identity);
+                    ) {
+                        if symbol.identity == "/core/errors::throwable" {
+                            errors.clear();
+                        } else {
+                            errors.remove(&symbol.identity);
+                        }
                     }
-                } else {
-                    errors.clear();
                 }
                 if let Some(block) = child.children.last() {
-                    errors.extend(escaping_throwables(package, unit, block, inferred));
+                    handler_errors.extend(escaping_throwables(package, unit, block, inferred));
                 }
                 clauses_finished = true;
             } else if child.kind == SyntaxKind::FinallyClause
                 && let Some(block) = child.children.last()
             {
+                errors.append(&mut handler_errors);
                 let finally_errors = escaping_throwables(package, unit, block, inferred);
                 if super::scope_validation::block_may_fall_through(block) {
                     errors.extend(finally_errors);
@@ -1571,6 +1580,7 @@ pub(super) fn escaping_throwables(
                 errors.extend(escaping_throwables(package, unit, child, inferred));
             }
         }
+        errors.extend(handler_errors);
         return errors;
     }
     let mut errors = local_errors;

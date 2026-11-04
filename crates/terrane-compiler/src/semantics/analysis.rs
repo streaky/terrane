@@ -1592,11 +1592,12 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                 .iter()
                 .filter(|child| child.kind == SyntaxKind::CatchClause)
             {
-                let Some(descriptor) = clause
+                let mut descriptors = clause
                     .children
-                    .first()
-                    .filter(|child| child.kind == SyntaxKind::Name)
-                else {
+                    .iter()
+                    .take_while(|child| child.kind == SyntaxKind::Name)
+                    .peekable();
+                if descriptors.peek().is_none() {
                     if catches_all {
                         return Err(failure(
                             &unit.source,
@@ -1607,42 +1608,47 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                     }
                     catches_all = true;
                     continue;
-                };
-                let name = node_text(&unit.source, descriptor);
-                let symbol = package.resolve_name_at(unit, descriptor.span.start, name);
-                let valid = symbol.is_some_and(|symbol| {
-                    symbol.kind == SymbolKind::ErrorObject
-                        || (symbol.kind == SymbolKind::Interface
-                            && symbol.identity == "/core/errors::throwable")
-                        || (symbol.kind == SymbolKind::Class
-                            && unit
-                                .projected_error_objects
-                                .contains(&ObjectIdentity::new(&symbol.namespace, &symbol.name)))
-                        || (matches!(symbol.kind, SymbolKind::Class | SymbolKind::TypeDescriptor)
-                            && identity_implements(
+                }
+                for descriptor in descriptors {
+                    let name = node_text(&unit.source, descriptor);
+                    let symbol = package.resolve_name_at(unit, descriptor.span.start, name);
+                    let valid = symbol.is_some_and(|symbol| {
+                        symbol.kind == SymbolKind::ErrorObject
+                            || (symbol.kind == SymbolKind::Interface
+                                && symbol.identity == "/core/errors::throwable")
+                            || (symbol.kind == SymbolKind::Class
+                                && unit.projected_error_objects.contains(&ObjectIdentity::new(
+                                    &symbol.namespace,
+                                    &symbol.name,
+                                )))
+                            || (matches!(
+                                symbol.kind,
+                                SymbolKind::Class | SymbolKind::TypeDescriptor
+                            ) && identity_implements(
                                 package,
                                 &symbol.identity,
                                 "/core/errors::throwable",
                             ))
-                });
-                if !valid {
-                    return Err(failure(
-                        &unit.source,
-                        "T0021",
-                        format!("`{name}` is not a throwable descriptor"),
-                        descriptor.span,
-                    ));
+                    });
+                    if !valid {
+                        return Err(failure(
+                            &unit.source,
+                            "T0021",
+                            format!("`{name}` is not a throwable descriptor"),
+                            descriptor.span,
+                        ));
+                    }
+                    let identity = &symbol.expect("validated error symbol").identity;
+                    if catches_all || !caught.insert(identity.clone()) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0022",
+                            format!("catch clause for `{name}` is unreachable"),
+                            descriptor.span,
+                        ));
+                    }
+                    catches_all = identity == "/core/errors::throwable";
                 }
-                let identity = &symbol.expect("validated error symbol").identity;
-                if catches_all || !caught.insert(identity.clone()) {
-                    return Err(failure(
-                        &unit.source,
-                        "T0022",
-                        format!("catch clause for `{name}` is unreachable"),
-                        clause.span,
-                    ));
-                }
-                catches_all = identity == "/core/errors::throwable";
             }
         }
         for child in &node.children {

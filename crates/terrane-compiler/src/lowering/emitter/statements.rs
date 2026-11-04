@@ -980,24 +980,34 @@ impl Emitter<'_> {
             .iter()
             .filter(|child| child.kind == SyntaxKind::CatchClause)
         {
-            let descriptor = clause
+            let descriptors = clause
                 .children
                 .iter()
-                .find(|child| child.kind == SyntaxKind::Name);
-            let condition = descriptor.map_or_else(
-                || format!("!__terrane_handled_{index}"),
-                |descriptor| {
+                .take_while(|child| child.kind == SyntaxKind::Name)
+                .collect::<Vec<_>>();
+            let condition = if descriptors.is_empty()
+                || descriptors.iter().any(|descriptor| {
                     let name = self.error_kind(descriptor);
-                    if name == "error" || self.is_builtin(descriptor, "/core/errors::throwable") {
-                        format!("!__terrane_handled_{index}")
-                    } else {
+                    name == "error" || self.is_builtin(descriptor, "/core/errors::throwable")
+                }) {
+                format!("!__terrane_handled_{index}")
+            } else {
+                let comparisons = descriptors
+                    .iter()
+                    .map(|descriptor| {
                         format!(
-                            "!__terrane_handled_{index} && __terrane_error_{index}.kind == TerraneErrorKind::{}",
+                            "__terrane_error_{index}.kind == TerraneErrorKind::{}",
                             self.rust_error_kind(descriptor)
                         )
-                    }
-                },
-            );
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" || ");
+                if descriptors.len() == 1 {
+                    format!("!__terrane_handled_{index} && {comparisons}")
+                } else {
+                    format!("!__terrane_handled_{index} && ({comparisons})")
+                }
+            };
             self.line(&format!("if {condition} {{"));
             self.indent += 1;
             self.line(&format!("__terrane_handled_{index} = true;"));
