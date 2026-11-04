@@ -250,10 +250,11 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/namespaces/imports.yaml
-  notes: Absolute, relative, selected, aliased, and namespace-wide imports resolve deterministically.
+  notes: Absolute, relative, selective (including grouped selective), aliased, and namespace-wide imports resolve deterministically.
   sources:
   - docs/language-spec-concise.md#IMPORT
   - docs/compiler-plan.md#Milestone 3
+  - tests/conformance/run/grouped-imports/case.trn
 - id: prelude
   name: Default prelude
   category: names

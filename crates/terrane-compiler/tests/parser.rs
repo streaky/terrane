@@ -648,6 +648,438 @@ fn parses_structural_import_forms_and_named_arguments() {
 }
 
 #[test]
+fn grouped_imports_preserve_aliases_and_lexical_boundaries() {
+    for ending in ["", "\n", "\nvalue = 1\n"] {
+        let tree = parse_source(&format!(
+            "from /core/types import\n\tint8 as byte, int16,\n\tint32 as word{ending}"
+        ));
+        let import = &tree.root.children[0];
+        assert_eq!(import.children.len(), 4);
+        assert_eq!(import.children[1].children[1].kind, SyntaxKind::ImportAlias);
+        assert_eq!(import.children[3].children[1].kind, SyntaxKind::ImportAlias);
+        if ending.contains("value") {
+            assert_eq!(tree.root.children[1].kind, SyntaxKind::Assignment);
+        } else {
+            assert_eq!(tree.root.children.len(), 1);
+        }
+    }
+    let tree = parse_source(
+        "function main;\n\tfrom /core/types import\n\t\tint8 as byte,\n\t\tint16\n\tvalue byte = 1\nprint; 2\n",
+    );
+    assert_eq!(
+        tree.root.children[0]
+            .children
+            .last()
+            .unwrap()
+            .children
+            .len(),
+        2
+    );
+    assert_eq!(tree.root.children.len(), 2);
+    for source in [
+        "from /example import\n\titem as alias, as\n",
+        "from /example import\n\titem as alias,\n\tas\n",
+        "from /example import\n\titem,\n\tas as local\n",
+        "from /example import\n\titem as alias, // separator\n\n// between\n\tas as local\n",
+    ] {
+        let tree = parse_source(source);
+        let name = &tree.root.children[0].children[2].children[0];
+        assert_eq!(name.kind, SyntaxKind::Name);
+        assert_eq!(&source[name.span.start..name.span.end], "as");
+    }
+}
+
+#[test]
+fn rejects_invalid_grouped_import_boundaries() {
+    for (text, message, count) in [
+        (
+            "from /core/types import\nint8\n",
+            "expected an indented import list",
+            1,
+        ),
+        (
+            "from /core/types import\n",
+            "expected an indented import list",
+            1,
+        ),
+        (
+            "from /core/types import int8,\n\tint16\n",
+            "an inline import list cannot continue",
+            1,
+        ),
+        (
+            "from /core/types import int8\n\tint16\n",
+            "an inline import list cannot continue",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8\n\tint16\n",
+            "expected `,` between imported names",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 int16\n",
+            "expected `,` between imported names",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t\tint16\n",
+            "import items must use the same indentation",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 as\n\tbyte\n",
+            "expected an import alias after `as`",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8\n\t, int16\n",
+            "a separating comma must end the previous import line",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t, int16\n",
+            "unexpected extra comma before imported name",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,, int16\n",
+            "expected an imported name",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 + int16\n",
+            "expected `,` between imported names",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 int16 int32\n",
+            "expected `,` between imported names",
+            2,
+        ),
+        ("from /core/types import int8,\n", "trailing comma", 1),
+        ("from /core/types import\n\tint8,\n", "trailing comma", 1),
+        (
+            "from /core/types import\n\tint8,\n\tint16,",
+            "trailing comma",
+            1,
+        ),
+    ] {
+        let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
+        let parsed = parse(&source, lex(&source).unwrap());
+        assert_eq!(
+            parsed.diagnostics.len(),
+            count,
+            "{text}\n{:#?}",
+            parsed.diagnostics
+        );
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "S1026")
+        );
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains(message)),
+            "{text}\n{:#?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+fn assert_import_recovery(items: &str, names: &[&str], messages: &[&str], depth: usize) {
+    let body = format!("from /core/types import\n{items}\nvalue int32 = 1\n");
+    let mut text = ["", "function main;\n", "function main;\n\tif true\n"][depth].to_owned();
+    for line in body.lines() {
+        for _ in 0..depth {
+            text.push('\t');
+        }
+        text.push_str(line);
+        text.push('\n');
+    }
+    let spaces = text.replace('\t', "    ");
+    for text in [text, spaces] {
+        let source = SourceFile::new(0, "case.trn".into(), text);
+        let parsed = parse(&source, lex(&source).unwrap());
+        assert_eq!(
+            parsed.diagnostics.len(),
+            messages.len(),
+            "{:#?}",
+            parsed.diagnostics
+        );
+        for (diagnostic, message) in parsed.diagnostics.iter().zip(messages) {
+            assert_eq!(diagnostic.code, "S1026");
+            assert!(diagnostic.message.contains(message), "{diagnostic:#?}");
+        }
+        let mut statements = &parsed.tree.root.children;
+        for _ in 0..depth {
+            statements = &statements[0].children.last().unwrap().children;
+        }
+        assert_eq!(statements.len(), 2);
+        assert_eq!(statements[1].kind, SyntaxKind::Binding);
+        let actual = statements[0]
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::ObjectImport)
+            .filter_map(|node| {
+                node.children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+            })
+            .map(|name| &source.text()[name.span.start..name.span.end])
+            .collect::<Vec<_>>();
+        assert_eq!(actual, names);
+    }
+}
+
+#[test]
+fn malformed_import_item_entries_recover_once() {
+    let missing_name = "expected an imported name";
+    let missing_alias = "expected an import alias after `as`";
+    let repeated_alias = "an import item may have only one alias";
+    for (items, names, message) in [
+        ("\t+ int8", vec![], missing_name),
+        ("\tint8,\n\t+ int32", vec!["int8"], missing_name),
+        ("\tint8\n\t+ int32", vec!["int8"], missing_name),
+        ("\t(int8)", vec![], missing_name),
+        ("\t+ int8, int32", vec!["int32"], missing_name),
+        (
+            "\tint8,\n\t+ int16, int32",
+            vec!["int8", "int32"],
+            missing_name,
+        ),
+        ("\t, int8", vec!["int8"], missing_name),
+        (
+            "\tint8 as + alias, int32",
+            vec!["int8", "int32"],
+            missing_alias,
+        ),
+        ("\tint8 as , int32", vec!["int8", "int32"], missing_alias),
+        (
+            "\tint8 as alias as other, int32",
+            vec!["int8", "int32"],
+            repeated_alias,
+        ),
+        ("\tint8 as alias as other", vec!["int8"], repeated_alias),
+        (
+            "\tint8 as alias as other as third, int32",
+            vec!["int8", "int32"],
+            repeated_alias,
+        ),
+        (
+            "\tint8 as alias as other,\n\tint32",
+            vec!["int8", "int32"],
+            repeated_alias,
+        ),
+        (
+            "\tint8 as alias as other, as",
+            vec!["int8", "as"],
+            repeated_alias,
+        ),
+        ("\t(int8, int16), int32", vec!["int32"], missing_name),
+        ("\t[int8, int16], int32", vec!["int32"], missing_name),
+        ("\t{int8, int16}, int32", vec!["int32"], missing_name),
+        (
+            "\tint8 as (alias, extra), int32",
+            vec!["int8", "int32"],
+            missing_alias,
+        ),
+        (
+            "\tint8 as (, alias), int32",
+            vec!["int8", "int32"],
+            missing_alias,
+        ),
+        (
+            "\tint8 as + (alias, extra), int32",
+            vec!["int8", "int32"],
+            missing_alias,
+        ),
+        (
+            "\tint8 as ([alias, extra], {nested, other}), int32",
+            vec!["int8", "int32"],
+            missing_alias,
+        ),
+        ("\tint8 as ,, int32", vec!["int8", "int32"], missing_alias),
+        ("\tint8,,, int16", vec!["int8", "int16"], missing_name),
+    ] {
+        for depth in 0..=1 {
+            assert_import_recovery(items, &names, &[message], depth);
+        }
+    }
+}
+
+#[test]
+fn wrapped_import_aliases_recover_at_group_boundaries() {
+    let wrapped = "an import alias must stay on the same line as its item";
+    let indentation = "import items must use the same indentation";
+    let endings: &[(&str, &[&str], &[&str])] = &[
+        ("", &["int8"], &[wrapped]),
+        (", int32", &["int8", "int32"], &[wrapped]),
+        (",\n\tint32", &["int8", "int32"], &[wrapped]),
+        (
+            ",\n\t\tint16,\n\tint32",
+            &["int8", "int32"],
+            &[wrapped, indentation],
+        ),
+    ];
+    for first in ["int8", "int8 as alias"] {
+        for gap in ["\n", " // item\n\n// between\n"] {
+            for value in [
+                "other",
+                "+ other",
+                "'other, extra'",
+                "(other, extra)",
+                "[other, extra]",
+                "{other, extra}",
+                "(other, [extra, {nested, last}])",
+                "",
+            ] {
+                for (ending, names, messages) in endings {
+                    let items = format!("\t{first}{gap}\tas {value}{ending}");
+                    for depth in 0..=2 {
+                        assert_import_recovery(&items, names, messages, depth);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn grouped_import_comma_runs_recover_once() {
+    let name = "expected an imported name";
+    let alias = "expected an import alias after `as`";
+    let extra = "unexpected extra comma before imported name";
+    let leading = "a separating comma must end the previous import line";
+    let indentation = "import items must use the same indentation";
+    for (items, names, messages) in [
+        ("\tint8,,,, int16", &["int8", "int16"][..], &[name][..]),
+        ("\tint8 as ,,,int32", &["int8", "int32"][..], &[alias][..]),
+        ("\tint8,\n\t,,,int16", &["int8", "int16"][..], &[extra][..]),
+        ("\tint8\n\t,,,int16", &["int8", "int16"][..], &[leading][..]),
+        ("\t,,,int16", &["int16"][..], &[name][..]),
+        (
+            "\tint8,\n\t,,,\n\tint32",
+            &["int8", "int32"][..],
+            &[extra][..],
+        ),
+        (
+            "\tint8,\n\t,,,\n\t\tint16,\n\tint32",
+            &["int8", "int32"][..],
+            &[extra, indentation][..],
+        ),
+    ] {
+        for depth in 0..=2 {
+            assert_import_recovery(items, names, messages, depth);
+        }
+    }
+}
+
+#[test]
+fn malformed_imports_recover_following_items_and_statements() {
+    for (text, message, names, count) in [
+        (
+            "from /core/types import int8\n\tint16\nvalue int32 = 1\n",
+            "an inline import list cannot continue",
+            vec!["int8"],
+            1,
+        ),
+        (
+            "from /core/types import int8,\n\n// continuation\n\tint16\nvalue int32 = 1\n",
+            "an inline import list cannot continue",
+            vec!["int8"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t\tint16,\n\tint32\nvalue int32 = 1\n",
+            "import items must use the same indentation",
+            vec!["int8", "int32"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8\n\t\tint16,\n\tint32\nvalue int32 = 1\n",
+            "import items must use the same indentation",
+            vec!["int8", "int32"],
+            2,
+        ),
+        (
+            "from /core/types import\n\tint8\n\t, int16\nvalue int32 = 1\n",
+            "a separating comma must end the previous import line",
+            vec!["int8", "int16"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t, int16\nvalue int32 = 1\n",
+            "unexpected extra comma before imported name",
+            vec!["int8", "int16"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,, int16,\n\tint32\nvalue int32 = 1\n",
+            "expected an imported name",
+            vec!["int8", "int16", "int32"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 + int16, int32\nvalue int32 = 1\n",
+            "expected `,` between imported names",
+            vec!["int8", "int32"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 + int16\n\tint32\nvalue int32 = 1\n",
+            "expected `,` between imported names",
+            vec!["int8", "int32"],
+            1,
+        ),
+    ] {
+        for nested in [false, true] {
+            let text = if nested {
+                let mut body = String::from("function main;\n");
+                for line in text.lines() {
+                    body.push('\t');
+                    body.push_str(line);
+                    body.push('\n');
+                }
+                body
+            } else {
+                text.to_owned()
+            };
+            let source = SourceFile::new(0, "case.trn".into(), text);
+            let parsed = parse(&source, lex(&source).unwrap());
+            assert_eq!(parsed.diagnostics.len(), count, "{:#?}", parsed.diagnostics);
+            assert!(parsed.diagnostics.iter().any(|diagnostic| {
+                diagnostic.code == "S1026" && diagnostic.message.contains(message)
+            }));
+            let statements = if nested {
+                &parsed.tree.root.children[0]
+                    .children
+                    .last()
+                    .unwrap()
+                    .children
+            } else {
+                &parsed.tree.root.children
+            };
+            assert_eq!(statements.len(), 2);
+            assert_eq!(statements[1].kind, SyntaxKind::Binding);
+            let actual = statements[0]
+                .children
+                .iter()
+                .filter(|node| node.kind == SyntaxKind::ObjectImport)
+                .map(|node| {
+                    let span = node.children[0].span;
+                    &source.text()[span.start..span.end]
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(actual, names);
+        }
+    }
+}
+
+#[test]
 fn two_token_import_binding_does_not_consume_structural_imports() {
     let tree = parse_source("import value = 1\nfrom /core/output import print\n");
 

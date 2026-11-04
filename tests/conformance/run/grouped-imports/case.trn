@@ -1,0 +1,22 @@
+namespace grouped-imports
+
+from /core/types import
+	int8 as tiny, int16,
+	int32 as word
+
+function encoded string;
+	from /core/codecs import
+		encode-base64 as encode,
+		encode-hex
+	first = encode; b'abc', false, true
+	second = encode-hex; b'abc'
+	return first + ':' + second
+
+function main;
+	value tiny = 7
+	other int16 = 9
+	print; value
+	print; other
+	third word = 42
+	print; third
+	print; (encoded;)

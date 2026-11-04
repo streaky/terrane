@@ -1,0 +1,5 @@
+from /core/types import
+	int8,
+		int16,
+	int32
+value int32 = 1

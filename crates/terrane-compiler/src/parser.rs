@@ -570,19 +570,31 @@ impl Parser<'_> {
         self.bump();
         let mut children = vec![self.parse_namespace_path()];
         self.expect_text("import", "S1026", "expected `import` after namespace path");
+        let grouped = self.eat(TokenKind::Newline);
+        if grouped {
+            self.skip_newlines();
+            if !self.eat(TokenKind::Indent) {
+                self.error_here("S1026", "expected an indented import list after `import`");
+                return self.node(
+                    SyntaxKind::ImportDeclaration,
+                    start,
+                    self.position,
+                    children,
+                );
+            }
+            self.skip_newlines();
+        }
         if self.at_line_end() {
             self.error_here("S1026", "expected an object name after `import`");
         } else {
-            loop {
-                children.push(self.parse_object_import());
-                if !self.eat(TokenKind::Comma) {
-                    break;
-                }
-                if self.at_line_end() {
-                    self.error_here("S1026", "expected an object name after `,`");
-                    break;
-                }
-            }
+            self.parse_import_items(&mut children, grouped);
+        }
+        if grouped {
+            self.expect(
+                TokenKind::Dedent,
+                "S1026",
+                "expected end of indented import list",
+            );
         }
         self.node(
             SyntaxKind::ImportDeclaration,
@@ -590,6 +602,152 @@ impl Parser<'_> {
             self.position,
             children,
         )
+    }
+
+    fn parse_import_items(&mut self, children: &mut Vec<SyntaxNode>, grouped: bool) {
+        loop {
+            let diagnostics_before_item = self.diagnostics.len();
+            children.push(self.parse_object_import());
+            let malformed_item = grouped && self.diagnostics.len() != diagnostics_before_item;
+            let comma_position = self.position;
+            let mut comma = !malformed_item && self.eat(TokenKind::Comma);
+            let repeated_alias = grouped && !comma && self.at_text("as");
+            let mut recovered_item = grouped
+                && (malformed_item
+                    || repeated_alias
+                    || !self.at_line_end() && !self.at(TokenKind::Identifier));
+            if recovered_item {
+                if !malformed_item {
+                    self.error_here(
+                        "S1026",
+                        if repeated_alias {
+                            "an import item may have only one alias"
+                        } else if comma {
+                            "expected an imported name"
+                        } else {
+                            "expected `,` between imported names"
+                        },
+                    );
+                }
+                self.recover_import_segment(malformed_item);
+                // Treat the malformed segment as consumed, including its separator,
+                // so recovery does not blame its remaining tokens a second time.
+                comma = true;
+            }
+            let (mut newline, mut recovered_indent) = if grouped {
+                self.skip_import_layout()
+            } else {
+                (false, false)
+            };
+            if grouped && !comma && self.at_text("as") {
+                self.error_here(
+                    "S1026",
+                    "an import alias must stay on the same line as its item",
+                );
+                self.recover_import_segment(false);
+                comma = true;
+                recovered_item = true;
+                let (alias_newline, alias_indent) = self.skip_import_layout();
+                newline |= alias_newline;
+                recovered_indent |= alias_indent;
+            }
+            if !grouped && self.recover_inline_import_continuation() {
+                break;
+            }
+            if self.at_line_end() {
+                if comma && !recovered_indent && !recovered_item {
+                    self.error_at(
+                        comma_position,
+                        "S1026",
+                        "an import list must not have a trailing comma",
+                    );
+                }
+                break;
+            }
+            if newline && self.at(TokenKind::Comma) {
+                self.error_here(
+                    "S1026",
+                    if comma {
+                        "unexpected extra comma before imported name"
+                    } else {
+                        "a separating comma must end the previous import line"
+                    },
+                );
+                while self.eat(TokenKind::Comma) {}
+                comma = true;
+                if self.at_line_end() {
+                    self.skip_import_layout();
+                    if self.at_line_end() {
+                        break;
+                    }
+                }
+            }
+            if !comma {
+                if !grouped {
+                    break;
+                }
+                if self.at(TokenKind::Identifier) {
+                    self.error_here("S1026", "expected `,` between imported names");
+                }
+            }
+        }
+    }
+
+    fn recover_import_segment(&mut self, malformed_item: bool) {
+        let consumed = malformed_item.then(|| self.tokens[self.position - 1].kind);
+        // A child parser can consume an opening delimiter or the real separator.
+        // Keep inner commas inside a malformed group, and never skip the next item.
+        if consumed != Some(TokenKind::Comma) {
+            let mut depth = usize::from(matches!(
+                consumed,
+                Some(TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace)
+            ));
+            while !(self.at_line_end() || depth == 0 && self.at(TokenKind::Comma)) {
+                match self.current().kind {
+                    TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace => {
+                        depth += 1;
+                    }
+                    TokenKind::CloseParen | TokenKind::CloseBracket | TokenKind::CloseBrace => {
+                        depth = depth.saturating_sub(1);
+                    }
+                    _ => {}
+                }
+                self.bump();
+            }
+        }
+        while self.eat(TokenKind::Comma) {}
+    }
+
+    fn skip_import_layout(&mut self) -> (bool, bool) {
+        let newline = self.at(TokenKind::Newline);
+        self.skip_newlines();
+        let mut recovered_indent = false;
+        while self.at(TokenKind::Indent) {
+            self.error_here("S1026", "import items must use the same indentation");
+            self.bump();
+            self.recover_nested_block();
+            self.skip_newlines();
+            recovered_indent = true;
+        }
+        (newline, recovered_indent)
+    }
+
+    fn recover_inline_import_continuation(&mut self) -> bool {
+        let mut next = self.position;
+        while self.tokens[next].kind == TokenKind::Newline {
+            next += 1;
+        }
+        if next == self.position || self.tokens[next].kind != TokenKind::Indent {
+            return false;
+        }
+        self.error_at(
+            next,
+            "S1026",
+            "an inline import list cannot continue on indented lines; end the header after `import` to group names",
+        );
+        self.position = next + 1;
+        self.recover_nested_block();
+        true
     }
 
     fn parse_namespace_path(&mut self) -> SyntaxNode {
