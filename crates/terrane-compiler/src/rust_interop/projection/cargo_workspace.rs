@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 use super::{
     Containment, ProjectedBoundDependency, ProjectionError, RUSTDOC_TOOLCHAIN, RustDependency,
-    io_error, write_if_changed,
+    io_error, write_cache_atomically, write_if_changed,
 };
 pub(super) const DEPENDENCY_LOCK_FILE: &str = "terrane-dependencies.lock";
 
@@ -27,7 +27,11 @@ pub(super) fn persist_dependency_lock(
 ) -> Result<(), ProjectionError> {
     let bytes = fs::read(workspace.join("Cargo.lock"))
         .map_err(io_error("read complete resolved dependency lock"))?;
-    write_if_changed(&root.join(DEPENDENCY_LOCK_FILE), &bytes)
+    let path = root.join(DEPENDENCY_LOCK_FILE);
+    if fs::read(&path).is_ok_and(|existing| existing == bytes) {
+        return Ok(());
+    }
+    write_cache_atomically(&path, &[&bytes])
 }
 
 pub(super) fn write_workspace_with_bound_dependencies(

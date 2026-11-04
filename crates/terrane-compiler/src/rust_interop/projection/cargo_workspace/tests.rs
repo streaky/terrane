@@ -19,6 +19,29 @@ fn lock_seeds_complete_graph() {
 }
 
 #[test]
+fn lock_replaces_snapshot() {
+    use std::io::Read as _;
+
+    let root = std::env::temp_dir().join(format!("terrane-lock-snapshot-{}", std::process::id()));
+    let workspace = root.join(".trn/dependencies");
+    fs::create_dir_all(&workspace).unwrap();
+    let previous = "version = 4\n\n[[package]]\nname = \"owner\"\nversion = \"1.0.0\"\n";
+    let complete = previous.replace("1.0.0", "2.0.0");
+    let lock = root.join(DEPENDENCY_LOCK_FILE);
+    fs::write(&lock, previous).unwrap();
+    let mut reader = fs::File::open(&lock).unwrap();
+    fs::write(workspace.join("Cargo.lock"), &complete).unwrap();
+
+    persist_dependency_lock(&root, &workspace).unwrap();
+
+    assert_eq!(fs::read_to_string(&lock).unwrap(), complete);
+    let mut snapshot = String::new();
+    reader.read_to_string(&mut snapshot).unwrap();
+    assert_eq!(snapshot, previous);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn failed_resolve_keeps_lock() {
     for existing_lock in [false, true] {
         let root = std::env::temp_dir().join(format!(
@@ -73,22 +96,25 @@ fn failed_resolve_keeps_lock() {
             }],
         )
         .unwrap();
-        let complete = fs::read(workspace.join("Cargo.lock")).unwrap();
+        let complete = fs::read_to_string(workspace.join("Cargo.lock")).unwrap();
         if existing_lock {
             persist_dependency_lock(&root, &workspace).unwrap();
         }
         // Fail after base resolution but before projection finalization.
-        fs::create_dir(workspace.join("local-source-identity")).unwrap();
-        super::super::resolve(&root, &dependencies, None).unwrap_err();
+        let identity_path = workspace.join("local-source-identity");
+        fs::create_dir(&identity_path).unwrap();
+        let error = super::super::resolve(&root, &dependencies, None).unwrap_err();
+        assert!(error.message.contains(&identity_path.display().to_string()));
         assert_eq!(
-            fs::read(root.join(DEPENDENCY_LOCK_FILE)).ok().as_deref(),
-            existing_lock.then_some(complete.as_slice())
+            fs::read_to_string(root.join(DEPENDENCY_LOCK_FILE))
+                .ok()
+                .as_deref(),
+            existing_lock.then_some(complete.as_str())
         );
         // Cargo really resolved the narrower workspace; this is not an early fetch failure.
-        let intermediate = fs::read(workspace.join("Cargo.lock")).unwrap();
+        let intermediate = fs::read_to_string(workspace.join("Cargo.lock")).unwrap();
         assert_ne!(intermediate, complete);
-        let parsed: toml::Value =
-            toml::from_str(std::str::from_utf8(&intermediate).unwrap()).unwrap();
+        let parsed: toml::Value = toml::from_str(&intermediate).unwrap();
         let packages = parsed["package"].as_array().unwrap();
         let synthetic = packages
             .iter()

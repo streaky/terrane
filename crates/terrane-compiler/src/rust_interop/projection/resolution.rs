@@ -104,12 +104,12 @@ pub fn resolve(
     source_identity.update((local_sources.len() as u64).to_le_bytes());
     source_identity.update(local_sources.as_bytes());
     let identity = format!("{:x}", source_identity.finalize());
-    fs::write(
-        workspace.join("local-source-identity"),
-        local_sources.as_bytes(),
-    )
-    .map_err(|error| ProjectionError {
-        message: error.to_string(),
+    let local_identity_path = workspace.join("local-source-identity");
+    fs::write(&local_identity_path, local_sources.as_bytes()).map_err(|error| ProjectionError {
+        message: format!(
+            "cannot write local source identity `{}`: {error}",
+            local_identity_path.display()
+        ),
     })?;
     let cache_path = workspace.join("projection.json");
     if let Ok(bytes) = fs::read(&cache_path) {
