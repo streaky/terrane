@@ -91,11 +91,17 @@ fn bundled_core_source_origins_resolve_to_support_sidecar() {
                     .iter()
                     .any(|association| association.source.file == source_id)
             })
-            .map(|file| file.path.as_str())
+            .map(|file| Path::new(&file.path))
             .collect::<Vec<_>>()
     };
-    assert_eq!(files_for_source(core_source.id()), ["src/main.support.rs"]);
-    assert_eq!(files_for_source(compilation.source.id()), ["src/main.rs"]);
+    assert_eq!(
+        files_for_source(core_source.id()),
+        [Path::new("src/main.support.rs")]
+    );
+    assert_eq!(
+        files_for_source(compilation.source.id()),
+        [Path::new("src/main.rs")]
+    );
 }
 
 #[test]
