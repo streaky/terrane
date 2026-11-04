@@ -341,6 +341,8 @@ fn name_style_warnings_only_cover_authored_declarations() {
             "  callback = function int;\n",
             "    return 1\n",
             "  print; Answer\n",
+            "function read-child; value ForeignType\n",
+            "  child = value.ReadChild\n",
         )
         .to_owned(),
     );
