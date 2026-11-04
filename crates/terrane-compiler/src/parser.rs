@@ -2164,7 +2164,8 @@ impl Parser<'_> {
                 Some(TokenKind::Assign | TokenKind::Newline)
             );
         self.peek_kind(offset) == Some(TokenKind::Identifier)
-            && self.peek_text(offset) != Some("instance")
+            && (self.peek_text(offset) != Some("instance")
+                || self.binding_initializer_before_call_marker(offset + 1))
             && !matches!(self.peek_text(offset + 1), Some("in" | "is" | "and" | "or"))
             && (bare_discard
                 || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
@@ -2181,6 +2182,26 @@ impl Parser<'_> {
                         self.peek_kind(offset + 1),
                         Some(TokenKind::Assign | TokenKind::Newline)
                     )))
+    }
+
+    fn binding_initializer_before_call_marker(&self, offset: usize) -> bool {
+        // An explicit initializer still disambiguates a declaration whose attempted
+        // name is reserved. Constructor arguments/fields follow `;`/`{`, so their
+        // assignments must not turn an ordinary construction into a declaration.
+        self.tokens[self.position + offset..]
+            .iter()
+            .take_while(|token| {
+                !matches!(
+                    token.kind,
+                    TokenKind::Semicolon
+                        | TokenKind::OpenBrace
+                        | TokenKind::CloseBrace
+                        | TokenKind::Newline
+                        | TokenKind::Dedent
+                        | TokenKind::Eof
+                )
+            })
+            .any(|token| token.kind == TokenKind::Assign)
     }
 
     fn grouped_binding_type_has_declaration_boundary(

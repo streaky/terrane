@@ -7,12 +7,12 @@ pub struct Item {
     pub x: terrane_int_support::Int,
 }
 impl Item {
-    pub fn terrane_construct() -> Self {
+    pub fn terrane_construct(x: terrane_int_support::Int) -> Self {
         let mut __terrane_constructed_value = Self {
             x: terrane_int_support::Int::from(0_i128),
             __terrane_lifetime: std::sync::Arc::new(()),
         };
-        __terrane_constructed_value.construct();
+        __terrane_constructed_value.construct(x);
         __terrane_constructed_value
     }
     pub fn terrane_separate(&self) -> Self {
@@ -20,7 +20,11 @@ impl Item {
         value.__terrane_lifetime = std::sync::Arc::new(());
         value
     }
-    pub fn construct(&mut self) {
+    pub fn construct(&mut self, x: terrane_int_support::Int) {
+        {
+            let __terrane_value = x.clone();
+            self.x = __terrane_value;
+        }
         println!("{}", String::from("construct"));
     }
     pub fn destruct(&mut self) {
@@ -40,14 +44,17 @@ fn field_value() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(5_i128);
 }
 fn main() {
-    Item::terrane_construct();
+    Item::terrane_construct(terrane_int_support::Int::from(0_i128));
     let _ = {
-        let mut instance = Item::terrane_construct();
+        let mut instance = Item::terrane_construct(
+            terrane_int_support::Int::from(0_i128),
+        );
         {
             let __terrane_value = field_value();
             instance.x = __terrane_value;
         }
         instance
     };
+    Item::terrane_construct(terrane_int_support::Int::from(7_i128));
     println!("{}", String::from("after"));
 }
