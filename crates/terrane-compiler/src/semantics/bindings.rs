@@ -116,6 +116,57 @@ pub(super) fn declaration_is_constant(package: &SemanticPackage, span: Span) -> 
         .is_some_and(|unit| declaration_is_constant_in_unit(unit, span))
 }
 
+pub(super) fn validate_namespace_storage(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        namespace_level: bool,
+    ) -> Result<(), SemanticFailure> {
+        if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+            && (namespace_level || node.children.iter().any(|child| {
+                child.kind == SyntaxKind::DeclarationQualifier
+                    && node_text(&unit.source, child) == "global"
+            }))
+            && let Some(name) = node.children.iter().find(|child| child.kind == SyntaxKind::Name)
+            && let Some(symbol) =
+                package.resolve_name_at(unit, name.span.start, node_text(&unit.source, name))
+            && symbol.declaration_span == Some(node.span)
+            && let Some(binding) = unit.typed_bindings.iter().find(|binding| binding.span == node.span)
+            // Descriptor and callable declarations carry compiler-resolved identities;
+            // this restriction concerns materialized namespace data, not those contracts.
+            && !matches!(
+                binding.value_type,
+                ValueType::Scalar(_)
+                    | ValueType::Descriptor(_)
+                    | ValueType::Function(..)
+                    | ValueType::AsyncFunction(..)
+            )
+        {
+            return Err(failure(
+                &unit.source,
+                "T0226",
+                format!(
+                    "namespace storage does not support `{}` values; use a local binding or parameter instead",
+                    binding.value_type
+                ),
+                node.span,
+            ));
+        }
+        for child in &node.children {
+            visit(package, unit, child, false)?;
+        }
+        Ok(())
+    }
+
+    for unit in &package.units {
+        for node in &unit.tree.root.children {
+            visit(package, unit, node, true)?;
+        }
+    }
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the global assignment transfer rules remain visible as one analysis"

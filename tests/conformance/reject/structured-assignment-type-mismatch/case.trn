@@ -1,0 +1,8 @@
+namespace structured-assignment-type-mismatch
+
+class settings
+    title string = 'ready'
+
+function main;
+    value = instance settings;
+    value = { title = 42 }

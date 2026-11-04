@@ -1922,6 +1922,9 @@ fn smallest_node_at(node: &SyntaxNode, offset: usize, id: u64) -> Option<(&Synta
     {
         return None;
     }
+    if node.kind == SyntaxKind::Name && node.name_override.is_some() {
+        return None;
+    }
     let mut next = id.saturating_add(1);
     for child in node.syntax_children() {
         if let Some(found) = smallest_node_at(child, offset, next) {
@@ -1942,8 +1945,12 @@ fn node_by_id<'a>(node: &'a SyntaxNode, wanted: u64, next: &mut u64) -> Option<&
     if id == wanted {
         return Some(node);
     }
-    node.syntax_children()
-        .find_map(|child| node_by_id(child, wanted, next))
+    for child in node.syntax_children() {
+        if let Some(found) = node_by_id(child, wanted, next) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 fn semantic_effects(target: &SemanticTarget) -> Option<Vec<String>> {
@@ -2752,7 +2759,7 @@ fn nearest_name(node: &SyntaxNode, offset: usize) -> Option<&SyntaxNode> {
         .iter()
         .filter(|child| child.span.start <= offset && offset <= child.span.end)
         .find_map(|child| {
-            (child.kind == SyntaxKind::Name)
+            (child.kind == SyntaxKind::Name && child.name_override.is_none())
                 .then_some(child)
                 .or_else(|| nearest_name(child, offset))
         })
@@ -4187,6 +4194,109 @@ mod tests {
             .expect_err("mismatched build must fail");
         assert_eq!(error.code, "mismatched-build");
     }
+    #[test]
+    fn structured_block_field_navigation_skips_synthesized_names() {
+        let mut engine = ToolingEngine::default();
+        for field in ["x", "length"] {
+            let uri = format!("file:///workspace/structured-navigation-{field}.trn");
+            let text = format!(
+                "namespace structured-navigation\n\nclass box\n    {field} int = 0\n\nfunction main;\n    item = instance box; {{ {field} = 1 }}\n    item = {{ {field} = 2 }}\n    item.{field} = 3\n"
+            );
+            let metadata = open(
+                &mut engine,
+                &uri,
+                &text,
+                SnapshotOptions {
+                    semantic: true,
+                    ..SnapshotOptions::default()
+                },
+            );
+            let field_spans = [
+                (format!("    {field} int"), 4),
+                (format!("{{ {field} = 1 }}"), 2),
+                (format!("{{ {field} = 2 }}"), 2),
+                (format!("item.{field} = 3"), 5),
+            ]
+            .map(|(needle, prefix)| {
+                let start = text.find(&needle).expect("field occurrence") + prefix;
+                PublicSpan {
+                    start,
+                    end: start + field.len(),
+                }
+            });
+            let expected_definition = Location {
+                uri: uri.clone(),
+                span: field_spans[0].clone(),
+            };
+            let mut expected_references = field_spans
+                .iter()
+                .map(|span| Location {
+                    uri: uri.clone(),
+                    span: span.clone(),
+                })
+                .collect::<Vec<_>>();
+            expected_references.sort();
+            let expected_renamed = text
+                .replace(&format!("{field} int"), "width int")
+                .replace(&format!("{field} = "), "width = ");
+
+            for span in field_spans.iter().skip(1) {
+                for offset in [
+                    span.start,
+                    span.start + (span.end - span.start) / 2,
+                    span.end,
+                ]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                {
+                    assert_eq!(
+                        engine
+                            .definition(&metadata.snapshot_id, &uri, offset)
+                            .expect("definition"),
+                        Availability::Known(expected_definition.clone()),
+                        "definition at {offset}"
+                    );
+                    assert_eq!(
+                        engine
+                            .references(&metadata.snapshot_id, &uri, offset)
+                            .expect("references"),
+                        Availability::Known(expected_references.clone()),
+                        "references at {offset}"
+                    );
+                    let proposal = engine
+                        .propose_rename(&metadata.snapshot_id, &uri, offset, "width")
+                        .expect("rename proposal");
+                    let mut actual_spans = proposal
+                        .replacements
+                        .iter()
+                        .map(|replacement| replacement.span.clone())
+                        .collect::<Vec<_>>();
+                    actual_spans.sort();
+                    let mut expected_spans = field_spans.to_vec();
+                    expected_spans.sort();
+                    assert_eq!(actual_spans, expected_spans, "rename edits at {offset}");
+                    assert!(
+                        proposal
+                            .replacements
+                            .iter()
+                            .all(|replacement| replacement.text == "width"),
+                        "rename replacement text at {offset}: {:?}",
+                        proposal.replacements
+                    );
+                    assert_eq!(
+                        proposal.preview_diagnostics,
+                        [] as [DiagnosticProjection; 0]
+                    );
+                    assert_eq!(
+                        apply_replacements(&text, &proposal.replacements).expect("rename preview"),
+                        expected_renamed,
+                        "rename preview at {offset}"
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn member_navigation_uses_receiver_type() {
         let mut engine = ToolingEngine::default();

@@ -11,6 +11,9 @@ mod control_flow;
 #[path = "parser/modifiers.rs"]
 mod modifiers;
 
+#[path = "parser/structured_assignment.rs"]
+mod structured_assignment;
+
 /// The recovered syntax tree and any source-oriented syntax diagnostics.
 #[derive(Clone, Debug)]
 pub struct ParseOutput {
@@ -68,7 +71,8 @@ impl Parser<'_> {
                 self.bump();
                 self.recover_nested_block();
             } else {
-                children.push(self.parse_statement());
+                let statement = self.parse_statement();
+                Self::append_statement(&mut children, statement);
                 self.finish_statement();
             }
             self.skip_newlines();
@@ -904,6 +908,16 @@ impl Parser<'_> {
             if self.at_line_end() {
                 self.error_here("S1004", "expected an initializer after `=`");
                 None
+            } else if self.at(TokenKind::OpenBrace) {
+                self.error_here("S1121", "an update block cannot initialize a declaration; use an existing simple binding");
+                let target = children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        self.node(SyntaxKind::Error, start, self.position, Vec::new())
+                    });
+                Some(self.parse_update_block(start, target))
             } else {
                 Some(self.parse_expression(0, true))
             }
@@ -1440,6 +1454,9 @@ impl Parser<'_> {
         let start = self.position;
         let left = self.parse_expression(0, true);
         if self.eat(TokenKind::Assign) {
+            if self.at(TokenKind::OpenBrace) {
+                return self.parse_update_block(start, left);
+            }
             let right = self.require_expression("assignment value");
             self.node(
                 SyntaxKind::Assignment,
@@ -1647,6 +1664,15 @@ impl Parser<'_> {
                 "class construction requires `;`, including with zero arguments",
                 "write `instance class;`",
             );
+        }
+        if self.at(TokenKind::OpenBrace)
+            && value.kind == SyntaxKind::CallExpression
+            && value
+                .children
+                .first()
+                .is_some_and(|callee| callee.kind == SyntaxKind::ConstructionExpression)
+        {
+            value = self.parse_initialization_block(start, value);
         }
         value
     }
@@ -2022,7 +2048,8 @@ impl Parser<'_> {
                     self.bump();
                     self.recover_nested_block();
                 } else {
-                    children.push(self.parse_statement());
+                    let statement = self.parse_statement();
+                    Self::append_statement(&mut children, statement);
                     self.finish_statement();
                 }
                 self.skip_newlines();
@@ -2137,6 +2164,8 @@ impl Parser<'_> {
                 Some(TokenKind::Assign | TokenKind::Newline)
             );
         self.peek_kind(offset) == Some(TokenKind::Identifier)
+            && (self.peek_text(offset) != Some("instance")
+                || self.binding_initializer_before_call_marker(offset + 1))
             && !matches!(self.peek_text(offset + 1), Some("in" | "is" | "and" | "or"))
             && (bare_discard
                 || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
@@ -2153,6 +2182,26 @@ impl Parser<'_> {
                         self.peek_kind(offset + 1),
                         Some(TokenKind::Assign | TokenKind::Newline)
                     )))
+    }
+
+    fn binding_initializer_before_call_marker(&self, offset: usize) -> bool {
+        // An explicit initializer still disambiguates a declaration whose attempted
+        // name is reserved. Constructor arguments/fields follow `;`/`{`, so their
+        // assignments must not turn an ordinary construction into a declaration.
+        self.tokens[self.position + offset..]
+            .iter()
+            .take_while(|token| {
+                !matches!(
+                    token.kind,
+                    TokenKind::Semicolon
+                        | TokenKind::OpenBrace
+                        | TokenKind::CloseBrace
+                        | TokenKind::Newline
+                        | TokenKind::Dedent
+                        | TokenKind::Eof
+                )
+            })
+            .any(|token| token.kind == TokenKind::Assign)
     }
 
     fn grouped_binding_type_has_declaration_boundary(
@@ -2324,7 +2373,11 @@ impl Parser<'_> {
         self.at_line_end()
             || matches!(
                 self.current().kind,
-                TokenKind::Comma | TokenKind::CloseParen | TokenKind::CloseBracket
+                TokenKind::Comma
+                    | TokenKind::CloseParen
+                    | TokenKind::CloseBracket
+                    | TokenKind::OpenBrace
+                    | TokenKind::CloseBrace
             )
     }
     fn at(&self, kind: TokenKind) -> bool {

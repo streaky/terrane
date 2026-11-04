@@ -1,0 +1,7 @@
+namespace namespace-object-storage-nested
+class item
+    x int = 0
+function initialize;
+    global base item = instance item;
+function main;
+    initialize;

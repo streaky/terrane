@@ -768,11 +768,14 @@ Only named and anonymous functions introduce lexical scopes. `if`/`else`, `switc
 Classes provide typed, definitely initialized instance fields and methods, class-level static fields
 and methods, single inheritance, explicit `instance class; arguments` construction through
 `construct`, and one deterministic invocation of each applicable `destruct` hook per independently
-owned source value. `.` selects only instance members and `::` only static members. `this` denotes
-the current instance in instance methods; late-bound `self` denotes the effective class in instance
-and static methods, including inherited static factories using `instance self;`. Instance state is
-independent for every constructed value. Static state is shared by one effective class but separate
-between a base class and each subclass; nested member writes mutate that shared storage directly.
+owned source value. Construction may be followed by a nonempty field-initialization block, and a
+nonempty update block writes fields of an existing local or parameter binding in place. `.` selects
+only instance members and `::` only static members. `this` denotes the current instance in instance
+methods and may itself be updated in a mutable instance method; late-bound `self` denotes the effective
+class in instance and static methods, including inherited static factories using `instance self;`.
+Instance state is independent for every constructed value. Static state is shared by one effective
+class but separate between a base class and each subclass; nested member writes mutate that shared
+storage directly.
 Return validation recognizes one static-only postcondition used by lazy initialization: an exact
 `T|none` static member returned as `T` is proven present only after a preceding sibling absence
 guard with no `else`, exactly one direct compatible assignment to that same textual target, no

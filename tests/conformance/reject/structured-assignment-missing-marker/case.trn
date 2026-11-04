@@ -1,0 +1,5 @@
+namespace structured-assignment-missing-marker
+class item
+    value int = 1
+function main;
+    request = instance item { value = 2 }

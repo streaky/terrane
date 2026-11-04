@@ -994,6 +994,22 @@ features:
   sources:
   - docs/language-spec-concise.md#OBJECT_MODEL
   - docs/compiler-plan.md#Completed portion of Milestone 16
+- id: structured-assignment-blocks
+  name: Structured construction and in-place field updates
+  category: objects
+  status: done
+  completion: 100
+  milestone: null
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/language/classes/fields.yaml
+  notes: Nonempty field-assignment blocks follow ordinary construction or update an existing simple binding in place. Construction retains its semicolon; writes retain ordinary member contracts and source order without rollback. Unset is not implemented.
+  sources:
+  - tests/conformance/run/structured-assignment-blocks/case.trn
+  - tests/conformance/run/structured-assignment-initializers/case.trn
+  - tests/conformance/reject/structured-assignment-empty-update/case.trn
+  - tests/conformance/reject/structured-assignment-missing-marker/case.trn
 - id: authored-enums
   name: Authored closed enums
   category: types

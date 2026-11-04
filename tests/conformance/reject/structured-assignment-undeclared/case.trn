@@ -1,0 +1,4 @@
+namespace structured-assignment-undeclared
+
+function main;
+    missing = { value = 1 }

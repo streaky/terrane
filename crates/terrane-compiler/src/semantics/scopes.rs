@@ -28,12 +28,12 @@ pub(super) fn collect_lexical_scopes(
                     .iter()
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
-                    for method in block
-                        .children
-                        .iter()
-                        .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
-                    {
-                        add_lexical_scope(unit, context, &mut scopes, method, None)?;
+                    for method in &block.children {
+                        if method.kind == SyntaxKind::FunctionDeclaration {
+                            add_lexical_scope(unit, context, &mut scopes, method, None)?;
+                        } else {
+                            collect_expression_scopes(unit, context, &mut scopes, method)?;
+                        }
                     }
                 }
             }
@@ -48,10 +48,26 @@ pub(super) fn collect_lexical_scopes(
                     }
                 }
             }
-            _ => {}
+            _ => collect_expression_scopes(unit, context, &mut scopes, node)?,
         }
     }
     Ok(scopes)
+}
+
+fn collect_expression_scopes(
+    unit: &SemanticUnit,
+    context: &LexicalScopeContext<'_>,
+    scopes: &mut Vec<LexicalScope>,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::InitializationExpression {
+        add_lexical_scope(unit, context, scopes, node, None)?;
+    } else {
+        for child in &node.children {
+            collect_expression_scopes(unit, context, scopes, child)?;
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn add_lexical_scope(
@@ -229,17 +245,13 @@ pub(super) fn populate_node(
         SyntaxKind::Binding => {
             populate_binding(unit, scopes, index, node)?;
             for child in &node.children {
-                if child.kind == SyntaxKind::AnonymousFunction {
-                    populate_node(unit, context, scopes, index, child)?;
-                }
+                populate_node(unit, context, scopes, index, child)?;
             }
         }
         SyntaxKind::Assignment => {
             populate_assignment(unit, namespaces, globals, scopes, index, node)?;
             for child in &node.children {
-                if child.kind == SyntaxKind::AnonymousFunction {
-                    populate_node(unit, context, scopes, index, child)?;
-                }
+                populate_node(unit, context, scopes, index, child)?;
             }
         }
 
@@ -263,7 +275,7 @@ pub(super) fn populate_node(
             // and body share a child scope, while surrounding locals remain visible.
             add_lexical_scope(unit, context, scopes, node, Some(index))?;
         }
-        SyntaxKind::AnonymousFunction => {
+        SyntaxKind::AnonymousFunction | SyntaxKind::InitializationExpression => {
             add_lexical_scope(unit, context, scopes, node, Some(index))?;
         }
         SyntaxKind::Block => populate_scope(unit, context, scopes, index, node)?,
@@ -354,17 +366,7 @@ pub(super) fn populate_node(
             for child in &node.children {
                 if child.kind == SyntaxKind::Block {
                     populate_scope(unit, context, scopes, index, child)?;
-                } else if matches!(
-                    child.kind,
-                    SyntaxKind::MatchCase
-                        | SyntaxKind::AnonymousFunction
-                        | SyntaxKind::ElseClause
-                        | SyntaxKind::CatchClause
-                        | SyntaxKind::FinallyClause
-                        | SyntaxKind::SelectCase
-                        | SyntaxKind::SwitchCase
-                        | SyntaxKind::ForStatement
-                ) {
+                } else {
                     populate_node(unit, context, scopes, index, child)?;
                 }
             }

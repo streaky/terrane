@@ -57,7 +57,7 @@ impl ConstructorAnalysis<'_> {
         }
     }
 
-    fn direct_field<'a>(&'a self, node: &SyntaxNode) -> Option<&'a str> {
+    fn direct_field<'a>(&'a self, node: &'a SyntaxNode) -> Option<&'a str> {
         let [receiver, member] = node.children.as_slice() else {
             return None;
         };

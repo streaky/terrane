@@ -1519,8 +1519,10 @@ impl<'unit> Emitter<'unit> {
                 .any(|provenance| provenance.owner == binding.span)
     }
 
-    pub(super) fn text(&self, node: &SyntaxNode) -> &str {
-        &self.source.text()[node.span.start..node.span.end]
+    pub(super) fn text<'a>(&'a self, node: &'a SyntaxNode) -> &'a str {
+        node.name_override
+            .as_deref()
+            .unwrap_or_else(|| &self.source.text()[node.span.start..node.span.end])
     }
     pub(super) fn rust_block_body(&self, node: &SyntaxNode) -> String {
         let body = self

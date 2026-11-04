@@ -2154,6 +2154,37 @@ fn cross_file_ref_closure_rejects_own_local() {
     assert_eq!(failure.diagnostics[0].primary.unwrap().file, 0);
 }
 
+#[test]
+fn namespace_storage_rejects_materialized_objects_but_keeps_scalars_and_locals() {
+    for declaration in [
+        "global base item = instance item;",
+        "constant base item = instance item;",
+        "base = instance item;",
+        "global base item",
+        "global base item = instance item; { value = 2 }",
+        "function initialize;\n  global base item = instance item;",
+    ] {
+        let source = format!(
+            "namespace app\nclass item\n  value int = 0\n{declaration}\nfunction main;\n  return\n"
+        );
+        let failure = analyze(&Package::implicit("main.trn", source))
+            .expect_err("namespace object storage is not supported");
+        assert_eq!(failure.diagnostics[0].code.as_ref(), "T0226");
+        assert!(failure.diagnostics[0].message.contains("item"));
+        assert!(
+            failure.diagnostics[0]
+                .message
+                .contains("local binding or parameter")
+        );
+    }
+
+    let package = Package::implicit(
+        "main.trn",
+        "namespace app\nclass item\n  value int = 0\nconstant count int = 1\nconstant item-type = item\nfunction main;\n  value = instance item;\n  print; value.value\n".to_owned(),
+    );
+    analyze(&package).expect("scalar namespace values and local objects remain supported");
+}
+
 fn contains_kind(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bool {
     node.kind == kind || node.children.iter().any(|child| contains_kind(child, kind))
 }

@@ -1452,6 +1452,8 @@ fn analyze_parsed_with_projection(
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
     validate_definite_assignment(&mut semantic)?;
+    // Preserve source availability errors before checking backend storage support.
+    super::bindings::validate_namespace_storage(&semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);
     validate_projected_callback_arguments(&semantic)?;

@@ -1,0 +1,14 @@
+namespace structured-assignment-readonly-observer
+class item
+    value int = 7
+function maybe item|none; present bool
+    if present
+        return instance item;
+    return none
+function inspect; present bool
+    owner = maybe; present
+    borrowed = ref owner
+    if borrowed != none
+        borrowed = { value = 9 }
+function main;
+    inspect; true
