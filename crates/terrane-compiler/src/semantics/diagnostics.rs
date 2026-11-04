@@ -16,16 +16,18 @@ pub(super) fn invalid_name_style_declarations(unit: &SemanticUnit) -> Vec<(&str,
     let mut declarations = unit
         .typed_bindings
         .iter()
-        .filter(|binding| !binding.name.starts_with('_'))
+        .filter(|binding| binding.span.file == unit.source.id() && !binding.name.starts_with('_'))
         .map(|binding| (binding.name.as_str(), binding.span))
         .chain(
             unit.functions
                 .iter()
+                .filter(|function| function.span.file == unit.source.id() && !function.is_anonymous)
                 .map(|function| (function.name.as_str(), function.span)),
         )
         .chain(
             unit.descriptors
                 .iter()
+                .filter(|object| object.span.file == unit.source.id())
                 .map(|object| (object.name.as_str(), object.span)),
         )
         .collect::<Vec<_>>();

@@ -287,6 +287,92 @@ fn authored_name_style_is_an_opt_in_warning() {
 }
 
 #[test]
+fn name_style_warnings_only_cover_authored_declarations() {
+    use crate::rust_interop::projection::{ProjectedFunction, ProjectedType, Receiver};
+
+    let mut projection = ambiguous_projection();
+    projection.dependencies.truncate(1);
+    let dependency = &mut projection.dependencies[0];
+    let mut child = dependency.items[0].clone();
+    child.namespace = "/deps/one".to_owned();
+    child.name = "ForeignChild".to_owned();
+    child.rust_path = "one::ForeignChild".to_owned();
+    let parent = &mut dependency.items[0];
+    parent.namespace = "/deps/one".to_owned();
+    parent.name = "ForeignType".to_owned();
+    parent.rust_path = "one::ForeignType".to_owned();
+    if let ProjectedKind::ForeignType { methods, .. } = &mut parent.kind {
+        methods.push(ProjectedFunction {
+            receiver_bounds: Vec::new(),
+            native_owner: None,
+            native_path: None,
+            name: "ReadChild".to_owned(),
+            generic_parameters: Vec::new(),
+            operation_owner_generics: Vec::new(),
+            rust_generic_arguments: Vec::new(),
+            parameters: Vec::new(),
+            result: ProjectedType::Foreign {
+                rust_path: "one::ForeignChild".to_owned(),
+                name: "ForeignChild".to_owned(),
+                base_rust_path: "one::ForeignChild".to_owned(),
+                arguments: Vec::new(),
+            },
+            destination_result: None,
+            error: None,
+            is_async: false,
+            is_unsafe: false,
+            into_future: false,
+            execution_requirements: None,
+            enum_operation: None,
+            error_optional_depth: 0,
+            chain_role: None,
+            receiver_lifetime: None,
+            receiver: Some(Receiver::Borrow),
+        });
+    }
+    dependency.items.push(child);
+    let mut package = Package::implicit(
+        "main.trn",
+        concat!(
+            "namespace app\n",
+            "from /deps/one import ForeignType\n",
+            "function main;\n",
+            "  Answer = 42\n",
+            "  callback = function int;\n",
+            "    return 1\n",
+            "  print; Answer\n",
+        )
+        .to_owned(),
+    );
+    package.rust_dependencies.push(RustDependency {
+        name: "one".to_owned(),
+        package: "one".to_owned(),
+        version: "=1.0.0".to_owned(),
+        features: Vec::new(),
+        default_features: false,
+        target: None,
+        effects: Vec::new(),
+    });
+    let semantic = analyze_with_projection(&package, projection).unwrap();
+
+    let diagnostics = warnings(&semantic, true, false);
+    let style = diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code.as_ref() == "S2018")
+        .expect("authored Answer binding remains a warning");
+    assert_eq!(style.message, "declared name `Answer` is not kebab-case");
+    let answer = semantic.units[0].source.text().find("Answer = 42").unwrap();
+    assert_eq!(style.primary.unwrap().start, answer);
+    assert_eq!(
+        diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code.as_ref() == "S2018")
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn unused_top_level_function_warning_is_opt_in() {
     let package = Package::implicit(
         "main.trn",
