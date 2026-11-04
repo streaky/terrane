@@ -375,6 +375,52 @@ fn name_style_warnings_only_cover_authored_declarations() {
 }
 
 #[test]
+fn authored_class_style_uses_defining_span() {
+    let mut package = Package::implicit(
+        "main.trn",
+        concat!(
+            "namespace app\n",
+            "from /app/shape import BadShape\n",
+            "function main;\n",
+            "  return\n",
+            "function use-bad-shape; value BadShape\n",
+            "  return\n",
+        )
+        .to_owned(),
+    );
+    package.units.push(crate::SourceUnit {
+        relative_path: std::path::PathBuf::from("shape.trn"),
+        source: crate::SourceFile::new(
+            1,
+            std::path::PathBuf::from("shape.trn"),
+            "namespace app/shape\nclass BadShape\n".to_owned(),
+        ),
+        expected_namespace: None,
+        prelude: true,
+        role: crate::package::SourceRole::Production,
+    });
+    let semantic = analyze(&package).unwrap();
+    let diagnostics = warnings(&semantic, true, false);
+    let style = diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code.as_ref() == "S2018")
+        .collect::<Vec<_>>();
+    assert_eq!(style.len(), 1);
+    let diagnostic = style[0];
+    let span = diagnostic.primary.unwrap();
+    let shape = semantic
+        .units
+        .iter()
+        .find(|unit| unit.source.path().ends_with("shape.trn"))
+        .unwrap();
+    assert_eq!(span.file, shape.source.id());
+    assert_eq!(
+        span.start,
+        shape.source.text().find("class BadShape").unwrap()
+    );
+}
+
+#[test]
 fn unused_top_level_function_warning_is_opt_in() {
     let package = Package::implicit(
         "main.trn",
