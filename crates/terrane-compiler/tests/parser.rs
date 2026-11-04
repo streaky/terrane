@@ -676,6 +676,11 @@ fn grouped_imports_preserve_aliases_and_lexical_boundaries() {
         2
     );
     assert_eq!(tree.root.children.len(), 2);
+    let source = "from /example import\n\titem as alias, as\n";
+    let tree = parse_source(source);
+    let name = &tree.root.children[0].children[2].children[0];
+    assert_eq!(name.kind, SyntaxKind::Name);
+    assert_eq!(&source[name.span.start..name.span.end], "as");
 }
 
 #[test]
@@ -741,6 +746,11 @@ fn rejects_invalid_grouped_import_boundaries() {
             "expected `,` between imported names",
             1,
         ),
+        (
+            "from /core/types import\n\tint8 int16 int32\n",
+            "expected `,` between imported names",
+            2,
+        ),
         ("from /core/types import int8,\n", "trailing comma", 1),
         ("from /core/types import\n\tint8,\n", "trailing comma", 1),
         (
@@ -778,6 +788,7 @@ fn rejects_invalid_grouped_import_boundaries() {
 fn malformed_import_item_entries_recover_once() {
     let missing_name = "expected an imported name";
     let missing_alias = "expected an import alias after `as`";
+    let repeated_alias = "an import item may have only one alias";
     for (items, names, message) in [
         ("\t+ int8", vec![], missing_name),
         ("\tint8,\n\t+ int32", vec!["int8"], missing_name),
@@ -796,6 +807,27 @@ fn malformed_import_item_entries_recover_once() {
             missing_alias,
         ),
         ("\tint8 as , int32", vec!["int8", "int32"], missing_alias),
+        (
+            "\tint8 as alias as other, int32",
+            vec!["int8", "int32"],
+            repeated_alias,
+        ),
+        ("\tint8 as alias as other", vec!["int8"], repeated_alias),
+        (
+            "\tint8 as alias as other as third, int32",
+            vec!["int8", "int32"],
+            repeated_alias,
+        ),
+        (
+            "\tint8 as alias as other,\n\tint32",
+            vec!["int8", "int32"],
+            repeated_alias,
+        ),
+        (
+            "\tint8 as alias as other, as",
+            vec!["int8", "as"],
+            repeated_alias,
+        ),
     ] {
         for nested in [false, true] {
             let text = format!("from /core/types import\n{items}\nvalue int32 = 1\n");

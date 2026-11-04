@@ -611,13 +611,18 @@ impl Parser<'_> {
             let malformed_item = grouped && self.diagnostics.len() != diagnostics_before_item;
             let comma_position = self.position;
             let mut comma = self.eat(TokenKind::Comma);
+            let repeated_alias = grouped && !comma && self.at_text("as");
             let recovered_item = grouped
-                && (malformed_item || !self.at_line_end() && !self.at(TokenKind::Identifier));
+                && (malformed_item
+                    || repeated_alias
+                    || !self.at_line_end() && !self.at(TokenKind::Identifier));
             if recovered_item {
                 if !malformed_item {
                     self.error_here(
                         "S1026",
-                        if comma {
+                        if repeated_alias {
+                            "an import item may have only one alias"
+                        } else if comma {
                             "expected an imported name"
                         } else {
                             "expected `,` between imported names"
