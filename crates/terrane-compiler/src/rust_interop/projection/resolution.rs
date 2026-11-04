@@ -91,10 +91,8 @@ pub fn resolve(
         )?;
     }
     dependency_fetch.finish();
-    let dependency_lock =
-        crate::compilation_progress::start("persisting dependency lock", root.display());
-    persist_dependency_lock(root, &workspace)?;
-    dependency_lock.finish();
+    // Keep this base lock private: projection can add bound-owner dependencies below.
+    // Publish only the completed graph on the cache, artifact, or local-resolution path.
     let cache_check =
         crate::compilation_progress::start("validating projection cache", root.display());
     let (identity, target) = cache_identity(root, &workspace, dependencies, demands, sandbox)?;
@@ -106,12 +104,12 @@ pub fn resolve(
     source_identity.update((local_sources.len() as u64).to_le_bytes());
     source_identity.update(local_sources.as_bytes());
     let identity = format!("{:x}", source_identity.finalize());
-    fs::write(
-        workspace.join("local-source-identity"),
-        local_sources.as_bytes(),
-    )
-    .map_err(|error| ProjectionError {
-        message: error.to_string(),
+    let local_identity_path = workspace.join("local-source-identity");
+    fs::write(&local_identity_path, local_sources.as_bytes()).map_err(|error| ProjectionError {
+        message: format!(
+            "cannot write local source identity `{}`: {error}",
+            local_identity_path.display()
+        ),
     })?;
     let cache_path = workspace.join("projection.json");
     if let Ok(bytes) = fs::read(&cache_path) {
