@@ -216,7 +216,7 @@ call_marker: semicolon
 zero_arg: semicolon required
 member: receiver.member (no whitespace before dot) selects an instance member
 static_member: class::member selects a class/static member; '.' and '::' are never interchangeable
-construction: ordinary class construction is `instance class; arguments`; an optional nonempty `{ field = expression ... }` block follows the constructor arguments and applies ordinary field writes in source order. The semicolon is always required, including with zero arguments and a block. Field operations are newline-separated, with an optional single-field inline form. Initialisation blocks are part of the construction expression, including in return values and arguments.
+construction: ordinary class construction is `instance class; arguments`; `throw throwable-class; arguments` and `throw throwable-class` are specialized constructor-and-throw forms. An optional nonempty `{ field = expression ... }` block follows constructor arguments and applies ordinary field writes in source order. The semicolon is always required for ordinary construction, including with zero arguments and a block. Field operations are newline-separated, with an optional single-field inline form. Initialization blocks are part of the construction expression, including in return values and arguments.
 member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
@@ -261,7 +261,7 @@ or
 - Assignment target: bare mutable binding or assignable member/index path only. Receiver/indices evaluate exactly once left-to-right before value.
 - Bare `name = expr`: declare where permitted if unresolved; otherwise rebind mutable resolved name.
 - Qualified/uninitialized declarations use explicit binding grammar.
-- Structured assignment block: `target = { field = expression ... }` updates the existing simple binding in place; it neither copies nor replaces nor constructs the target, and omitted fields are unchanged. Member/index targets are not supported. Fields use ordinary member-write type, visibility, ownership, and closed-class rules; a later RHS failure does not roll back earlier writes.
+- Structured assignment block: `target = { field = expression ... }` updates the existing simple binding in place; it neither copies nor replaces nor constructs the target, and omitted fields are unchanged. A simple local/parameter binding or `this` in a mutable instance method may be the target; member/index targets are not supported. Fields use ordinary member-write type, visibility, ownership, and closed-class rules; a later RHS failure does not roll back earlier writes.
 - Structured construction: `instance Type; constructor-args { field = expression ... }` constructs first, then applies field writes in source order. The normal construction semicolon is mandatory. Construction and update blocks must contain at least one field assignment (`S1121` for an empty block); omit the block when constructing without field writes, and omit an update with nothing to change. Blocks accept field assignments only, not arbitrary statements or nested update blocks. Right-hand sides retain ordinary lexical lookup, not an implicit receiver. Semicolon remains the invocation marker, not a statement separator.
 - `unset` is not supported; assigning `none` is an ordinary assignment, not field removal.
 
@@ -906,6 +906,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 ## GLOBAL
 
 - Program globals form explicit initialization graph; cycles diagnosed.
+- Materialized program-global and namespace `constant`/ordinary data storage currently supports scalars only. Object/composite data is rejected with `T0226`; use locals or parameters. Compiler-resolved descriptor/callable identities are unaffected. See `lang.declarations.globals`.
 - Mutable globals used across threads must satisfy shared-thread-safe protocol.
 - Prefer standard thread-local object over second global grammar.
 

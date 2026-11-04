@@ -181,18 +181,39 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 &mut diagnostics,
                 &mut block_comment_start,
             );
-            for (index, token) in tokens[token_count..].iter().enumerate() {
-                if index == 0 && parenthesis_depth == 0 && token.text == "with" {
+            let mut index = token_count;
+            while index < tokens.len() {
+                if index == token_count && parenthesis_depth == 0 && tokens[index].text == "with" {
                     with_layout = WithLayout::Modifiers;
                 }
-                match token.kind {
+                match tokens[index].kind {
                     TokenKind::OpenBrace => {
-                        brace_parentheses
-                            .push((parenthesis_depth, std::mem::take(&mut with_layout)));
+                        brace_parentheses.push((
+                            parenthesis_depth,
+                            std::mem::take(&mut with_layout),
+                            indent_stack.len(),
+                        ));
                         parenthesis_depth = 0;
                     }
                     TokenKind::CloseBrace => {
-                        if let Some((depth, layout)) = brace_parentheses.pop() {
+                        if let Some((depth, layout, indentation)) = brace_parentheses.pop() {
+                            // A brace also closes its layout levels when it shares
+                            // the last field's line. Do not leak a later Dedent into
+                            // the enclosing function or parenthesized expression.
+                            while indent_stack.len() > indentation {
+                                indent_stack.pop();
+                                let position = tokens[index].span.start;
+                                tokens.insert(
+                                    index,
+                                    Token {
+                                        kind: TokenKind::Dedent,
+                                        span: Span::new(source.id(), position, position),
+                                        text: String::new(),
+                                        attachment: Attachment::Detached,
+                                    },
+                                );
+                                index += 1;
+                            }
                             parenthesis_depth = depth;
                             with_layout = layout;
                         }
@@ -229,6 +250,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     }
                     _ => {}
                 }
+                index += 1;
             }
             if let Some(relative_index) = tokens[token_count..]
                 .iter()

@@ -2164,6 +2164,7 @@ impl Parser<'_> {
                 Some(TokenKind::Assign | TokenKind::Newline)
             );
         self.peek_kind(offset) == Some(TokenKind::Identifier)
+            && self.peek_text(offset) != Some("instance")
             && !matches!(self.peek_text(offset + 1), Some("in" | "is" | "and" | "or"))
             && (bare_discard
                 || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)

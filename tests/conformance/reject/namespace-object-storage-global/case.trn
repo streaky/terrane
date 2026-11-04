@@ -1,0 +1,6 @@
+namespace namespace-object-storage-global
+class item
+    x int = 0
+global base item = instance item;
+function main;
+    print; base.x

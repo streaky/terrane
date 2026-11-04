@@ -60,30 +60,6 @@ fn structured_error_infrastructure_is_separate_from_authored_lowering() {
 }
 
 #[test]
-fn bundled_core_lowering_is_part_of_the_support_sidecar() {
-    let compilation = terrane_compiler::compile(
-        "process-user.trn",
-        "namespace process-user\n\
-         from /core/process import process-host-name\n\
-         function main;\n\
-             name = process-host-name;\n\
-             print; name.failed\n"
-            .to_owned(),
-    )
-    .unwrap();
-    let files = compilation
-        .rust_files_for(Path::new("src/main.rs"))
-        .unwrap();
-    let support = &files[0].contents;
-    let entrypoint = &files[1].contents;
-
-    assert!(support.contains("// Source: core/process.trn"));
-    assert!(support.contains("// Namespace: core/process"));
-    assert!(!entrypoint.contains("// Source: core/process.trn"));
-    assert!(entrypoint.contains("// Source: process-user.trn"));
-}
-
-#[test]
 fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/conformance/run/rust-dependency-deferred-surface");

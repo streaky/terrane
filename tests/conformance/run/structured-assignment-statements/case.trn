@@ -1,0 +1,17 @@
+namespace structured-assignment-statements
+
+class item
+    x int = 0
+    function construct;
+        print; 'construct'
+    consuming function destruct;
+        print; this.x
+
+function field-value int;
+    print; 'field'
+    return 5
+
+function main;
+    instance item;
+    instance item; { x = field-value; }
+    print; 'after'

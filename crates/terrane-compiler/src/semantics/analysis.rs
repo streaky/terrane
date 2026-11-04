@@ -1450,6 +1450,7 @@ fn analyze_parsed_with_projection(
     analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
+    super::bindings::validate_namespace_storage(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
     validate_definite_assignment(&mut semantic)?;
     record_binding_events(&mut semantic);

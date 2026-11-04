@@ -62,11 +62,14 @@ impl Parser<'_> {
     fn parse_field_operations(&mut self, target: &str) -> SyntaxNode {
         let start = self.position;
         self.bump(); // opening brace
-        let mut children = Vec::new();
+        let mut children: Vec<SyntaxNode> = Vec::new();
         let mut indentation = 0usize;
+        let mut inline_layout = !self.at(TokenKind::Newline);
+        let mut crossed_newline = false;
         loop {
             match self.current().kind {
                 TokenKind::Newline => {
+                    crossed_newline = true;
                     self.bump();
                     continue;
                 }
@@ -84,13 +87,28 @@ impl Parser<'_> {
                 _ => {}
             }
             let operation_start = self.position;
+            if inline_layout && crossed_newline && !children.is_empty() {
+                let first_operation = children[0].token_range.start;
+                self.error_at(
+                    first_operation,
+                    "S1121",
+                    "multiline field-assignment blocks must start their first field on a new line",
+                );
+                inline_layout = false;
+            }
             if !self.at(TokenKind::Identifier) || self.peek_kind(1) != Some(TokenKind::Assign) {
                 let unset = self.peek_text(1) == Some(".") && self.peek_text(2) == Some("unset");
-                self.error_here("S1121", if unset {
-                    "`.unset;` is not implemented; structured blocks currently accept field assignments only"
+                if unset {
+                    self.error_here(
+                        "S1121",
+                        "`.unset;` is not implemented; structured blocks currently accept field assignments only",
+                    );
                 } else {
-                    "structured blocks accept only unqualified field assignments (`field = expression`)"
-                });
+                    self.error_here(
+                        "S1121",
+                        "structured blocks accept only unqualified field assignments (`field = expression`)",
+                    );
+                }
                 self.recover_field_operation();
                 continue;
             }
@@ -110,6 +128,7 @@ impl Parser<'_> {
                 vec![receiver, field],
             );
             let value = self.require_expression("field assignment value");
+            self.reject_literal_separator_call(&value);
             children.push(self.node(
                 SyntaxKind::Assignment,
                 operation_start,
@@ -134,6 +153,29 @@ impl Parser<'_> {
             "expected `}` after structured assignment block",
         );
         self.node(SyntaxKind::Block, start, self.position, children)
+    }
+
+    fn reject_literal_separator_call(&mut self, value: &SyntaxNode) {
+        // `name; option = value` can be a valid named-argument call. Diagnose
+        // separator-like syntax only when the callee is a literal, which cannot
+        // be callable, rather than rejecting legitimate RHS calls.
+        if value.kind == SyntaxKind::CallExpression
+            && value
+                .children
+                .first()
+                .is_some_and(|callee| callee.kind == SyntaxKind::Literal)
+            && let Some(arguments) = value.children.get(1)
+            && arguments
+                .children
+                .iter()
+                .any(|argument| argument.children.len() == 2)
+        {
+            self.error_at(
+                arguments.token_range.start - 1,
+                "S1121",
+                "field assignments must be separated by newlines; semicolon invokes a call",
+            );
+        }
     }
 
     fn recover_field_operation(&mut self) {

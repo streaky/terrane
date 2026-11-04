@@ -1355,3 +1355,20 @@ fn structured_construction_requires_the_call_marker() {
         rejected(source, "S1093");
     }
 }
+
+#[test]
+fn structured_block_separator_errors_point_at_the_operation_and_recover() {
+    for (body, location) in [("{ x = 1; y = 2 }", ";"), ("{ x = 1\n    y = 2 }", "x =")] {
+        let text = format!("value = {body}\nnext = 3\n");
+        let expected = text.find(location).unwrap();
+        let source = SourceFile::new(0, "case.trn".into(), text);
+        let parsed = parse(&source, lex(&source).unwrap());
+        assert!(parsed.diagnostics.iter().all(|error| error.code == "S1121"));
+        assert_eq!(parsed.diagnostics[0].primary.unwrap().start, expected);
+        let next = parsed.tree.root.children.last().unwrap();
+        assert_eq!(
+            &source.text()[next.children[0].span.start..next.children[0].span.end],
+            "next"
+        );
+    }
+}

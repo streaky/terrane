@@ -32,6 +32,7 @@ impl Emitter<'_> {
             SyntaxKind::Binding
                 | SyntaxKind::Assignment
                 | SyntaxKind::CallExpression
+                | SyntaxKind::InitializationExpression
                 | SyntaxKind::PostfixExpression
                 | SyntaxKind::UnaryExpression
                 | SyntaxKind::IfStatement
@@ -73,6 +74,10 @@ impl Emitter<'_> {
                     expression
                 };
                 self.line(&format!("{expression};"));
+            }
+            SyntaxKind::InitializationExpression => {
+                let expression = self.expression(node);
+                self.line(&format!("let _ = {expression};"));
             }
             SyntaxKind::UnaryExpression
                 if self.unary_operator(node).as_deref() == Some("await") =>

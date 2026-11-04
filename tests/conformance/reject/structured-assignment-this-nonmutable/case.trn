@@ -1,0 +1,10 @@
+namespace structured-assignment-this-nonmutable
+class item
+    x int = 0
+    function bump;
+        this = {
+            x = 5
+        }
+function main;
+    value = instance item;
+    value.bump;

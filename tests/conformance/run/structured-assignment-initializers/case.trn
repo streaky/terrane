@@ -20,12 +20,16 @@ function make item;
         title = 'returned'
     }
 
+function choose int; y int
+    return y
+
 function main;
     wrapped = instance holder;
     print; wrapped.child.value, ':', wrapped.child.title
     print; seeded
-    first = instance item; { value = 3 }
-    second = instance item; { value = 4 }
+    first = instance item; { value = choose; y = 3 }
+    second = instance item; {
+        value = 4 }
     print; first.value, ':', second.value
     returned = make;
     print; returned.value, ':', returned.title

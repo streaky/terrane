@@ -62,6 +62,9 @@ fn make() -> Item {
         instance
     };
 }
+fn choose(y: terrane_int_support::Int) -> terrane_int_support::Int {
+    return y.clone();
+}
 fn main() {
     let wrapped: Holder;
     let first: Item;
@@ -76,12 +79,12 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__TERRANE_GLOBAL_SEEDED.lock()
         .expect("program-global lock poisoned").clone().unwrap_or_else(| |
-        __terrane_uninitialized_binding("seeded", "case.trn", 26, 12)))
+        __terrane_uninitialized_binding("seeded", "case.trn", 29, 12)))
     );
     first = {
         let mut instance = Item::terrane_construct();
         {
-            let __terrane_value = terrane_int_support::Int::from(3_i128);
+            let __terrane_value = choose(terrane_int_support::Int::from(3_i128));
             instance.value = __terrane_value;
         }
         instance

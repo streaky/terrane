@@ -1,0 +1,6 @@
+namespace namespace-object-storage-constant
+class item
+    x int = 0
+constant base item = instance item;
+function main;
+    print; base.x

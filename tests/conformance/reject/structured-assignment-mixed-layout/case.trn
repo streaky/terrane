@@ -1,0 +1,8 @@
+namespace structured-assignment-mixed-layout
+class item
+    x int = 0
+    y int = 0
+function main;
+    value = instance item; { x = 1
+        y = 2 }
+    print; value.x
