@@ -326,18 +326,20 @@ fn allocation_capture_separates_churn_from_retained_bytes() {
     let directory = TemporaryDirectory::new();
     fs::write(
         directory.path().join("src/main.trn"),
-        "namespace profile\n\
-         from /core/collections import list\n\
-         function main;\n\
-           index int = 0\n\
-           while index < 500\n\
-             temporary list of int = list; index, index + 1, index + 2\n\
-             index++\n\
-           retained list of int = list\n\
-           index = 0\n\
-           while index < 500\n\
-             retained.append; index\n\
-             index++\n",
+        concat!(
+            "namespace profile\n",
+            "from /core/collections import list\n",
+            "function main;\n",
+            "  index int = 0\n",
+            "  while index < 500\n",
+            "    temporary list of int = list; index, index + 1, index + 2\n",
+            "    index++\n",
+            "  retained list of int = list\n",
+            "  index = 0\n",
+            "  while index < 500\n",
+            "    retained.append; index\n",
+            "    index++\n",
+        ),
     )
     .unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
