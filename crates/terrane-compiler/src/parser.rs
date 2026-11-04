@@ -610,9 +610,9 @@ impl Parser<'_> {
             children.push(self.parse_object_import());
             let malformed_item = grouped && self.diagnostics.len() != diagnostics_before_item;
             let comma_position = self.position;
-            let mut comma = self.eat(TokenKind::Comma);
+            let mut comma = !malformed_item && self.eat(TokenKind::Comma);
             let repeated_alias = grouped && !comma && self.at_text("as");
-            let recovered_item = grouped
+            let mut recovered_item = grouped
                 && (malformed_item
                     || repeated_alias
                     || !self.at_line_end() && !self.at(TokenKind::Identifier));
@@ -629,30 +629,27 @@ impl Parser<'_> {
                         },
                     );
                 }
-                // A failed name or alias may already have consumed the separator.
-                let consumed_comma =
-                    malformed_item && self.tokens[self.position - 1].kind == TokenKind::Comma;
-                if !consumed_comma {
-                    while !self.at_line_end() && !self.at(TokenKind::Comma) {
-                        self.bump();
-                    }
-                    self.eat(TokenKind::Comma);
-                }
+                self.recover_import_segment(malformed_item);
                 // Treat the malformed segment as consumed, including its separator,
                 // so recovery does not blame its remaining tokens a second time.
                 comma = true;
             }
-            let newline = grouped && self.at(TokenKind::Newline);
-            if newline {
-                self.skip_newlines();
-            }
-            let mut recovered_indent = false;
-            while grouped && self.at(TokenKind::Indent) {
-                self.error_here("S1026", "import items must use the same indentation");
-                self.bump();
-                self.recover_nested_block();
-                self.skip_newlines();
-                recovered_indent = true;
+            let (mut newline, mut recovered_indent) = if grouped {
+                self.skip_import_layout()
+            } else {
+                (false, false)
+            };
+            if grouped && !comma && self.at_text("as") {
+                self.error_here(
+                    "S1026",
+                    "an import alias must stay on the same line as its item",
+                );
+                self.recover_import_segment(false);
+                comma = true;
+                recovered_item = true;
+                let (alias_newline, alias_indent) = self.skip_import_layout();
+                newline |= alias_newline;
+                recovered_indent |= alias_indent;
             }
             if !grouped && self.recover_inline_import_continuation() {
                 break;
@@ -676,10 +673,10 @@ impl Parser<'_> {
                         "a separating comma must end the previous import line"
                     },
                 );
-                self.bump();
+                while self.eat(TokenKind::Comma) {}
                 comma = true;
                 if self.at_line_end() {
-                    self.skip_newlines();
+                    self.skip_import_layout();
                     if self.at_line_end() {
                         break;
                     }
@@ -694,6 +691,45 @@ impl Parser<'_> {
                 }
             }
         }
+    }
+
+    fn recover_import_segment(&mut self, malformed_item: bool) {
+        let consumed = malformed_item.then(|| self.tokens[self.position - 1].kind);
+        // A child parser can consume an opening delimiter or the real separator.
+        // Keep inner commas inside a malformed group, and never skip the next item.
+        if consumed != Some(TokenKind::Comma) {
+            let mut depth = usize::from(matches!(
+                consumed,
+                Some(TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace)
+            ));
+            while !(self.at_line_end() || depth == 0 && self.at(TokenKind::Comma)) {
+                match self.current().kind {
+                    TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace => {
+                        depth += 1;
+                    }
+                    TokenKind::CloseParen | TokenKind::CloseBracket | TokenKind::CloseBrace => {
+                        depth = depth.saturating_sub(1);
+                    }
+                    _ => {}
+                }
+                self.bump();
+            }
+        }
+        while self.eat(TokenKind::Comma) {}
+    }
+
+    fn skip_import_layout(&mut self) -> (bool, bool) {
+        let newline = self.at(TokenKind::Newline);
+        self.skip_newlines();
+        let mut recovered_indent = false;
+        while self.at(TokenKind::Indent) {
+            self.error_here("S1026", "import items must use the same indentation");
+            self.bump();
+            self.recover_nested_block();
+            self.skip_newlines();
+            recovered_indent = true;
+        }
+        (newline, recovered_indent)
     }
 
     fn recover_inline_import_continuation(&mut self) -> bool {
