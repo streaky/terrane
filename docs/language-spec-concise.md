@@ -1398,6 +1398,7 @@ Contracts:
 - `build --release` and `run --release` select Cargo's optimized release profile; development and release artifacts are cached separately.
 - Parse recovery never promotes recovered invalid nodes to lowering.
 - Diagnostic: stable code, primary source span, labels/notes/help; originating bytes including UTF-8.
+- Optional compilation flags: `--lint-name-style` emits authored-only `S2018` warnings once in each declaration's defining file (not projected names or synthesized anonymous labels); `--lint-unused-functions` emits `W4005` for unreferenced authored top-level functions, excluding `main` and methods. Both are opt-in advisories. `--require-canonical-rust` instead enforces bundled-formatter output and fails with `S9004` on noncanonical generated Rust. See manual `tool.diagnostics#opt-in-checks`.
 - Generated output deterministic for compiler version, target, declared inputs.
 - No universal boxed `Value` shortcut; finite dynamic alternatives use closed representations when sound.
 - Direct native lowering only when Rust operation exactly matches complete Terrane semantics.
