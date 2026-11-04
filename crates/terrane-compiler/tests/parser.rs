@@ -719,7 +719,7 @@ fn rejects_invalid_grouped_import_boundaries() {
         (
             "from /core/types import\n\tint8 as\n\tbyte\n",
             "expected an import alias after `as`",
-            2,
+            1,
         ),
         (
             "from /core/types import\n\tint8\n\t, int16\n",
@@ -771,6 +771,74 @@ fn rejects_invalid_grouped_import_boundaries() {
             "{text}\n{:#?}",
             parsed.diagnostics
         );
+    }
+}
+
+#[test]
+fn malformed_import_item_entries_recover_once() {
+    let missing_name = "expected an imported name";
+    let missing_alias = "expected an import alias after `as`";
+    for (items, names, message) in [
+        ("\t+ int8", vec![], missing_name),
+        ("\tint8,\n\t+ int32", vec!["int8"], missing_name),
+        ("\tint8\n\t+ int32", vec!["int8"], missing_name),
+        ("\t(int8)", vec![], missing_name),
+        ("\t+ int8, int32", vec!["int32"], missing_name),
+        (
+            "\tint8,\n\t+ int16, int32",
+            vec!["int8", "int32"],
+            missing_name,
+        ),
+        ("\t, int8", vec!["int8"], missing_name),
+        (
+            "\tint8 as + alias, int32",
+            vec!["int8", "int32"],
+            missing_alias,
+        ),
+        ("\tint8 as , int32", vec!["int8", "int32"], missing_alias),
+    ] {
+        for nested in [false, true] {
+            let text = format!("from /core/types import\n{items}\nvalue int32 = 1\n");
+            let text = if nested {
+                let mut body = String::from("function main;\n");
+                for line in text.lines() {
+                    body.push('\t');
+                    body.push_str(line);
+                    body.push('\n');
+                }
+                body
+            } else {
+                text
+            };
+            let source = SourceFile::new(0, "case.trn".into(), text);
+            let parsed = parse(&source, lex(&source).unwrap());
+            assert_eq!(parsed.diagnostics.len(), 1, "{:#?}", parsed.diagnostics);
+            assert_eq!(parsed.diagnostics[0].code, "S1026");
+            assert!(parsed.diagnostics[0].message.contains(message));
+            let statements = if nested {
+                &parsed.tree.root.children[0]
+                    .children
+                    .last()
+                    .unwrap()
+                    .children
+            } else {
+                &parsed.tree.root.children
+            };
+            assert_eq!(statements.len(), 2);
+            assert_eq!(statements[1].kind, SyntaxKind::Binding);
+            let actual = statements[0]
+                .children
+                .iter()
+                .filter(|node| node.kind == SyntaxKind::ObjectImport)
+                .filter_map(|node| {
+                    node.children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::Name)
+                })
+                .map(|name| &source.text()[name.span.start..name.span.end])
+                .collect::<Vec<_>>();
+            assert_eq!(actual, names);
+        }
     }
 }
 

@@ -606,23 +606,33 @@ impl Parser<'_> {
 
     fn parse_import_items(&mut self, children: &mut Vec<SyntaxNode>, grouped: bool) {
         loop {
+            let diagnostics_before_item = self.diagnostics.len();
             children.push(self.parse_object_import());
+            let malformed_item = grouped && self.diagnostics.len() != diagnostics_before_item;
             let comma_position = self.position;
             let mut comma = self.eat(TokenKind::Comma);
-            let recovered_item = grouped && !self.at_line_end() && !self.at(TokenKind::Identifier);
+            let recovered_item = grouped
+                && (malformed_item || !self.at_line_end() && !self.at(TokenKind::Identifier));
             if recovered_item {
-                self.error_here(
-                    "S1026",
-                    if comma {
-                        "expected an imported name"
-                    } else {
-                        "expected `,` between imported names"
-                    },
-                );
-                while !self.at_line_end() && !self.at(TokenKind::Comma) {
-                    self.bump();
+                if !malformed_item {
+                    self.error_here(
+                        "S1026",
+                        if comma {
+                            "expected an imported name"
+                        } else {
+                            "expected `,` between imported names"
+                        },
+                    );
                 }
-                self.eat(TokenKind::Comma);
+                // A failed name or alias may already have consumed the separator.
+                let consumed_comma =
+                    malformed_item && self.tokens[self.position - 1].kind == TokenKind::Comma;
+                if !consumed_comma {
+                    while !self.at_line_end() && !self.at(TokenKind::Comma) {
+                        self.bump();
+                    }
+                    self.eat(TokenKind::Comma);
+                }
                 // Treat the malformed segment as consumed, including its separator,
                 // so recovery does not blame its remaining tokens a second time.
                 comma = true;
@@ -674,7 +684,9 @@ impl Parser<'_> {
                 if !grouped {
                     break;
                 }
-                self.error_here("S1026", "expected `,` between imported names");
+                if self.at(TokenKind::Identifier) {
+                    self.error_here("S1026", "expected `,` between imported names");
+                }
             }
         }
     }
