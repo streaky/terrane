@@ -60,6 +60,45 @@ fn structured_error_infrastructure_is_separate_from_authored_lowering() {
 }
 
 #[test]
+fn bundled_core_source_origins_resolve_to_support_sidecar() {
+    let compilation = terrane_compiler::compile(
+        "process-user.trn",
+        concat!(
+            "namespace process-user\n",
+            "from /core/process import process-host-name\n",
+            "function main;\n",
+            "    name = process-host-name;\n",
+            "    print; name.failed\n",
+        )
+        .to_owned(),
+    )
+    .unwrap();
+    let core_source = compilation
+        .sources
+        .iter()
+        .find(|source| source.path().ends_with("core/process.trn"))
+        .expect("the imported bundled core source is retained");
+    let files = compilation
+        .rust_files_for(Path::new("src/main.rs"))
+        .unwrap();
+    // Source associations are consumed by diagnostics/debugging. Check actual
+    // source ownership in the split artifacts, not decorative source comments.
+    let files_for_source = |source_id| {
+        files
+            .iter()
+            .filter(|file| {
+                file.associations
+                    .iter()
+                    .any(|association| association.source.file == source_id)
+            })
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(files_for_source(core_source.id()), ["src/main.support.rs"]);
+    assert_eq!(files_for_source(compilation.source.id()), ["src/main.rs"]);
+}
+
+#[test]
 fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/conformance/run/rust-dependency-deferred-surface");
