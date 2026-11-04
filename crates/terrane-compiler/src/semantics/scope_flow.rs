@@ -129,6 +129,27 @@ pub(super) fn is_flow_value_child(node: &SyntaxNode, index: usize, child: &Synta
 }
 
 fn record_flow_reads(unit: &mut SemanticUnit, node: &SyntaxNode, active: &FlowEnv) {
+    if node.kind == SyntaxKind::InitializationExpression {
+        let [binding, block, result] = node.children.as_slice() else {
+            unreachable!("initialization expressions have a constructor, operations and result");
+        };
+        let mut state = active.clone();
+        let name = node_text(&unit.source, &binding.children[0]);
+        state.types.remove(name);
+        state.binding_ids.remove(name);
+        state.origins.remove(name);
+        state.carrier_types.remove(name);
+        state.uncertain.remove(name);
+        let mut paths = FlowStates::new();
+        flow_assignment(unit, binding, state, &mut paths);
+        if let Some(state) = paths.remove(&FlowExit::Normal) {
+            let mut paths = flow_block(unit, block, state);
+            if let Some(state) = paths.remove(&FlowExit::Normal) {
+                record_flow_reads(unit, result, &state);
+            }
+        }
+        return;
+    }
     if matches!(
         node.kind,
         SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction

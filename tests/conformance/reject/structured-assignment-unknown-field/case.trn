@@ -1,0 +1,8 @@
+namespace structured-assignment-unknown-field
+
+class settings
+    width int = 0
+
+function main;
+    value = instance settings;
+    value = { missing = 1 }

@@ -1,0 +1,4 @@
+namespace structured-assignment-read-only
+function main;
+    value = 'abc'
+    value = { length = 2 }

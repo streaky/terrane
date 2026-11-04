@@ -148,6 +148,7 @@ pub enum SyntaxKind {
     MemberExpression,
     StaticMemberExpression,
     ConstructionExpression,
+    InitializationExpression,
     IndexExpression,
     CallExpression,
     ArgumentList,
@@ -196,6 +197,9 @@ impl SyntaxKind {
             (Self::ModifierApplication | Self::AnnotationApplication, Self::ArgumentList, _)
             | (Self::CallExpression, _, 1) => "arguments",
             (Self::WithRegion, _, 0) => "acquisition",
+            (Self::InitializationExpression, _, 0) => "construction",
+            (Self::InitializationExpression, _, 1) => "initialization",
+            (Self::InitializationExpression, _, 2) => "result",
             (Self::AnnotationApplication, Self::Name, _) => "annotation-type",
             (Self::TypeParameterList, Self::TypeParameter, _) => "parameter",
             (Self::TypeParameter, Self::TypeExpression, _) => "bound",
@@ -286,6 +290,8 @@ pub struct SyntaxNode {
     pub modifier_applications: Vec<SyntaxNode>,
     pub documentation: Option<String>,
     pub(crate) is_unsafe_call: bool,
+    /// Compiler-authored receiver names retain each operation's own source span.
+    pub(crate) name_override: Option<String>,
 }
 
 impl SyntaxNode {
@@ -304,6 +310,7 @@ impl SyntaxNode {
             modifier_applications: Vec::new(),
             documentation: None,
             is_unsafe_call: false,
+            name_override: None,
         }
     }
 

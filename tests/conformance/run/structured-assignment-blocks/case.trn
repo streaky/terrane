@@ -1,0 +1,66 @@
+namespace structured-assignment-blocks
+from /core/errors import throwable
+
+class settings
+    width int = 10
+    height int = 20
+    title string = 'default'
+    function construct; width int
+        this.width = width
+
+class token
+    value int = 1
+    function construct;
+        print; 'construct'
+    consuming function destruct;
+        print; 'drop'
+
+class failure implements throwable
+    message string = 'failed'
+    function render string;
+        return this.message
+
+function fail int;
+    throw instance failure;
+
+function make settings; width int
+    return instance settings; width { height = width + 1 }
+
+function consume; value settings
+    print; value.width, ':', value.height
+
+function main;
+    height = 7
+    request = instance settings; 3 {
+        height = height
+        title = 'made'
+    }
+    print; request.width, ':', request.height, ':', request.title
+    alias = shared ref request
+    request = {
+        width = request.width + 1
+        height = request.width + 2
+    }
+    print; alias.width, ':', alias.height, ':', alias.title
+    ordinary = instance settings; 10
+    print; ordinary.width, ':', ordinary.height
+    plain = instance token;
+    observed = shared ref plain
+    plain = { value = 3 }
+    print; observed.value
+    nested = make; 8
+    print; nested.width, ':', nested.height
+    consume; (instance settings; 9 {
+        height = 11
+    })
+    try
+        request = {
+            width = 42
+            height = fail;
+        }
+    catch failure
+        print; alias.width, ':', alias.height
+    try
+        _ = instance token; { value = fail; }
+    catch failure
+        print; 'init-failed'

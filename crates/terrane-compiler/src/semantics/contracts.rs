@@ -150,6 +150,23 @@ pub(super) fn collect_typed_bindings(
                     Some(method.span),
                 )?;
             }
+            for field in block
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Binding)
+            {
+                if let Some(initializer) = super::ownership::binding_initializer(field) {
+                    let mut field_bindings = visible_bindings.clone();
+                    collect_typed_bindings(
+                        unit,
+                        matches,
+                        initializer,
+                        &mut field_bindings,
+                        bindings,
+                        scope,
+                    )?;
+                }
+            }
         }
         return Ok(());
     }
@@ -364,6 +381,20 @@ pub(super) fn collect_typed_bindings(
         bindings.push(catch_binding.clone());
         visible_bindings.push(catch_binding);
         collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
+        return Ok(());
+    }
+    if node.kind == SyntaxKind::InitializationExpression {
+        let mut local_bindings = visible_bindings.clone();
+        for child in &node.children {
+            collect_typed_bindings(
+                unit,
+                matches,
+                child,
+                &mut local_bindings,
+                bindings,
+                Some(node.span),
+            )?;
+        }
         return Ok(());
     }
     if node.kind == SyntaxKind::WithRegion {

@@ -56,6 +56,9 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut parenthesis_depth = 0usize;
     let mut with_layout = WithLayout::default();
     let mut parenthesis_kinds = Vec::new();
+    // A field-operation block restores statement layout even inside an
+    // otherwise layout-free parenthesized argument list.
+    let mut brace_parentheses = Vec::new();
     for raw in text.split_inclusive('\n') {
         let line = raw.trim_end_matches(['\n', '\r']);
         logical_lines.push((offset, line.to_owned()));
@@ -183,6 +186,17 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     with_layout = WithLayout::Modifiers;
                 }
                 match token.kind {
+                    TokenKind::OpenBrace => {
+                        brace_parentheses
+                            .push((parenthesis_depth, std::mem::take(&mut with_layout)));
+                        parenthesis_depth = 0;
+                    }
+                    TokenKind::CloseBrace => {
+                        if let Some((depth, layout)) = brace_parentheses.pop() {
+                            parenthesis_depth = depth;
+                            with_layout = layout;
+                        }
+                    }
                     TokenKind::Assign if parenthesis_depth == 0 => {
                         if matches!(with_layout, WithLayout::Modifiers) {
                             with_layout = WithLayout::Initializer;

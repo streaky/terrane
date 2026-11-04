@@ -1,0 +1,8 @@
+namespace structured-assignment-unset
+
+class settings
+    note string|none = 'present'
+
+function main;
+    target = instance settings;
+    target = { note.unset; }

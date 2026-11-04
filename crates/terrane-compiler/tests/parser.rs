@@ -1310,3 +1310,48 @@ fn declaration_modifiers_keep_typed_arguments_separate_from_initializer() {
 fn rejects_structural_keyword_in_modifier_position() {
     rejected("with scoped-access, global item = 1\n", "S1120");
 }
+
+#[test]
+fn structured_blocks_reject_statements_and_complex_targets() {
+    for source in [
+        "value = { print; 'not a field' }\n",
+        "value = { field.unset; }\n",
+        "value.member = { field = 1 }\n",
+        "value[0] = { field = 1 }\n",
+        "_ = { field = 1 }\n",
+        "value = { field = { nested = 1 } }\n",
+        "value = { field = 1\n",
+        "value = {}\n",
+        "value = {\n    // no field operations\n}\n",
+        "value = instance Item; {}\n",
+        "value = instance Item; {\n    /* no field operations */\n}\n",
+    ] {
+        rejected(source, "S1121");
+    }
+}
+
+#[test]
+fn structured_block_recovery_retains_the_following_statement() {
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "value = {\n    print; 'invalid'\n}\nnext = 2\n".to_owned(),
+    );
+    let parsed = parse(&source, lex(&source).unwrap());
+    assert!(parsed.diagnostics.iter().any(|error| error.code == "S1121"));
+    let next = parsed.tree.root.children.last().unwrap();
+    assert_eq!(next.kind, SyntaxKind::Assignment);
+    let name = &next.children[0];
+    assert_eq!(&source.text()[name.span.start..name.span.end], "next");
+}
+
+#[test]
+fn structured_construction_requires_the_call_marker() {
+    for source in [
+        "value = instance Item {}\n",
+        "value = instance Item { field = 1 }\n",
+        "value = instance Item argument { field = 1 }\n",
+    ] {
+        rejected(source, "S1093");
+    }
+}

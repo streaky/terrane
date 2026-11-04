@@ -1,0 +1,5 @@
+namespace structured-assignment-empty-construction
+class item
+    value int = 1
+function main;
+    request = instance item; {}

@@ -1,0 +1,8 @@
+namespace structured-assignment-invalid-statement
+
+class value
+    field int = 0
+
+function main;
+    target = instance value
+    target = { print; 'not an update operation' }

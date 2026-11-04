@@ -372,8 +372,30 @@ impl Emitter<'_> {
         ))
     }
 
+    fn initialization_expression(&mut self, node: &SyntaxNode) -> String {
+        let [binding, block, _result] = node.children.as_slice() else {
+            unreachable!(
+                "analyzed initialization expressions have a constructor, operations and result"
+            );
+        };
+        let initializer = binding
+            .children
+            .last()
+            .expect("initialization binding has a constructor");
+        let name = self.local_storage_name(&binding.children[0]);
+        let mut body = format!("let mut {name} = {};", self.expression(initializer));
+        for operation in &block.children {
+            let output = std::mem::take(&mut self.output);
+            self.statement(operation);
+            let emitted = std::mem::replace(&mut self.output, output);
+            body.push_str(&emitted);
+        }
+        format!("{{ {body} {name} }}")
+    }
+
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
+            SyntaxKind::InitializationExpression => self.initialization_expression(node),
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
             SyntaxKind::AppliedType => self.source_applied_function(node).map_or_else(

@@ -1,0 +1,37 @@
+namespace structured-assignment-initializers
+
+class item
+    value int = 1
+    title string = 'default'
+
+class holder
+    child item = instance item; { value = 5 }
+
+class keyword-fields
+    ref (int|none) = none
+    not (bool|none) = none
+    move (string|none) = none
+
+global seeded int = (instance item; { value = 8 }).value
+
+function make item;
+    return instance item; {
+        value = 2
+        title = 'returned'
+    }
+
+function main;
+    wrapped = instance holder;
+    print; wrapped.child.value, ':', wrapped.child.title
+    print; seeded
+    first = instance item; { value = 3 }
+    second = instance item; { value = 4 }
+    print; first.value, ':', second.value
+    returned = make;
+    print; returned.value, ':', returned.title
+    keyword = instance keyword-fields; { ref = 2 }
+    keyword = {
+        not = true
+        move = 'named'
+    }
+    print; keyword.ref, ':', keyword.not, ':', keyword.move

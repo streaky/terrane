@@ -1,0 +1,8 @@
+namespace structured-assignment-member-target
+
+class value
+    field int = 0
+
+function main;
+    holder = instance value
+    holder.field = { field = 1 }

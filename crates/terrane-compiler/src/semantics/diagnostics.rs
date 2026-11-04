@@ -1037,9 +1037,10 @@ pub(super) fn transparent_value_type(value_type: Option<ValueType>) -> Option<Va
         value_type => value_type,
     })
 }
-
-pub(super) fn node_text<'a>(source: &'a SourceFile, node: &SyntaxNode) -> &'a str {
-    &source.text()[node.span.start..node.span.end]
+pub(super) fn node_text<'a>(source: &'a SourceFile, node: &'a SyntaxNode) -> &'a str {
+    node.name_override
+        .as_deref()
+        .unwrap_or_else(|| &source.text()[node.span.start..node.span.end])
 }
 
 pub(super) fn failure(

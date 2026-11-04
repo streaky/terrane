@@ -72,6 +72,10 @@ pub(super) fn analyze_binding_node(
             Some(ValueType::Object(identity)) => {
                 object_field_type(unit, &identity, node_text(&unit.source, member), false)
             }
+            // Missing type information is not evidence of a read-only member.
+            // Let binding inference settle and ordinary name resolution diagnose
+            // an absent receiver before checking its destination contract.
+            None => return Ok(()),
             _ => None,
         };
         let Some(expected) = expected else {

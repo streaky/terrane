@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "S1121"
+contains = "at least one field assignment"

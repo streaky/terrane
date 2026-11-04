@@ -196,6 +196,12 @@ fn infer_nonbinary_value_type(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
+    if node.kind == SyntaxKind::InitializationExpression
+        && let Some(binding) = node.children.first()
+        && let Some(construction) = binding.children.last()
+    {
+        return infer_value_type(unit, construction, bindings);
+    }
     if node.kind == SyntaxKind::Literal {
         return Ok(infer_literal_type(unit, node).map(ValueType::Scalar));
     }
