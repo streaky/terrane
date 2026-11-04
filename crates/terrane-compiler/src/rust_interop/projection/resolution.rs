@@ -91,10 +91,8 @@ pub fn resolve(
         )?;
     }
     dependency_fetch.finish();
-    let dependency_lock =
-        crate::compilation_progress::start("persisting dependency lock", root.display());
-    persist_dependency_lock(root, &workspace)?;
-    dependency_lock.finish();
+    // Keep this base lock private: projection can add bound-owner dependencies below.
+    // Publish only the completed graph on the cache, artifact, or local-resolution path.
     let cache_check =
         crate::compilation_progress::start("validating projection cache", root.display());
     let (identity, target) = cache_identity(root, &workspace, dependencies, demands, sandbox)?;
