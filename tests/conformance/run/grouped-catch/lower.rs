@@ -156,10 +156,13 @@ fn handled(choice: terrane_int_support::Int) -> Result<String, TerraneError> {
                 {
                     __terrane_handled_0 = true;
                     let _ = error.insert(__terrane_error_0.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-                        .expect("flow-proven available binding").message().to_owned())
-                    );
+                    {
+                        let __terrane_error_text_0 = error
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_0);
+                    };
                     return TerraneCompletion::Return(
                         error
                             .as_ref()
@@ -280,14 +283,20 @@ fn main() {
                 {
                     __terrane_handled_2 = true;
                     let _ = error.insert(__terrane_error_2.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-                        .expect("flow-proven available binding").message().to_owned())
-                    );
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-                        .expect("flow-proven available binding").message().to_owned())
-                    );
+                    {
+                        let __terrane_error_text_1 = error
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_1);
+                    };
+                    {
+                        let __terrane_error_text_2 = error
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_2);
+                    };
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);
@@ -328,10 +337,13 @@ fn main() {
                 {
                     __terrane_handled_3 = true;
                     let _ = error_2.insert(__terrane_error_3.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&error_2.as_ref()
-                        .expect("flow-proven available binding").message().to_owned())
-                    );
+                    {
+                        let __terrane_error_text_3 = error_2
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_3);
+                    };
                 }
                 if !__terrane_handled_3 {
                     return TerraneCompletion::Error(__terrane_error_3);
@@ -424,10 +436,13 @@ fn main() {
                 if !__terrane_handled_5 {
                     __terrane_handled_5 = true;
                     let _ = error_3.insert(__terrane_error_5.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&error_3.as_ref()
-                        .expect("flow-proven available binding").message().to_owned())
-                    );
+                    {
+                        let __terrane_error_text_4 = error_3
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_4);
+                    };
                 }
                 if !__terrane_handled_5 {
                     return TerraneCompletion::Error(__terrane_error_5);
@@ -473,16 +488,20 @@ fn main() {
                         {
                             __terrane_handled_7 = true;
                             let _ = original.insert(__terrane_error_7.clone());
-                            println!(
-                                "{}", terrane_scalar_support::scalar_text(&original.as_ref()
-                                .expect("flow-proven available binding").message()
-                                .to_owned())
-                            );
-                            println!(
-                                "{}", terrane_scalar_support::scalar_text(&original.as_ref()
-                                .expect("flow-proven available binding").message()
-                                .to_owned())
-                            );
+                            {
+                                let __terrane_error_text_5 = original
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .message();
+                                println!("{}", __terrane_error_text_5);
+                            };
+                            {
+                                let __terrane_error_text_6 = original
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .message();
+                                println!("{}", __terrane_error_text_6);
+                            };
                             return TerraneCompletion::Error(
                                 {
                                     let value = OtherError::terrane_construct();
@@ -545,13 +564,17 @@ fn main() {
                                 .cloned(),
                         );
                     if cause.as_ref().expect("flow-proven available binding").is_some() {
-                        println!(
-                            "{}", terrane_scalar_support::scalar_text(&match cause
-                            .as_ref().expect("flow-proven available binding") {
-                            Some(value) => value, _ =>
-                            unreachable!("flow-proven storage refinement") } .message()
-                            .to_owned())
-                        );
+                        {
+                            let __terrane_error_text_7 = match cause
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                            {
+                                Some(value) => value,
+                                _ => unreachable!("flow-proven storage refinement"),
+                            }
+                                .message();
+                            println!("{}", __terrane_error_text_7);
+                        };
                     } else {
                         println!("{}", String::from("missing cause"));
                     }

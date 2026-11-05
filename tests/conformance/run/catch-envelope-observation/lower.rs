@@ -86,24 +86,27 @@ fn main() {
                         {
                             __terrane_handled_1 = true;
                             let _ = error.insert(__terrane_error_1.clone());
-                            println!(
-                                "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-                                .expect("flow-proven available binding").message()
-                                .to_owned())
-                            );
-                            println!(
-                                "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-                                .expect("flow-proven available binding").message()
-                                .to_owned())
-                            );
+                            {
+                                let __terrane_error_text_0 = error
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .message();
+                                println!("{}", __terrane_error_text_0);
+                            };
+                            {
+                                let __terrane_error_text_1 = error
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .message();
+                                println!("{}", __terrane_error_text_1);
+                            };
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&{ let
-                                __terrane_receiver_value_0 = &error.as_ref()
-                                .expect("flow-proven available binding").descriptor_name()
-                                .to_owned(); let __terrane_string_argument_0 =
-                                "original-error"; __terrane_receiver_value_0
-                                .contains(std::convert::AsRef:: < str >
-                                ::as_ref(&__terrane_string_argument_0)) })
+                                __terrane_error_text_2 = error.as_ref()
+                                .expect("flow-proven available binding").descriptor_name();
+                                let __terrane_string_argument_0 = "original-error";
+                                __terrane_error_text_2.contains(std::convert::AsRef:: < str
+                                > ::as_ref(&__terrane_string_argument_0)) })
                             );
                             let _ = rendered
                                 .insert(
@@ -182,17 +185,19 @@ fn main() {
                                     return TerraneCompletion::Continue;
                                 }
                             }
-                            println!(
-                                "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-                                .expect("flow-proven available binding").message()
-                                .to_owned())
-                            );
+                            {
+                                let __terrane_error_text_3 = error
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .message();
+                                println!("{}", __terrane_error_text_3);
+                            };
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&{ let
-                                __terrane_receiver_value_1 = &rendered.as_ref()
+                                __terrane_receiver_value_4 = &rendered.as_ref()
                                 .expect("flow-proven available binding").clone() (); let
                                 __terrane_string_argument_0 = "original";
-                                __terrane_receiver_value_1.contains(std::convert::AsRef:: <
+                                __terrane_receiver_value_4.contains(std::convert::AsRef:: <
                                 str > ::as_ref(&__terrane_string_argument_0)) })
                             );
                             return TerraneCompletion::Error(
@@ -247,10 +252,13 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     let _ = outer.insert(__terrane_error_0.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&outer.as_ref()
-                        .expect("flow-proven available binding").message().to_owned())
-                    );
+                    {
+                        let __terrane_error_text_5 = outer
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_5);
+                    };
                     let _ = cause
                         .insert(
                             outer
@@ -262,13 +270,17 @@ fn main() {
                                 .cloned(),
                         );
                     if cause.as_ref().expect("flow-proven available binding").is_some() {
-                        println!(
-                            "{}", terrane_scalar_support::scalar_text(&match cause
-                            .as_ref().expect("flow-proven available binding") {
-                            Some(value) => value, _ =>
-                            unreachable!("flow-proven storage refinement") } .message()
-                            .to_owned())
-                        );
+                        {
+                            let __terrane_error_text_6 = match cause
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                            {
+                                Some(value) => value,
+                                _ => unreachable!("flow-proven storage refinement"),
+                            }
+                                .message();
+                            println!("{}", __terrane_error_text_6);
+                        };
                     } else {
                         println!("{}", String::from("missing cause"));
                     }
@@ -288,8 +300,11 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-        .expect("flow-proven available binding").message().to_owned())
-    );
+    {
+        let __terrane_error_text_7 = error
+            .as_ref()
+            .expect("flow-proven available binding")
+            .message();
+        println!("{}", __terrane_error_text_7);
+    };
 }

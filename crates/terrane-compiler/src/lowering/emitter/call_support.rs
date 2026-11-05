@@ -165,13 +165,16 @@ impl Emitter<'_> {
             });
         let snapshot_receiver =
             self.native_read_needs_snapshot(subject, arguments, competing_guard, false);
-        let (receiver_setup, receiver) = if snapshot_receiver {
-            let value = self.read_snapshot(subject);
-            let name = self.fresh_read_binding_name("string_receiver");
-            (format!("let {name} = {value}; "), name)
-        } else {
-            self.borrowed_receiver_parts(subject)
-        };
+        let (receiver_setup, receiver) =
+            if let Some(parts) = self.throwable_text_parts(subject, snapshot_receiver) {
+                parts
+            } else if snapshot_receiver {
+                let value = self.read_snapshot(subject);
+                let name = self.fresh_read_binding_name("string_receiver");
+                (format!("let {name} = {value}; "), name)
+            } else {
+                self.borrowed_receiver_parts(subject)
+            };
         let mut setup = if snapshot_receiver {
             format!("{receiver_setup}{guard_setup}")
         } else {
@@ -183,8 +186,12 @@ impl Emitter<'_> {
             let value_type = self.receiver_value_type(operand);
             let name = format!("__terrane_string_argument_{index}");
             let literal = self.borrowed_string_literal(operand);
+            let snapshot = self.native_read_needs_snapshot(operand, arguments, false, false);
             let expression = if let Some(literal) = literal {
                 literal
+            } else if let Some((owner_setup, text)) = self.throwable_text_parts(operand, snapshot) {
+                setup.push_str(&owner_setup);
+                text
             } else if matches!(
                 value_type,
                 Some(

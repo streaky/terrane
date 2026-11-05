@@ -964,6 +964,33 @@ impl Emitter<'_> {
             if argument_values.is_empty() {
                 return "println!()".to_owned();
             }
+            if argument_values
+                .iter()
+                .any(|value| self.throwable_text_member(value).is_some())
+            {
+                let mut setup = String::new();
+                let mut values = Vec::with_capacity(argument_values.len());
+                for value in &argument_values {
+                    let snapshot = argument_values.len() > 1
+                        && (self.contains_guarded_read(value)
+                            || !self.read_borrow_is_stable_in(value, arguments));
+                    if let Some((value_setup, text)) = self.throwable_text_parts(value, snapshot) {
+                        setup.push_str(&value_setup);
+                        values.push(text);
+                    } else {
+                        let text = self.text_display(value);
+                        let name = self.fresh_read_binding_name("print_value");
+                        write!(setup, "let {name} = {text}; ")
+                            .expect("writing to a String cannot fail");
+                        values.push(name);
+                    }
+                }
+                let format = "{}".repeat(values.len());
+                return format!(
+                    "{{ {setup}println!(\"{format}\", {}); }}",
+                    values.join(", ")
+                );
+            }
             let values = argument_values
                 .iter()
                 .map(|value| self.text_display(value))

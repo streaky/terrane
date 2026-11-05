@@ -1650,6 +1650,9 @@ impl Emitter<'_> {
         storage_type: Option<&ValueType>,
     ) -> String {
         if storage_type == Some(&ValueType::Scalar(ScalarType::String)) {
+            if let Some((setup, right)) = self.throwable_text_parts(candidate, false) {
+                return format!("{{ {setup}{name}.as_str() == {right} }}");
+            }
             let right = self.string_comparison_operand(candidate);
             return format!("{name}.as_str() == {right}");
         }
