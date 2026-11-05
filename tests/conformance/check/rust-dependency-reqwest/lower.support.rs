@@ -695,8 +695,6 @@ for TerraneSharedProjection<H, U, T> {
 }
 // Source: <terrane>/projected/deps/http.trn
 // Namespace: deps/http
-pub use http::HeaderMap;
-pub use http::HeaderValue;
 pub use reqwest::blocking::Response;
 pub use http::StatusCode;
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
