@@ -1,0 +1,17 @@
+package = "projected-query-chain"
+executor = "threaded"
+
+[profile]
+name = "projected-query-chain"
+capabilities = ["build", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-query-witness]
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.terrane-query-contract]
+version = "=0.1.0"
+effects = ["build"]

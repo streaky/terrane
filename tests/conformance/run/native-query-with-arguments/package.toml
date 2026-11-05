@@ -1,0 +1,13 @@
+package = "native-query-with-arguments"
+executor = "threaded"
+
+[profile]
+name = "native-query-with-arguments"
+capabilities = ["build", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.native-query-witness]
+version = "=0.1.0"
+effects = ["build"]

@@ -93,6 +93,14 @@ fn projected_expression_owners(
             result
         };
     }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+    {
+        return projected_expression_owners(source, callee, imported, bindings, projection);
+    }
+    if node.kind == SyntaxKind::ArgumentList || node.kind == SyntaxKind::Argument {
+        return BTreeSet::new();
+    }
     node.children
         .iter()
         .flat_map(|child| {
@@ -116,62 +124,62 @@ fn collect_projected_binding_owners(
         .iter()
         .find(|child| child.kind == SyntaxKind::Name)
     {
-        let owner = node
+        let owners = node
             .children
             .iter()
             .find(|child| child.kind == SyntaxKind::TypeExpression)
             .and_then(|ty| projected_name(source, ty))
             .and_then(|ty| imported.get(ty).cloned())
+            .map(|owner| BTreeSet::from([owner]))
             .or_else(|| {
-                node.children.last().and_then(|value| {
+                node.children.last().map(|value| {
                     projected_expression_owners(source, value, imported, bindings, projection)
-                        .into_iter()
-                        .next()
                 })
-            });
-        if let Some(owner) = owner {
+            })
+            .unwrap_or_default();
+        if !owners.is_empty() {
             bindings
                 .entry(source.text()[name.span.start..name.span.end].to_owned())
                 .or_default()
-                .insert(owner);
-            if let Some(initializer) = node.children.last()
-                && initializer.kind == SyntaxKind::CallExpression
-                && let Some(callee) = initializer.children.first()
-                && callee.kind == SyntaxKind::ConstructionExpression
-                && let Some(owner_name) = callee
+                .extend(owners);
+        }
+        if let Some(initializer) = node.children.last()
+            && initializer.kind == SyntaxKind::CallExpression
+            && let Some(callee) = initializer.children.first()
+            && callee.kind == SyntaxKind::ConstructionExpression
+            && let Some(owner_name) = callee
+                .children
+                .first()
+                .and_then(|class| projected_name(source, class))
+            && let Some((namespace, owner)) = imported.get(owner_name)
+            && let Some(constructor) = projection.projected_constructor(namespace, owner)
+            && let Some(arguments) = initializer.children.get(1)
+        {
+            let mut positional = 0;
+            for argument in &arguments.children {
+                let named = argument
                     .children
                     .first()
-                    .and_then(|class| projected_name(source, class))
-                && let Some((namespace, owner)) = imported.get(owner_name)
-                && let Some(constructor) = projection.projected_constructor(namespace, owner)
-                && let Some(arguments) = initializer.children.get(1)
-            {
-                let mut positional = 0;
-                for argument in &arguments.children {
-                    let named = argument.children.first().filter(|child| {
-                        child.kind == SyntaxKind::Name && argument.children.len() > 1
-                    });
-                    let parameter = if let Some(name) = named {
-                        constructor.parameters.iter().find(|parameter| {
-                            parameter.name == source.text()[name.span.start..name.span.end]
-                        })
-                    } else {
-                        let parameter = constructor.parameters.get(positional);
-                        positional += 1;
-                        parameter
-                    };
-                    if let Some(selector) = parameter.and_then(|parameter| {
-                        crate::rust_interop::projection::Projection::payload_selector(&parameter.ty)
-                    }) && let Some(value) = argument.children.last()
-                    {
-                        let owners = projected_expression_owners(
-                            source, value, imported, bindings, projection,
-                        );
-                        bindings
-                            .entry(format!("@constructor:{namespace}::{owner}:{selector}"))
-                            .or_default()
-                            .extend(owners);
-                    }
+                    .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+                let parameter = if let Some(name) = named {
+                    constructor.parameters.iter().find(|parameter| {
+                        parameter.name == source.text()[name.span.start..name.span.end]
+                    })
+                } else {
+                    let parameter = constructor.parameters.get(positional);
+                    positional += 1;
+                    parameter
+                };
+                if let Some(selector) = parameter.and_then(|parameter| {
+                    crate::rust_interop::projection::Projection::payload_selector(&parameter.ty)
+                }) && let Some(value) = argument.children.last()
+                {
+                    let owners =
+                        projected_expression_owners(source, value, imported, bindings, projection);
+                    bindings
+                        .entry(format!("@constructor:{namespace}::{owner}:{selector}"))
+                        .or_default()
+                        .extend(owners);
                 }
             }
         }

@@ -1040,14 +1040,49 @@ fn lender_writes_before<'a>(
     }
 }
 
-fn local_lender_name(
+enum LocalNativeLender<'a> {
+    Binding(&'a str, Span),
+    Temporary(Span),
+}
+
+impl<'a> LocalNativeLender<'a> {
+    fn into_diagnostic(self) -> (&'a str, Span) {
+        match self {
+            Self::Binding(name, span) => (name, span),
+            Self::Temporary(span) => ("temporary value", span),
+        }
+    }
+}
+
+pub(in crate::semantics) fn native_expression_has_temporary_lender(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
+) -> bool {
+    let Some(contract) = unit.containing_function(node.span) else {
+        return false;
+    };
+    matches!(
+        local_lender_name(
+            package,
+            unit,
+            node,
+            contract,
+            contract.span,
+            &mut BTreeSet::new(),
+        ),
+        Some(LocalNativeLender::Temporary(_))
+    )
+}
+
+fn local_lender_name<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    node: &'a SyntaxNode,
     contract: &FunctionContract,
     function_span: Span,
     visited: &mut BTreeSet<Span>,
-) -> Option<(String, Span)> {
+) -> Option<LocalNativeLender<'a>> {
     if node.kind == SyntaxKind::GroupExpression && node.children.len() == 1 {
         return local_lender_name(
             package,
@@ -1072,7 +1107,7 @@ fn local_lender_name(
                 )
             })
     {
-        return Some(("temporary value".to_owned(), node.span));
+        return Some(LocalNativeLender::Temporary(node.span));
     }
     if node.kind == SyntaxKind::Name {
         let name = node_text(&unit.source, node);
@@ -1100,7 +1135,7 @@ fn local_lender_name(
             return None;
         }
         if invocation_scoped_region(&binding.value_type).is_none() {
-            return Some((name.to_owned(), binding.span));
+            return Some(LocalNativeLender::Binding(name, binding.span));
         }
         if !visited.insert(binding.span) {
             return None;
@@ -1128,13 +1163,13 @@ fn local_lender_name(
     callback_return_lender(package, unit, node, contract, function_span, visited)
 }
 
-fn local_lender_in_scoped_expression(
+fn local_lender_in_scoped_expression<'a>(
     package: &SemanticPackage,
-    unit: &SemanticUnit,
-    node: &SyntaxNode,
+    unit: &'a SemanticUnit,
+    node: &'a SyntaxNode,
     contract: &FunctionContract,
     function_span: Span,
-) -> Option<(String, Span)> {
+) -> Option<LocalNativeLender<'a>> {
     callback_return_lender(
         package,
         unit,
@@ -1145,14 +1180,14 @@ fn local_lender_in_scoped_expression(
     )
 }
 
-fn callback_return_lender(
+fn callback_return_lender<'a>(
     package: &SemanticPackage,
-    unit: &SemanticUnit,
-    node: &SyntaxNode,
+    unit: &'a SemanticUnit,
+    node: &'a SyntaxNode,
     contract: &FunctionContract,
     function_span: Span,
     visited: &mut BTreeSet<Span>,
-) -> Option<(String, Span)> {
+) -> Option<LocalNativeLender<'a>> {
     if node.kind == SyntaxKind::Name {
         return local_lender_name(package, unit, node, contract, function_span, visited);
     }
@@ -1303,6 +1338,7 @@ fn validate_invocation_scoped_node(
         )
         && let Some((name, span)) =
             local_lender_in_scoped_expression(package, unit, node, contract, contract.span)
+                .map(LocalNativeLender::into_diagnostic)
     {
         return Err(failure(
             &unit.source,

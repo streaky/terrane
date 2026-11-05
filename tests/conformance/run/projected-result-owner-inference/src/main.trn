@@ -1,0 +1,15 @@
+namespace app
+
+from /deps/terrane-query-witness import ConnectionOptions, insert_sql, query
+
+async function main;
+  options = ConnectionOptions::new;
+  connection = await options.connect;
+  insert_op = insert_sql;
+  stored = (query; insert_op).bind; b'owner'
+  result = await stored.execute; connection
+  print; (result.rows_affected;)
+  row = await (query; 'select').fetch_one; connection
+  body bytes = row.try_get; 'body'
+  print; body[0]
+  await connection.close;

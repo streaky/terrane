@@ -3600,17 +3600,33 @@ fn collect_projected_call_result_types(
         }
         return Ok(());
     }
+    let receiver_type = designator.children.first().and_then(|receiver| {
+        infer_value_type(unit, receiver, &unit.typed_bindings)
+            .ok()
+            .flatten()
+    });
+    if defer_unresolved_lenders
+        && designator.kind == SyntaxKind::MemberExpression
+        && matches!(
+            receiver_type.as_ref(),
+            Some(ValueType::InvocationScopedNative {
+                concrete: false,
+                expression_scoped: false,
+                ..
+            })
+        )
+    {
+        // A nominal result template resolves members before its producer is
+        // selected. Do not freeze that template's open owner/lifetimes into a
+        // stored continuation while child refinements are still pending.
+        *pending_lenders = true;
+        return Ok(());
+    }
     let owner_substitutions = projected_call_owner_substitutions(package, unit, designator)
         .map_err(|reason| failure(&unit.source, "T0118", reason, node.span))?;
-    let receiver = designator
-        .children
-        .first()
-        .and_then(|receiver| {
-            infer_value_type(unit, receiver, &unit.typed_bindings)
-                .ok()
-                .flatten()
-        })
-        .and_then(|ty| destination_projected_type(package, &ty).ok());
+    let receiver = receiver_type
+        .as_ref()
+        .and_then(|ty| destination_projected_type(package, ty).ok());
     let instantiated = receiver
         .as_ref()
         .map_or_else(
@@ -3713,6 +3729,25 @@ fn collect_projected_call_result_types(
                 .first()
                 .and_then(|receiver| infer_value_type(unit, receiver, &unit.typed_bindings).ok())
                 .flatten();
+            if function
+                .receiver_lifetime
+                .as_ref()
+                .is_some_and(|receiver_lifetime| {
+                    lifetimes
+                        .iter()
+                        .any(|lifetime| lifetime != "'static" && lifetime == receiver_lifetime)
+                })
+                && callee.children.first().is_some_and(|receiver| {
+                    super::bindings::native_expression_has_temporary_lender(package, unit, receiver)
+                })
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0119",
+                    "cannot establish a local native value's source lifetime: temporary lender must be bound before borrowing",
+                    callee.children[0].span,
+                ));
+            }
             if let Some(ValueType::InvocationScopedNative {
                 region,
                 lifetimes: receiver_lifetimes,
@@ -3754,6 +3789,16 @@ fn collect_projected_call_result_types(
                         continue;
                     }
                     matched_lifetimes.extend(matching.iter().cloned());
+                    if super::bindings::native_expression_has_temporary_lender(
+                        package, unit, argument,
+                    ) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0119",
+                            "cannot establish a local native value's source lifetime: temporary lender must be bound before borrowing",
+                            argument.span,
+                        ));
+                    }
                     if let Some(value_type) = infer_value_type(unit, argument, &unit.typed_bindings)
                         .ok()
                         .flatten()

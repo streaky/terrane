@@ -10,6 +10,30 @@ function trigger-static-panic bytes throws throwable; record Row
 function trigger-instance-panic bytes throws throwable; record Row
   return record.try_get; 'panic'
 
+async function stored-chains;
+  options = ConnectionOptions::new;
+  connection = await options.connect;
+  op = insert_sql;
+  one = (query; op).bind; b'one'
+  one_result StoreResult = await one.execute; connection
+  print; (one_result.rows_affected;), ' ', (one_result.persistent;)
+  two = ((query; op).bind; b'two').persistent; false
+  two_result StoreResult = await two.execute; connection
+  print; (two_result.rows_affected;), ' ', (two_result.persistent;)
+  pending = ((query; op).bind; b'three').persistent; false
+  continued = pending.persistent; true
+  continued_result StoreResult = await continued.execute; connection
+  print; (continued_result.rows_affected;), ' ', (continued_result.persistent;)
+  twice = ((query; op).bind; b'ignored').bind; b'four'
+  twice_result StoreResult = await twice.execute; connection
+  print; (twice_result.rows_affected;), ' ', (twice_result.persistent;)
+  rows list of Row = await (query; 'select').fetch_all; connection
+  print; rows.length
+  for record in ref rows
+    body bytes = record.try_get; 'body'
+    print; body[0]
+  await connection.close;
+
 async function main;
   options = ConnectionOptions::new;
   connection = await options.connect;
@@ -33,4 +57,5 @@ async function main;
   catch QueryError
     print; 'query-error'
   await connection.close;
+  await stored-chains;
   print; 'complete'

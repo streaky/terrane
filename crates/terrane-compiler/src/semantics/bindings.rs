@@ -23,8 +23,9 @@ pub(super) use async_tasks::{
     value_type_is_owned_static, value_type_satisfies_auto_trait,
 };
 pub(crate) use callbacks::{callback_contract, projected_macro_for_call};
-pub(super) use callbacks::{
-    projected_argument_for_parameter, projected_function_for_call, projected_receiver_chain_role,
+pub(in crate::semantics) use callbacks::{
+    native_expression_has_temporary_lender, projected_argument_for_parameter,
+    projected_function_for_call, projected_receiver_chain_role,
     validate_projected_callback_arguments,
 };
 
