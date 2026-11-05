@@ -253,12 +253,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
 
     fn resource_binding(package: &SemanticPackage, unit: &SemanticUnit, binding: usize) -> bool {
         let binding = &unit.typed_bindings[binding];
-        resource_type(
-            package,
-            unit.flow_binding_types
-                .get(&binding.span)
-                .unwrap_or(&binding.value_type),
-        )
+        let value_type = unit
+            .flow_binding_types
+            .get(&binding.span)
+            .unwrap_or(&binding.value_type);
+        resource_type(package, value_type)
     }
 
     fn source_iterator_object(unit: &SemanticUnit, identity: &ObjectIdentity) -> bool {
@@ -617,18 +616,19 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member, ..] = callee.children.as_slice()
             && receiver.kind == SyntaxKind::Name
-            && matches!(
-                infer_value_type(unit, receiver, &unit.typed_bindings),
-                Ok(Some(ValueType::Object(object_name)))
-                    if method_consumes_receiver(
-                        package,
-                        &object_name,
-                        node_text(&unit.source, member),
-                    )
-            )
+            && let Some(receiver_type) = infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten()
+            && let ValueType::Object(object_name)
+            | ValueType::InvocationScopedNative {
+                family: object_name,
+                ..
+            } = &receiver_type
+            && method_consumes_receiver(package, object_name, node_text(&unit.source, member))
             && let Some(binding) =
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
-            && resource_binding(package, unit, binding)
+            && (matches!(receiver_type, ValueType::InvocationScopedNative { .. })
+                || resource_binding(package, unit, binding))
         {
             for child in &node.children {
                 visit(package, unit, child, moved, false, resource_objects)?;
@@ -1303,12 +1303,21 @@ pub(super) fn argument_for_parameter<'a>(
     parameter_index: usize,
 ) -> Option<&'a SyntaxNode> {
     let parameter = contract.parameters.get(parameter_index)?;
+    argument_for_parameter_name(unit, arguments, &parameter.name, parameter_index)
+}
+
+pub(super) fn argument_for_parameter_name<'a>(
+    unit: &SemanticUnit,
+    arguments: &'a SyntaxNode,
+    parameter_name: &str,
+    parameter_index: usize,
+) -> Option<&'a SyntaxNode> {
     if let Some(named) = arguments.children.iter().find(|argument| {
         argument.children.len() > 1
             && argument
                 .children
                 .first()
-                .is_some_and(|name| node_text(&unit.source, name) == parameter.name)
+                .is_some_and(|name| node_text(&unit.source, name) == parameter_name)
     }) {
         return named.children.last();
     }

@@ -1093,7 +1093,13 @@ fn local_lender_name<'a>(
             visited,
         );
     }
-    if node.kind == SyntaxKind::CallExpression
+    // Literal native inputs have static backing, not a temporary owned lender.
+    if !(matches!(node.kind, SyntaxKind::Name | SyntaxKind::Literal)
+        || node.kind == SyntaxKind::UnaryExpression
+            && matches!(
+                unary_operator_text(unit, node).as_deref(),
+                Some("ref" | "mutable ref")
+            ))
         && infer_value_type(unit, node, &unit.typed_bindings)
             .ok()
             .flatten()

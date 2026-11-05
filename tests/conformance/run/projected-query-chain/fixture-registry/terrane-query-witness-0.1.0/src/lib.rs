@@ -85,6 +85,10 @@ pub fn insert_sql() -> String {
     "insert".to_owned()
 }
 
+pub fn operation_len(operation: &str) -> usize {
+    operation.len()
+}
+
 pub fn query(operation: &str) -> Query<'_, Store, ()> {
     Query {
         operation,

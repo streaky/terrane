@@ -444,14 +444,23 @@ pub(super) fn collect_typed_bindings(
     Ok(())
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "callable signature analysis keeps parameter and result contracts in source order"
-)]
 pub(super) fn analyze_function_contract(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
+) -> Result<FunctionContract, SemanticFailure> {
+    analyze_function_signature(unit, node, aliases, true)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "callable signature analysis keeps parameter and result contracts in source order"
+)]
+pub(super) fn analyze_function_signature(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    aliases: &BTreeMap<String, ScalarType>,
+    validate_defaults: bool,
 ) -> Result<FunctionContract, SemanticFailure> {
     fn contains_direct_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         node.children.iter().any(|child| {
@@ -543,7 +552,9 @@ pub(super) fn analyze_function_contract(
                     parameter.span,
                 ));
             }
-            if let (Some(expected), Some(default)) = (value_type.clone(), default) {
+            if validate_defaults
+                && let (Some(expected), Some(default)) = (value_type.as_ref(), default)
+            {
                 let actual =
                     infer_value_type(unit, default, &unit.typed_bindings)?.ok_or_else(|| {
                         failure(
@@ -557,7 +568,7 @@ pub(super) fn analyze_function_contract(
                     &unit.source,
                     &unit.descriptors,
                     node_text(&unit.source, parameter_name),
-                    &expected,
+                    expected,
                     &actual,
                     default,
                     "T0006",

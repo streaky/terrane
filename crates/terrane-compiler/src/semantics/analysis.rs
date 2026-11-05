@@ -1,4 +1,8 @@
 use super::prelude::*;
+use super::projected_demand::{
+    ProjectedOwner, SourceResults, collect_associated_projected_member_demands,
+    collect_demanded_projected_members, collect_projected_binding_owners, imported_projected_types,
+};
 
 fn has_modifier_applications(node: &SyntaxNode) -> bool {
     !node.modifier_applications.is_empty() || node.children.iter().any(has_modifier_applications)
@@ -10,182 +14,6 @@ fn collect_unsafe_rust_spans(node: &SyntaxNode, spans: &mut Vec<Span>) {
     }
     for child in &node.children {
         collect_unsafe_rust_spans(child, spans);
-    }
-}
-
-type ProjectedOwner = (String, String);
-
-fn imported_projected_types(
-    projection: &crate::rust_interop::projection::Projection,
-    imports: &BTreeMap<String, BTreeSet<String>>,
-) -> BTreeMap<String, ProjectedOwner> {
-    imports
-        .iter()
-        .flat_map(|(namespace, names)| {
-            names.iter().filter_map(|name| {
-                projection
-                    .projected_owner_for_import(namespace, name)
-                    .map(|owner| (name.clone(), owner))
-            })
-        })
-        .collect()
-}
-
-fn projected_name<'a>(source: &'a SourceFile, node: &SyntaxNode) -> Option<&'a str> {
-    if node.kind == SyntaxKind::Name {
-        return Some(&source.text()[node.span.start..node.span.end]);
-    }
-    node.children
-        .iter()
-        .find_map(|child| projected_name(source, child))
-}
-
-fn projected_expression_owners(
-    source: &SourceFile,
-    node: &SyntaxNode,
-    imported: &BTreeMap<String, ProjectedOwner>,
-    bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
-    projection: &crate::rust_interop::projection::Projection,
-) -> BTreeSet<ProjectedOwner> {
-    if node.kind == SyntaxKind::Name {
-        let name = &source.text()[node.span.start..node.span.end];
-        return bindings
-            .get(name)
-            .cloned()
-            .or_else(|| {
-                imported
-                    .get(name)
-                    .cloned()
-                    .map(|owner| BTreeSet::from([owner]))
-            })
-            .unwrap_or_default();
-    }
-    if matches!(
-        node.kind,
-        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
-    ) && let (Some(receiver), Some(member)) = (node.children.first(), node.children.get(1))
-    {
-        let receiver_owners =
-            projected_expression_owners(source, receiver, imported, bindings, projection);
-        let member = &source.text()[member.span.start..member.span.end];
-        let result = receiver_owners
-            .into_iter()
-            .filter_map(|(namespace, owner)| {
-                projection
-                    .projected_member_scoped_family_owner(&namespace, &owner, member)
-                    .or_else(|| {
-                        projection.projected_member_result_owner(&namespace, &owner, member)
-                    })
-                    .map(|owner| BTreeSet::from([owner]))
-                    .or_else(|| {
-                        let selector =
-                            projection.projected_payload_selector(&namespace, &owner, member)?;
-                        bindings
-                            .get(&format!("@constructor:{namespace}::{owner}:{selector}"))
-                            .cloned()
-                    })
-            })
-            .flatten()
-            .collect::<BTreeSet<_>>();
-        return if result.is_empty() {
-            bindings.get(member).cloned().unwrap_or_default()
-        } else {
-            result
-        };
-    }
-    if node.kind == SyntaxKind::CallExpression
-        && let Some(callee) = node.children.first()
-    {
-        return projected_expression_owners(source, callee, imported, bindings, projection);
-    }
-    if node.kind == SyntaxKind::ArgumentList || node.kind == SyntaxKind::Argument {
-        return BTreeSet::new();
-    }
-    node.children
-        .iter()
-        .flat_map(|child| {
-            projected_expression_owners(source, child, imported, bindings, projection)
-        })
-        .collect()
-}
-
-fn collect_projected_binding_owners(
-    source: &SourceFile,
-    node: &SyntaxNode,
-    imported: &BTreeMap<String, ProjectedOwner>,
-    bindings: &mut BTreeMap<String, BTreeSet<ProjectedOwner>>,
-    projection: &crate::rust_interop::projection::Projection,
-) {
-    if matches!(
-        node.kind,
-        SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
-    ) && let Some(name) = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)
-    {
-        let owners = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::TypeExpression)
-            .and_then(|ty| projected_name(source, ty))
-            .and_then(|ty| imported.get(ty).cloned())
-            .map(|owner| BTreeSet::from([owner]))
-            .or_else(|| {
-                node.children.last().map(|value| {
-                    projected_expression_owners(source, value, imported, bindings, projection)
-                })
-            })
-            .unwrap_or_default();
-        if !owners.is_empty() {
-            bindings
-                .entry(source.text()[name.span.start..name.span.end].to_owned())
-                .or_default()
-                .extend(owners);
-        }
-        if let Some(initializer) = node.children.last()
-            && initializer.kind == SyntaxKind::CallExpression
-            && let Some(callee) = initializer.children.first()
-            && callee.kind == SyntaxKind::ConstructionExpression
-            && let Some(owner_name) = callee
-                .children
-                .first()
-                .and_then(|class| projected_name(source, class))
-            && let Some((namespace, owner)) = imported.get(owner_name)
-            && let Some(constructor) = projection.projected_constructor(namespace, owner)
-            && let Some(arguments) = initializer.children.get(1)
-        {
-            let mut positional = 0;
-            for argument in &arguments.children {
-                let named = argument
-                    .children
-                    .first()
-                    .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
-                let parameter = if let Some(name) = named {
-                    constructor.parameters.iter().find(|parameter| {
-                        parameter.name == source.text()[name.span.start..name.span.end]
-                    })
-                } else {
-                    let parameter = constructor.parameters.get(positional);
-                    positional += 1;
-                    parameter
-                };
-                if let Some(selector) = parameter.and_then(|parameter| {
-                    crate::rust_interop::projection::Projection::payload_selector(&parameter.ty)
-                }) && let Some(value) = argument.children.last()
-                {
-                    let owners =
-                        projected_expression_owners(source, value, imported, bindings, projection);
-                    bindings
-                        .entry(format!("@constructor:{namespace}::{owner}:{selector}"))
-                        .or_default()
-                        .extend(owners);
-                }
-            }
-        }
-    }
-    for child in &node.children {
-        collect_projected_binding_owners(source, child, imported, bindings, projection);
     }
 }
 fn collect_name_demand_sites(
@@ -247,129 +75,6 @@ fn name_demand_sites(units: &[SemanticUnit], source_id: u32, alias: &str) -> BTr
         collect_name_demand_sites(&unit.source, &unit.tree.root, alias, &mut sites);
     }
     sites
-}
-
-fn collect_demanded_projected_members(
-    source: &SourceFile,
-    node: &SyntaxNode,
-    imported: &BTreeMap<String, ProjectedOwner>,
-    bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
-    demanded: &mut BTreeMap<ProjectedOwner, BTreeSet<String>>,
-    demand_sites: &mut crate::rust_interop::projection::ProjectionDemandSites,
-    projection: &crate::rust_interop::projection::Projection,
-) {
-    if matches!(
-        node.kind,
-        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
-    ) && let (Some(receiver), Some(member)) = (node.children.first(), node.children.get(1))
-    {
-        let owners = projected_expression_owners(source, receiver, imported, bindings, projection);
-        let member_name = source.text()[member.span.start..member.span.end].to_owned();
-        let (line, column) = source.line_column(member.span.start);
-        let site = format!("{}:{line}:{column}", source.path().display());
-        for owner in owners {
-            demanded
-                .entry(owner.clone())
-                .or_default()
-                .insert(member_name.clone());
-            demand_sites
-                .entry((owner.0, owner.1, Some(member_name.clone())))
-                .or_default()
-                .insert(site.clone());
-        }
-    }
-    for child in &node.children {
-        collect_demanded_projected_members(
-            source,
-            child,
-            imported,
-            bindings,
-            demanded,
-            demand_sites,
-            projection,
-        );
-    }
-}
-
-fn collect_associated_projected_member_demands(
-    source: &SourceFile,
-    node: &SyntaxNode,
-    imported: &BTreeMap<String, ProjectedOwner>,
-    demanded: &mut BTreeMap<ProjectedOwner, BTreeSet<String>>,
-    demand_sites: &mut crate::rust_interop::projection::ProjectionDemandSites,
-    projection: &crate::rust_interop::projection::Projection,
-) {
-    if node.kind == SyntaxKind::ClassDeclaration {
-        let associated = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Block)
-            .into_iter()
-            .flat_map(|block| &block.children)
-            .filter(|child| child.kind == SyntaxKind::AssociatedTypeDeclaration)
-            .filter_map(|association| {
-                let name = association
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::Name)?;
-                let ty = association
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::TypeExpression)?;
-                let owner = imported.get(projected_name(source, ty)?)?;
-                Some((
-                    source.text()[name.span.start..name.span.end].to_owned(),
-                    owner.clone(),
-                ))
-            })
-            .collect::<BTreeMap<_, _>>();
-        if let Some(block) = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Block)
-        {
-            for method in block
-                .children
-                .iter()
-                .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
-            {
-                let mut scoped_imports = imported.clone();
-                scoped_imports.extend(
-                    associated
-                        .iter()
-                        .map(|(alias, owner)| (alias.clone(), owner.clone())),
-                );
-                let mut scoped_bindings = BTreeMap::new();
-                collect_projected_binding_owners(
-                    source,
-                    method,
-                    &scoped_imports,
-                    &mut scoped_bindings,
-                    projection,
-                );
-                collect_demanded_projected_members(
-                    source,
-                    method,
-                    &scoped_imports,
-                    &scoped_bindings,
-                    demanded,
-                    demand_sites,
-                    projection,
-                );
-            }
-        }
-        return;
-    }
-    for child in &node.children {
-        collect_associated_projected_member_demands(
-            source,
-            child,
-            imported,
-            demanded,
-            demand_sites,
-            projection,
-        );
-    }
 }
 
 pub(super) fn parse_unit(
@@ -635,9 +340,11 @@ fn augment_units_with_projection_inner(
     let mut demand_sites = crate::rust_interop::projection::ProjectionDemandSites::new();
     let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
     let mut imported_aliases = BTreeMap::<String, ProjectedOwner>::new();
+    let source_results = SourceResults::new(&units, projection)?;
     for unit in &units {
-        for import in imports_in_tree(unit)?
-            .into_iter()
+        for import in source_results
+            .imports(&unit.source)
+            .iter()
             .filter(|import| import.target.starts_with("/deps/"))
         {
             if let Some(details) = projection.item_ambiguity(&import.target, &import.object) {
@@ -661,9 +368,9 @@ fn augment_units_with_projection_inner(
                 .or_default()
                 .extend(name_demand_sites(&units, import.source.id(), &import.alias));
             dependency_imports
-                .entry(import.target)
+                .entry(import.target.clone())
                 .or_default()
-                .insert(import.object);
+                .insert(import.object.clone());
         }
     }
     let mut imported_types = imported_projected_types(projection, &dependency_imports);
@@ -676,6 +383,7 @@ fn augment_units_with_projection_inner(
             &imported_types,
             &mut binding_owners,
             projection,
+            &source_results,
         );
     }
     let mut demanded_members = BTreeMap::<ProjectedOwner, BTreeSet<String>>::new();
@@ -687,7 +395,7 @@ fn augment_units_with_projection_inner(
             &binding_owners,
             &mut demanded_members,
             &mut demand_sites,
-            projection,
+            &source_results,
         );
     }
     for unit in &units {
@@ -698,8 +406,10 @@ fn augment_units_with_projection_inner(
             &mut demanded_members,
             &mut demand_sites,
             projection,
+            &source_results,
         );
     }
+    drop(source_results);
     if persist_inventory {
         persist_projection_inventory(package, projection, &demand_sites)?;
     }

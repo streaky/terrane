@@ -8,6 +8,7 @@ mod generics;
 mod initialization;
 mod matching;
 mod model;
+mod projected_demand;
 
 // Namespace, import, bootstrap-surface, and lexical name resolution.
 mod bootstrap;
