@@ -322,6 +322,13 @@ impl Emitter<'_> {
                 .item(&identity.namespace, &identity.name)
                 .is_none()
             && !self.is_throwable_value(holder)
+            && !self.receiver_needs_live_guard(holder)
+            && let Some(ValueType::Object(field_identity)) = self.receiver_value_type(receiver)
+            && self
+                .package
+                .projection
+                .item(&field_identity.namespace, &field_identity.name)
+                .is_some()
         {
             let holder_value = self.native_receiver_expression(holder, mutable);
             let (place, borrowed) = self.object_field_place(holder, member, mutable, &holder_value);
