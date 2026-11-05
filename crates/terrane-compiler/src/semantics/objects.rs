@@ -3047,6 +3047,7 @@ pub(super) fn prepare_type_declarations(
         package.units[index].descriptor_aliases = alias_history;
         package.units[index].functions = functions;
     }
+    apply_projected_method_contracts(&mut package.units, &package.projection);
     for unit in &mut package.units {
         for descriptor in &mut unit.descriptors {
             if descriptor.kind == ObjectKind::Interface {
@@ -3310,7 +3311,7 @@ fn scoped_receiver_result(
     function: &crate::rust_interop::projection::ProjectedFunction,
     mut projected: crate::rust_interop::projection::ProjectedType,
 ) -> crate::rust_interop::projection::ProjectedType {
-    use crate::rust_interop::projection::ProjectedType;
+    use crate::rust_interop::projection::{ChainRole, ProjectedType};
     let Some(receiver) = callee.children.first() else {
         return projected;
     };
@@ -3340,6 +3341,21 @@ fn scoped_receiver_result(
             // The final call plan reports an unresolved or contradictory lender.
             return projected;
         }
+    }
+    if let ProjectedType::InvocationScoped {
+        expression_scoped, ..
+    } = &mut projected
+    {
+        if matches!(
+            super::bindings::projected_receiver_chain_role(package, unit, receiver),
+            Some(ChainRole::Root | ChainRole::Continue)
+        ) {
+            // A nominal family can also be reached through a proven local
+            // lender. The actual producer graph, not whichever family was
+            // published first, determines expression-only continuation here.
+            *expression_scoped = true;
+        }
+        return projected;
     }
     let ProjectedType::Foreign {
         rust_path,

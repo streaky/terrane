@@ -514,7 +514,7 @@ mod __terrane_trace {
         "/app::trigger-instance-panic",
         "/app::main",
     ];
-    pub static SITES: [Site; 23] = [
+    pub static SITES: [Site; 27] = [
         /* terrane-site-row: site 0: /app::trigger-static-panic (src/main.trn:8:10-8:39) */
         { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 39 } },
         /* terrane-site-row: site 1: /app::trigger-instance-panic (src/main.trn:11:10-11:33) */
@@ -523,44 +523,52 @@ mod __terrane_trace {
         { Site { function: 2, file: 0, line: 14, column: 13, end_line: 14, end_column: 36 } },
         /* terrane-site-row: site 3: /app::main (src/main.trn:15:22-15:38) */
         { Site { function: 2, file: 0, line: 15, column: 22, end_line: 15, end_column: 38 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:20:11-20:27) */
-        { Site { function: 2, file: 0, line: 20, column: 11, end_line: 20, end_column: 27 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:20:10-20:43) */
-        { Site { function: 2, file: 0, line: 20, column: 10, end_line: 20, end_column: 43 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:20:9-20:64) */
-        { Site { function: 2, file: 0, line: 20, column: 9, end_line: 20, end_column: 64 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:21:11-21:27) */
-        { Site { function: 2, file: 0, line: 21, column: 11, end_line: 21, end_column: 27 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:21:10-21:44) */
-        { Site { function: 2, file: 0, line: 21, column: 10, end_line: 21, end_column: 44 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:21:9-21:65) */
-        { Site { function: 2, file: 0, line: 21, column: 9, end_line: 21, end_column: 65 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:22:29-22:44) */
-        { Site { function: 2, file: 0, line: 22, column: 29, end_line: 22, end_column: 44 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:22:28-22:67) */
-        { Site { function: 2, file: 0, line: 22, column: 28, end_line: 22, end_column: 67 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:24:20-24:35) */
-        { Site { function: 2, file: 0, line: 24, column: 20, end_line: 24, end_column: 35 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:24:19-24:58) */
-        { Site { function: 2, file: 0, line: 24, column: 19, end_line: 24, end_column: 58 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:25:16-25:41) */
-        { Site { function: 2, file: 0, line: 25, column: 16, end_line: 25, end_column: 41 } },
-        /* terrane-site-row: site 15: /app::main (src/main.trn:26:10-26:17) */
-        { Site { function: 2, file: 0, line: 26, column: 10, end_line: 26, end_column: 17 } },
-        /* terrane-site-row: site 16: /app::main (src/main.trn:27:27-27:43) */
-        { Site { function: 2, file: 0, line: 27, column: 27, end_line: 27, end_column: 43 } },
-        /* terrane-site-row: site 17: /app::main (src/main.trn:27:26-27:66) */
-        { Site { function: 2, file: 0, line: 27, column: 26, end_line: 27, end_column: 66 } },
-        /* terrane-site-row: site 18: /app::main (src/main.trn:28:23-28:49) */
-        { Site { function: 2, file: 0, line: 28, column: 23, end_line: 28, end_column: 49 } },
-        /* terrane-site-row: site 19: /app::main (src/main.trn:29:10-29:24) */
-        { Site { function: 2, file: 0, line: 29, column: 10, end_line: 29, end_column: 24 } },
-        /* terrane-site-row: site 20: /app::main (src/main.trn:31:12-31:29) */
-        { Site { function: 2, file: 0, line: 31, column: 12, end_line: 31, end_column: 29 } },
-        /* terrane-site-row: site 21: /app::main (src/main.trn:31:11-31:50) */
-        { Site { function: 2, file: 0, line: 31, column: 11, end_line: 31, end_column: 50 } },
-        /* terrane-site-row: site 22: /app::main (src/main.trn:34:9-34:26) */
-        { Site { function: 2, file: 0, line: 34, column: 9, end_line: 34, end_column: 26 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:16:15-16:26) */
+        { Site { function: 2, file: 0, line: 16, column: 15, end_line: 16, end_column: 26 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:20:40-20:56) */
+        { Site { function: 2, file: 0, line: 20, column: 40, end_line: 20, end_column: 56 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:20:39-20:72) */
+        { Site { function: 2, file: 0, line: 20, column: 39, end_line: 20, end_column: 72 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:20:38-20:91) */
+        { Site { function: 2, file: 0, line: 20, column: 38, end_line: 20, end_column: 91 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:20:37-20:112) */
+        { Site { function: 2, file: 0, line: 20, column: 37, end_line: 20, end_column: 112 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:21:11-21:39) */
+        { Site { function: 2, file: 0, line: 21, column: 11, end_line: 21, end_column: 39 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:21:48-21:73) */
+        { Site { function: 2, file: 0, line: 21, column: 48, end_line: 21, end_column: 73 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:22:11-22:27) */
+        { Site { function: 2, file: 0, line: 22, column: 11, end_line: 22, end_column: 27 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:22:10-22:44) */
+        { Site { function: 2, file: 0, line: 22, column: 10, end_line: 22, end_column: 44 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:22:9-22:65) */
+        { Site { function: 2, file: 0, line: 22, column: 9, end_line: 22, end_column: 65 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:23:29-23:44) */
+        { Site { function: 2, file: 0, line: 23, column: 29, end_line: 23, end_column: 44 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:23:28-23:67) */
+        { Site { function: 2, file: 0, line: 23, column: 28, end_line: 23, end_column: 67 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:25:20-25:35) */
+        { Site { function: 2, file: 0, line: 25, column: 20, end_line: 25, end_column: 35 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:25:19-25:58) */
+        { Site { function: 2, file: 0, line: 25, column: 19, end_line: 25, end_column: 58 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:26:16-26:41) */
+        { Site { function: 2, file: 0, line: 26, column: 16, end_line: 26, end_column: 41 } },
+        /* terrane-site-row: site 19: /app::main (src/main.trn:27:10-27:17) */
+        { Site { function: 2, file: 0, line: 27, column: 10, end_line: 27, end_column: 17 } },
+        /* terrane-site-row: site 20: /app::main (src/main.trn:28:27-28:43) */
+        { Site { function: 2, file: 0, line: 28, column: 27, end_line: 28, end_column: 43 } },
+        /* terrane-site-row: site 21: /app::main (src/main.trn:28:26-28:66) */
+        { Site { function: 2, file: 0, line: 28, column: 26, end_line: 28, end_column: 66 } },
+        /* terrane-site-row: site 22: /app::main (src/main.trn:29:23-29:49) */
+        { Site { function: 2, file: 0, line: 29, column: 23, end_line: 29, end_column: 49 } },
+        /* terrane-site-row: site 23: /app::main (src/main.trn:30:10-30:24) */
+        { Site { function: 2, file: 0, line: 30, column: 10, end_line: 30, end_column: 24 } },
+        /* terrane-site-row: site 24: /app::main (src/main.trn:32:12-32:29) */
+        { Site { function: 2, file: 0, line: 32, column: 12, end_line: 32, end_column: 29 } },
+        /* terrane-site-row: site 25: /app::main (src/main.trn:32:11-32:50) */
+        { Site { function: 2, file: 0, line: 32, column: 11, end_line: 32, end_column: 50 } },
+        /* terrane-site-row: site 26: /app::main (src/main.trn:35:9-35:26) */
+        { Site { function: 2, file: 0, line: 35, column: 9, end_line: 35, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]
@@ -952,8 +960,12 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 // Namespace: deps/terrane-query-witness
 pub use terrane_query_witness::Connection;
 pub use terrane_query_witness::ConnectionOptions;
-pub type Query<'q> = terrane_query_witness::Query<'q>;
+pub type QueryHashH516148ace190bc08a50c23f0b12386536f5e50f7511d2cfb937e228b330810b8<
+    'q,
+> = terrane_query_witness::Query<'q, terrane_query_witness::Store, ()>;
 pub use terrane_query_witness::Row;
+pub use terrane_query_witness::Store;
+pub use terrane_query_witness::StoreResult;
 pub fn terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new() -> Result<
     ConnectionOptions,
     crate::TerraneForeignError,
@@ -973,9 +985,28 @@ pub fn terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new() -> Result<
         }
     }
 }
+pub fn insert_sql() -> Result<String, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::insert_sql()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::insert_sql",
+                ),
+            )
+        }
+    }
+}
 pub fn query<'view>(
     operation: &'view str,
-) -> Result<terrane_query_witness::Query<'view>, crate::TerraneForeignError> {
+) -> Result<
+    terrane_query_witness::Query<'view, terrane_query_witness::Store, ()>,
+    crate::TerraneForeignError,
+> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_query_witness::query(operation)),
     ) {

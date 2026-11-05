@@ -16,10 +16,38 @@ pub struct Connection {
     rows: Vec<Vec<u8>>,
 }
 
+pub trait Database {
+    type QueryResult;
+    fn query_result(rows_affected: u64, persistent: bool) -> Self::QueryResult;
+}
+
+pub struct StoreResult {
+    persistent: bool,
+    rows_affected: u64,
+}
+impl StoreResult {
+    pub fn rows_affected(&self) -> u64 {
+        self.rows_affected
+    }
+    pub fn persistent(&self) -> bool {
+        self.persistent
+    }
+}
+impl Database for Store {
+    type QueryResult = StoreResult;
+    fn query_result(rows_affected: u64, persistent: bool) -> Self::QueryResult {
+        StoreResult {
+            rows_affected,
+            persistent,
+        }
+    }
+}
 pub trait Executor {
+    type Database: Database;
     fn connection(&mut self) -> &mut Connection;
 }
 impl Executor for &mut Connection {
+    type Database = Store;
     fn connection(&mut self) -> &mut Connection {
         self
     }
@@ -45,25 +73,43 @@ impl Connection {
     }
 }
 
-pub struct Query<'q> {
+pub struct Query<'q, DB: Database, A> {
     operation: &'q str,
     bound: Option<Vec<u8>>,
+    persistent: bool,
+    database: std::marker::PhantomData<DB>,
+    arguments: std::marker::PhantomData<A>,
 }
 
-pub fn query(operation: &str) -> Query<'_> {
+pub fn insert_sql() -> String {
+    "insert".to_owned()
+}
+
+pub fn query(operation: &str) -> Query<'_, Store, ()> {
     Query {
         operation,
         bound: None,
+        persistent: true,
+        database: std::marker::PhantomData,
+        arguments: std::marker::PhantomData,
     }
 }
 
-impl Query<'_> {
+impl<'q, DB: Database, A> Query<'q, DB, A> {
     pub fn bind(mut self, value: Vec<u8>) -> Self {
         self.bound = Some(value);
         self
     }
 
-    pub async fn execute<E: Executor>(self, mut executor: E) -> Result<(), QueryError> {
+    pub fn persistent(mut self, persistent: bool) -> Self {
+        self.persistent = persistent;
+        self
+    }
+
+    pub async fn execute<E>(self, mut executor: E) -> Result<DB::QueryResult, QueryError>
+    where
+        E: Executor<Database = DB>,
+    {
         let connection = executor.connection();
         let mut yielded = false;
         std::future::poll_fn(|context| {
@@ -78,16 +124,22 @@ impl Query<'_> {
         .await;
         match self.operation {
             "insert" => {
-                if let Some(row) = self.bound {
+                let affected = if let Some(row) = self.bound {
                     connection.rows.push(row);
-                }
-                Ok(())
+                    1
+                } else {
+                    0
+                };
+                Ok(DB::query_result(affected, self.persistent))
             }
             other => Err(QueryError::InvalidOperation(other.to_owned())),
         }
     }
 
-    pub async fn fetch_all<E: Executor>(self, mut executor: E) -> Result<Vec<Row>, QueryError> {
+    pub async fn fetch_all<E>(self, mut executor: E) -> Result<Vec<Row>, QueryError>
+    where
+        E: Executor<Database = DB>,
+    {
         std::future::ready(()).await;
         let connection = executor.connection();
         if self.operation != "select" {
@@ -101,7 +153,10 @@ impl Query<'_> {
             .collect())
     }
 
-    pub async fn fetch_one<E: Executor>(self, mut executor: E) -> Result<Row, QueryError> {
+    pub async fn fetch_one<E>(self, mut executor: E) -> Result<Row, QueryError>
+    where
+        E: Executor<Database = DB>,
+    {
         std::future::ready(()).await;
         let connection = executor.connection();
         let index = match self.operation {

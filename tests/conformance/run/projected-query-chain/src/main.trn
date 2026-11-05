@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-query-witness import ConnectionOptions, Row, query
+from /deps/terrane-query-witness import ConnectionOptions, Row, StoreResult, insert_sql, query
 from /deps/terrane-query-contract import QueryError
 from /core/errors import throwable
 
@@ -13,11 +13,12 @@ function trigger-instance-panic bytes throws throwable; record Row
 async function main;
   options = ConnectionOptions::new;
   connection = await options.connect;
-  insert_op = 'insert'
+  insert_op = insert_sql;
   first_op = 'select'
   second_op = 'select-second'
   invalid_op = 'invalid'
-  await ((query; insert_op).bind; b'first').execute; connection
+  insert_result StoreResult = await (((query; insert_op).bind; b'first').persistent; false).execute; connection
+  print; (insert_result.rows_affected;), ' ', (insert_result.persistent;)
   await ((query; insert_op).bind; b'second').execute; connection
   rows list of Row = await (query; first_op).fetch_all; connection
   print; rows.length

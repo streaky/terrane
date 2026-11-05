@@ -825,6 +825,27 @@ pub(super) fn apply_projected_method_contracts(
                 continue;
             };
             contract.throws = method.error.is_some();
+            if let crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                rust_type,
+                lifetimes,
+                expression_scoped,
+                owned,
+                ..
+            } = &method.result
+                && let Some((namespace, name)) = projection.borrowed_scope_owner(owned)
+            {
+                // Keep the nominal family available before call-site selection:
+                // fluent scoped results still expose their next native method.
+                // This is a template, not permission to store or escape the view.
+                contract.return_type = Some(ValueType::InvocationScopedNative {
+                    rust_type: rust_type.clone(),
+                    concrete: false,
+                    family: ObjectIdentity::new(namespace, name),
+                    lifetimes: lifetimes.clone(),
+                    expression_scoped: *expression_scoped,
+                    region: None,
+                });
+            }
             let invocation_mode = match method.receiver {
                 Some(receiver) if receiver.consumes() => InvocationMode::Consuming,
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
@@ -1353,7 +1374,6 @@ fn analyze_parsed_with_projection(
                 .flat_map(|scope| scope.import_warnings.iter().cloned()),
         );
     }
-    apply_projected_method_contracts(&mut units, &projection);
     let descriptor_constructs = bootstrap_descriptor_constructs();
 
     let mut semantic = SemanticPackage {

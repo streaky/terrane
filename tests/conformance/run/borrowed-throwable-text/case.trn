@@ -31,6 +31,10 @@ class error-holder
         this.current = make-error; true
         return 'original'
 
+function observe string; error ref throwable
+    print; (error.message.contains; 'orig'), '/', (error.descriptor.contains; 'original-error')
+    return error.message
+
 function main;
     error = make-error; false
     print; error.message
@@ -63,3 +67,6 @@ function main;
     print; held.current.message == (held.replace-current;)
     held = shared ref (instance error-holder; (make-error; false))
     print; held.current.message, (held.replace-current;)
+    observed = make-error; false
+    print; (observe; observed)
+    print; observed.message

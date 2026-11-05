@@ -24,7 +24,7 @@ pub(super) use async_tasks::{
 };
 pub(crate) use callbacks::{callback_contract, projected_macro_for_call};
 pub(super) use callbacks::{
-    projected_argument_for_parameter, projected_function_for_call,
+    projected_argument_for_parameter, projected_function_for_call, projected_receiver_chain_role,
     validate_projected_callback_arguments,
 };
 

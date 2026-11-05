@@ -323,6 +323,17 @@ fn validate_projected_borrowed_async_call(
     Ok(())
 }
 
+pub(in crate::semantics) fn projected_receiver_chain_role(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    mut receiver: &SyntaxNode,
+) -> Option<crate::rust_interop::projection::ChainRole> {
+    while receiver.kind == SyntaxKind::GroupExpression {
+        receiver = receiver.children.first()?;
+    }
+    projected_chain_role(package, unit, receiver)
+}
+
 fn projected_chain_role(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -338,12 +349,8 @@ fn projected_chain_role(
         projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))?;
     function.chain_role.or_else(|| {
         let receiver = callee.children.first()?;
-        let mut graph_receiver = receiver;
-        while graph_receiver.kind == SyntaxKind::GroupExpression {
-            graph_receiver = graph_receiver.children.first()?;
-        }
         if matches!(
-            projected_chain_role(package, unit, graph_receiver),
+            projected_receiver_chain_role(package, unit, receiver),
             Some(
                 crate::rust_interop::projection::ChainRole::Root
                     | crate::rust_interop::projection::ChainRole::Continue
