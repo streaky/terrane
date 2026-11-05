@@ -93,7 +93,7 @@ fn main() {
                         let _ = failure.insert(__terrane_error_0.clone());
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
-                            .expect("flow-proven available binding").clone().message()
+                            .expect("flow-proven available binding").message()
                             .to_owned())
                         );
                     }

@@ -2066,7 +2066,6 @@ pub fn assert_throws(
                     if error
                         .as_ref()
                         .expect("flow-proven available binding")
-                        .clone()
                         .descriptor_name()
                         .to_owned()
                         .as_str() == expected_descriptor.as_str()
@@ -2079,7 +2078,7 @@ pub fn assert_throws(
                         terrane_scalar_support::ScalarDisplay::write_scalar(&expected_descriptor,
                         &mut __terrane_text); __terrane_text.push_str(" but received ");
                         terrane_scalar_support::ScalarDisplay::write_scalar(&error
-                        .as_ref().expect("flow-proven available binding").clone()
+                        .as_ref().expect("flow-proven available binding")
                         .descriptor_name().to_owned(), &mut __terrane_text);
                         __terrane_text }), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
                     );

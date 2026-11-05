@@ -179,7 +179,7 @@ fn main() {
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&{ let
                             __terrane_receiver_value_0 = &failure.as_ref()
-                            .expect("flow-proven available binding").clone().message()
+                            .expect("flow-proven available binding").message()
                             .to_owned(); let __terrane_string_argument_0 =
                             "CloneBox::reject"; __terrane_receiver_value_0
                             .contains(std::convert::AsRef:: < str >
@@ -188,7 +188,7 @@ fn main() {
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&{ let
                             __terrane_receiver_value_1 = &failure.as_ref()
-                            .expect("flow-proven available binding").clone().message()
+                            .expect("flow-proven available binding").message()
                             .to_owned(); let __terrane_string_argument_0 = "<";
                             __terrane_receiver_value_1.contains(std::convert::AsRef:: <
                             str > ::as_ref(&__terrane_string_argument_0)) })

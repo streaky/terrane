@@ -65,7 +65,7 @@ fn check_attribution() {
                     {
                         __terrane_handled_0 = true;
                         let failure = __terrane_error_0.clone();
-                        let message: String = failure.message().to_owned().clone();
+                        let message: String = failure.message().to_owned();
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&{ let
                             __terrane_string_argument_0 = "panic_api::Record::value";

@@ -117,7 +117,6 @@ fn generic_panic_attributed(value: witness::Wrapped<u8>) -> bool {
                             let __terrane_receiver_value_0 = &error
                                 .as_ref()
                                 .expect("flow-proven available binding")
-                                .clone()
                                 .message()
                                 .to_owned();
                             let __terrane_string_argument_0 = "Rust dependency `witness`";
@@ -132,7 +131,6 @@ fn generic_panic_attributed(value: witness::Wrapped<u8>) -> bool {
                                 let __terrane_receiver_value_1 = &error
                                     .as_ref()
                                     .expect("flow-proven available binding")
-                                    .clone()
                                     .message()
                                     .to_owned();
                                 let __terrane_string_argument_0 = "member `witness::Wrapped::selected`";
@@ -147,7 +145,6 @@ fn generic_panic_attributed(value: witness::Wrapped<u8>) -> bool {
                                 let __terrane_receiver_value_2 = &error
                                     .as_ref()
                                     .expect("flow-proven available binding")
-                                    .clone()
                                     .message()
                                     .to_owned();
                                 let __terrane_string_argument_0 = "generic selector panic";
@@ -426,10 +423,9 @@ fn main() {
                         .push_str("native error caught: ");
                         terrane_scalar_support::ScalarDisplay::write_scalar(&{ let
                         __terrane_receiver_value_3 = &error.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned(); let __terrane_string_argument_0 =
-                        "zero update rejected"; __terrane_receiver_value_3
-                        .contains(std::convert::AsRef:: < str >
+                        .expect("flow-proven available binding").message().to_owned();
+                        let __terrane_string_argument_0 = "zero update rejected";
+                        __terrane_receiver_value_3.contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) }, &mut __terrane_text);
                         __terrane_text })
                     );

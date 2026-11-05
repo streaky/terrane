@@ -339,7 +339,7 @@ async fn invoke(
     return Ok(());
 }
 fn describe(value: TerraneError) -> String {
-    return value.message().to_owned().clone();
+    return value.message().to_owned();
 }
 fn main() {
     __terrane_run(async move {
