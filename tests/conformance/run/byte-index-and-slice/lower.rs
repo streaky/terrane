@@ -208,11 +208,13 @@ fn main() {
                 {
                     __terrane_handled_2 = true;
                     let _ = failure.insert(__terrane_error_2.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_1 = failure
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_1);
+                    };
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);

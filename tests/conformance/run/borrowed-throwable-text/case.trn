@@ -1,0 +1,65 @@
+namespace borrowed-throwable-text
+from /core/errors import throwable
+
+class original-error implements throwable
+    message string = 'original'
+    function render string;
+        return this.message
+
+class replacement-error implements throwable
+    message string = 'replacement'
+    function render string;
+        return this.message
+
+function make-error throwable; replacement bool
+    try
+        if replacement
+            throw replacement-error
+        throw original-error
+    catch original-error, replacement-error as error
+        return error
+
+function replace string; error mutable ref throwable
+    error = make-error; true
+    return 'original'
+
+class error-holder
+    current throwable
+    function construct; current throwable
+        this.current = move current
+    mutable function replace-current string;
+        this.current = make-error; true
+        return 'original'
+
+function main;
+    error = make-error; false
+    print; error.message
+    print; (error.message.contains; 'orig')
+    print; (error.descriptor.contains; 'original-error')
+    print; ('original'.contains; error.message)
+    print; error.message == 'original'
+    print; 'original' == error.message
+    print; (make-error; false).message
+    owned = error.message
+    print; error.message == (replace; error)
+    print; owned
+    print; error.message
+    error = make-error; false
+    print; (error.message.contains; (replace; error))
+    error = make-error; false
+    print; error.message, (replace; error)
+    print; 'x' + error.message
+    print; ((make-error; false).message.contains; (make-error; true).message)
+    switch 'original'
+        case (make-error; false).message
+            print; 'matched'
+        case else
+            print; 'wrong'
+    held = shared ref (instance error-holder; (make-error; false))
+    print; held.current.message
+    print; (held.current.message.contains; (held.replace-current;))
+    print; held.current.message
+    held = shared ref (instance error-holder; (make-error; false))
+    print; held.current.message == (held.replace-current;)
+    held = shared ref (instance error-holder; (make-error; false))
+    print; held.current.message, (held.replace-current;)

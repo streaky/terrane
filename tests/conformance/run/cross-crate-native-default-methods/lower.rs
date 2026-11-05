@@ -114,14 +114,12 @@ fn generic_panic_attributed(value: witness::Wrapped<u8>) -> bool {
                     let _ = error.insert(__terrane_error_0.clone());
                     return TerraneCompletion::Return(
                         {
-                            let __terrane_receiver_value_0 = &error
+                            let __terrane_error_text_0 = error
                                 .as_ref()
                                 .expect("flow-proven available binding")
-                                .clone()
-                                .message()
-                                .to_owned();
+                                .message();
                             let __terrane_string_argument_0 = "Rust dependency `witness`";
-                            __terrane_receiver_value_0
+                            __terrane_error_text_0
                                 .contains(
                                     std::convert::AsRef::<
                                         str,
@@ -129,14 +127,12 @@ fn generic_panic_attributed(value: witness::Wrapped<u8>) -> bool {
                                 )
                         }
                             && {
-                                let __terrane_receiver_value_1 = &error
+                                let __terrane_error_text_1 = error
                                     .as_ref()
                                     .expect("flow-proven available binding")
-                                    .clone()
-                                    .message()
-                                    .to_owned();
+                                    .message();
                                 let __terrane_string_argument_0 = "member `witness::Wrapped::selected`";
-                                __terrane_receiver_value_1
+                                __terrane_error_text_1
                                     .contains(
                                         std::convert::AsRef::<
                                             str,
@@ -144,14 +140,12 @@ fn generic_panic_attributed(value: witness::Wrapped<u8>) -> bool {
                                     )
                             }
                             && {
-                                let __terrane_receiver_value_2 = &error
+                                let __terrane_error_text_2 = error
                                     .as_ref()
                                     .expect("flow-proven available binding")
-                                    .clone()
-                                    .message()
-                                    .to_owned();
+                                    .message();
                                 let __terrane_string_argument_0 = "generic selector panic";
-                                __terrane_receiver_value_2
+                                __terrane_error_text_2
                                     .contains(
                                         std::convert::AsRef::<
                                             str,
@@ -425,11 +419,10 @@ fn main() {
                         __terrane_text = String::with_capacity(21); __terrane_text
                         .push_str("native error caught: ");
                         terrane_scalar_support::ScalarDisplay::write_scalar(&{ let
-                        __terrane_receiver_value_3 = &error.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned(); let __terrane_string_argument_0 =
-                        "zero update rejected"; __terrane_receiver_value_3
-                        .contains(std::convert::AsRef:: < str >
+                        __terrane_error_text_3 = error.as_ref()
+                        .expect("flow-proven available binding").message(); let
+                        __terrane_string_argument_0 = "zero update rejected";
+                        __terrane_error_text_3.contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) }, &mut __terrane_text);
                         __terrane_text })
                     );

@@ -2042,6 +2042,29 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn string_comparison_parts(
+        &mut self,
+        node: &SyntaxNode,
+        snapshot: bool,
+    ) -> (String, String) {
+        if let Some(parts) = self.throwable_text_parts(node, snapshot) {
+            return parts;
+        }
+        if let Some(literal) = self.borrowed_string_literal(node) {
+            return (String::new(), literal);
+        }
+        let name = self.fresh_read_binding_name("comparison_text");
+        let value = if snapshot {
+            self.read_snapshot(node)
+        } else {
+            format!("&({})", self.receiver_expression(node))
+        };
+        (
+            format!("let {name} = {value}; "),
+            format!("{name}.as_str()"),
+        )
+    }
+
     fn object_comparison_operand(&mut self, node: &SyntaxNode) -> (String, String) {
         if self.contains_guarded_read(node) {
             // Value lowering materializes guarded fields inside their own bounded
@@ -2132,9 +2155,17 @@ impl Emitter<'_> {
             && self.value_type(left) == Some(ValueType::Scalar(ScalarType::String))
             && self.value_type(right) == Some(ValueType::Scalar(ScalarType::String))
         {
-            let left = self.string_comparison_operand(left);
-            let right = self.string_comparison_operand(right);
-            return format!("({left} {source_operator} {right})");
+            if self.throwable_text_member(left).is_none()
+                && self.throwable_text_member(right).is_none()
+            {
+                let left = self.string_comparison_operand(left);
+                let right = self.string_comparison_operand(right);
+                return format!("({left} {source_operator} {right})");
+            }
+            let snapshot_left = self.read_index_needs_snapshot(left, right);
+            let (left_setup, left) = self.string_comparison_parts(left, snapshot_left);
+            let (right_setup, right) = self.string_comparison_parts(right, false);
+            return format!("{{ {left_setup}{right_setup}({left} {source_operator} {right}) }}");
         }
         if comparison && let Some(value_type @ ValueType::Object(_)) = self.value_type(left) {
             // Borrow stable operands without moving them. Guarded reads instead

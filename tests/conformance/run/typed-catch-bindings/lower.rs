@@ -33,18 +33,20 @@ fn main() {
                         {
                             __terrane_handled_1 = true;
                             let _ = caught.insert(__terrane_error_1.clone());
-                            println!(
-                                "{}", terrane_scalar_support::scalar_text(&caught.as_ref()
-                                .expect("flow-proven available binding").clone().message()
-                                .to_owned())
-                            );
+                            {
+                                let __terrane_error_text_0 = caught
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .message();
+                                println!("{}", __terrane_error_text_0);
+                            };
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&{ let
-                                __terrane_receiver_value_0 = &caught.as_ref()
-                                .expect("flow-proven available binding").clone().render();
-                                let __terrane_string_argument_0 =
+                                __terrane_receiver_value_1 = &caught.as_ref()
+                                .expect("flow-proven available binding").render(); let
+                                __terrane_string_argument_0 =
                                 "coercion-error: coercion has no compatible result";
-                                __terrane_receiver_value_0.contains(std::convert::AsRef:: <
+                                __terrane_receiver_value_1.contains(std::convert::AsRef:: <
                                 str > ::as_ref(&__terrane_string_argument_0)) })
                             );
                             return TerraneCompletion::Error(
@@ -88,7 +90,7 @@ fn main() {
                     let _ = replacement.insert(__terrane_error_0.clone());
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&replacement.as_ref()
-                        .expect("flow-proven available binding").clone().detail.as_ref()
+                        .expect("flow-proven available binding").detail.as_ref()
                         .and_then(| detail | detail.cause.as_deref()).cloned().is_none())
                     );
                 }
@@ -171,11 +173,13 @@ fn main() {
                 {
                     __terrane_handled_2 = true;
                     let _ = reraised.insert(__terrane_error_2.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&reraised.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_2 = reraised
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_2);
+                    };
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);
@@ -211,11 +215,13 @@ fn main() {
                 if !__terrane_handled_4 {
                     __terrane_handled_4 = true;
                     let _ = failure.insert(__terrane_error_4.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_3 = failure
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_3);
+                    };
                 }
                 if !__terrane_handled_4 {
                     return TerraneCompletion::Error(__terrane_error_4);

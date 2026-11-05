@@ -1,0 +1,11 @@
+namespace handler-escape
+from /core/errors import coercion-error, arithmetic-overflow, index-error
+function work throws coercion-error;
+    try
+        throw coercion-error
+    catch coercion-error, index-error
+        throw arithmetic-overflow
+    catch arithmetic-overflow
+        return
+function main;
+    work;

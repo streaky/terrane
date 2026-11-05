@@ -1233,6 +1233,14 @@ impl Parser<'_> {
             let mut clause = Vec::new();
             if self.at(TokenKind::Identifier) && !self.at_text("as") {
                 clause.push(self.leaf(SyntaxKind::Name));
+                while self.eat(TokenKind::Comma) {
+                    if self.at(TokenKind::Identifier) && !self.at_text("as") {
+                        clause.push(self.leaf(SyntaxKind::Name));
+                    } else {
+                        self.error_here("S1031", "expected a throwable descriptor after `,`");
+                        break;
+                    }
+                }
             }
             if self.eat_text("as") {
                 if self.at(TokenKind::Identifier) {

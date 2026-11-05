@@ -48,10 +48,8 @@ fn caught_value(choose: bool) -> String {
     return caught
         .as_ref()
         .unwrap_or_else(|| __terrane_uninitialized_binding("caught", "case.trn", 9, 12))
-        .clone()
         .message()
-        .to_owned()
-        .clone();
+        .to_owned();
 }
 fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&caught_value(true)));

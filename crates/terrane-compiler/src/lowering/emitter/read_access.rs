@@ -21,6 +21,51 @@ impl Emitter<'_> {
         .then(|| crate::lowering::helpers::native_macro_literal(self.text(literal)))
     }
 
+    pub(super) fn throwable_text_member<'node>(
+        &self,
+        mut node: &'node SyntaxNode,
+    ) -> Option<(&'node SyntaxNode, &'static str)> {
+        while node.kind == SyntaxKind::GroupExpression
+            && let [inner] = node.children.as_slice()
+        {
+            node = inner;
+        }
+        let [receiver, member] = node.children.as_slice() else {
+            return None;
+        };
+        if node.kind != SyntaxKind::MemberExpression || !self.is_throwable_value(receiver) {
+            return None;
+        }
+        let accessor = match self.text(member) {
+            "message" => "message",
+            "descriptor" => "descriptor_name",
+            _ => return None,
+        };
+        Some((receiver, accessor))
+    }
+
+    /// Keep the envelope owner/guard alive through a borrowing text consumer.
+    /// Snapshot only when sibling evaluation can mutate or reenter its storage.
+    pub(super) fn throwable_text_parts(
+        &mut self,
+        node: &SyntaxNode,
+        snapshot: bool,
+    ) -> Option<(String, String)> {
+        let (receiver, accessor) = self.throwable_text_member(node)?;
+        let (setup, place) =
+            self.receiver_place_parts(receiver, false, super::members::GuardScope::Place);
+        let name = self.fresh_read_binding_name("error_text");
+        let value = format!("({place}).{accessor}()");
+        Some(if snapshot {
+            (
+                format!("let {name} = {{ {setup}({value}).to_owned() }}; "),
+                format!("{name}.as_str()"),
+            )
+        } else {
+            (format!("{setup}let {name} = {value}; "), name)
+        })
+    }
+
     pub(super) fn fresh_read_binding_name(&mut self, stem: &str) -> String {
         let index = self.read_place_counter;
         self.read_place_counter += 1;

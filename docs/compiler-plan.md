@@ -1083,6 +1083,8 @@ retains the concrete descriptor, message/render text, cause, and source context,
 original source object or arbitrary payload fields. Typed payload access therefore needs safe
 runtime retention and recovery as well as source typing; descriptor identity alone is not a payload.
 
+The current matching and effect limitations also apply to grouped catches: only exact throwable class identities and the canonical `throwable` catch-all descriptor are admitted, not other interface descriptors. Rethrowing a catch binding preserves its runtime kind but statically escapes as `throwable`, even in a single-class clause. Part A must align interface matching, reachability, and effect subtraction with implementor compatibility, and preserve the established caught-kind set in rethrow inference rather than widening it to `throwable`. Grouped syntax alone does not provide these planned semantics.
+
 The reference consumer protocol works around this. `consumer-error` in
 `tools/annotation-consumers/protocol/src/main.trn` stores its declaration record in
 `static origin` from its constructor, and both consumers report through `error-origin;` after

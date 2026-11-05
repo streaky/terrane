@@ -1,0 +1,84 @@
+namespace grouped-catch
+from /core/errors import throwable
+
+class first-error implements throwable
+    message string = 'first'
+    function render string;
+        return this.message
+
+class second-error implements throwable
+    message string = 'second'
+    function render string;
+        return this.message
+
+class third-error implements throwable
+    message string = 'third'
+    function render string;
+        return this.message
+
+class other-error implements throwable
+    message string = 'other'
+    function render string;
+        return this.message
+
+function fail; choice int
+    if choice == 1
+        throw first-error
+    if choice == 2
+        throw second-error
+    if choice == 3
+        throw third-error
+    throw other-error
+
+function handled string throws other-error; choice int
+    try
+        fail; choice
+    catch first-error, second-error, third-error as error
+        print; error.message
+        return error.message
+    return 'unexpected'
+
+function reraised; choice int
+    try
+        fail; choice
+    catch first-error, second-error, third-error as error
+        throw error
+
+function main;
+    print; (handled; 1)
+    print; (handled; 2)
+    print; (handled; 3)
+    try
+        print; (handled; 4)
+    catch other-error as error
+        print; error.message
+        print; error.message
+    try
+        reraised; 2
+    catch first-error, second-error, third-error as error
+        print; error.message
+    finally
+        print; 'finally'
+    try
+        fail; 1
+    catch first-error, second-error, third-error
+        print; 'unbound'
+    try
+        fail; 4
+    catch first-error, second-error, third-error
+        print; 'wrong handler'
+    catch as error
+        print; error.message
+    try
+        try
+            fail; 1
+        catch first-error, second-error, third-error as original
+            print; original.message
+            print; original.message
+            throw other-error
+    catch other-error as replacement
+        cause = replacement.cause
+        if cause != none
+            print; cause.message
+        else
+            print; 'missing cause'

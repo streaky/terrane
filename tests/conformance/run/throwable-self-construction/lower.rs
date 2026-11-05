@@ -182,11 +182,13 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     let _ = failure.insert(__terrane_error_0.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_0 = failure
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_0);
+                    };
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -224,17 +226,19 @@ fn main() {
                 {
                     __terrane_handled_1 = true;
                     let _ = failure_2.insert(__terrane_error_1.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure_2.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_1 = failure_2
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_1);
+                    };
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&{ let
-                        __terrane_receiver_value_0 = &failure_2.as_ref()
-                        .expect("flow-proven available binding").clone().render(); let
+                        __terrane_receiver_value_2 = &failure_2.as_ref()
+                        .expect("flow-proven available binding").render(); let
                         __terrane_string_argument_0 = "::child-error: inherited self";
-                        __terrane_receiver_value_0.contains(std::convert::AsRef:: < str >
+                        __terrane_receiver_value_2.contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) })
                     );
                 }
@@ -273,11 +277,13 @@ fn main() {
                 {
                     __terrane_handled_2 = true;
                     let _ = failure_3.insert(__terrane_error_2.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure_3.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_3 = failure_3
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_3);
+                    };
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);
@@ -314,11 +320,13 @@ fn main() {
                 {
                     __terrane_handled_3 = true;
                     let _ = failure_4.insert(__terrane_error_3.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure_4.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_4 = failure_4
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_4);
+                    };
                 }
                 if !__terrane_handled_3 {
                     return TerraneCompletion::Error(__terrane_error_3);

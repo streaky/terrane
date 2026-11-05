@@ -980,24 +980,34 @@ impl Emitter<'_> {
             .iter()
             .filter(|child| child.kind == SyntaxKind::CatchClause)
         {
-            let descriptor = clause
+            let descriptors = clause
                 .children
                 .iter()
-                .find(|child| child.kind == SyntaxKind::Name);
-            let condition = descriptor.map_or_else(
-                || format!("!__terrane_handled_{index}"),
-                |descriptor| {
+                .take_while(|child| child.kind == SyntaxKind::Name)
+                .collect::<Vec<_>>();
+            let condition = if descriptors.is_empty()
+                || descriptors.iter().any(|descriptor| {
                     let name = self.error_kind(descriptor);
-                    if name == "error" || self.is_builtin(descriptor, "/core/errors::throwable") {
-                        format!("!__terrane_handled_{index}")
-                    } else {
+                    name == "error" || self.is_builtin(descriptor, "/core/errors::throwable")
+                }) {
+                format!("!__terrane_handled_{index}")
+            } else {
+                let comparisons = descriptors
+                    .iter()
+                    .map(|descriptor| {
                         format!(
-                            "!__terrane_handled_{index} && __terrane_error_{index}.kind == TerraneErrorKind::{}",
+                            "__terrane_error_{index}.kind == TerraneErrorKind::{}",
                             self.rust_error_kind(descriptor)
                         )
-                    }
-                },
-            );
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" || ");
+                if descriptors.len() == 1 {
+                    format!("!__terrane_handled_{index} && {comparisons}")
+                } else {
+                    format!("!__terrane_handled_{index} && ({comparisons})")
+                }
+            };
             self.line(&format!("if {condition} {{"));
             self.indent += 1;
             self.line(&format!("__terrane_handled_{index} = true;"));
@@ -1015,6 +1025,8 @@ impl Emitter<'_> {
                     || rust_name(self.text(alias)),
                     |binding| self.binding_storage_name(binding).to_owned(),
                 );
+                // Keep the handler's reassignable/function-owned binding independent:
+                // replacement throws must still attach the original envelope as cause.
                 let value = format!("__terrane_error_{index}.clone()");
                 if binding
                     .is_some_and(|binding| self.active_function_bindings.contains(&binding.span))
@@ -1638,6 +1650,9 @@ impl Emitter<'_> {
         storage_type: Option<&ValueType>,
     ) -> String {
         if storage_type == Some(&ValueType::Scalar(ScalarType::String)) {
+            if let Some((setup, right)) = self.throwable_text_parts(candidate, false) {
+                return format!("{{ {setup}{name}.as_str() == {right} }}");
+            }
             let right = self.string_comparison_operand(candidate);
             return format!("{name}.as_str() == {right}");
         }

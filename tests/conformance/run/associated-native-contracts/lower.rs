@@ -1531,11 +1531,13 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     let _ = failure.insert(__terrane_error_0.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
-                    );
+                    {
+                        let __terrane_error_text_0 = failure
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_0);
+                    };
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -1564,7 +1566,7 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
             &match &selected_mode { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") }; let
-            __terrane_receiver_value_0 = &__terrane_raised(| | -> Result < _, crate
+            __terrane_receiver_value_1 = &__terrane_raised(| | -> Result < _, crate
             ::TerraneForeignError > { { let value = match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::Mode::First) })) { Ok(result) =>
@@ -1572,12 +1574,12 @@ fn main() {
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) };
             Ok:: < _, crate ::TerraneForeignError > (value) } } (),
             48 /* terrane-site: src/main.trn:158:34-158:46 */); let
-            __terrane_comparison_right = &__terrane_receiver_value_0; < Mode as
+            __terrane_comparison_right = &__terrane_receiver_value_1; < Mode as
             std::cmp::PartialEq > ::eq(__terrane_comparison_left,
             __terrane_comparison_right) })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_1 =
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_2 =
             &__terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok(witness::Mode::First) })) {
@@ -1585,7 +1587,7 @@ fn main() {
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) };
             Ok:: < _, crate ::TerraneForeignError > (value) } } (),
             49 /* terrane-site: src/main.trn:159:17-159:29 */); let
-            __terrane_comparison_left = &__terrane_receiver_value_1; let
+            __terrane_comparison_left = &__terrane_receiver_value_2; let
             __terrane_comparison_right = &match &selected_mode { Some(value) => value, _
             => unreachable!("flow-proven storage refinement") }; < Mode as
             std::cmp::PartialEq > ::eq(__terrane_comparison_left,
@@ -1595,7 +1597,7 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
             &match &selected_mode { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") }; let
-            __terrane_receiver_value_2 = &__terrane_raised(| | -> Result < _, crate
+            __terrane_receiver_value_3 = &__terrane_raised(| | -> Result < _, crate
             ::TerraneForeignError > { { let value = match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::Mode::Last) })) { Ok(result) =>
@@ -1603,7 +1605,7 @@ fn main() {
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::Last")) };
             Ok:: < _, crate ::TerraneForeignError > (value) } } (),
             50 /* terrane-site: src/main.trn:160:34-160:45 */); let
-            __terrane_comparison_right = &__terrane_receiver_value_2; < Mode as
+            __terrane_comparison_right = &__terrane_receiver_value_3; < Mode as
             std::cmp::PartialEq > ::ne(__terrane_comparison_left,
             __terrane_comparison_right) })
         );

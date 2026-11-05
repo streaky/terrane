@@ -166,6 +166,9 @@ impl Emitter<'_> {
         {
             return self.write_display(inner, output);
         }
+        if let Some((setup, text)) = self.throwable_text_parts(node, false) {
+            return format!("{{ {setup}{output}.push_str({text}); }}");
+        }
         let value_type = self
             .value_type(node)
             .expect("display operand has an inferred type");

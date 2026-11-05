@@ -700,8 +700,8 @@ negative-shift-count         negative shift count on unbounded int << >>
 coercion-error               coercion has no compatible result outside the overflow case above
 ```
 
-- `catch` clauses are tried in source order against compatible classes/interfaces; an unreachable
-  later clause is a compile-time diagnostic.
+- `catch A, B, C as error` matches any listed throwable descriptor with one shared body; `as error` is optional and remains an envelope-only `throwable` binding. The descriptor list is single-line, has no trailing comma, and validates every entry. Clauses are tried in source order; duplicate or unreachable descriptors within or across clauses are compile-time diagnostics. Handler-thrown errors escape the entire `try`, never enter later catches.
+- Catch class alternatives match exact canonical class identity; only the `throwable` interface is accepted as a catch-all descriptor. Other interface alternatives are currently unsupported. `throw error` for a catch binding preserves runtime kind/cause but statically escapes as `throwable`, not the matching class or grouped set; a narrower `throws` bound can fail with `T0027`.
 - `finally` always runs and may replace a pending outcome only by explicitly returning or throwing.
 - Each core throwable carries `message`, `cause`, context, and structured operation/type detail;
   other throwable classes are declared by packages/adapters, never implicitly synthesized.

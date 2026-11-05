@@ -1005,7 +1005,7 @@
           "manual/reference/records/language/errors/handling.yaml"
         ]
       },
-      "notes": "Recoverable failures use compiler-owned result propagation rather than native unwinding. User-defined throwable classes construct directly in throw statements, including zero-argument, generic, and late-bound self applications. Generic errors and imported aliases retain their canonical base descriptor for catch matching. Envelopes preserve raw messages separately from captured render text across causes and rethrows; catch bindings remain envelope-only, with concrete payload retention planned separately.",
+      "notes": "Recoverable failures use compiler-owned result propagation rather than native unwinding. Grouped catch descriptors share one handler and optional envelope binding; every alternative participates in validation and escaping-effect inference. User-defined throwable classes construct directly in throw statements, including zero-argument, generic, and late-bound self applications. Generic errors and imported aliases retain their canonical base descriptor for exact catch matching; only throwable itself is supported as an interface catch-all. Envelopes preserve raw messages separately from captured render text across causes and rethrows; catch bindings remain envelope-only and rethrows statically escape as throwable, with precise caught-kind typing and concrete payload retention planned separately.",
       "sources": [
         "docs/language-spec-concise.md#ERROR / CALLABLE",
         "docs/compiler-plan.md#Milestone 9",
@@ -1015,7 +1015,9 @@
         "tests/conformance/run/throwable-message-render/case.trn",
         "tests/conformance/run/throwable-message-render-uncaught/case.trn",
         "tests/conformance/run/throwable-self-construction/case.trn",
-        "tests/conformance/check/reject-throwable-static-message/case.trn"
+        "tests/conformance/check/reject-throwable-static-message/case.trn",
+        "tests/conformance/run/grouped-catch/case.trn",
+        "tests/conformance/reject/grouped-catch-handler-escape/case.trn"
       ]
     },
     {
