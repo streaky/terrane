@@ -2063,13 +2063,14 @@ pub fn assert_throws(
                 if !__terrane_handled_0 {
                     __terrane_handled_0 = true;
                     let _ = error.insert(__terrane_error_0.clone());
-                    if error
-                        .as_ref()
-                        .expect("flow-proven available binding")
-                        .descriptor_name()
-                        .to_owned()
-                        .as_str() == expected_descriptor.as_str()
-                    {
+                    if {
+                        let __terrane_error_text_0 = error
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .descriptor_name();
+                        let __terrane_comparison_text_1 = &expected_descriptor;
+                        __terrane_error_text_0 == __terrane_comparison_text_1.as_str()
+                    } {
                         return TerraneCompletion::Return(());
                     }
                     __terrane_traced_completion!(
@@ -2077,10 +2078,10 @@ pub fn assert_throws(
                         __terrane_text.push_str("expected throwable descriptor ");
                         terrane_scalar_support::ScalarDisplay::write_scalar(&expected_descriptor,
                         &mut __terrane_text); __terrane_text.push_str(" but received ");
-                        terrane_scalar_support::ScalarDisplay::write_scalar(&error
-                        .as_ref().expect("flow-proven available binding")
-                        .descriptor_name().to_owned(), &mut __terrane_text);
-                        __terrane_text }), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
+                        { let __terrane_error_text_3 = error.as_ref()
+                        .expect("flow-proven available binding").descriptor_name();
+                        __terrane_text.push_str(__terrane_error_text_3); } __terrane_text
+                        }), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
                     );
                 }
                 if !__terrane_handled_0 {

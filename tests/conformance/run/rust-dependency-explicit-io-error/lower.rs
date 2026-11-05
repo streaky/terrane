@@ -64,10 +64,13 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     let _ = failure.insert(__terrane_error_0.clone());
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
-                        .expect("flow-proven available binding").message().to_owned())
-                    );
+                    {
+                        let __terrane_error_text_0 = failure
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_0);
+                    };
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

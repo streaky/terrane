@@ -871,11 +871,13 @@ fn main() {
                     {
                         __terrane_handled_0 = true;
                         let _ = error.insert(__terrane_error_0.clone());
-                        println!(
-                            "{}", terrane_scalar_support::scalar_text(&error.as_ref()
-                            .expect("flow-proven available binding").message()
-                            .to_owned())
-                        );
+                        {
+                            let __terrane_error_text_0 = error
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                                .message();
+                            println!("{}", __terrane_error_text_0);
+                        };
                     }
                     if !__terrane_handled_0 {
                         return TerraneCompletion::Error(__terrane_error_0);
@@ -946,11 +948,13 @@ fn main() {
                     {
                         __terrane_handled_1 = true;
                         let _ = error_2.insert(__terrane_error_1.clone());
-                        println!(
-                            "{}", terrane_scalar_support::scalar_text(&error_2.as_ref()
-                            .expect("flow-proven available binding").message()
-                            .to_owned())
-                        );
+                        {
+                            let __terrane_error_text_1 = error_2
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                                .message();
+                            println!("{}", __terrane_error_text_1);
+                        };
                     }
                     if !__terrane_handled_1 {
                         return TerraneCompletion::Error(__terrane_error_1);
