@@ -1093,6 +1093,17 @@ fn local_lender_name<'a>(
             visited,
         );
     }
+    // A member or index read lends from the place it projects. Classify the
+    // receiver recursively so named roots remain stable and computed roots
+    // retain the temporary diagnostic.
+    if matches!(
+        node.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+    ) {
+        return node.children.first().and_then(|receiver| {
+            local_lender_name(package, unit, receiver, contract, function_span, visited)
+        });
+    }
     // Literal native inputs have static backing, not a temporary owned lender.
     if !(matches!(node.kind, SyntaxKind::Name | SyntaxKind::Literal)
         || node.kind == SyntaxKind::UnaryExpression

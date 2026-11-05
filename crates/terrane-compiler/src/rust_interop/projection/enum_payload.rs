@@ -280,6 +280,7 @@ pub(super) fn project_multi_enum_payload(
             generic_parameters,
             displayable: false,
             cloneable: false,
+            copyable: false,
             send: false,
             sync: false,
         },

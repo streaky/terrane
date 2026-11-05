@@ -468,10 +468,11 @@ impl Emitter<'_> {
                 _ => None,
             })
             .unwrap_or_default();
-        let function_generics = if reference_lender.is_some() {
-            "<'a>".to_owned()
-        } else {
+        let function_generics = {
             let mut generics = Vec::new();
+            if reference_lender.is_some() {
+                generics.push("'a".to_owned());
+            }
             if scoped_lifetime == Some("'view") {
                 generics.push("'view".to_owned());
             }

@@ -9,9 +9,16 @@ impl Holder {
         self.label.len()
     }
 }
-pub struct Other;
+pub struct Other {
+    label: String,
+}
 impl Other {
     pub fn new() -> Self {
-        Self
+        Self {
+            label: "different".to_owned(),
+        }
+    }
+    pub fn other_len(&self) -> usize {
+        self.label.len()
     }
 }

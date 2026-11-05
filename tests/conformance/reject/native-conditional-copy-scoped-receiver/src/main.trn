@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/witness import Holder
+
+function main;
+  holder = Holder::new;
+  view = holder.conditional_view;
+  print; (view.size;)
+  print; (view.size;)

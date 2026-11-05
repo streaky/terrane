@@ -202,6 +202,7 @@ fn prove_native_capabilities(
         let (proof_type, lifetime_parameters) = quantified_native_type(rust_type);
         for rust_bound in [
             "core::clone::Clone",
+            "core::marker::Copy",
             "core::marker::Send",
             "core::marker::Sync",
         ] {
@@ -280,6 +281,7 @@ fn prove_native_capabilities(
                 .or_default();
             match evidence.question.rust_bound.as_str() {
                 "core::clone::Clone" => capability.cloneable = satisfied,
+                "core::marker::Copy" => capability.copyable = satisfied,
                 "core::marker::Send" => capability.send = satisfied,
                 "core::marker::Sync" => capability.sync = satisfied,
                 _ => {}

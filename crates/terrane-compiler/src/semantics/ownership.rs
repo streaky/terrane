@@ -615,26 +615,47 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member, ..] = callee.children.as_slice()
-            && receiver.kind == SyntaxKind::Name
-            && let Some(receiver_type) = infer_value_type(unit, receiver, &unit.typed_bindings)
-                .ok()
-                .flatten()
-            && let ValueType::Object(object_name)
-            | ValueType::InvocationScopedNative {
-                family: object_name,
-                ..
-            } = &receiver_type
-            && method_consumes_receiver(package, object_name, node_text(&unit.source, member))
-            && let Some(binding) =
-                binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
-            && (matches!(receiver_type, ValueType::InvocationScopedNative { .. })
-                || resource_binding(package, unit, binding))
         {
-            for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+            let mut grouped = receiver;
+            while grouped.kind == SyntaxKind::GroupExpression {
+                let Some(inner) = grouped.children.first() else {
+                    break;
+                };
+                grouped = inner;
             }
-            moved.insert(binding);
-            return Ok(());
+            if grouped.kind == SyntaxKind::Name
+                && let Some(receiver_type) = infer_value_type(unit, grouped, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+                && let ValueType::Object(object_name)
+                | ValueType::InvocationScopedNative {
+                    family: object_name,
+                    ..
+                } = &receiver_type
+                && method_consumes_receiver(package, object_name, node_text(&unit.source, member))
+                && let Some(binding) =
+                    binding_at(unit, node_text(&unit.source, grouped), grouped.span.start)
+                && (match &receiver_type {
+                    ValueType::InvocationScopedNative {
+                        family, rust_type, ..
+                    } => !package.native_capabilities.get(rust_type).map_or_else(
+                        || {
+                            package
+                                .projection
+                                .native_type_copyable(&family.namespace, &family.name)
+                        },
+                        |capability| capability.copyable,
+                    ),
+                    ValueType::Object(_) => resource_binding(package, unit, binding),
+                    _ => false,
+                })
+            {
+                for child in &node.children {
+                    visit(package, unit, child, moved, false, resource_objects)?;
+                }
+                moved.insert(binding);
+                return Ok(());
+            }
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()

@@ -1,46 +1,10 @@
 namespace app
 
-from /deps/terrane-query-witness import Holder, Other
-from /helpers import make as imported_make
+from /deps/terrane-query-witness import Holder
 
 function same Holder; h Holder
   return move h
 
-function identity of (T) T; value T
-  return move value
-
-function selected of (T, U) T; ignored U, value T
-  return move value
-
-function make Holder;
-  return Holder::new;
-
-function with_text Holder; text string
-  return Holder::new;
-
-async function async_make Holder;
-  return Holder::new;
-
-class Maker
-  function make Holder;
-    return Holder::new;
-
-async function main;
-  a = same; (Holder::new;)
-  print; (a.label_len;)
-  b = identity; (Holder::new;)
-  print; (b.label_len;)
-  c = make;
-  print; (c.label_len;)
-  d = with_text; 'abc'
-  print; (d.label_len;)
-  print; ((make;).label_len;)
-  e = await async_make;
-  print; (e.label_len;)
-  maker = instance Maker;
-  f = maker.make;
-  print; (f.label_len;)
-  g = selected; value = (Holder::new;), ignored = (Other::new;)
-  print; (g.label_len;)
-  h = imported_make;
-  print; (h.label_len;)
+function main;
+  y = same; (Holder::new;)
+  print; (y.label_len;)

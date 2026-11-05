@@ -40,6 +40,8 @@ fn checks_versions_keep_removed() {
                 enum_payload: None,
                 generic_parameters: Vec::new(),
                 displayable: false,
+                cloneable: false,
+                copyable: false,
                 methods: vec![ProjectedFunction {
                     receiver_bounds: Vec::new(),
                     native_owner: None,
@@ -85,7 +87,6 @@ fn checks_versions_keep_removed() {
                     receiver: None,
                 }],
                 constants: Vec::new(),
-                cloneable: false,
                 send: false,
                 sync: false,
             },

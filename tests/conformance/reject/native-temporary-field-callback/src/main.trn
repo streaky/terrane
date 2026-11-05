@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/terrane-query-witness import Config, query, render
+
+function make_cfg Config;
+  return Config::new;
+
+function callback_view host-invocation-scoped-native; cfg ref Config
+  return query; (make_cfg;).sql
+
+function main;
+  cfg = Config::new;
+  print; (render; cfg, callback_view)

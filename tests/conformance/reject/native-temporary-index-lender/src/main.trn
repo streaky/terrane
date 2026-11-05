@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-query-witness import query
+from /core/collections import list
+
+function make_strings list of string;
+  return list; 'insert'
+
+function main;
+  view = query; (make_strings;)[0]
+  print; (view.size;)

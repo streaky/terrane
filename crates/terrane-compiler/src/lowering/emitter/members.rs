@@ -313,6 +313,24 @@ impl Emitter<'_> {
             let holder = self.native_receiver_expression(holder, mutable);
             return format!("({holder}).{field}");
         }
+        if let [holder, member] = receiver.children.as_slice()
+            && receiver.kind == SyntaxKind::MemberExpression
+            && let Some(ValueType::Object(identity)) = self.receiver_value_type(holder)
+            && self
+                .package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_none()
+            && !self.is_throwable_value(holder)
+        {
+            let holder_value = self.native_receiver_expression(holder, mutable);
+            let (place, borrowed) = self.object_field_place(holder, member, mutable, &holder_value);
+            return if borrowed {
+                format!("*({place})")
+            } else {
+                place
+            };
+        }
         if matches!(
             self.value_type(receiver),
             Some(ValueType::Reference(_) | ValueType::MutableReference(_))
@@ -544,6 +562,17 @@ impl Emitter<'_> {
             return None;
         }
         let (setup, holder_value) = self.receiver_place_parts(holder, mutable, scope);
+        let (value, borrowed) = self.object_field_place(holder, member, mutable, &holder_value);
+        Some((setup, value, borrowed))
+    }
+
+    fn object_field_place(
+        &self,
+        holder: &SyntaxNode,
+        member: &SyntaxNode,
+        mutable: bool,
+        holder_value: &str,
+    ) -> (String, bool) {
         let field =
             self.native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
         let wrapped = self.wrapped_object_field(holder, self.text(member));
@@ -559,7 +588,7 @@ impl Emitter<'_> {
             ),
             (false, false) => format!("({holder_value}).{field}"),
         };
-        Some((setup, value, wrapped || required))
+        (value, wrapped || required)
     }
 
     pub(super) fn receiver_place_parts(

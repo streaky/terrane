@@ -508,50 +508,14 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 2] = ["helpers/maker.trn", "src/main.trn"];
-    pub static FUNCTIONS: [&str; 5] = [
-        "/helpers::make",
-        "/app::make",
-        "/app::with_text",
-        "/app::async_make",
-        "/app::main",
-    ];
-    pub static SITES: [Site; 18] = [
+    pub static FUNCTIONS: [&str; 2] = ["/helpers::make", "/app::main"];
+    pub static SITES: [Site; 3] = [
         /* terrane-site-row: site 0: /helpers::make (helpers/maker.trn:6:10-6:17) */
         { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 17 } },
-        /* terrane-site-row: site 1: /app::make (src/main.trn:16:10-16:22) */
-        { Site { function: 1, file: 1, line: 16, column: 10, end_line: 16, end_column: 22 } },
-        /* terrane-site-row: site 2: /app::with_text (src/main.trn:19:10-19:22) */
-        { Site { function: 2, file: 1, line: 19, column: 10, end_line: 19, end_column: 22 } },
-        /* terrane-site-row: site 3: /app::async_make (src/main.trn:22:10-22:22) */
-        { Site { function: 3, file: 1, line: 22, column: 10, end_line: 22, end_column: 22 } },
-        /* terrane-site-row: site 4: /app::make (src/main.trn:26:12-26:24) */
-        { Site { function: 1, file: 1, line: 26, column: 12, end_line: 26, end_column: 24 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:29:14-29:26) */
-        { Site { function: 4, file: 1, line: 29, column: 14, end_line: 29, end_column: 26 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:30:11-30:23) */
-        { Site { function: 4, file: 1, line: 30, column: 11, end_line: 30, end_column: 23 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:31:18-31:30) */
-        { Site { function: 4, file: 1, line: 31, column: 18, end_line: 31, end_column: 30 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:32:11-32:23) */
-        { Site { function: 4, file: 1, line: 32, column: 11, end_line: 32, end_column: 23 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:34:11-34:23) */
-        { Site { function: 4, file: 1, line: 34, column: 11, end_line: 34, end_column: 23 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:36:11-36:23) */
-        { Site { function: 4, file: 1, line: 36, column: 11, end_line: 36, end_column: 23 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:37:11-37:29) */
-        { Site { function: 4, file: 1, line: 37, column: 11, end_line: 37, end_column: 29 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:39:11-39:23) */
-        { Site { function: 4, file: 1, line: 39, column: 11, end_line: 39, end_column: 23 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:42:11-42:23) */
-        { Site { function: 4, file: 1, line: 42, column: 11, end_line: 42, end_column: 23 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:43:26-43:38) */
-        { Site { function: 4, file: 1, line: 43, column: 26, end_line: 43, end_column: 38 } },
-        /* terrane-site-row: site 15: /app::main (src/main.trn:43:52-43:63) */
-        { Site { function: 4, file: 1, line: 43, column: 52, end_line: 43, end_column: 63 } },
-        /* terrane-site-row: site 16: /app::main (src/main.trn:44:11-44:23) */
-        { Site { function: 4, file: 1, line: 44, column: 11, end_line: 44, end_column: 23 } },
-        /* terrane-site-row: site 17: /app::main (src/main.trn:46:11-46:23) */
-        { Site { function: 4, file: 1, line: 46, column: 11, end_line: 46, end_column: 23 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:9:14-9:26) */
+        { Site { function: 1, file: 1, line: 9, column: 14, end_line: 9, end_column: 26 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:10:11-10:23) */
+        { Site { function: 1, file: 1, line: 10, column: 11, end_line: 10, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]
@@ -565,206 +529,9 @@ mod __terrane_trace {
         )
     }
 }
-async fn __terrane_await<F: Future>(future: F) -> F::Output {
-    struct YieldOnce(bool);
-    impl Future for YieldOnce {
-        type Output = ();
-        fn poll(
-            mut self: std::pin::Pin<&mut Self>,
-            context: &mut std::task::Context<'_>,
-        ) -> std::task::Poll<Self::Output> {
-            if self.0 {
-                std::task::Poll::Ready(())
-            } else {
-                self.0 = true;
-                context.waker().wake_by_ref();
-                std::task::Poll::Pending
-            }
-        }
-    }
-    YieldOnce(false).await;
-    let output = future.await;
-    YieldOnce(false).await;
-    output
-}
-#[allow(
-    dead_code,
-    clippy::unused_async,
-    reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
-)]
-async fn __terrane_wait_projected_cleanups() {}
-#[allow(
-    dead_code,
-    reason = "async entry support is emitted for libraries without an entrypoint"
-)]
-async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
-    future.await
-}
-#[allow(
-    dead_code,
-    reason = "shared async support also serves packages without awaited destructors"
-)]
-const TERRANE_RUNTIME_CLOSING: usize = 1 << usize::BITS - 1;
-#[allow(
-    dead_code,
-    reason = "libraries can use async support without owning an executor"
-)]
-struct TerraneRuntimeLiveness {
-    active: std::sync::atomic::AtomicUsize,
-    drain: std::sync::Mutex<()>,
-    changed: std::sync::Condvar,
-}
-thread_local! {
-    static TERRANE_RUNTIME_LIVE : std::cell::RefCell < Option < (tokio::runtime::Id,
-    std::sync::Arc < TerraneRuntimeLiveness >) >> = const { std::cell::RefCell::new(None)
-    };
-}
-#[allow(
-    dead_code,
-    reason = "libraries can use awaited destruction without owning an executor"
-)]
-struct TerraneRuntimeLivenessGuard {
-    live: std::sync::Arc<TerraneRuntimeLiveness>,
-    previous: Option<(tokio::runtime::Id, std::sync::Arc<TerraneRuntimeLiveness>)>,
-}
-impl Drop for TerraneRuntimeLivenessGuard {
-    fn drop(&mut self) {
-        if self
-            .live
-            .active
-            .fetch_or(TERRANE_RUNTIME_CLOSING, std::sync::atomic::Ordering::AcqRel) != 0
-        {
-            let drained = self
-                .live
-                .drain
-                .lock()
-                .expect("destructor drain lock poisoned");
-            let _drained = self
-                .live
-                .changed
-                .wait_while(
-                    drained,
-                    |()| {
-                        self.live.active.load(std::sync::atomic::Ordering::Acquire)
-                            != TERRANE_RUNTIME_CLOSING
-                    },
-                )
-                .expect("destructor drain lock poisoned");
-        }
-        TERRANE_RUNTIME_LIVE.with(|live| *live.borrow_mut() = self.previous.take());
-    }
-}
-#[allow(
-    dead_code,
-    reason = "libraries can use awaited destruction without owning an executor"
-)]
-fn __terrane_runtime_liveness_enter(
-    runtime: &tokio::runtime::Runtime,
-    live: std::sync::Arc<TerraneRuntimeLiveness>,
-) -> TerraneRuntimeLivenessGuard {
-    let previous = TERRANE_RUNTIME_LIVE
-        .with(|current| {
-            current.borrow_mut().replace((runtime.handle().id(), live.clone()))
-        });
-    TerraneRuntimeLivenessGuard {
-        live,
-        previous,
-    }
-}
-#[allow(
-    dead_code,
-    reason = "shared async support also serves packages without awaited destructors"
-)]
-struct TerraneDestructorPermit(std::sync::Arc<TerraneRuntimeLiveness>);
-impl Drop for TerraneDestructorPermit {
-    fn drop(&mut self) {
-        if self.0.active.fetch_sub(1, std::sync::atomic::Ordering::AcqRel)
-            == TERRANE_RUNTIME_CLOSING + 1
-        {
-            let _drained = self.0.drain.lock().expect("destructor drain lock poisoned");
-            self.0.changed.notify_one();
-        }
-    }
-}
-fn __terrane_await_destructor<F>(future: F)
-where
-    F: Future<Output = ()> + Send,
-{
-    let permit = tokio::runtime::Handle::try_current()
-        .ok()
-        .and_then(|handle| {
-            if handle.runtime_flavor() != tokio::runtime::RuntimeFlavor::MultiThread {
-                return None;
-            }
-            TERRANE_RUNTIME_LIVE
-                .with(|current| {
-                    let current = current.borrow();
-                    let (id, live) = current.as_ref()?;
-                    if *id != handle.id() {
-                        return None;
-                    }
-                    live.active
-                        .try_update(
-                            std::sync::atomic::Ordering::AcqRel,
-                            std::sync::atomic::Ordering::Acquire,
-                            |active| {
-                                (active < TERRANE_RUNTIME_CLOSING - 1).then(|| active + 1)
-                            },
-                        )
-                        .ok()?;
-                    Some((handle, TerraneDestructorPermit(live.clone())))
-                })
-        });
-    if let Some((handle, _permit)) = permit {
-        tokio::task::block_in_place(|| handle.block_on(future));
-        return;
-    }
-    std::thread::scope(|scope| {
-        scope
-            .spawn(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Terrane destructor runtime must initialize")
-                    .block_on(future);
-            })
-            .join()
-            .expect("Terrane awaited destructor must not panic");
-    });
-}
-fn __terrane_run<F: Future>(future: F) -> F::Output {
-    let live = std::sync::Arc::new(TerraneRuntimeLiveness {
-        active: std::sync::atomic::AtomicUsize::new(0),
-        drain: std::sync::Mutex::new(()),
-        changed: std::sync::Condvar::new(),
-    });
-    let worker_live = live.clone();
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .on_thread_start(move || {
-            TERRANE_RUNTIME_LIVE
-                .with(|current| {
-                    *current.borrow_mut() = Some((
-                        tokio::runtime::Handle::current().id(),
-                        worker_live.clone(),
-                    ));
-                });
-        })
-        .enable_all()
-        .build()
-        .expect("Terrane async runtime must initialize");
-    let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
-    let future = Box::pin(future);
-    runtime
-        .block_on(async move {
-            let output = __terrane_async_entry(future).await;
-            __terrane_wait_projected_cleanups().await;
-            output
-        })
-}
 // Source: <terrane>/projected/deps/terrane-query-witness.trn
 // Namespace: deps/terrane-query-witness
 pub use terrane_query_witness::Holder;
-pub use terrane_query_witness::Other;
 pub fn terrane_static_trn_486f6c646572_new() -> Result<
     Holder,
     crate::TerraneForeignError,
@@ -779,22 +546,6 @@ pub fn terrane_static_trn_486f6c646572_new() -> Result<
                     payload,
                     "terrane-query-witness",
                     "terrane_query_witness::Holder",
-                ),
-            )
-        }
-    }
-}
-pub fn terrane_static_trn_4f74686572_new() -> Result<Other, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_query_witness::Other::new()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-query-witness",
-                    "terrane_query_witness::Other",
                 ),
             )
         }

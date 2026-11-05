@@ -1,0 +1,6 @@
+namespace helpers
+
+from /deps/terrane-query-witness import Holder as H
+
+public function make H;
+  return H::new;

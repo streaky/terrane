@@ -57,9 +57,14 @@ pub struct Namespace {
     pub symbols: BTreeMap<String, Symbol>,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "native trait proofs are independent capabilities, not mutually exclusive states"
+)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) struct NativeTypeCapabilities {
     pub cloneable: bool,
+    pub copyable: bool,
     pub send: bool,
     pub sync: bool,
 }

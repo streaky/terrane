@@ -23,6 +23,7 @@ fn ambiguous_projection() -> Projection {
                 static_methods: Vec::new(),
                 constants: Vec::new(),
                 cloneable: false,
+                copyable: false,
                 send,
                 sync: false,
                 boundary: ProjectedBoundaryCapabilities::default(),

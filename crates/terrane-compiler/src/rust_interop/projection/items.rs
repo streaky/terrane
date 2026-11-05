@@ -16,15 +16,15 @@ use super::{
     ProjectedKind, ProjectedParameter, ProjectedTraitOperation, ProjectedType, Receiver,
     RustDependency, RustdocPath, SourceConstantCache, borrowed_graph, callable,
     canonicalize_rust_path, data, dependency_namespace, enum_payload, extern_rust_path,
-    implements_trait, macros, merge_projected_trait_operations, normalize_projected_items,
-    owner_trait_namespace, partial_projection, partial_projection_references,
-    project_boundary_capabilities, project_chain_owner, project_enum_payload, project_function,
-    project_interface, project_macro, project_methods, project_multi_enum_payload,
-    project_struct_fields, project_type, promote_async_endpoint_methods, render_generic_bound,
-    render_rust_type, resolved_nominal_id, resolved_path_name, resolved_path_type_arguments,
-    rewrite_projected_function_root, rewrite_projected_rust_root, rewrite_rust_bound_root,
-    rust_lifetimes, trait_fallback_namespace, trait_operation_docs,
-    type_contains_lifetime_argument,
+    implements_trait, implements_unconditionally_copy, macros, merge_projected_trait_operations,
+    normalize_projected_items, owner_trait_namespace, partial_projection,
+    partial_projection_references, project_boundary_capabilities, project_chain_owner,
+    project_enum_payload, project_function, project_interface, project_macro, project_methods,
+    project_multi_enum_payload, project_struct_fields, project_type,
+    promote_async_endpoint_methods, render_generic_bound, render_rust_type, resolved_nominal_id,
+    resolved_path_name, resolved_path_type_arguments, rewrite_projected_function_root,
+    rewrite_projected_rust_root, rewrite_rust_bound_root, rust_lifetimes, trait_fallback_namespace,
+    trait_operation_docs, type_contains_lifetime_argument,
 };
 
 pub(super) fn projected_nominal_generic_parameters(
@@ -678,6 +678,7 @@ pub(super) fn project_rustdoc(
                     )?,
                     displayable: false,
                     cloneable: false,
+                    copyable: false,
                     send: false,
                     sync: false,
                 })
@@ -907,6 +908,13 @@ pub(super) fn project_rustdoc(
                             index,
                             paths,
                             "core::clone::Clone",
+                        ),
+                        copyable: implements_unconditionally_copy(
+                            &structure.impls,
+                            index,
+                            paths,
+                            id,
+                            &structure.generics.params,
                         ),
                         send: false,
                         sync: false,
@@ -1313,6 +1321,14 @@ pub(super) fn project_rustdoc(
                         static_methods,
                         constants: projected_constants,
                         send: false,
+                        copyable: !enumeration.generics.params.iter().any(|parameter| {
+                            matches!(parameter.kind, GenericParamDefKind::Type { .. })
+                        }) && implements_trait(
+                            &enumeration.impls,
+                            index,
+                            paths,
+                            "core::marker::Copy",
+                        ),
                         sync: false,
                         displayable: implements_trait(
                             &enumeration.impls,

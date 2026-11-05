@@ -140,8 +140,9 @@ use reexports::{
 };
 use rustdoc_support::{
     descriptive_rust_identity, impl_trait_bounds, implementation_trait_path, implements_trait,
-    is_rust_byte_vector_type, is_rust_string_type, project_boundary_capabilities, receiver_kind,
-    resolved_name, resolved_path_name, type_implements_deref_target, type_implements_generic_trait,
+    implements_unconditionally_copy, is_rust_byte_vector_type, is_rust_string_type,
+    project_boundary_capabilities, receiver_kind, resolved_name, resolved_path_name,
+    type_implements_deref_target, type_implements_generic_trait,
 };
 use source_rendering::{
     append_required_nominal_units, collect_foreign_function, collect_source_foreign,
@@ -162,7 +163,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "341";
+const PROJECTION_SCHEMA: &str = "342";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -349,6 +350,8 @@ pub enum ProjectedKind {
         #[serde(default)]
         cloneable: bool,
         #[serde(default)]
+        copyable: bool,
+        #[serde(default)]
         send: bool,
         #[serde(default)]
         sync: bool,
@@ -365,6 +368,8 @@ pub enum ProjectedKind {
         constants: Vec<ProjectedConstant>,
         #[serde(default)]
         displayable: bool,
+        #[serde(default)]
+        copyable: bool,
         #[serde(default)]
         send: bool,
         #[serde(default)]
@@ -567,7 +572,6 @@ pub struct ProjectedBoundaryCapabilities {
     bytes_constructor: Option<ProjectedEnumPayloadConversion>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     string_extraction: Option<ProjectedEnumPayloadConversion>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     bytes_extraction: Option<ProjectedEnumPayloadConversion>,
 }
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2004,6 +2008,17 @@ impl Projection {
             .filter(|item| item.name == name);
         let item = matching.next()?;
         matching.next().is_none().then_some(item)
+    }
+    #[must_use]
+    pub(crate) fn native_type_copyable(&self, namespace: &str, name: &str) -> bool {
+        let Some(item) = self.item(namespace, name) else {
+            return false;
+        };
+        matches!(
+            &item.kind,
+            ProjectedKind::ForeignType { copyable: true, .. }
+                | ProjectedKind::Enum { copyable: true, .. }
+        )
     }
 
     #[must_use]

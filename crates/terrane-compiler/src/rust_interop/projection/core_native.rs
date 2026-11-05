@@ -48,6 +48,7 @@ pub(crate) fn augment(projection: &mut Projection) {
             enum_payload: None,
             displayable: name == "native-socket-address",
             cloneable: name == "native-socket-address",
+            copyable: false,
             send: true,
             sync: true,
             generic_parameters: Vec::new(),

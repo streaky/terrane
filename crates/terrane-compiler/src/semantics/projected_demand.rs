@@ -37,6 +37,12 @@ fn projected_expression_owners(
 ) -> BTreeSet<ProjectedOwner> {
     if node.kind == SyntaxKind::Name {
         let name = &source.text()[node.span.start..node.span.end];
+        if matches!(name, "this" | "self") {
+            return source_results
+                .implicit_receiver_owner(source, node)
+                .into_iter()
+                .collect();
+        }
         return bindings
             .get(name)
             .cloned()
@@ -355,15 +361,9 @@ pub(super) fn collect_associated_projected_member_demands(
     }
 }
 
-struct SourceSignature<'a> {
-    unit: &'a SemanticUnit,
-    contract: FunctionContract,
-}
-
 struct SourceCallable<'a> {
     unit: &'a SemanticUnit,
     node: &'a SyntaxNode,
-    signature: std::cell::OnceCell<Option<SourceSignature<'a>>>,
     scope: Option<Span>,
 }
 
@@ -371,18 +371,28 @@ struct SourceCallable<'a> {
 type SourceCallables<'a> =
     BTreeMap<&'a str, BTreeMap<&'a str, BTreeMap<&'a str, Vec<SourceCallable<'a>>>>>;
 
-/// Header-only contracts supply demand before projected bodies are available.
-/// Default expressions and function bodies are checked by the normal analysis.
+/// Demand precedes projected declarations: inspect parsed source headers without
+/// attempting semantic type validation, which belongs to the normal later pass.
 pub(super) struct SourceResults<'a> {
     units: &'a [SemanticUnit],
     projection: &'a crate::rust_interop::projection::Projection,
     unit_indices: BTreeMap<u32, usize>,
     imports: Vec<Vec<Import>>,
-    classes: BTreeSet<(&'a str, &'a str)>,
+    owners: BTreeSet<(&'a str, &'a str)>,
     callables: SourceCallables<'a>,
 }
 
 impl<'a> SourceResults<'a> {
+    fn implicit_receiver_owner(
+        &self,
+        source: &SourceFile,
+        node: &SyntaxNode,
+    ) -> Option<ProjectedOwner> {
+        let unit = &self.units[*self.unit_indices.get(&source.id())?];
+        let name = object_name_containing(unit, node.span)?;
+        Some((unit.namespace.clone(), name))
+    }
+
     pub(super) fn new(
         units: &'a [SemanticUnit],
         projection: &'a crate::rust_interop::projection::Projection,
@@ -399,7 +409,7 @@ impl<'a> SourceResults<'a> {
                 .iter()
                 .map(imports_in_tree)
                 .collect::<Result<_, _>>()?,
-            classes: BTreeSet::new(),
+            owners: BTreeSet::new(),
             callables: BTreeMap::new(),
         };
         for (index, unit) in units.iter().enumerate() {
@@ -421,9 +431,15 @@ impl<'a> SourceResults<'a> {
             .iter()
             .find(|n| n.kind == SyntaxKind::Name)
             .map(|n| node_text(&unit.source, n));
-        let owner = if node.kind == SyntaxKind::ClassDeclaration {
+        let owner = if matches!(
+            node.kind,
+            SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TraitDeclaration
+                | SyntaxKind::EnumDeclaration
+        ) {
             if let Some(name) = name {
-                self.classes.insert((&unit.namespace, name));
+                self.owners.insert((&unit.namespace, name));
             }
             name
         } else {
@@ -439,12 +455,7 @@ impl<'a> SourceResults<'a> {
                     .or_default()
                     .entry(name)
                     .or_default()
-                    .push(SourceCallable {
-                        unit,
-                        node,
-                        signature: std::cell::OnceCell::new(),
-                        scope,
-                    });
+                    .push(SourceCallable { unit, node, scope });
             }
             child_scope = Some(node.span);
         }
@@ -467,7 +478,7 @@ impl<'a> SourceResults<'a> {
         projection: &crate::rust_interop::projection::Projection,
     ) -> Option<ProjectedOwner> {
         let unit = &self.units[*self.unit_indices.get(&source.id())?];
-        if self.classes.contains(&(unit.namespace.as_str(), name)) {
+        if self.owners.contains(&(unit.namespace.as_str(), name)) {
             return Some((unit.namespace.clone(), name.to_owned()));
         }
         if let Some(import) = self
@@ -478,7 +489,7 @@ impl<'a> SourceResults<'a> {
             return projection
                 .projected_owner_for_import(&import.target, &import.object)
                 .or_else(|| {
-                    self.classes
+                    self.owners
                         .contains(&(import.target.as_str(), import.object.as_str()))
                         .then(|| (import.target.clone(), import.object.clone()))
                 });
@@ -574,102 +585,129 @@ impl<'a> SourceResults<'a> {
         imported: &BTreeMap<String, ProjectedOwner>,
         bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
     ) -> BTreeSet<ProjectedOwner> {
-        let Some(callable) = callable
-            .signature
-            .get_or_init(|| {
-                super::contracts::analyze_function_signature(
-                    callable.unit,
-                    callable.node,
-                    &BTreeMap::new(),
-                    false,
-                )
-                .ok()
-                .map(|contract| SourceSignature {
-                    unit: callable.unit,
-                    contract,
-                })
-            })
-            .as_ref()
+        let Some(result) = callable
+            .node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::TypeExpression)
         else {
             return BTreeSet::new();
         };
-        let Some(result) = callable.contract.return_type.as_ref() else {
-            return BTreeSet::new();
-        };
-        self.type_owners(callable, result, source, arguments, imported, bindings)
-    }
-
-    fn type_owners(
-        &self,
-        callable: &SourceSignature<'_>,
-        ty: &ValueType,
-        source: &SourceFile,
-        arguments: &SyntaxNode,
-        imported: &BTreeMap<String, ProjectedOwner>,
-        bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
-    ) -> BTreeSet<ProjectedOwner> {
-        let projection = self.projection;
-        match ty {
-            ValueType::Reference(element)
-            | ValueType::MutableReference(element)
-            | ValueType::SharedReference(element)
-            | ValueType::Task(element, _)
-            | ValueType::ScopedTask(element, _) => self.type_owners(
-                callable,
-                element.value_type_ref(),
-                source,
-                arguments,
-                imported,
-                bindings,
-            ),
-            ValueType::Optional(value) => {
-                self.type_owners(callable, value, source, arguments, imported, bindings)
-            }
-            ValueType::Union(values) => values
+        let mut owners = BTreeSet::new();
+        for_each_result_type_name(&callable.unit.source, result, &mut |name| {
+            let generic = callable
+                .node
+                .children
                 .iter()
-                .flat_map(|value| {
-                    self.type_owners(callable, value, source, arguments, imported, bindings)
-                })
-                .collect(),
-            ValueType::Object(_) | ValueType::TypeParameter(_) => {
-                let name = match ty {
-                    ValueType::Object(owner) => owner.name.as_str(),
-                    ValueType::TypeParameter(name) => name.as_str(),
-                    _ => unreachable!(),
-                };
-                if callable
-                    .contract
-                    .generic_parameters
-                    .iter()
-                    .any(|parameter| parameter.name == name)
-                {
-                    let caller = &self.units[self.unit_indices[&source.id()]];
-                    return callable
-                        .contract
-                        .parameters
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, parameter)| parameter.value_type.as_ref() == Some(ty))
-                        .filter_map(|(index, parameter)| {
-                            super::ownership::argument_for_parameter_name(
-                                caller,
-                                arguments,
-                                &parameter.name,
-                                index,
-                            )
-                        })
-                        .flat_map(|argument| {
-                            projected_expression_owners(
-                                source, argument, imported, bindings, projection, self,
-                            )
-                        })
-                        .collect();
-                }
-                self.owner_for_name(&callable.unit.source, name, imported, projection)
-                    .into_iter()
-                    .collect()
+                .find(|child| child.kind == SyntaxKind::TypeParameterList)
+                .is_some_and(|parameters| {
+                    parameters.children.iter().any(|parameter| {
+                        parameter
+                            .children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::Name)
+                            .is_some_and(|parameter| {
+                                node_text(&callable.unit.source, parameter) == name
+                            })
+                    })
+                });
+            if !generic {
+                owners.extend(self.owner_for_name(
+                    &callable.unit.source,
+                    name,
+                    imported,
+                    self.projection,
+                ));
+                return;
             }
-            _ => BTreeSet::new(),
+            let Some(parameters) = callable
+                .node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::ParameterList)
+            else {
+                return;
+            };
+            let caller = &self.units[self.unit_indices[&source.id()]];
+            for (index, parameter) in parameters.children.iter().enumerate() {
+                let Some(ty) = parameter
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::TypeExpression)
+                else {
+                    continue;
+                };
+                if !has_result_type_name(&callable.unit.source, ty, name) {
+                    continue;
+                }
+                let Some(parameter_name) = parameter
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                else {
+                    continue;
+                };
+                if let Some(argument) = super::ownership::argument_for_parameter_name(
+                    caller,
+                    arguments,
+                    node_text(&callable.unit.source, parameter_name),
+                    index,
+                ) {
+                    owners.extend(projected_expression_owners(
+                        source,
+                        argument,
+                        imported,
+                        bindings,
+                        self.projection,
+                        self,
+                    ));
+                }
+            }
+        });
+        owners
+    }
+}
+
+/// Reference/optional/group wrappers preserve the result's nominal owner.
+/// Applications keep only their outer owner: `list of T` is not itself `T`.
+fn for_each_result_type_name<'a>(
+    source: &'a SourceFile,
+    node: &'a SyntaxNode,
+    visit: &mut impl FnMut(&'a str),
+) {
+    match node.kind {
+        SyntaxKind::Name => visit(node_text(source, node)),
+        SyntaxKind::TypeExpression
+        | SyntaxKind::UnionType
+        | SyntaxKind::PrefixType
+        | SyntaxKind::GroupExpression => {
+            for child in &node.children {
+                for_each_result_type_name(source, child, visit);
+            }
         }
+        SyntaxKind::AppliedType => {
+            if let Some(child) = node.children.first() {
+                for_each_result_type_name(source, child, visit);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn has_result_type_name(source: &SourceFile, node: &SyntaxNode, name: &str) -> bool {
+    match node.kind {
+        SyntaxKind::Name => node_text(source, node) == name,
+        SyntaxKind::TypeExpression
+        | SyntaxKind::UnionType
+        | SyntaxKind::PrefixType
+        | SyntaxKind::GroupExpression => node
+            .children
+            .iter()
+            .any(|child| has_result_type_name(source, child, name)),
+        SyntaxKind::AppliedType => node
+            .children
+            .first()
+            .is_some_and(|child| has_result_type_name(source, child, name)),
+        _ => false,
     }
 }

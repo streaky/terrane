@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/terrane-query-witness import query
+
+class Cfg
+  sql string = 'insert'
+  async function run;
+    result = query; this.sql
+    print; (result.size;)
+
+async function main;
+  cfg = instance Cfg;
+  await cfg.run;
