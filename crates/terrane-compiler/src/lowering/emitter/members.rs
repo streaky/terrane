@@ -344,7 +344,7 @@ impl Emitter<'_> {
         }
         if receiver.kind == SyntaxKind::Name
             && matches!(self.value_type(receiver), Some(ValueType::Object(_)))
-            && self.reference_backed_name(receiver).is_none()
+            && !self.receiver_needs_live_guard(receiver)
         {
             if let Some(binding) = self.local_typed_binding(receiver)
                 && self.binding_may_be_unassigned(binding)
