@@ -34,6 +34,7 @@ function handled string throws other-error; choice int
     try
         fail; choice
     catch first-error, second-error, third-error as error
+        print; error.message
         return error.message
     return 'unexpected'
 
@@ -51,6 +52,7 @@ function main;
         print; (handled; 4)
     catch other-error as error
         print; error.message
+        print; error.message
     try
         reraised; 2
     catch first-error, second-error, third-error as error
@@ -67,3 +69,16 @@ function main;
         print; 'wrong handler'
     catch as error
         print; error.message
+    try
+        try
+            fail; 1
+        catch first-error, second-error, third-error as original
+            print; original.message
+            print; original.message
+            throw other-error
+    catch other-error as replacement
+        cause = replacement.cause
+        if cause != none
+            print; cause.message
+        else
+            print; 'missing cause'

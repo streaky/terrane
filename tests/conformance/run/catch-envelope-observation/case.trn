@@ -1,0 +1,42 @@
+namespace catch-envelope-observation
+from /core/errors import throwable
+
+class original-error implements throwable
+    message string = 'original'
+    function render string;
+        return this.message
+
+class replacement-error implements throwable
+    message string = 'replacement'
+    function render string;
+        return this.message
+
+class final-error implements throwable
+    message string = 'final'
+    function render string;
+        return this.message
+
+function main;
+    try
+        try
+            throw original-error
+        catch original-error as error
+            print; error.message
+            print; error.message
+            print; (error.descriptor.contains; 'original-error')
+            rendered = error.render
+            try
+                throw replacement-error
+            catch replacement-error as replacement
+                error = replacement
+            print; error.message
+            print; ((rendered;).contains; 'original')
+            throw final-error
+    catch final-error as outer
+        print; outer.message
+        cause = outer.cause
+        if cause != none
+            print; cause.message
+        else
+            print; 'missing cause'
+    print; error.message

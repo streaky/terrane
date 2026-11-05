@@ -626,7 +626,13 @@ impl Emitter<'_> {
             && self.is_throwable_value(receiver)
             && self.text(member) == "render"
         {
-            return format!("({}).render()", self.expression(receiver));
+            let (setup, receiver) = self.borrowed_receiver_parts(receiver);
+            let value = format!("({receiver}).render()");
+            return if setup.is_empty() {
+                value
+            } else {
+                format!("{{ {setup} {value} }}")
+            };
         }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()

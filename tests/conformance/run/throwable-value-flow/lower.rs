@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: throwable-value-flow
 fn describe(failure: TerraneError) -> String {
-    return failure.message().to_owned().clone();
+    return failure.message().to_owned();
 }
 fn relay(failure: TerraneError) -> TerraneError {
     return failure;
@@ -96,7 +96,6 @@ fn main() {
                             outer
                                 .as_ref()
                                 .expect("flow-proven available binding")
-                                .clone()
                                 .detail
                                 .as_ref()
                                 .and_then(|detail| detail.cause.as_deref())

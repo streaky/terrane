@@ -488,7 +488,7 @@ mod __terrane_trace {
         "/grouped-catch::reraised",
         "/grouped-catch::main",
     ];
-    pub static SITES: [Site; 14] = [
+    pub static SITES: [Site; 16] = [
         /* terrane-site-row: site 0: /grouped-catch::fail (case.trn:26:9-26:26) */
         { Site { function: 0, file: 0, line: 26, column: 9, end_line: 26, end_column: 26 } },
         /* terrane-site-row: site 1: /grouped-catch::fail (case.trn:28:9-28:27) */
@@ -499,24 +499,28 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 31, column: 5, end_line: 31, end_column: 22 } },
         /* terrane-site-row: site 4: /grouped-catch::handled (case.trn:35:9-35:21) */
         { Site { function: 1, file: 0, line: 35, column: 9, end_line: 35, end_column: 21 } },
-        /* terrane-site-row: site 5: /grouped-catch::reraised (case.trn:42:9-42:21) */
-        { Site { function: 2, file: 0, line: 42, column: 9, end_line: 42, end_column: 21 } },
-        /* terrane-site-row: site 6: /grouped-catch::reraised (case.trn:44:9-44:20) */
-        { Site { function: 2, file: 0, line: 44, column: 9, end_line: 44, end_column: 20 } },
-        /* terrane-site-row: site 7: /grouped-catch::main (case.trn:47:13-47:23) */
-        { Site { function: 3, file: 0, line: 47, column: 13, end_line: 47, end_column: 23 } },
-        /* terrane-site-row: site 8: /grouped-catch::main (case.trn:48:13-48:23) */
+        /* terrane-site-row: site 5: /grouped-catch::reraised (case.trn:43:9-43:21) */
+        { Site { function: 2, file: 0, line: 43, column: 9, end_line: 43, end_column: 21 } },
+        /* terrane-site-row: site 6: /grouped-catch::reraised (case.trn:45:9-45:20) */
+        { Site { function: 2, file: 0, line: 45, column: 9, end_line: 45, end_column: 20 } },
+        /* terrane-site-row: site 7: /grouped-catch::main (case.trn:48:13-48:23) */
         { Site { function: 3, file: 0, line: 48, column: 13, end_line: 48, end_column: 23 } },
-        /* terrane-site-row: site 9: /grouped-catch::main (case.trn:49:13-49:23) */
+        /* terrane-site-row: site 8: /grouped-catch::main (case.trn:49:13-49:23) */
         { Site { function: 3, file: 0, line: 49, column: 13, end_line: 49, end_column: 23 } },
-        /* terrane-site-row: site 10: /grouped-catch::main (case.trn:51:17-51:27) */
-        { Site { function: 3, file: 0, line: 51, column: 17, end_line: 51, end_column: 27 } },
-        /* terrane-site-row: site 11: /grouped-catch::main (case.trn:55:9-55:20) */
-        { Site { function: 3, file: 0, line: 55, column: 9, end_line: 55, end_column: 20 } },
-        /* terrane-site-row: site 12: /grouped-catch::main (case.trn:61:9-61:16) */
-        { Site { function: 3, file: 0, line: 61, column: 9, end_line: 61, end_column: 16 } },
-        /* terrane-site-row: site 13: /grouped-catch::main (case.trn:65:9-65:16) */
-        { Site { function: 3, file: 0, line: 65, column: 9, end_line: 65, end_column: 16 } },
+        /* terrane-site-row: site 9: /grouped-catch::main (case.trn:50:13-50:23) */
+        { Site { function: 3, file: 0, line: 50, column: 13, end_line: 50, end_column: 23 } },
+        /* terrane-site-row: site 10: /grouped-catch::main (case.trn:52:17-52:27) */
+        { Site { function: 3, file: 0, line: 52, column: 17, end_line: 52, end_column: 27 } },
+        /* terrane-site-row: site 11: /grouped-catch::main (case.trn:57:9-57:20) */
+        { Site { function: 3, file: 0, line: 57, column: 9, end_line: 57, end_column: 20 } },
+        /* terrane-site-row: site 12: /grouped-catch::main (case.trn:63:9-63:16) */
+        { Site { function: 3, file: 0, line: 63, column: 9, end_line: 63, end_column: 16 } },
+        /* terrane-site-row: site 13: /grouped-catch::main (case.trn:67:9-67:16) */
+        { Site { function: 3, file: 0, line: 67, column: 9, end_line: 67, end_column: 16 } },
+        /* terrane-site-row: site 14: /grouped-catch::main (case.trn:74:13-74:20) */
+        { Site { function: 3, file: 0, line: 74, column: 13, end_line: 74, end_column: 20 } },
+        /* terrane-site-row: site 15: /grouped-catch::main (case.trn:78:13-78:30) */
+        { Site { function: 3, file: 0, line: 78, column: 13, end_line: 78, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]

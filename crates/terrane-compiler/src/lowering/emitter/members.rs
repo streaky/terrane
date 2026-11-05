@@ -905,19 +905,28 @@ impl Emitter<'_> {
         };
         let receiver_type = self.receiver_value_type(receiver);
         if self.text(member) != "type" && self.is_throwable_value(receiver) {
-            let receiver = self.expression(receiver);
-            return match self.text(member) {
+            let (setup, receiver) = if owned_snapshot.is_some() {
+                (String::new(), self.expression(receiver))
+            } else {
+                self.borrowed_receiver_parts(receiver)
+            };
+            let value = match self.text(member) {
                 "descriptor" => format!("({receiver}).descriptor_name().to_owned()"),
                 "message" => format!("({receiver}).message().to_owned()"),
                 "cause" => format!(
                     "({receiver}).detail.as_ref().and_then(|detail| detail.cause.as_deref()).cloned()"
                 ),
                 "render" => format!(
-                    "std::sync::Arc::new({{ let error = ({receiver}).clone(); move || Ok(error.render()) }})"
+                    "std::sync::Arc::new({{ let error = ({receiver}).clone(); move || error.render() }})"
                 ),
                 name => {
                     unreachable!("semantic analysis admitted unknown throwable member `{name}`")
                 }
+            };
+            return if setup.is_empty() {
+                value
+            } else {
+                format!("{{ {setup} {value} }}")
             };
         }
         if matches!(receiver_type, Some(ValueType::DocumentDecodeOutcome(_))) {
@@ -1384,6 +1393,9 @@ impl Emitter<'_> {
             Some(ValueType::DocumentDecodeOutcome(_)) => matches!(name, "value" | "diagnostics"),
             Some(ValueType::DocumentDiagnostic) => true,
             Some(ValueType::Entry(_, _)) => matches!(name, "key" | "value"),
+            Some(ValueType::Object(_)) if self.is_throwable_value(receiver) => {
+                matches!(name, "descriptor" | "message" | "cause" | "render")
+            }
             Some(ValueType::Object(identity)) => {
                 self.value_type(node) == Some(ValueType::Scalar(ScalarType::Int))
                     && !source_field_is_required(self.package, &identity, name)

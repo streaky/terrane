@@ -1025,6 +1025,8 @@ impl Emitter<'_> {
                     || rust_name(self.text(alias)),
                     |binding| self.binding_storage_name(binding).to_owned(),
                 );
+                // Keep the handler's reassignable/function-owned binding independent:
+                // replacement throws must still attach the original envelope as cause.
                 let value = format!("__terrane_error_{index}.clone()");
                 if binding
                     .is_some_and(|binding| self.active_function_bindings.contains(&binding.span))

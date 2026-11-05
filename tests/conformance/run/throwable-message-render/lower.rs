@@ -116,7 +116,7 @@ fn main() {
                             let _ = caught.insert(__terrane_error_1.clone());
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&caught.as_ref()
-                                .expect("flow-proven available binding").clone().message()
+                                .expect("flow-proven available binding").message()
                                 .to_owned())
                             );
                             let _ = shown
@@ -124,7 +124,6 @@ fn main() {
                                     caught
                                         .as_ref()
                                         .expect("flow-proven available binding")
-                                        .clone()
                                         .render(),
                                 );
                             println!(
@@ -179,15 +178,13 @@ fn main() {
                     let _ = caught_2.insert(__terrane_error_0.clone());
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&caught_2.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
+                        .expect("flow-proven available binding").message().to_owned())
                     );
                     let _ = shown
                         .insert(
                             caught_2
                                 .as_ref()
                                 .expect("flow-proven available binding")
-                                .clone()
                                 .render(),
                         );
                     println!(
@@ -283,18 +280,17 @@ fn main() {
                     let _ = caught_4.insert(__terrane_error_2.clone());
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&caught_4.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
+                        .expect("flow-proven available binding").message().to_owned())
                     );
                     println!(
                         "{}{}", terrane_scalar_support::scalar_text(&{ let
                         __terrane_receiver_value_0 = &caught_4.as_ref()
-                        .expect("flow-proven available binding").clone().render(); let
+                        .expect("flow-proven available binding").render(); let
                         __terrane_string_argument_0 = "::split-error: original display";
                         __terrane_receiver_value_0.contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) }),
                         terrane_scalar_support::scalar_text(&caught_4.as_ref()
-                        .expect("flow-proven available binding").clone().detail.as_ref()
+                        .expect("flow-proven available binding").detail.as_ref()
                         .and_then(| detail | detail.cause.as_deref()).cloned().is_none())
                     );
                 }
@@ -389,15 +385,13 @@ fn main() {
                     let _ = outer.insert(__terrane_error_4.clone());
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&outer.as_ref()
-                        .expect("flow-proven available binding").clone().message()
-                        .to_owned())
+                        .expect("flow-proven available binding").message().to_owned())
                     );
                     let _ = cause
                         .insert(
                             outer
                                 .as_ref()
                                 .expect("flow-proven available binding")
-                                .clone()
                                 .detail
                                 .as_ref()
                                 .and_then(|detail| detail.cause.as_deref())
@@ -416,7 +410,6 @@ fn main() {
                                 outer
                                     .as_ref()
                                     .expect("flow-proven available binding")
-                                    .clone()
                                     .render(),
                             );
                         println!(

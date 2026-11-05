@@ -1643,7 +1643,7 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                         return Err(failure(
                             &unit.source,
                             "T0022",
-                            format!("catch clause for `{name}` is unreachable"),
+                            format!("catch descriptor `{name}` is unreachable"),
                             descriptor.span,
                         ));
                     }
