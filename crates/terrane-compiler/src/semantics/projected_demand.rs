@@ -577,6 +577,36 @@ impl<'a> SourceResults<'a> {
         None
     }
 
+    fn parameter_application_owner(
+        &self,
+        caller: &SemanticUnit,
+        argument: &SyntaxNode,
+        formal: &SyntaxNode,
+        generic: &str,
+        imported: &BTreeMap<String, ProjectedOwner>,
+    ) -> Option<ProjectedOwner> {
+        let formal_source = &self.units[*self.unit_indices.get(&formal.span.file)?].source;
+        let application = find_applied_generic(formal, formal_source, generic)?;
+        let formal_head = node_text(formal_source, application.children.first()?);
+        let formal_owner =
+            self.owner_for_name(formal_source, formal_head, imported, self.projection);
+        let matches_head = |name: &str| {
+            if let Some(owner) = &formal_owner {
+                self.owner_for_name(&caller.source, name, imported, self.projection)
+                    .as_ref()
+                    == Some(owner)
+            } else {
+                name == formal_head
+            }
+        };
+        let actual_application =
+            find_actual_application(&caller.source, &caller.tree.root, argument, &matches_head)?;
+        let actual_type =
+            corresponding_actual_generic(formal_source, application, actual_application, generic)?;
+        let actual_name = projected_name(&caller.source, actual_type)?;
+        self.owner_for_name(&caller.source, actual_name, imported, self.projection)
+    }
+
     fn result_owners(
         &self,
         callable: &SourceCallable<'_>,
@@ -637,9 +667,10 @@ impl<'a> SourceResults<'a> {
                 else {
                     continue;
                 };
-                if !has_result_type_name(&callable.unit.source, ty, name) {
+                if !parameter_carries_generic(&callable.unit.source, ty, name) {
                     continue;
                 }
+
                 let Some(parameter_name) = parameter
                     .children
                     .iter()
@@ -653,18 +684,160 @@ impl<'a> SourceResults<'a> {
                     node_text(&callable.unit.source, parameter_name),
                     index,
                 ) {
-                    owners.extend(projected_expression_owners(
-                        source,
-                        argument,
-                        imported,
-                        bindings,
-                        self.projection,
-                        self,
-                    ));
+                    if let Some(owner) =
+                        self.parameter_application_owner(caller, argument, ty, name, imported)
+                    {
+                        owners.insert(owner);
+                    } else if transparent_generic_parameter(&callable.unit.source, ty, name) {
+                        owners.extend(projected_expression_owners(
+                            source,
+                            argument,
+                            imported,
+                            bindings,
+                            self.projection,
+                            self,
+                        ));
+                    }
                 }
             }
         });
         owners
+    }
+}
+fn transparent_generic_parameter(source: &SourceFile, node: &SyntaxNode, generic: &str) -> bool {
+    let mut found = false;
+    for_each_result_type_name(source, node, &mut |name| found |= name == generic);
+    found
+}
+
+fn corresponding_actual_generic<'a>(
+    formal_source: &SourceFile,
+    formal: &SyntaxNode,
+    actual: &'a SyntaxNode,
+    generic: &str,
+) -> Option<&'a SyntaxNode> {
+    if formal.kind == SyntaxKind::Name && node_text(formal_source, formal) == generic {
+        return Some(actual);
+    }
+    formal
+        .children
+        .iter()
+        .zip(&actual.children)
+        .find_map(|(formal, actual)| {
+            corresponding_actual_generic(formal_source, formal, actual, generic)
+        })
+}
+
+fn find_applied_generic<'a>(
+    node: &'a SyntaxNode,
+    source: &SourceFile,
+    generic: &str,
+) -> Option<&'a SyntaxNode> {
+    if node.kind == SyntaxKind::AppliedType
+        && node
+            .children
+            .iter()
+            .skip(1)
+            .any(|argument| parameter_carries_generic(source, argument, generic))
+    {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| find_applied_generic(child, source, generic))
+}
+
+fn find_actual_application<'a>(
+    source: &'a SourceFile,
+    root: &'a SyntaxNode,
+    argument: &'a SyntaxNode,
+    matches_head: &impl Fn(&str) -> bool,
+) -> Option<&'a SyntaxNode> {
+    if matches!(
+        argument.kind,
+        SyntaxKind::Argument | SyntaxKind::GroupExpression | SyntaxKind::UnaryExpression
+    ) && let Some(inner) = argument.children.last()
+    {
+        return find_actual_application(source, root, inner, matches_head);
+    }
+    if argument.kind == SyntaxKind::Name {
+        let name = node_text(source, argument);
+        let mut binding = None;
+        find_preceding_binding(source, root, name, argument.span.start, &mut binding);
+        if let Some(binding) = binding {
+            if let Some(ty) = binding
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::TypeExpression)
+                && let Some(application) = find_matching_application(source, ty, matches_head)
+            {
+                return Some(application);
+            }
+            if let Some(value) = binding.children.last()
+                && let Some(application) = find_matching_application(source, value, matches_head)
+            {
+                return Some(application);
+            }
+        }
+    }
+    find_matching_application(source, argument, matches_head)
+}
+
+fn find_matching_application<'a>(
+    source: &'a SourceFile,
+    node: &'a SyntaxNode,
+    matches_head: &impl Fn(&str) -> bool,
+) -> Option<&'a SyntaxNode> {
+    if node.kind == SyntaxKind::AppliedType {
+        return node
+            .children
+            .first()
+            .and_then(|name| projected_name(source, name))
+            .filter(|name| matches_head(name))
+            .map(|_| node);
+    }
+    if node.kind == SyntaxKind::ArgumentList {
+        return None;
+    }
+    node.children
+        .iter()
+        .find_map(|child| find_matching_application(source, child, matches_head))
+}
+
+fn find_preceding_binding<'a>(
+    source: &SourceFile,
+    node: &'a SyntaxNode,
+    name: &str,
+    before: usize,
+    best: &mut Option<&'a SyntaxNode>,
+) {
+    if (is_function_node(node)
+        || matches!(
+            node.kind,
+            SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TraitDeclaration
+                | SyntaxKind::EnumDeclaration
+        ))
+        && !(node.span.start <= before && before <= node.span.end)
+    {
+        return;
+    }
+    if matches!(
+        node.kind,
+        SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
+    ) && node.span.start < before
+        && node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+            .is_some_and(|candidate| node_text(source, candidate) == name)
+        && best.is_none_or(|candidate| candidate.span.start < node.span.start)
+    {
+        *best = Some(node);
+    }
+    for child in &node.children {
+        find_preceding_binding(source, child, name, before, best);
     }
 }
 
@@ -693,21 +866,18 @@ fn for_each_result_type_name<'a>(
         _ => {}
     }
 }
-
-fn has_result_type_name(source: &SourceFile, node: &SyntaxNode, name: &str) -> bool {
+fn parameter_carries_generic(source: &SourceFile, node: &SyntaxNode, name: &str) -> bool {
     match node.kind {
         SyntaxKind::Name => node_text(source, node) == name,
         SyntaxKind::TypeExpression
         | SyntaxKind::UnionType
         | SyntaxKind::PrefixType
-        | SyntaxKind::GroupExpression => node
+        | SyntaxKind::GroupExpression
+        | SyntaxKind::AppliedType
+        | SyntaxKind::FunctionType => node
             .children
             .iter()
-            .any(|child| has_result_type_name(source, child, name)),
-        SyntaxKind::AppliedType => node
-            .children
-            .first()
-            .is_some_and(|child| has_result_type_name(source, child, name)),
+            .any(|child| parameter_carries_generic(source, child, name)),
         _ => false,
     }
 }

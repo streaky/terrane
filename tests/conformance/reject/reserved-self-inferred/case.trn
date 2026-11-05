@@ -1,0 +1,5 @@
+namespace reserved-self-inferred
+
+function main;
+    self = 1
+    print; self

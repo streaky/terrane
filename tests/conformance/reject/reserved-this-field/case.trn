@@ -1,0 +1,8 @@
+namespace reserved-this-field
+
+class Box
+    this = 1
+
+function main;
+    item = instance Box;
+    print; item

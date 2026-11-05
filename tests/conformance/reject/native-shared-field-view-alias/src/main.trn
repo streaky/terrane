@@ -1,0 +1,15 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+class Wrapped
+    inner Holder
+    function construct; inner Holder
+        this.inner = move inner
+
+function main;
+    w = instance Wrapped; (Holder::new;)
+    s = shared ref w
+    v = s.inner.view;
+    print; (v.size;)

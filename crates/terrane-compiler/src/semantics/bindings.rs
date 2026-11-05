@@ -24,9 +24,8 @@ pub(super) use async_tasks::{
 };
 pub(crate) use callbacks::{callback_contract, projected_macro_for_call};
 pub(in crate::semantics) use callbacks::{
-    native_expression_has_temporary_lender, projected_argument_for_parameter,
-    projected_function_for_call, projected_receiver_chain_role,
-    validate_projected_callback_arguments,
+    projected_argument_for_parameter, projected_function_for_call, projected_receiver_chain_role,
+    validate_native_expression_lender, validate_projected_callback_arguments,
 };
 
 pub(super) fn validate_constant_reassignment(
@@ -599,6 +598,17 @@ pub(super) fn span_key(span: Span) -> (u32, usize, usize) {
 }
 
 pub(super) fn binding_event_child_repeats(node: &SyntaxNode, index: usize) -> bool {
+    if matches!(
+        node.kind,
+        SyntaxKind::WhileStatement | SyntaxKind::ForStatement
+    ) && let Some(body) = node
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::Block)
+        && !super::scope_validation::loop_body_may_repeat(body)
+    {
+        return false;
+    }
     if node.kind == SyntaxKind::ForStatement
         && node
             .children

@@ -2110,6 +2110,8 @@ pub struct SemanticUnit {
     pub(crate) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
     pub(super) projected_removals: Vec<crate::rust_interop::projection::RemovedItem>,
+    pub(super) projected_member_inventory:
+        std::sync::Arc<crate::rust_interop::projection::ProjectedInstanceMembers>,
     pub(super) projected_destination_functions: BTreeSet<String>,
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,

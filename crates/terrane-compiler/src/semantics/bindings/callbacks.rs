@@ -1043,6 +1043,7 @@ fn lender_writes_before<'a>(
 enum LocalNativeLender<'a> {
     Binding(&'a str, Span),
     Temporary(Span),
+    GuardBacked(Span),
 }
 
 impl<'a> LocalNativeLender<'a> {
@@ -1050,29 +1051,42 @@ impl<'a> LocalNativeLender<'a> {
         match self {
             Self::Binding(name, span) => (name, span),
             Self::Temporary(span) => ("temporary value", span),
+            Self::GuardBacked(span) => ("guard-backed field", span),
         }
     }
 }
 
-pub(in crate::semantics) fn native_expression_has_temporary_lender(
+pub(in crate::semantics) fn validate_native_expression_lender(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-) -> bool {
+) -> Result<(), SemanticFailure> {
     let Some(contract) = unit.containing_function(node.span) else {
-        return false;
+        return Ok(());
     };
-    matches!(
-        local_lender_name(
-            package,
-            unit,
-            node,
-            contract,
-            contract.span,
-            &mut BTreeSet::new(),
-        ),
-        Some(LocalNativeLender::Temporary(_))
-    )
+    let lender = local_lender_name(
+        package,
+        unit,
+        node,
+        contract,
+        contract.span,
+        &mut BTreeSet::new(),
+    );
+    let invalid = match lender {
+        Some(LocalNativeLender::Temporary(span)) => Some((
+            span,
+            "cannot establish a local native value's source lifetime: temporary lender must be bound before borrowing",
+        )),
+        Some(LocalNativeLender::GuardBacked(span)) => Some((
+            span,
+            "cannot borrow a lifetime-bearing native result from a guard-backed field: the receiver guard ends with the operand",
+        )),
+        _ => None,
+    };
+    if let Some((span, message)) = invalid {
+        return Err(failure(&unit.source, "T0119", message, span));
+    }
+    Ok(())
 }
 
 fn local_lender_name<'a>(
@@ -1101,6 +1115,14 @@ fn local_lender_name<'a>(
         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
     ) {
         return node.children.first().and_then(|receiver| {
+            if matches!(
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+                    .ok()
+                    .flatten(),
+                Some(ValueType::SharedReference(_))
+            ) {
+                return Some(LocalNativeLender::GuardBacked(node.span));
+            }
             local_lender_name(package, unit, receiver, contract, function_span, visited)
         });
     }

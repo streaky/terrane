@@ -266,6 +266,11 @@ impl Emitter<'_> {
                     self.expression(receiver)
                 )
             }
+            Some(ValueType::Reference(item))
+                if matches!(item.value_type_ref(), ValueType::TypeParameter(_)) =>
+            {
+                self.expression(receiver)
+            }
             Some(ValueType::Reference(_)) => format!("({}).clone()", self.expression(receiver)),
             _ => self.expression(receiver),
         }

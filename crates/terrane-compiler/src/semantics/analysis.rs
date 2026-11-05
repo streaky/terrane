@@ -162,6 +162,7 @@ pub(super) fn parse_unit(
         function_contracts_by_span: BTreeMap::new(),
         descriptor_aliases: BTreeMap::new(),
         projected_removals: Vec::new(),
+        projected_member_inventory: std::sync::Arc::default(),
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
         selected_expression_types: BTreeMap::new(),
@@ -503,8 +504,10 @@ fn augment_units_with_projection_inner(
             }
         }
     }
+    let projected_member_inventory = std::sync::Arc::new(projection.projected_member_inventory());
     for unit in &mut units {
         unit.projected_removals.clone_from(&projection.removed);
+        unit.projected_member_inventory = projected_member_inventory.clone();
         unit.projected_destination_functions
             .clone_from(&destination_functions);
     }

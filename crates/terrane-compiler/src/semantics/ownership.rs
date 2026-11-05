@@ -15,13 +15,22 @@ fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
     node
 }
 
-fn is_nonclone_field(unit: &SemanticUnit, value: &SyntaxNode) -> Result<bool, SemanticFailure> {
+fn requires_noncopyable_projection_access(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<bool, SemanticFailure> {
     let value = ungroup(value);
-    if value.kind != SyntaxKind::MemberExpression {
+    if !matches!(
+        value.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+    ) {
         return Ok(false);
     }
     Ok(
         infer_value_type(unit, value, &unit.typed_bindings)?.is_some_and(|value_type| {
+            if value.kind == SyntaxKind::IndexExpression {
+                return matches!(value_type, ValueType::TypeParameter(_));
+            }
             matches!(value_type, ValueType::MutableReference(_))
                 || (!matches!(
                     value_type,
@@ -32,11 +41,15 @@ fn is_nonclone_field(unit: &SemanticUnit, value: &SyntaxNode) -> Result<bool, Se
 }
 
 fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<(), SemanticFailure> {
-    if is_nonclone_field(unit, value)? {
+    if requires_noncopyable_projection_access(unit, value)? {
         return Err(failure(
             &unit.source,
             "T0135",
-            "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver",
+            if ungroup(value).kind == SyntaxKind::IndexExpression {
+                "indexing cannot copy an unconstrained type parameter; use a concrete typed adapter or a supported borrow"
+            } else {
+                "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver"
+            },
             ungroup(value).span,
         ));
     }
@@ -47,7 +60,7 @@ pub(super) fn validate_async_field_borrow(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    if is_nonclone_field(unit, value)? {
+    if requires_noncopyable_projection_access(unit, value)? {
         validate_async_receiver_field_borrow(unit, value)?;
     }
     Ok(())
@@ -288,6 +301,12 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .is_some_and(|method| method.written_invocation_mode == InvocationMode::Consuming)
     }
 
+    #[derive(Default)]
+    struct LoopMoveExits {
+        breaks: BTreeSet<usize>,
+        continues: Option<BTreeSet<usize>>,
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
@@ -299,6 +318,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         moved: &mut BTreeSet<usize>,
         declaration_name: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
     ) -> Result<(), SemanticFailure> {
         if matches!(
             node.kind,
@@ -426,6 +446,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     &mut nested_moved,
                     false,
                     resource_objects,
+                    loop_exits,
                 )?;
             }
             if node.kind == SyntaxKind::AnonymousFunction {
@@ -462,7 +483,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 ValueType::Task(_, _)
             )
         {
-            visit(package, unit, operand, moved, false, resource_objects)?;
+            visit(
+                package,
+                unit,
+                operand,
+                moved,
+                false,
+                resource_objects,
+                loop_exits,
+            )?;
             moved.insert(binding);
             return Ok(());
         }
@@ -479,7 +508,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             )
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -507,7 +544,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -526,7 +571,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -558,7 +611,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -606,7 +667,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -635,23 +704,24 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 && method_consumes_receiver(package, object_name, node_text(&unit.source, member))
                 && let Some(binding) =
                     binding_at(unit, node_text(&unit.source, grouped), grouped.span.start)
-                && (match &receiver_type {
-                    ValueType::InvocationScopedNative {
-                        family, rust_type, ..
-                    } => !package.native_capabilities.get(rust_type).map_or_else(
-                        || {
-                            package
-                                .projection
-                                .native_type_copyable(&family.namespace, &family.name)
-                        },
-                        |capability| capability.copyable,
-                    ),
+                && match &receiver_type {
+                    ValueType::InvocationScopedNative { .. } => {
+                        !package.native_value_is_copyable(&receiver_type)
+                    }
                     ValueType::Object(_) => resource_binding(package, unit, binding),
                     _ => false,
-                })
+                }
             {
                 for child in &node.children {
-                    visit(package, unit, child, moved, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        moved,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
                 moved.insert(binding);
                 return Ok(());
@@ -754,7 +824,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 })
                 .collect::<Vec<_>>();
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.extend(transferred);
             return Ok(());
@@ -795,7 +873,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         continue;
                     }
                 }
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             if let Some(binding) = transferred {
                 moved.insert(binding);
@@ -855,6 +941,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     &mut try_state,
                     false,
                     resource_objects,
+                    loop_exits,
                 )?;
             }
             let mut branches = Vec::new();
@@ -872,7 +959,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
                     let mut branch = try_state.clone();
-                    visit(package, unit, block, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        block,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                     if super::scope_validation::block_may_fall_through(block) {
                         branches.push(branch);
                     }
@@ -885,7 +980,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .and_then(|clause| clause.children.first())
             {
                 for branch in &mut branches {
-                    visit(package, unit, finally, branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        finally,
+                        branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
                 if !super::scope_validation::block_may_fall_through(finally) {
                     branches.clear();
@@ -907,6 +1010,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 &mut entry,
                 false,
                 resource_objects,
+                loop_exits,
             )?;
             let explicit_move = scrutinee.kind == SyntaxKind::UnaryExpression
                 && unary_operator_text(unit, scrutinee).as_deref() == Some("move");
@@ -946,7 +1050,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .iter()
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
-                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                     if super::scope_validation::block_may_fall_through(body) {
                         branches.push(branch);
                     }
@@ -959,7 +1071,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         if node.kind == SyntaxKind::SwitchStatement {
             let mut entry = moved.clone();
             if let Some(selector) = node.switch_selector() {
-                visit(package, unit, selector, &mut entry, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    selector,
+                    &mut entry,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             let mut branches = Vec::new();
             for case in node.switch_cases() {
@@ -976,6 +1096,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                             &mut entry,
                             false,
                             resource_objects,
+                            loop_exits,
                         )?;
                     }
                 } else if let Some(header) = case
@@ -983,11 +1104,27 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .first()
                     .filter(|header| header.kind != SyntaxKind::MatchCatchAll)
                 {
-                    visit(package, unit, header, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        header,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
                 let mut branch = entry.clone();
                 if let Some(body) = case.children.last() {
-                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                     if super::scope_validation::block_may_fall_through(body) {
                         branches.push(branch);
                     }
@@ -1004,14 +1141,30 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let mut entry = moved.clone();
             for case in &node.children {
                 if let Some(header) = case.children.first() {
-                    visit(package, unit, header, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        header,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
             }
             let mut branches = Vec::with_capacity(node.children.len());
             for case in &node.children {
                 let mut branch = entry.clone();
                 if let Some(body) = case.children.last() {
-                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
                 branches.push(branch);
             }
@@ -1024,7 +1177,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let mut entry = moved.clone();
             for child in &node.children {
                 if !matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
-                    visit(package, unit, child, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
             }
             let mut branches = Vec::new();
@@ -1033,7 +1194,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 if matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
                     has_else |= child.kind == SyntaxKind::ElseClause;
                     let mut branch = entry.clone();
-                    visit(package, unit, child, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                     if super::scope_validation::block_may_fall_through(child) {
                         branches.push(branch);
                     }
@@ -1083,7 +1252,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .collect::<BTreeSet<_>>();
             for child in &node.children {
                 if Some(child) != body {
-                    visit(package, unit, child, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
             }
             if let Some(collection) = collection
@@ -1099,6 +1276,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             if let Some(body) = body {
                 let mut after_iteration = entry.clone();
+                let mut body_exits = LoopMoveExits::default();
                 visit(
                     package,
                     unit,
@@ -1106,21 +1284,31 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     &mut after_iteration,
                     false,
                     resource_objects,
+                    &mut body_exits,
                 )?;
-                // Loop targets are rebound for each iteration; other move state carries across.
-                let mut next_iteration = after_iteration.clone();
-                for binding in loop_bindings {
-                    next_iteration.remove(&binding);
+                let falls_through = super::scope_validation::block_may_fall_through(body);
+                let has_back_edge = falls_through || body_exits.continues.is_some();
+                let mut back_edge = body_exits.continues.take().unwrap_or_default();
+                if falls_through {
+                    back_edge.extend(after_iteration);
                 }
-                visit(
-                    package,
-                    unit,
-                    body,
-                    &mut next_iteration,
-                    false,
-                    resource_objects,
-                )?;
-                entry.extend(after_iteration);
+                if has_back_edge {
+                    let mut next_iteration = back_edge.clone();
+                    for binding in loop_bindings {
+                        next_iteration.remove(&binding);
+                    }
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut next_iteration,
+                        false,
+                        resource_objects,
+                        &mut body_exits,
+                    )?;
+                }
+                entry.extend(back_edge);
+                entry.extend(body_exits.breaks);
             }
             *moved = entry;
             return Ok(());
@@ -1129,7 +1317,28 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if !super::scope_flow::is_flow_value_child(node, index, child) {
                 continue;
             }
-            visit(package, unit, child, moved, false, resource_objects)?;
+            visit(
+                package,
+                unit,
+                child,
+                moved,
+                false,
+                resource_objects,
+                loop_exits,
+            )?;
+            if matches!(node.kind, SyntaxKind::Block | SyntaxKind::ElseClause)
+                && !super::scope_validation::statement_may_fall_through(child)
+            {
+                break;
+            }
+        }
+        match node.kind {
+            SyntaxKind::BreakStatement => loop_exits.breaks.extend(moved.iter().copied()),
+            SyntaxKind::ContinueStatement => loop_exits
+                .continues
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            _ => {}
         }
         Ok(())
     }
@@ -1150,6 +1359,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             &mut BTreeSet::new(),
             false,
             &resource_objects,
+            &mut LoopMoveExits::default(),
         )?;
     }
     Ok(())
@@ -2728,7 +2938,7 @@ fn later_span(left: Option<Span>, right: Option<Span>) -> Option<Span> {
     }
 }
 
-fn last_reference_dependent_use(
+pub(in crate::semantics) fn last_reference_dependent_use(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     observer: &TypedBinding,

@@ -163,9 +163,10 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "342";
+const PROJECTION_SCHEMA: &str = "343";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
+pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -572,6 +573,7 @@ pub struct ProjectedBoundaryCapabilities {
     bytes_constructor: Option<ProjectedEnumPayloadConversion>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     string_extraction: Option<ProjectedEnumPayloadConversion>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     bytes_extraction: Option<ProjectedEnumPayloadConversion>,
 }
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1997,6 +1999,35 @@ impl Projection {
             .filter(|item| item.namespace == namespace && item.name == name);
         let item = matching.next()?;
         matching.next().is_none().then_some(item)
+    }
+    /// Returns canonical admitted instance members, without static operations or declined members.
+    #[must_use]
+    pub(crate) fn projected_member_inventory(&self) -> ProjectedInstanceMembers {
+        let mut members = ProjectedInstanceMembers::new();
+        for item in self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+        {
+            let (methods, fields) = match &item.kind {
+                ProjectedKind::ForeignType {
+                    methods, fields, ..
+                } => (methods, fields.as_slice()),
+                ProjectedKind::Enum { methods, .. } => (methods, &[][..]),
+                _ => continue,
+            };
+            if methods.is_empty() && fields.is_empty() {
+                continue;
+            }
+            let names = members
+                .entry(item.namespace.clone())
+                .or_default()
+                .entry(item.name.clone())
+                .or_default();
+            names.extend(methods.iter().map(|method| method.name.clone()));
+            names.extend(fields.iter().map(|field| field.name.clone()));
+        }
+        members
     }
 
     #[must_use]

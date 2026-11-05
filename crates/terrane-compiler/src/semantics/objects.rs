@@ -2060,26 +2060,6 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
             _ => false,
         }
     }
-    fn effective_method<'a>(
-        unit: &'a SemanticUnit,
-        object_identity: &ObjectIdentity,
-        method_name: &str,
-    ) -> Option<&'a FunctionContract> {
-        unit.functions
-            .iter()
-            .find(|method| {
-                method.owner_identity.as_ref() == Some(object_identity)
-                    && method.name == method_name
-            })
-            .or_else(|| {
-                unit.descriptors
-                    .iter()
-                    .find(|object| object.identity == *object_identity)
-                    .and_then(|object| object.base.as_ref())
-                    .and_then(|base| effective_method(unit, base, method_name))
-            })
-    }
-
     fn receiver_resource_expression(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -2206,18 +2186,14 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                 }
             } else if callee.kind == SyntaxKind::MemberExpression
                 && let [receiver, member] = callee.children.as_slice()
-                && matches!(
-                    infer_value_type(unit, receiver, &unit.typed_bindings),
-                    Ok(Some(ValueType::Object(object_name)))
-                        if effective_method(
-                            unit,
-                            &object_name,
-                            node_text(&unit.source, member)
-                        )
-                        .is_some_and(|method| {
-                            method.written_invocation_mode == InvocationMode::Consuming
-                        })
-                )
+                && let Ok(Some(receiver_type)) =
+                    infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                && super::diagnostics::member_invocation_mode(
+                    package,
+                    unit,
+                    &receiver_type,
+                    node_text(&unit.source, member),
+                ) == InvocationMode::Consuming
                 && receiver_resource_expression(package, unit, contract, receiver)
             {
                 return true;
@@ -3737,16 +3713,9 @@ fn collect_projected_call_result_types(
                         .iter()
                         .any(|lifetime| lifetime != "'static" && lifetime == receiver_lifetime)
                 })
-                && callee.children.first().is_some_and(|receiver| {
-                    super::bindings::native_expression_has_temporary_lender(package, unit, receiver)
-                })
+                && let Some(receiver) = callee.children.first()
             {
-                return Err(failure(
-                    &unit.source,
-                    "T0119",
-                    "cannot establish a local native value's source lifetime: temporary lender must be bound before borrowing",
-                    callee.children[0].span,
-                ));
+                super::bindings::validate_native_expression_lender(package, unit, receiver)?;
             }
             if let Some(ValueType::InvocationScopedNative {
                 region,
@@ -3789,16 +3758,7 @@ fn collect_projected_call_result_types(
                         continue;
                     }
                     matched_lifetimes.extend(matching.iter().cloned());
-                    if super::bindings::native_expression_has_temporary_lender(
-                        package, unit, argument,
-                    ) {
-                        return Err(failure(
-                            &unit.source,
-                            "T0119",
-                            "cannot establish a local native value's source lifetime: temporary lender must be bound before borrowing",
-                            argument.span,
-                        ));
-                    }
+                    super::bindings::validate_native_expression_lender(package, unit, argument)?;
                     if let Some(value_type) = infer_value_type(unit, argument, &unit.typed_bindings)
                         .ok()
                         .flatten()

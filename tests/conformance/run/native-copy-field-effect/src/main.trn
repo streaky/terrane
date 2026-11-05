@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+class WrappedToken
+    t Token = Token::new;
+    function read uint64;
+        return this.t.value;
+
+function main;
+    item = instance WrappedToken;
+    print; (item.read;)
+    print; (item.read;)

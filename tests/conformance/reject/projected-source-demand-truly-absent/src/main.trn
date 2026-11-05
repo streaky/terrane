@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+function main;
+    value Token = Token::new;
+    value.not_a_member;

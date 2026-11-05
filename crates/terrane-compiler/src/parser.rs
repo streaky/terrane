@@ -2171,11 +2171,18 @@ impl Parser<'_> {
                 self.peek_kind(offset + 1),
                 Some(TokenKind::Assign | TokenKind::Newline)
             );
+        let bare_reserved = self
+            .peek_text(offset)
+            .is_some_and(is_reserved_declaration_name)
+            && self.peek_kind(offset + 1) == Some(TokenKind::Assign)
+            && (self.peek_text(offset) != Some("this")
+                || self.block_depth <= self.class_body_depth);
         self.peek_kind(offset) == Some(TokenKind::Identifier)
             && (self.peek_text(offset) != Some("instance")
                 || self.binding_initializer_before_call_marker(offset + 1))
             && !matches!(self.peek_text(offset + 1), Some("in" | "is" | "and" | "or"))
             && (bare_discard
+                || bare_reserved
                 || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
                 || (self.peek_kind(offset + 1) == Some(TokenKind::OpenParen)
                     && self.grouped_binding_type_has_declaration_boundary(

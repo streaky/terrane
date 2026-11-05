@@ -1,0 +1,19 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+interface Maker
+    function make Holder;
+
+class Producer implements Maker
+    function make Holder;
+        return Holder::new;
+
+function inspect of (M implements Maker); maker ref M
+    value Holder = maker.make;
+    print; (value.label_len;)
+
+function main;
+    maker = instance Producer;
+    inspect; maker

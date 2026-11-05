@@ -1526,7 +1526,7 @@ fn validate_mutable_reference_argument(
     ))
 }
 
-fn call_reference_origin(
+pub(super) fn call_reference_origin(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
@@ -1552,6 +1552,14 @@ fn call_reference_origin(
             Some((owner, path))
         }
         SyntaxKind::UnaryExpression => call_reference_origin(package, unit, value.children.last()?),
+        SyntaxKind::CallExpression => super::ownership::expression_provenance(
+            package,
+            unit,
+            value,
+            &unit.reference_provenance,
+            &unit.reference_return_lenders,
+        )
+        .map(|origin| (origin.owner, origin.path)),
         SyntaxKind::Name => {
             let declaration = package
                 .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))?
@@ -1579,7 +1587,10 @@ fn call_reference_origin(
     }
 }
 
-fn reference_paths_overlap(left: &[ReferenceProjection], right: &[ReferenceProjection]) -> bool {
+pub(super) fn reference_paths_overlap(
+    left: &[ReferenceProjection],
+    right: &[ReferenceProjection],
+) -> bool {
     for (left, right) in left.iter().zip(right) {
         match (left, right) {
             (ReferenceProjection::Field(left), ReferenceProjection::Field(right))

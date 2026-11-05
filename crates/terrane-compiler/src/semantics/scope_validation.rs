@@ -536,6 +536,34 @@ pub(super) fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
     }
 }
 
+pub(super) fn loop_body_may_repeat(body: &SyntaxNode) -> bool {
+    fn continues(node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::ContinueStatement {
+            return true;
+        }
+        if is_function_node(node)
+            || matches!(
+                node.kind,
+                SyntaxKind::WhileStatement | SyntaxKind::ForStatement
+            )
+        {
+            return false;
+        }
+        for child in &node.children {
+            if continues(child) {
+                return true;
+            }
+            if matches!(node.kind, SyntaxKind::Block | SyntaxKind::ElseClause)
+                && !statement_may_fall_through(child)
+            {
+                break;
+            }
+        }
+        false
+    }
+    block_may_fall_through(body) || continues(body)
+}
+
 pub(super) fn validate_flow_block(
     package: &SemanticPackage,
     unit: &SemanticUnit,

@@ -507,7 +507,11 @@ pub(crate) fn member_invocation_mode(
                         .is_some_and(crate::rust_interop::projection::Receiver::consumes)
                 })
         {
-            return InvocationMode::Consuming;
+            return if package.native_value_is_copyable(receiver_type) {
+                InvocationMode::Shared
+            } else {
+                InvocationMode::Consuming
+            };
         }
         if object_method_mutates(package, identity, member_name) {
             return InvocationMode::Mutable;
