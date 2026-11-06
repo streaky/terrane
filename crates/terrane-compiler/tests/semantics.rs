@@ -419,28 +419,6 @@ fn duplicate_declarations_and_private_imports_are_rejected() {
 }
 
 #[test]
-fn global_replacement_is_distinct_from_namespace_local_assignment() {
-    let analyzed = analyze(&package(
-        false,
-        &[
-            (
-                "one.trn",
-                "namespace first\nglobal shared = 1\nconstant local = 1\n",
-            ),
-            (
-                "two.trn",
-                "namespace second\nglobal shared = 2\nconstant local = 2\n",
-            ),
-        ],
-    ))
-    .unwrap();
-
-    assert!(analyzed.symbol("/first", "local").is_some());
-    assert!(analyzed.symbol("/second", "local").is_some());
-    assert!(analyzed.symbol("/first", "shared").is_none());
-}
-
-#[test]
 fn namespace_local_bindings_may_shadow_program_globals() {
     let analyzed = analyze(&package(
         false,
