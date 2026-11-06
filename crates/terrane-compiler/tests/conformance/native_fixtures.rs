@@ -256,7 +256,7 @@ mod tests {
             fs::write(
                 workspace.join("Cargo.toml"),
                 format!(
-                    "[package]\nname='{name}'\nversion='0.1.0'\nedition='2021'\n\n[dependencies]\nexample='0.1.0'\n"
+                    "[package]\nname='{name}'\nversion='0.1.0'\nedition='2021'\n\n[workspace]\n\n[dependencies]\nexample='0.1.0'\n"
                 ),
             )
             .unwrap();
@@ -304,7 +304,7 @@ mod tests {
         fs::write(workspace.join("src/main.rs"), "fn main() {}").unwrap();
         fs::write(
             workspace.join("Cargo.toml"),
-            "[package]\nname='consumer'\nversion='0.1.0'\n[dependencies]\nsame='0.1.0'\n",
+            "[package]\nname='consumer'\nversion='0.1.0'\n[workspace]\n[dependencies]\nsame='0.1.0'\n",
         )
         .unwrap();
         for (case, source) in [("one", "pub fn first() {}"), ("two", "pub fn second() {}")] {
