@@ -1,4 +1,4 @@
 phase = "run"
 status = "accept"
-entrypoint = "case.trn"
-canonical-rust = true
+suite = "value-protocols"
+test = "/string-display-boundaries::test-boundaries"
