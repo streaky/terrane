@@ -2532,6 +2532,184 @@ fn test_scenario_terrane_return_tail_block_strings() -> Result<(), TerraneError>
     println!("{}", terrane_scalar_support::scalar_text(&render_lines()));
     Ok(())
 }
+// Source: tests/integration/static-call-throw-inference/case.trn
+// Namespace: static-call-throw-inference
+fn make(
+    value: terrane_int_support::Int,
+) -> Result<terrane_int_support::Int, TerraneError> {
+    let d: Duration;
+    d = __terrane_traced_err(
+        Duration::terrane_static_seconds(value.clone()),
+
+            23 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:5:9-5:33 */,
+    )?;
+    return Ok(d.total_nanoseconds.clone());
+}
+#[derive(Clone)]
+pub struct Maker {}
+impl Maker {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+    pub fn terrane_static_build(
+        value: terrane_int_support::Int,
+    ) -> Result<terrane_int_support::Int, TerraneError> {
+        let d: Duration;
+        d = __terrane_traced_err(
+            Duration::terrane_static_seconds(value.clone()),
+
+                24 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:10:13-10:37 */,
+        )?;
+        return Ok(d.total_nanoseconds.clone());
+    }
+    pub fn terrane_static_accept(
+        value: terrane_int_support::Int,
+    ) -> terrane_int_support::Int {
+        return value.clone();
+    }
+}
+fn argument() -> Result<terrane_int_support::Int, TerraneError> {
+    return Ok(
+        __terrane_traced_err(
+            make(terrane_int_support::Int::from(-1_i128)),
+
+                25 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:17:12-17:20 */,
+        )?,
+    );
+}
+fn forward_argument() -> Result<terrane_int_support::Int, TerraneError> {
+    return Ok(
+        Maker::terrane_static_accept(
+            __terrane_traced_err(
+                argument(),
+
+                    26 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:20:28-20:37 */,
+            )?,
+        ),
+    );
+}
+fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneError> {
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(make(terrane_int_support::Int::from(-
+                1_i128)), 27 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:24:17-24:25 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind
+                        == TerraneErrorKind::Custom(DescriptorId(0))
+                {
+                    __terrane_handled_0 = true;
+                    println!("{}", String::from("caught-free"));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    let __terrane_completion_1: TerraneCompletion<()> = (|| {
+        let __terrane_try_1: TerraneCompletion<()> = (|| {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(Maker::terrane_static_build(terrane_int_support::Int::from(-
+                1_i128)), 28 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:28:17-28:33 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_1 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_1) => {
+                let mut __terrane_handled_1 = false;
+                if !__terrane_handled_1
+                    && __terrane_error_1.kind
+                        == TerraneErrorKind::Custom(DescriptorId(0))
+                {
+                    __terrane_handled_1 = true;
+                    println!("{}", String::from("caught-static"));
+                }
+                if !__terrane_handled_1 {
+                    return TerraneCompletion::Error(__terrane_error_1);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_1 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    let __terrane_completion_2: TerraneCompletion<()> = (|| {
+        let __terrane_try_2: TerraneCompletion<()> = (|| {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(forward_argument(),
+                29 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:32:17-32:34 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_2 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_2) => {
+                let mut __terrane_handled_2 = false;
+                if !__terrane_handled_2
+                    && __terrane_error_2.kind
+                        == TerraneErrorKind::Custom(DescriptorId(0))
+                {
+                    __terrane_handled_2 = true;
+                    println!("{}", String::from("caught-argument"));
+                }
+                if !__terrane_handled_2 {
+                    return TerraneCompletion::Error(__terrane_error_2);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_2 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(Maker::terrane_static_build(terrane_int_support::Int::from(2_i128)),
+        30 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:35:13-35:28 */) ?)
+    );
+    Ok(())
+}
 // Source: tests/integration/switch-boundaries/case.trn
 // Namespace: switch-boundaries
 #[derive(Clone)]
@@ -2701,127 +2879,6 @@ fn test_scenario_terrane_switch_boundaries() {
     );
     resource_case(true);
 }
-// Source: tests/integration/switch-statements/case.trn
-// Namespace: switch-statements
-fn choose() -> terrane_int_support::Int {
-    {
-        let value = __TERRANE_GLOBAL_CALLS
-            .lock()
-            .expect("program-global lock poisoned")
-            .clone()
-            .unwrap_or_else(|| __terrane_uninitialized_binding(
-                "calls",
-                "case.trn",
-                6,
-                20,
-            ))
-            .clone() + terrane_int_support::Int::from(1_i128);
-        *__TERRANE_GLOBAL_CALLS.lock().expect("program-global lock poisoned") = Some(
-            value,
-        );
-    }
-    println!("{}", String::from("selector"));
-    return terrane_int_support::Int::from(2_i128);
-}
-fn candidate(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
-        String::with_capacity(10); __terrane_text.push_str("candidate:");
-        terrane_scalar_support::ScalarDisplay::write_scalar(&value, &mut __terrane_text);
-        __terrane_text })
-    );
-    return value.clone();
-}
-fn condition(value: bool, name: String) -> bool {
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
-        String::with_capacity(10); __terrane_text.push_str("condition:");
-        terrane_scalar_support::ScalarDisplay::write_scalar(&name, &mut __terrane_text);
-        __terrane_text })
-    );
-    return value;
-}
-fn describe(value: terrane_int_support::Int) -> String {
-    if value == terrane_int_support::Int::from(0_i128) {
-        return String::from("empty");
-    } else if value < terrane_int_support::Int::from(10_i128) {
-        return String::from("small");
-    } else {
-        return String::from("large");
-    }
-}
-fn narrow(value: Option<String>) -> String {
-    if (&value).is_some() {
-        return match value {
-            Some(value) => value,
-            _ => unreachable!("flow-proven storage refinement"),
-        };
-    } else {
-        return String::from("absent");
-    }
-}
-fn test_scenario_terrane_switch_statements() {
-    let mut joined: Option<String> = None;
-    let __terrane_switch_value_694 = &choose();
-    if __terrane_switch_value_694 == &candidate(terrane_int_support::Int::from(1_i128)) {
-        println!("{}", String::from("wrong"));
-    } else if __terrane_switch_value_694
-        == &candidate(terrane_int_support::Int::from(2_i128))
-        || __terrane_switch_value_694
-            == &candidate(terrane_int_support::Int::from(3_i128))
-    {
-        println!("{}", String::from("selected"));
-    } else {
-        println!("{}", String::from("wrong-default"));
-    }
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
-        String::with_capacity(10); __terrane_text.push_str("selectors:");
-        terrane_scalar_support::ScalarDisplay::write_scalar(&__TERRANE_GLOBAL_CALLS
-        .lock().expect("program-global lock poisoned").clone().unwrap_or_else(| |
-        __terrane_uninitialized_binding("calls", "case.trn", 42, 27)), &mut
-        __terrane_text); __terrane_text })
-    );
-    if condition(false, String::from("first")) {
-        println!("{}", String::from("wrong-first"));
-    } else if condition(true, String::from("second")) {
-        println!("{}", String::from("predicate"));
-    } else if condition(true, String::from("skipped")) {
-        println!("{}", String::from("wrong-late"));
-    } else {
-        println!("{}", String::from("wrong-default"));
-    }
-    let __terrane_switch_value_1213 = &4;
-    if __terrane_switch_value_1213 == &1 {
-        println!("{}", String::from("wrong"));
-    }
-    let __terrane_switch_value_1268 = &String::from("b");
-    if __terrane_switch_value_1268.as_str() == "a" {
-        println!("{}", String::from("wrong"));
-    } else if __terrane_switch_value_1268.as_str() == "b"
-        || __terrane_switch_value_1268.as_str() == "c"
-    {
-        let _ = joined.insert(String::from("joined"));
-    } else {
-        let _ = joined.insert(String::from("default"));
-    }
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&joined.as_ref().unwrap_or_else(| |
-        __terrane_uninitialized_binding("joined", "case.trn", 62, 12)))
-    );
-    println!(
-        "{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&describe(terrane_int_support::Int::from(3_i128))),
-        String::from("|"),
-        terrane_scalar_support::scalar_text(&describe(terrane_int_support::Int::from(0_i128))),
-        String::from("|"),
-        terrane_scalar_support::scalar_text(&describe(terrane_int_support::Int::from(20_i128)))
-    );
-    println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&narrow(None)), String::from("|"),
-        terrane_scalar_support::scalar_text(&narrow(Some(String::from("present"))))
-    );
-}
 // Source: <compiler-generated test registry>
 // Namespace: core/testing/runner
 fn __terrane_test_hex(value: &str) -> String {
@@ -2960,10 +3017,17 @@ fn main() {
             }
         }
         "30" => {
-            test_scenario_terrane_switch_boundaries();
+            if let Err(error) = test_scenario_terrane_static_call_throw_inference() {
+                let skipped = error.descriptor_name() == "/core/testing::test-skip";
+                __terrane_test_record(
+                    if skipped { "skipped" } else { "failed" },
+                    &error,
+                );
+                std::process::exit(if skipped { 102 } else { 101 });
+            }
         }
         "31" => {
-            test_scenario_terrane_switch_statements();
+            test_scenario_terrane_switch_boundaries();
         }
         _ => {
             eprintln!("unknown Terrane test case");

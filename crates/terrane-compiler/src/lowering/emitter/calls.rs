@@ -1,4 +1,5 @@
 use super::super::prelude::*;
+use super::members::GuardScope;
 use super::native_arguments::{NativeArgumentContext, NativeArgumentLifetime};
 
 pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'static str {
@@ -2969,6 +2970,16 @@ impl Emitter<'_> {
                 function_name(self.package, contract)
             };
             format!("({receiver}).{method_name}")
+        } else if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && matches!(self.value_type(receiver), Some(ValueType::TypeParameter(_)))
+            && let Some(ValueType::Function(_, _, effects)) = self.value_type(callee)
+            && effects.modes.written == InvocationMode::Shared
+        {
+            let (setup, reference) =
+                self.receiver_place_parts(receiver, false, GuardScope::Expression);
+            shared_argument_setup.push_str(&setup);
+            format!("({reference}).{}", rust_name(self.text(member)))
         } else {
             self.expression(callee)
         };

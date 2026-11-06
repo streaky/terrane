@@ -1,4 +1,5 @@
 phase = "run"
 status = "accept"
-suite = "value-protocols"
+suite = "unsafe-protocols"
 test = "/string-display-boundaries::test-boundaries"
+unsafe = true

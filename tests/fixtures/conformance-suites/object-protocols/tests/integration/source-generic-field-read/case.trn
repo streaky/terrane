@@ -1,0 +1,10 @@
+namespace source-generic-field-read
+class Box of (T)
+  value T
+  function construct; value T
+    this.value = move value
+  consuming function read T;
+    return move this.value
+function test-scenario;
+  box = instance Box of string; 'hello'
+  print; (box.read;)

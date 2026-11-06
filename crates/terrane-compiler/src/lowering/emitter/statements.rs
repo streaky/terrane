@@ -440,6 +440,13 @@ impl Emitter<'_> {
                 "*{}.lock().expect(\"reference lock poisoned\")",
                 self.local_storage_name(left)
             )
+        } else if left.kind == SyntaxKind::Name && self.text(left) == "this" {
+            let receiver = if self.shared_async_receiver {
+                self.receiver_guard_expression(left)
+            } else {
+                self.raw_storage_name(left)
+            };
+            format!("*({receiver})")
         } else {
             self.expression(left)
         };
@@ -1155,7 +1162,9 @@ impl Emitter<'_> {
             } else {
                 self.line("TerraneCompletion::Break => break,");
             }
-            if let Some(label) = &self.continue_label {
+            if !crate::semantics::statement_may_continue(node) {
+                self.line("TerraneCompletion::Continue => __terrane_generated_defect(\"non-continuing try produced continue\"),");
+            } else if let Some(label) = &self.continue_label {
                 self.line(&format!("TerraneCompletion::Continue => break '{label},"));
             } else {
                 self.line("TerraneCompletion::Continue => continue,");

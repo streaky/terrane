@@ -11,6 +11,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, mpsc};
 #[path = "conformance/native_fixtures.rs"]
 mod native_fixtures;
+#[path = "conformance/shared_suites.rs"]
+mod shared_suites;
 
 const MAX_CONFORMANCE_JOBS: usize = 8;
 static TIMING_WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -801,196 +803,11 @@ fn assert_diagnostic_location(
     }
 }
 
-fn shared_suite_groups(manifests: &[PathBuf]) -> BTreeMap<String, Vec<PathBuf>> {
-    let mut suites = BTreeMap::<String, Vec<PathBuf>>::new();
-    for manifest_path in manifests {
-        let manifest = fs::read_to_string(manifest_path).unwrap();
-        if let Some(suite) = field(&manifest, "suite") {
-            suites
-                .entry(suite.to_owned())
-                .or_default()
-                .push(manifest_path.clone());
-        }
-    }
-    suites
-}
-
-fn prepare_shared_case(manifest_path: &Path, build_root: &Path) -> CaseTiming {
-    let manifest = fs::read_to_string(manifest_path).unwrap();
-    assert_eq!(
-        field(&manifest, "phase"),
-        Some("run"),
-        "shared suites only support run cases: {}",
-        manifest_path.display()
-    );
-    assert_eq!(
-        field(&manifest, "status"),
-        Some("accept"),
-        "shared suites only support accepted cases: {}",
-        manifest_path.display()
-    );
-    for option in [
-        "entrypoint",
-        "canonical-rust",
-        "lint-unused-functions",
-        "native-test",
-        "warnings",
-        "list-preallocation-limit-bytes",
-        "projection-history",
-        "native-tools",
-        "dependency-panic-test",
-    ] {
-        assert!(
-            field(&manifest, option).is_none()
-                && boolean_field(&manifest, option).is_none()
-                && usize_field(&manifest, option).is_none(),
-            "shared suite case option `{option}` is unsupported: {}",
-            manifest_path.display()
-        );
-    }
-    let mut timing = CaseTiming::new(manifest_path.parent().unwrap(), build_root);
-    timing.defer();
-    timing
-}
-
-fn compile_shared_suite(
-    suite: &str,
-    suite_root: &Path,
-    selected: &[PathBuf],
-) -> terrane_compiler::testing::TestTierCompilation {
-    let package =
-        terrane_compiler::testing::TestPackage::load(suite_root).unwrap_or_else(|errors| {
-            panic!(
-                "cannot load shared suite {}: {errors:?}",
-                suite_root.display()
-            )
-        });
-    let options = terrane_compiler::CompilerOptions {
-        require_canonical_rust: true,
-        lint_name_style: false,
-        lint_unused_functions: false,
-        debug_build: terrane_compiler::DebugBuild::Disabled,
-    };
-    let mut tiers = terrane_compiler::compile_test_package(&package, options)
-        .unwrap_or_else(|failure| {
-            let cases = selected.iter().map(|path| path.display().to_string())
-                .collect::<Vec<_>>().join("\n");
-            // Shared compilation failed; deferred cases have not executed.
-            panic!("shared suite `{suite}` compilation failed: {failure:?}\nselected cases not executed:\n{cases}");
-        });
-    assert_eq!(
-        tiers.len(),
-        1,
-        "shared suite `{suite}` must have one test tier"
-    );
-    let tier = tiers.remove(0);
-    assert_expected_warnings(suite_root, "", &tier.compilation);
-    tier
-}
-
-fn run_shared_suites(manifests: &[PathBuf], build: &ConformanceBuild) {
-    let suites = shared_suite_groups(manifests)
-        .into_iter()
-        .collect::<Vec<_>>();
-    let prepared = parallel_map_indexed(
-        &suites,
-        conformance_jobs(suites.len()),
-        |_, (suite, case_manifests)| {
-            let suite_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../tests/fixtures/conformance-suites")
-                .join(suite);
-            let case_timings = case_manifests
-                .iter()
-                .map(|path| prepare_shared_case(path, &build.root))
-                .collect::<Vec<_>>();
-            let suite_timing = CaseTiming::named(&format!("shared-suite/{suite}/compile"));
-            let tier = compile_shared_suite(suite, &suite_root, case_manifests);
-            (suite_root, case_timings, suite_timing, tier)
-        },
-    );
-    for ((suite, case_manifests), (suite_root, mut case_timings, mut suite_timing, tier)) in
-        suites.into_iter().zip(prepared)
-    {
-        let mut selected = Vec::new();
-        for manifest_path in &case_manifests {
-            let manifest = fs::read_to_string(manifest_path).unwrap();
-            let identity = field(&manifest, "test")
-                .unwrap_or_else(|| panic!("suite case lacks `test`: {}", manifest_path.display()));
-            let test = tier
-                .cases
-                .iter()
-                .find(|test| test.identity == identity)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "suite `{suite}` has no test `{identity}` selected by {}",
-                        manifest_path.display()
-                    )
-                });
-            selected.push((
-                manifest_path.clone(),
-                test.selector,
-                test.identity.clone(),
-                test.tier.name().to_owned(),
-            ));
-        }
-        let rust_files = tier
-            .compilation
-            .rust_files_for(Path::new("lower.rs"))
-            .unwrap();
-        persist_lowering_artifacts(&suite_root, &rust_files);
-        let binary_name = format!("terrane_conformance_suite_{suite}");
-        stage_generated_binary(
-            &binary_name,
-            &suite_root,
-            "",
-            &rust_files,
-            tier.compilation.requires_unsafe_code,
-            build,
-        );
-        let output = build_generated_binaries(
-            &[&binary_name],
-            &tier.compilation.rust_dependencies,
-            tier.compilation.requires_unsafe_code,
-            build,
-        );
-        if !output.status.success() {
-            suite_timing.fail();
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let cases = selected
-                .iter()
-                .map(|(path, _, identity, _)| format!("{} selects {identity}", path.display()))
-                .collect::<Vec<_>>()
-                .join("\n");
-            panic!(
-                "shared suite `{suite}` generated Rust failed to compile; selected cases not executed:\n{cases}\n{stderr}"
-            );
-        }
-        suite_timing.pass();
-        for (index, (manifest_path, selector, identity, tier_name)) in
-            selected.into_iter().enumerate()
-        {
-            let case = manifest_path.parent().unwrap();
-            let manifest = fs::read_to_string(&manifest_path).unwrap();
-            case_timings[index].begin_pending_work();
-            run_case_with_selector(
-                &binary_path(&binary_name, build),
-                &build.root,
-                case,
-                &manifest,
-                Some(selector),
-                Some(&identity),
-                Some(&tier_name),
-            );
-            case_timings[index].pass();
-        }
-    }
-}
-
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = selected_manifests();
     let build = ConformanceBuild::new();
-    run_shared_suites(&manifests, &build);
+    shared_suites::run(&manifests, &build);
     let individual_manifests = manifests
         .into_iter()
         .filter(|manifest_path| {
@@ -1791,7 +1608,11 @@ fn assert_fixture_manifests(root: &Path) {
         .split('\0')
         .filter(|path| !path.is_empty())
         .map(PathBuf::from)
-        .filter(|path| root.join(path).is_file())
+        .filter(|path| {
+            root.join(path)
+                .symlink_metadata()
+                .is_ok_and(|metadata| metadata.is_file() || metadata.file_type().is_symlink())
+        })
         .collect::<Vec<_>>();
     let missing = missing_fixture_manifests(&files);
     assert!(
@@ -1917,6 +1738,30 @@ fn fixture_inventory_rejects_untracked_root_locks_only() {
             .unwrap()
             .success()
     );
+    assert_fixture_manifests(&root);
+}
+
+#[cfg(unix)]
+#[test]
+fn fixture_inventory_rejects_dangling_links_without_manifests() {
+    let build = ConformanceBuild::new();
+    let root = build.root.join("symlink-inventory");
+    let registry = root.join("run/orphan/fixture-registry");
+    fs::create_dir_all(&registry).unwrap();
+    assert!(
+        Command::new("git")
+            .current_dir(&root)
+            .args(["init", "-q"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    std::os::unix::fs::symlink("missing-witness", registry.join("witness")).unwrap();
+    let error = std::panic::catch_unwind(|| assert_fixture_manifests(&root))
+        .expect_err("dangling link must participate in fixture inventory");
+    let message = error.downcast_ref::<String>().unwrap();
+    assert!(message.contains("run/orphan"), "{message}");
+    fs::write(root.join("run/orphan/case.toml"), "phase = \"run\"\n").unwrap();
     assert_fixture_manifests(&root);
 }
 

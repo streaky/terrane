@@ -50,6 +50,9 @@ impl Holder {
     pub fn special_view(&self) -> Spec<'_> {
         Spec(&self.label)
     }
+    pub fn label(&self) -> &str {
+        &self.label
+    }
     pub fn label_len(&self) -> usize {
         self.label.len()
     }

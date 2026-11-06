@@ -144,5 +144,6 @@ pub(crate) use objects::{
     destination_projected_type, effective_object_fields, effective_object_interfaces,
     projected_owned_field_type,
 };
+pub(crate) use scope_validation::statement_may_continue;
 pub(crate) use types::reference_target_types_equal;
 pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

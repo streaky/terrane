@@ -1,4 +1,7 @@
 
+pub(crate) static TERRANE_TEST_TIME_NANOS: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
 #[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
 fn terrane_time_domain() -> terrane_int_support::Int {
     terrane_int_support::Int::from(2_i128)

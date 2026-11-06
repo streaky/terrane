@@ -1,12 +1,15 @@
 use super::modifiers::ModifierOperation;
 use super::prelude::*;
 
+#[path = "scoped_regions/liveness.rs"]
+mod liveness;
+
 type NativeLenderPlace = (Span, Vec<ReferenceProjection>);
 
 #[derive(Clone, Copy)]
 struct NativePlaceLoan<'a> {
     places: &'a [NativeLenderPlace],
-    end: usize,
+    live_after: Option<&'a BTreeSet<Span>>,
 }
 
 /// Validates the lexical and storage contract for compiler-resolved scoped-access regions.
@@ -180,6 +183,7 @@ fn validate_function_native_lenders(
             .iter()
             .find_map(|child| find_function(child, function))
     }
+    let mut flows = BTreeMap::new();
     for binding in &unit.typed_bindings {
         let ValueType::InvocationScopedNative {
             concrete: true,
@@ -237,14 +241,10 @@ fn validate_function_native_lenders(
             start: initializer.span.end,
             ..function_span
         };
-        let place_end = super::ownership::last_reference_dependent_use(
-            package,
-            unit,
-            binding,
-            &unit.reference_provenance,
-            &mut BTreeSet::new(),
-        )
-        .map_or(initializer.span.end, |last| last.end);
+        let live_after = flows
+            .entry(function_span)
+            .or_insert_with(|| liveness::Flow::new(package, unit, function))
+            .live_origins(binding.span);
         validate_lender_stability(
             package,
             unit,
@@ -254,7 +254,7 @@ fn validate_function_native_lenders(
             &lenders,
             NativePlaceLoan {
                 places: &places,
-                end: place_end,
+                live_after: Some(&live_after),
             },
         )?;
         // Escape traversal expands the set with dependent locals. Those are
@@ -417,7 +417,7 @@ fn validate_region(
         &owner_lenders,
         NativePlaceLoan {
             places: &places,
-            end: region.span.end,
+            live_after: None,
         },
     )?;
     validate_local_lender_destinations(unit, region.span, body, &lenders)?;
@@ -702,26 +702,35 @@ fn validate_lender_stability(
     if node.span.end <= region.start || node.span.start >= region.end {
         return Ok(());
     }
-    let active_places = if node.span.start < loan.end {
-        loan.places
-    } else {
-        &[]
-    };
+    let live = loan
+        .live_after
+        .is_none_or(|live_after| live_after.contains(&node.span));
+    let active_places = if live { loan.places } else { &[] };
+    let active_owners = if live { owners } else { &[] };
+    let active_guard = if live { guard } else { None };
     let owner_transfer = matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
         && node.children.last().is_some_and(|value| {
-            direct_name_identity(unit, value)
-                .is_some_and(|identity| Some(identity) == guard || owners.contains(&identity))
+            direct_name_identity(unit, value).is_some_and(|identity| {
+                Some(identity) == active_guard || active_owners.contains(&identity)
+            })
         });
     let destructive_move = owner_transfer
         || (node.kind == SyntaxKind::UnaryExpression
             && unary_operator_text(unit, node).as_deref() == Some("move")
             && node.children.last().is_some_and(|operand| {
-                directly_uses_owner(unit, operand, owners)
+                directly_uses_owner(unit, operand, active_owners)
                     || direct_name_identity(unit, operand)
-                        .is_some_and(|identity| Some(identity) == guard)
+                        .is_some_and(|identity| Some(identity) == active_guard)
                     || place_conflicts_with_lender(package, unit, operand, active_places)
             }))
-        || call_uses_lender_incompatibly(package, unit, node, guard, owners, active_places);
+        || call_uses_lender_incompatibly(
+            package,
+            unit,
+            node,
+            active_guard,
+            active_owners,
+            active_places,
+        );
     let owner_replacement = node.kind == SyntaxKind::Assignment
         && node.children.first().is_some_and(|target| {
             target.kind == SyntaxKind::Name
@@ -734,7 +743,7 @@ fn validate_lender_stability(
             .children
             .first()
             .and_then(|target| binding_identity_at(unit, target))
-            .is_some_and(|span| Some(span) == guard || owners.contains(&span));
+            .is_some_and(|span| Some(span) == active_guard || active_owners.contains(&span));
     let place_replacement = node.kind == SyntaxKind::Assignment
         && node.children.first().is_some_and(|target| {
             matches!(

@@ -1,4 +1,3 @@
 phase = "run"
 status = "accept"
-suite = "control-flow"
-test = "/switch-statements::test-scenario"
+canonical-rust = true

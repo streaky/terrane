@@ -3132,9 +3132,87 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
         // A loop-carried RHS may discover an earlier inferred declaration.
         // Declaration identities are source-owned; their finite reaching-type
         // alternatives grow through the same joins as the loop fixed point.
+        link_program_global_types(package);
         super::scope_flow::validate_definite_assignment(package)?;
         first_pass = false;
     }
+}
+
+fn link_program_global_types(package: &mut SemanticPackage) -> bool {
+    if package.globals.is_empty() {
+        return false;
+    }
+    let declarations = package
+        .globals
+        .values()
+        .filter_map(|symbol| {
+            let span = symbol.declaration_span?;
+            let declaration_unit = package
+                .units
+                .iter()
+                .find(|unit| unit.source.id() == span.file)?;
+            let value_type = declaration_unit
+                .typed_bindings
+                .iter()
+                .find(|binding| {
+                    binding.name == symbol.name
+                        && span.start <= binding.span.start
+                        && binding.span.end <= span.end
+                })?
+                .value_type
+                .clone();
+            Some((symbol.name.clone(), value_type))
+        })
+        .collect::<Vec<_>>();
+    let mut additions = Vec::new();
+    for unit in &package.units {
+        fn visit(
+            package: &SemanticPackage,
+            unit: &SemanticUnit,
+            node: &SyntaxNode,
+            declarations: &[(String, ValueType)],
+            additions: &mut Vec<((u32, usize, usize), ValueType)>,
+        ) {
+            if node.kind == SyntaxKind::Name {
+                let name = node_text(&unit.source, node);
+                if package
+                    .resolve_name_at(unit, node.span.start, name)
+                    .is_some_and(|symbol| symbol.global)
+                    && let Some((_, value_type)) =
+                        declarations.iter().find(|(global, _)| global == name)
+                {
+                    additions.push((
+                        (node.span.file, node.span.start, node.span.end),
+                        value_type.clone(),
+                    ));
+                }
+            }
+            for child in &node.children {
+                visit(package, unit, child, declarations, additions);
+            }
+        }
+        visit(
+            package,
+            unit,
+            &unit.tree.root,
+            &declarations,
+            &mut additions,
+        );
+    }
+    let mut changed = false;
+    for unit in &mut package.units {
+        for (key, value_type) in additions
+            .iter()
+            .filter(|((file, _, _), _)| *file == unit.source.id())
+        {
+            if unit.selected_expression_types.get(key) != Some(value_type) {
+                unit.selected_expression_types
+                    .insert(*key, value_type.clone());
+                changed = true;
+            }
+        }
+    }
+    changed
 }
 fn populate_projected_call_result_types(
     package: &mut SemanticPackage,
@@ -3680,6 +3758,14 @@ fn collect_projected_call_result_types(
         });
     let projected_result =
         scoped_receiver_result(package, unit, callee, function, projected_result);
+    if matches!(
+        projected_result,
+        crate::rust_interop::projection::ProjectedType::BorrowedString
+    ) && function.receiver_lifetime.is_some()
+        && let Some(receiver) = callee.children.first()
+    {
+        super::bindings::validate_native_expression_lender(package, unit, receiver)?;
+    }
     match &projected_result {
         crate::rust_interop::projection::ProjectedType::InvocationScoped {
             rust_type,

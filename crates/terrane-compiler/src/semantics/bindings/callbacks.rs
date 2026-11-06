@@ -1089,6 +1089,10 @@ pub(in crate::semantics) fn validate_native_expression_lender(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "recursive lender classification keeps stable, temporary and guard-backed origins together"
+)]
 fn local_lender_name<'a>(
     package: &SemanticPackage,
     unit: &'a SemanticUnit,
@@ -1151,6 +1155,14 @@ fn local_lender_name<'a>(
     if node.kind == SyntaxKind::Name {
         let name = node_text(&unit.source, node);
         let binding = visible_binding(unit, node)?;
+        if matches!(
+            infer_value_type(unit, node, &unit.typed_bindings)
+                .ok()
+                .flatten(),
+            Some(ValueType::SharedReference(_))
+        ) {
+            return Some(LocalNativeLender::GuardBacked(node.span));
+        }
         if contract.parameters.iter().any(|parameter| {
             parameter.name == name
                 && matches!(

@@ -1330,6 +1330,7 @@ impl Parser<'_> {
         let mut children = Vec::new();
         loop {
             if self.at(TokenKind::Identifier) && !self.at_text("in") {
+                self.reject_keyword_declaration_name();
                 children.push(self.leaf(SyntaxKind::Name));
             } else {
                 self.error_here("S1028", "expected a name in collection for target");

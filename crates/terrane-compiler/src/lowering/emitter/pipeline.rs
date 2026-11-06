@@ -671,7 +671,7 @@ fn lower_with_tests(
     if simple_standard_streams {
         uses_time = false;
     }
-    if uses_time {
+    if uses_time || tests.is_some() {
         let (source_file, source) = if tests.is_some() {
             (
                 "time_testing.rs",

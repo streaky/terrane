@@ -532,36 +532,68 @@ pub(super) fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
             .iter()
             .filter(|child| matches!(child.kind, SyntaxKind::MatchCase | SyntaxKind::ElseClause))
             .any(block_may_fall_through),
+        SyntaxKind::TryStatement => {
+            let finally = statement
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::FinallyClause)
+                .and_then(|clause| clause.children.first());
+            finally.is_none_or(block_may_fall_through)
+                && statement
+                    .children
+                    .iter()
+                    .filter(|child| {
+                        matches!(child.kind, SyntaxKind::Block | SyntaxKind::CatchClause)
+                    })
+                    .any(|child| {
+                        child
+                            .children
+                            .last()
+                            .filter(|_| child.kind == SyntaxKind::CatchClause)
+                            .map_or_else(|| block_may_fall_through(child), block_may_fall_through)
+                    })
+        }
         _ => true,
     }
 }
 
 pub(super) fn loop_body_may_repeat(body: &SyntaxNode) -> bool {
-    fn continues(node: &SyntaxNode) -> bool {
-        if node.kind == SyntaxKind::ContinueStatement {
+    block_may_fall_through(body) || statement_may_continue(body)
+}
+
+pub(crate) fn statement_may_continue(node: &SyntaxNode) -> bool {
+    if node.kind == SyntaxKind::ContinueStatement {
+        return true;
+    }
+    if is_function_node(node)
+        || matches!(
+            node.kind,
+            SyntaxKind::WhileStatement | SyntaxKind::ForStatement
+        )
+    {
+        return false;
+    }
+    if node.kind == SyntaxKind::TryStatement
+        && let Some(finally) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::FinallyClause)
+            .and_then(|clause| clause.children.first())
+        && !block_may_fall_through(finally)
+    {
+        return statement_may_continue(finally);
+    }
+    for child in &node.children {
+        if statement_may_continue(child) {
             return true;
         }
-        if is_function_node(node)
-            || matches!(
-                node.kind,
-                SyntaxKind::WhileStatement | SyntaxKind::ForStatement
-            )
+        if matches!(node.kind, SyntaxKind::Block | SyntaxKind::ElseClause)
+            && !statement_may_fall_through(child)
         {
-            return false;
+            break;
         }
-        for child in &node.children {
-            if continues(child) {
-                return true;
-            }
-            if matches!(node.kind, SyntaxKind::Block | SyntaxKind::ElseClause)
-                && !statement_may_fall_through(child)
-            {
-                break;
-            }
-        }
-        false
     }
-    block_may_fall_through(body) || continues(body)
+    false
 }
 
 pub(super) fn validate_flow_block(

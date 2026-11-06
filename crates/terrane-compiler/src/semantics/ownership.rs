@@ -28,8 +28,11 @@ fn requires_noncopyable_projection_access(
     }
     Ok(
         infer_value_type(unit, value, &unit.typed_bindings)?.is_some_and(|value_type| {
+            if matches!(&value_type, ValueType::TypeParameter(_)) {
+                return true;
+            }
             if value.kind == SyntaxKind::IndexExpression {
-                return matches!(value_type, ValueType::TypeParameter(_));
+                return false;
             }
             matches!(value_type, ValueType::MutableReference(_))
                 || (!matches!(
@@ -48,7 +51,7 @@ fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<()
             if ungroup(value).kind == SyntaxKind::IndexExpression {
                 "indexing cannot copy an unconstrained type parameter; use a concrete typed adapter or a supported borrow"
             } else {
-                "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver"
+                "field snapshot cannot copy a non-Clone or unconstrained value; borrow the field or use explicit `move` through a mutable receiver"
             },
             ungroup(value).span,
         ));
@@ -303,8 +306,24 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
 
     #[derive(Default)]
     struct LoopMoveExits {
-        breaks: BTreeSet<usize>,
+        breaks: Option<BTreeSet<usize>>,
         continues: Option<BTreeSet<usize>>,
+        returns: Option<BTreeSet<usize>>,
+        throws: Option<BTreeSet<usize>>,
+    }
+    impl LoopMoveExits {
+        fn merge(&mut self, other: Self) {
+            for (destination, source) in [
+                (&mut self.breaks, other.breaks),
+                (&mut self.continues, other.continues),
+                (&mut self.returns, other.returns),
+                (&mut self.throws, other.throws),
+            ] {
+                if let Some(source) = source {
+                    destination.get_or_insert_with(BTreeSet::new).extend(source);
+                }
+            }
+        }
     }
 
     #[expect(
@@ -334,7 +353,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     argument.children.last().is_some_and(|value| {
                         matches!(
                             value.kind,
-                            SyntaxKind::MemberExpression | SyntaxKind::GroupExpression
+                            SyntaxKind::MemberExpression
+                                | SyntaxKind::IndexExpression
+                                | SyntaxKind::GroupExpression
                         )
                     })
                 }))
@@ -629,9 +650,13 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member, ..] = callee.children.as_slice()
             && receiver.kind != SyntaxKind::Name
-            && let Ok(Some(ValueType::Object(object_name))) =
-                infer_value_type(unit, receiver, &unit.typed_bindings)
-            && method_consumes_receiver(package, &object_name, node_text(&unit.source, member))
+            && let Ok(Some(receiver_type)) = infer_value_type(unit, receiver, &unit.typed_bindings)
+            && let ValueType::Object(object_name)
+            | ValueType::InvocationScopedNative {
+                family: object_name,
+                ..
+            } = &receiver_type
+            && method_consumes_receiver(package, object_name, node_text(&unit.source, member))
             && package
                 .projection
                 .method(
@@ -641,8 +666,17 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     false,
                 )
                 .is_none_or(|method| method.chain_role.is_none())
-            && resolved_object_span(package, &object_name)
-                .is_some_and(|span| resource_objects.contains(&span_key(span)))
+            && match &receiver_type {
+                ValueType::InvocationScopedNative { .. } => {
+                    !value_type_is_cloneable(package, unit, &receiver_type)
+                }
+                ValueType::Object(_) => {
+                    !value_type_is_cloneable(package, unit, &receiver_type)
+                        || resolved_object_span(package, object_name)
+                            .is_some_and(|span| resource_objects.contains(&span_key(span)))
+                }
+                _ => false,
+            }
         {
             return Err(failure(
                 &unit.source,
@@ -933,6 +967,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .iter()
                 .find(|child| child.kind == SyntaxKind::Block);
             let mut try_state = entry.clone();
+            let mut completions = LoopMoveExits::default();
             if let Some(block) = try_block {
                 visit(
                     package,
@@ -941,7 +976,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     &mut try_state,
                     false,
                     resource_objects,
-                    loop_exits,
+                    &mut completions,
                 )?;
             }
             let mut branches = Vec::new();
@@ -966,7 +1001,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         &mut branch,
                         false,
                         resource_objects,
-                        loop_exits,
+                        &mut completions,
                     )?;
                     if super::scope_validation::block_may_fall_through(block) {
                         branches.push(branch);
@@ -979,6 +1014,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .find(|child| child.kind == SyntaxKind::FinallyClause)
                 .and_then(|clause| clause.children.first())
             {
+                let mut finally_exits = LoopMoveExits::default();
                 for branch in &mut branches {
                     visit(
                         package,
@@ -987,13 +1023,38 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         branch,
                         false,
                         resource_objects,
-                        loop_exits,
+                        &mut finally_exits,
                     )?;
                 }
+                // Finally executes on abrupt paths as well as fall-through.
+                // Preserve each continuation after applying its ownership effects.
+                for completion in [
+                    &mut completions.breaks,
+                    &mut completions.continues,
+                    &mut completions.returns,
+                    &mut completions.throws,
+                ] {
+                    if let Some(state) = completion {
+                        visit(
+                            package,
+                            unit,
+                            finally,
+                            state,
+                            false,
+                            resource_objects,
+                            &mut finally_exits,
+                        )?;
+                        if !super::scope_validation::block_may_fall_through(finally) {
+                            *completion = None;
+                        }
+                    }
+                }
+                completions.merge(finally_exits);
                 if !super::scope_validation::block_may_fall_through(finally) {
                     branches.clear();
                 }
             }
+            loop_exits.merge(completions);
             moved.clear();
             moved.extend(branches.into_iter().flatten());
             return Ok(());
@@ -1297,6 +1358,21 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     for binding in loop_bindings {
                         next_iteration.remove(&binding);
                     }
+                    if node.kind == SyntaxKind::WhileStatement {
+                        for child in &node.children {
+                            if child != body {
+                                visit(
+                                    package,
+                                    unit,
+                                    child,
+                                    &mut next_iteration,
+                                    false,
+                                    resource_objects,
+                                    &mut body_exits,
+                                )?;
+                            }
+                        }
+                    }
                     visit(
                         package,
                         unit,
@@ -1308,7 +1384,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     )?;
                 }
                 entry.extend(back_edge);
-                entry.extend(body_exits.breaks);
+                entry.extend(body_exits.breaks.take().into_iter().flatten());
+                loop_exits.merge(body_exits);
             }
             *moved = entry;
             return Ok(());
@@ -1333,9 +1410,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
         }
         match node.kind {
-            SyntaxKind::BreakStatement => loop_exits.breaks.extend(moved.iter().copied()),
+            SyntaxKind::BreakStatement => loop_exits
+                .breaks
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
             SyntaxKind::ContinueStatement => loop_exits
                 .continues
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ReturnStatement => loop_exits
+                .returns
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ThrowStatement => loop_exits
+                .throws
                 .get_or_insert_with(BTreeSet::new)
                 .extend(moved.iter().copied()),
             _ => {}

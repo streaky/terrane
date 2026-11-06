@@ -1,4 +1,0 @@
-phase = "run"
-status = "accept"
-suite = "value-protocols"
-test = "/value-reassignment::test-scenario"

@@ -1,0 +1,64 @@
+namespace switch-statements
+
+global calls int = 0
+
+function choose int;
+    global calls = calls + 1
+    print; 'selector'
+    return 2
+
+function candidate int; value int
+    print; 'candidate:' + value
+    return value
+
+function condition bool; value bool, name string
+    print; 'condition:' + name
+    return value
+
+function describe string; value int
+    switch
+        case value == 0
+            return 'empty'
+        case value < 10
+            return 'small'
+        case else
+            return 'large'
+
+function narrow string; value string|none
+    switch
+        case value != none
+            return value
+        case else
+            return 'absent'
+
+function main;
+    switch (choose;)
+        case (candidate; 1)
+            print; 'wrong'
+        case (candidate; 2), (candidate; 3)
+            print; 'selected'
+        case else
+            print; 'wrong-default'
+    print; 'selectors:' + calls
+    switch
+        case (condition; false, 'first')
+            print; 'wrong-first'
+        case (condition; true, 'second')
+            print; 'predicate'
+        case (condition; true, 'skipped')
+            print; 'wrong-late'
+        case else
+            print; 'wrong-default'
+    switch 4
+        case 1
+            print; 'wrong'
+    switch 'b'
+        case 'a'
+            print; 'wrong'
+        case 'b', 'c'
+            joined string = 'joined'
+        case else
+            joined string = 'default'
+    print; joined
+    print; (describe; 3), '|', (describe; 0), '|', (describe; 20)
+    print; (narrow; none), '|', (narrow; 'present')

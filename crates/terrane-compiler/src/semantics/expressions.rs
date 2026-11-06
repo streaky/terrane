@@ -420,9 +420,16 @@ fn infer_nonbinary_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if let Some(value_type) =
-            unit.flow_types
-                .get(&(node.span.file, node.span.start, node.span.end))
+        if let Some(value_type) = unit
+            .flow_types
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .or_else(|| {
+                unit.selected_expression_types.get(&(
+                    node.span.file,
+                    node.span.start,
+                    node.span.end,
+                ))
+            })
         {
             return Ok(Some(
                 narrowed_value_type(unit, node, bindings).unwrap_or_else(|| value_type.clone()),

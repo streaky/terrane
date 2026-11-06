@@ -1,5 +1,7 @@
 use super::prelude::*;
 
+mod applications;
+
 pub(super) type ProjectedOwner = (String, String);
 
 pub(super) fn imported_projected_types(
@@ -599,8 +601,18 @@ impl<'a> SourceResults<'a> {
                 name == formal_head
             }
         };
-        let actual_application =
-            find_actual_application(&caller.source, &caller.tree.root, argument, &matches_head)?;
+        let Some(actual_application) =
+            find_actual_application(&caller.source, &caller.tree.root, argument, &matches_head)
+        else {
+            return self.substituted_application_owner(
+                caller,
+                argument,
+                formal_source,
+                application,
+                generic,
+                imported,
+            );
+        };
         let actual_type =
             corresponding_actual_generic(formal_source, application, actual_application, generic)?;
         let actual_name = projected_name(&caller.source, actual_type)?;
@@ -753,30 +765,45 @@ fn find_actual_application<'a>(
     argument: &'a SyntaxNode,
     matches_head: &impl Fn(&str) -> bool,
 ) -> Option<&'a SyntaxNode> {
+    find_actual_application_inner(source, root, argument, matches_head, &mut BTreeSet::new())
+}
+
+fn find_actual_application_inner<'a>(
+    source: &'a SourceFile,
+    root: &'a SyntaxNode,
+    argument: &'a SyntaxNode,
+    matches_head: &impl Fn(&str) -> bool,
+    visited: &mut BTreeSet<(String, usize)>,
+) -> Option<&'a SyntaxNode> {
     if matches!(
         argument.kind,
         SyntaxKind::Argument | SyntaxKind::GroupExpression | SyntaxKind::UnaryExpression
     ) && let Some(inner) = argument.children.last()
+        && let Some(application) =
+            find_actual_application_inner(source, root, inner, matches_head, visited)
     {
-        return find_actual_application(source, root, inner, matches_head);
+        return Some(application);
     }
     if argument.kind == SyntaxKind::Name {
         let name = node_text(source, argument);
-        let mut binding = None;
-        find_preceding_binding(source, root, name, argument.span.start, &mut binding);
-        if let Some(binding) = binding {
-            if let Some(ty) = binding
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::TypeExpression)
-                && let Some(application) = find_matching_application(source, ty, matches_head)
-            {
-                return Some(application);
-            }
-            if let Some(value) = binding.children.last()
-                && let Some(application) = find_matching_application(source, value, matches_head)
-            {
-                return Some(application);
+        if visited.insert((name.to_owned(), argument.span.start)) {
+            let mut binding = None;
+            find_preceding_binding(source, root, name, argument.span.start, &mut binding);
+            if let Some(binding) = binding {
+                if let Some(ty) = binding
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::TypeExpression)
+                    && let Some(application) = find_matching_application(source, ty, matches_head)
+                {
+                    return Some(application);
+                }
+                if let Some(value) = binding.children.last()
+                    && let Some(application) =
+                        find_actual_application_inner(source, root, value, matches_head, visited)
+                {
+                    return Some(application);
+                }
             }
         }
     }

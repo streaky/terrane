@@ -226,7 +226,16 @@ pub(super) fn collect_declaration(
             node.span,
         )
     })?;
-    if node.kind == SyntaxKind::Assignment && globals.contains_key(&declaration.name) {
+    if (node.kind == SyntaxKind::Assignment
+        || (node.kind == SyntaxKind::Binding
+            && !unit
+                .tree
+                .root
+                .children
+                .iter()
+                .any(|child| child.span == node.span)))
+        && globals.contains_key(&declaration.name)
+    {
         return Ok(());
     }
     if declaration.kind == SymbolKind::Binding

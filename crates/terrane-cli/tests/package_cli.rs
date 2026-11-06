@@ -546,6 +546,40 @@ const DETERMINISTIC_TEST_CASES: &str = concat!(
 );
 
 #[test]
+fn native_test_time_support_runs_without_process_support() {
+    let package = TempPackage::new();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("tests/unit/time.trn"),
+        concat!(
+            "namespace cli/app\n",
+            "from /core/time import clock, duration\n",
+            "from /core/testing import assert-equal-int\n",
+            "async function test-time-clock;\n",
+            "    elapsed = duration::seconds; 2\n",
+            "    before = clock::monotonic;\n",
+            "    _ = await clock::sleep; elapsed\n",
+            "    after = clock::monotonic;\n",
+            "    assert-equal-int; (before.duration-until; after).total-nanoseconds, 2000000000\n",
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "status: {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+}
+#[test]
 fn native_test_command_reports_isolated_cases_deterministically_from_relative_paths() {
     let package = TempPackage::new();
     fs::create_dir_all(package.0.join("tests/unit")).unwrap();

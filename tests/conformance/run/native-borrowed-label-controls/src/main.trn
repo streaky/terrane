@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+function main;
+    owned = Holder::new;
+    print; (owned.label_len;)
+    borrowed = Holder::new;
+    observe; borrowed
+
+function observe; value ref Holder
+    print; (value.label_len;)
