@@ -913,6 +913,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .filter(|receiver| receiver.kind == SyntaxKind::Name)
                 .and_then(|receiver| {
                     binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
+                })
+                .filter(|binding| {
+                    noncopyable_binding(package, unit, *binding)
+                        || matches!(&unit.typed_bindings[*binding].value_type, ValueType::Object(identity)
+                            if package.projection.item(&identity.namespace, &identity.name).is_none())
                 });
             for child in &node.children {
                 visit(
