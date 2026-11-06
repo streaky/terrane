@@ -449,7 +449,9 @@ fn main() {
                         std::panic::AssertUnwindSafe(|| -> Result<
                             _,
                             crate::TerraneForeignError,
-                        > { Ok(unsafe { factory.unsafe_create::<witness::Marker>() }) }),
+                        > {
+                            Ok(unsafe { (&factory).unsafe_create::<witness::Marker>() })
+                        }),
                     ) {
                         Ok(result) => result?,
                         Err(payload) => {

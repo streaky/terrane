@@ -179,6 +179,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .iter()
                 .any(|arm| noncopyable_value_type(package, unit, arm));
         }
+        if matches!(value_type, ValueType::InvocationScopedNative { .. }) {
+            return !package.native_value_is_copyable(value_type);
+        }
         matches!(
             value_type,
             ValueType::MutableReference(_)
@@ -186,7 +189,6 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 | ValueType::ScopedTask(_, _)
                 | ValueType::TaskGroup(_)
                 | ValueType::Iterator(_)
-                | ValueType::InvocationScopedNative { .. }
         ) || matches!(
             value_type,
             ValueType::Function(_, _, effects)
