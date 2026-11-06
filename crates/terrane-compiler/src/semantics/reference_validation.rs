@@ -104,7 +104,9 @@ pub(super) fn validate_reference_writes(package: &SemanticPackage) -> Result<(),
             SyntaxKind::PostfixExpression => node.children.first(),
             SyntaxKind::CallExpression => node.children.first().and_then(|callee| {
                 let (receiver, ty, member) = typed_member_call(unit, callee)?;
-                (member_invocation_mode(package, unit, &ty, &member) == InvocationMode::Mutable)
+                (super::diagnostics::member_invocation_mode_at(
+                    package, unit, receiver, &ty, &member,
+                ) == InvocationMode::Mutable)
                     .then_some(receiver)
             }),
             _ => None,

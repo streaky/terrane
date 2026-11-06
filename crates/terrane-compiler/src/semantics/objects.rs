@@ -2188,9 +2188,10 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                 && let [receiver, member] = callee.children.as_slice()
                 && let Ok(Some(receiver_type)) =
                     infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-                && super::diagnostics::member_invocation_mode(
+                && super::diagnostics::member_invocation_mode_at(
                     package,
                     unit,
+                    receiver,
                     &receiver_type,
                     node_text(&unit.source, member),
                 ) == InvocationMode::Consuming
@@ -2310,9 +2311,10 @@ pub(super) fn infer_and_validate_invocation_modes(
         else {
             return InvocationMode::Shared;
         };
-        member_invocation_mode(
+        super::diagnostics::member_invocation_mode_at(
             package,
             unit,
+            receiver,
             &receiver_type,
             node_text(&unit.source, member),
         )

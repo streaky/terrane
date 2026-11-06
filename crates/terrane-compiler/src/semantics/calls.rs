@@ -1612,7 +1612,13 @@ fn receiver_call_borrow(
     contract: &FunctionContract,
 ) -> Option<(Span, Vec<ReferenceProjection>, bool, Span)> {
     let (receiver, value_type, member) = typed_member_call(unit, callee)?;
-    let mode = member_invocation_mode(package, unit, &value_type, &member);
+    let mode = super::diagnostics::member_invocation_mode_at(
+        package,
+        unit,
+        receiver,
+        &value_type,
+        &member,
+    );
     if mode == InvocationMode::Consuming
         || !contract.parameters.iter().any(|parameter| {
             parameter.element_value_type().is_some_and(|ty| {

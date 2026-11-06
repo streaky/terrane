@@ -1,0 +1,14 @@
+namespace app
+interface named
+    function name int;
+    consuming function finish int;
+class value implements named
+    function name int;
+        return 1
+    consuming function finish int;
+        return 1
+function consume of (T implements named) int; item T
+    finish = item.finish;
+    return item.name;
+function main;
+    consume; (instance value;)

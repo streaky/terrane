@@ -377,6 +377,23 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             {
                 validate_async_field_borrow(unit, receiver)?;
             }
+            if let Some(contract) = function_contract_for_call(package, unit, callee)
+                && callee.kind == SyntaxKind::MemberExpression
+                && matches!(
+                    contract.written_invocation_mode,
+                    InvocationMode::Mutable | InvocationMode::Consuming
+                )
+                && let Some(receiver) = callee.children.first()
+                && ungroup(receiver).kind == SyntaxKind::IndexExpression
+                && requires_noncopyable_projection_access(unit, receiver)?
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0135",
+                    "indexed bounded receivers cannot be moved or mutably borrowed without a concrete typed adapter",
+                    ungroup(receiver).span,
+                ));
+            }
             if let Some(contract) = function_contract_for_call(package, unit, callee) {
                 if projected.is_none()
                     && contract.owner.is_some()
@@ -863,6 +880,17 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         .filter(|binding| noncopyable_binding(package, unit, *binding))
                 })
                 .collect::<Vec<_>>();
+            let receiver_transferred = function_contract_for_call(package, unit, callee)
+                .filter(|contract| {
+                    contract.owner.is_some()
+                        && contract.written_invocation_mode == InvocationMode::Consuming
+                })
+                .and_then(|_| callee.children.first())
+                .filter(|receiver| receiver.kind == SyntaxKind::Name)
+                .and_then(|receiver| {
+                    binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
+                })
+                .filter(|binding| noncopyable_binding(package, unit, *binding));
             for child in &node.children {
                 visit(
                     package,
@@ -875,6 +903,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             moved.extend(transferred);
+            moved.extend(receiver_transferred);
             return Ok(());
         }
         if node.kind == SyntaxKind::Name && !declaration_name {
@@ -1535,7 +1564,9 @@ fn first_owner_lifetime_end(
                     let family = member
                         .split_once('.')
                         .map_or(member.as_str(), |(family, _)| family);
-                    (member_invocation_mode(package, unit, &ty, family) == InvocationMode::Mutable)
+                    (super::diagnostics::member_invocation_mode_at(
+                        package, unit, receiver, &ty, family,
+                    ) == InvocationMode::Mutable)
                         .then_some(receiver)
                 })
             }

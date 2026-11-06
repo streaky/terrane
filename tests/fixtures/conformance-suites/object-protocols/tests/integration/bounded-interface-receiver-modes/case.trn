@@ -1,0 +1,34 @@
+namespace bounded-interface-receiver-modes
+from /core/collections import list
+
+interface named
+    function name int;
+    mutable function increment int;
+    consuming function finish int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+    mutable function increment int;
+        this.amount = this.amount + 1
+        return this.amount
+    consuming function finish int;
+        return this.amount
+
+function observe of (T implements named) int; values list of T
+    return values[0].name;
+
+function mutate of (T implements named) int; item mutable ref T
+    return item.increment;
+
+function consume of (T implements named) int; item T
+    return item.finish;
+
+function test-scenario;
+    values list of value = list; (instance value;)
+    print; (observe; values)
+    item = instance value;
+    print; (mutate; item)
+    print; (item.name;)
+    print; (consume; item)

@@ -159,6 +159,14 @@ impl SourceResults<'_> {
             let [callee, arguments] = node.children.as_slice() else {
                 return None;
             };
+            if callee.kind == SyntaxKind::ConstructionExpression {
+                return self.header_type(
+                    &unit.source,
+                    callee.children.first()?,
+                    &BTreeMap::new(),
+                    imported,
+                );
+            }
             let mut base = callee;
             while matches!(
                 base.kind,
@@ -223,6 +231,39 @@ impl SourceResults<'_> {
             } else {
                 return None;
             };
+            let mut substitutions = BTreeMap::new();
+            if let SyntaxKind::MemberExpression = base.kind
+                && let [receiver, _] = base.children.as_slice()
+                && let Some(receiver) = self.expression_header(unit, receiver, imported, visited)
+                && let Some(receiver_owner) = receiver.owner.as_ref()
+                && let Some(owner_class) = callable.unit.tree.root.children.iter().find(|class| {
+                    matches!(
+                        class.kind,
+                        SyntaxKind::ClassDeclaration | SyntaxKind::TraitDeclaration
+                    ) && declaration_name(class, &callable.unit.source).as_deref()
+                        == Some(receiver_owner.1.as_str())
+                        && callable.unit.namespace == receiver_owner.0
+                })
+                && let Some(parameters) = owner_class
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::TypeParameterList)
+            {
+                for (parameter, argument) in
+                    parameters.children.iter().zip(receiver.arguments.iter())
+                {
+                    if let Some(name) = parameter
+                        .children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::Name)
+                    {
+                        substitutions.insert(
+                            node_text(&callable.unit.source, name).to_owned(),
+                            argument.clone(),
+                        );
+                    }
+                }
+            }
             let generic_names = callable
                 .node
                 .children
@@ -238,7 +279,6 @@ impl SourceResults<'_> {
                 })
                 .map(|name| node_text(&callable.unit.source, name).to_owned())
                 .collect::<BTreeSet<_>>();
-            let mut substitutions = BTreeMap::new();
             if let Some(parameters) = callable
                 .node
                 .children
@@ -287,12 +327,25 @@ impl SourceResults<'_> {
                 .find(|child| child.kind == SyntaxKind::TypeExpression)?;
             return self.header_type(&callable.unit.source, result, &substitutions, imported);
         }
-        // Object construction has a parsed type child, not an inferred body type.
-        node.children.iter().find_map(|child| {
-            (child.kind == SyntaxKind::AppliedType)
-                .then(|| self.header_type(&unit.source, child, &BTreeMap::new(), imported))
-                .flatten()
-        })
+        if node.kind == SyntaxKind::ConstructionExpression {
+            return self.header_type(
+                &unit.source,
+                node.children.first()?,
+                &BTreeMap::new(),
+                imported,
+            );
+        }
+        None
+    }
+    pub(super) fn substituted_call_owner(
+        &self,
+        source: &SourceFile,
+        call: &SyntaxNode,
+        imported: &BTreeMap<String, ProjectedOwner>,
+    ) -> Option<ProjectedOwner> {
+        let unit = &self.units[*self.unit_indices.get(&source.id())?];
+        self.expression_header(unit, call, imported, &mut BTreeSet::new())?
+            .owner
     }
 
     pub(super) fn substituted_application_owner(

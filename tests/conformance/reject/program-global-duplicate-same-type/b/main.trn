@@ -1,0 +1,2 @@
+namespace b
+global calls int = 1

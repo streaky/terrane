@@ -2682,6 +2682,9 @@ impl Emitter<'_> {
                     |item| item.rust_path.clone(),
                 )
         } else if let [receiver, member] = callee.children.as_slice()
+            && contract
+                .as_ref()
+                .is_none_or(|contract| contract.owner.is_none())
             && self.callable_object_field(receiver, self.text(member))
         {
             format!(
@@ -2856,6 +2859,17 @@ impl Emitter<'_> {
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
             && let [receiver, _member] = callee.children.as_slice()
+            && !self
+                .value_type(receiver)
+                .is_some_and(|receiver_type| match receiver_type {
+                    ValueType::TypeParameter(_) => true,
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item) => {
+                        matches!(item.value_type(), ValueType::TypeParameter(_))
+                    }
+                    _ => false,
+                })
         {
             let contract = contract.as_ref().expect("method contract exists");
             let projected_receiver = self
@@ -2876,6 +2890,11 @@ impl Emitter<'_> {
                     self.package
                         .projection
                         .method(&identity.namespace, &identity.name, &contract.name, false)
+                        .and_then(|method| method.receiver)
+                })
+                .or_else(|| {
+                    projected_function
+                        .as_ref()
                         .and_then(|method| method.receiver)
                 });
             let receiver_expression = if let Some((_, receiver)) = &guarded_method_receiver {
@@ -2916,6 +2935,12 @@ impl Emitter<'_> {
                 } else {
                     owned
                 }
+            } else if contract.written_invocation_mode == InvocationMode::Shared
+                && receiver.kind == SyntaxKind::IndexExpression
+                && let Some((setup, place)) = self.borrowed_index_place_parts(receiver)
+            {
+                shared_argument_setup.push_str(&setup);
+                place
             } else if contract.written_invocation_mode == InvocationMode::Mutable {
                 self.native_receiver_expression(receiver, true)
             } else {
@@ -2972,14 +2997,41 @@ impl Emitter<'_> {
             format!("({receiver}).{method_name}")
         } else if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
-            && matches!(self.value_type(receiver), Some(ValueType::TypeParameter(_)))
-            && let Some(ValueType::Function(_, _, effects)) = self.value_type(callee)
-            && effects.modes.written == InvocationMode::Shared
+            && self
+                .value_type(receiver)
+                .is_some_and(|receiver_type| match receiver_type {
+                    ValueType::TypeParameter(_) => true,
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item) => {
+                        matches!(item.value_type_ref(), ValueType::TypeParameter(_))
+                    }
+                    _ => false,
+                })
+            && contract
+                .as_ref()
+                .is_some_and(|contract| contract.owner.is_some())
         {
-            let (setup, reference) =
-                self.receiver_place_parts(receiver, false, GuardScope::Expression);
-            shared_argument_setup.push_str(&setup);
-            format!("({reference}).{}", rust_name(self.text(member)))
+            let contract = contract.as_ref().expect("bounded method contract exists");
+            let receiver_expression = match contract.written_invocation_mode {
+                InvocationMode::Consuming => format!(
+                    "Box::new({})",
+                    self.consuming_native_receiver_expression(receiver)
+                ),
+                InvocationMode::Mutable => {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, true, GuardScope::Expression);
+                    shared_argument_setup.push_str(&setup);
+                    place
+                }
+                InvocationMode::Shared => {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, false, GuardScope::Expression);
+                    shared_argument_setup.push_str(&setup);
+                    place
+                }
+            };
+            format!("({receiver_expression}).{}", rust_name(self.text(member)))
         } else {
             self.expression(callee)
         };

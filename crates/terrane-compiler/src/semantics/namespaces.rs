@@ -212,6 +212,33 @@ pub(super) fn declaration_from_syntax(
     })
 }
 
+fn validate_global_declaration(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    declaration: &Declaration,
+    globals: &BTreeMap<String, Symbol>,
+    top_level: bool,
+) -> Result<(), SemanticFailure> {
+    if declaration.global
+        && top_level
+        && let Some(existing) = globals.get(&declaration.name)
+    {
+        let first = existing
+            .declaration_span
+            .expect("global declarations retain their source span");
+        return Err(failure(
+            &unit.source,
+            "S2005",
+            format!(
+                "duplicate program-global declaration `{}`; first declared in {} at source {} offset {}",
+                existing.name, existing.namespace, first.file, first.start
+            ),
+            node.span,
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn collect_declaration(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -226,14 +253,17 @@ pub(super) fn collect_declaration(
             node.span,
         )
     })?;
-    if (node.kind == SyntaxKind::Assignment
-        || (node.kind == SyntaxKind::Binding
-            && !unit
-                .tree
-                .root
-                .children
-                .iter()
-                .any(|child| child.span == node.span)))
+    let top_level = unit
+        .tree
+        .root
+        .children
+        .iter()
+        .any(|child| child.span == node.span);
+    validate_global_declaration(unit, node, &declaration, globals, top_level)?;
+    if !top_level && declaration.global && globals.contains_key(&declaration.name) {
+        return Ok(());
+    }
+    if (node.kind == SyntaxKind::Assignment || (node.kind == SyntaxKind::Binding && !top_level))
         && globals.contains_key(&declaration.name)
     {
         return Ok(());
@@ -954,19 +984,30 @@ pub(super) fn function_contract_for_call_with_safety<'a>(
         } else {
             // Native callable applications are prepared before every receiver has
             // an expression-cache entry; use the shared current binding inference.
-            match unit.inferred_value_type(receiver).or_else(|| {
+            let receiver_type = unit.inferred_value_type(receiver).or_else(|| {
                 infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
                     .ok()
                     .flatten()
-            })? {
+            })?;
+            match receiver_type {
                 ValueType::Object(identity) => identity,
                 ValueType::Reference(item)
                 | ValueType::MutableReference(item)
-                | ValueType::SharedReference(item) => {
-                    let ValueType::Object(identity) = item.value_type() else {
-                        return None;
-                    };
-                    identity
+                | ValueType::SharedReference(item) => match item.value_type() {
+                    ValueType::Object(identity) => identity,
+                    ValueType::TypeParameter(parameter) => {
+                        super::generics::type_parameter_bound_at(
+                            unit,
+                            receiver.span.start,
+                            &parameter,
+                        )?
+                        .clone()
+                    }
+                    _ => return None,
+                },
+                ValueType::TypeParameter(parameter) => {
+                    super::generics::type_parameter_bound_at(unit, receiver.span.start, &parameter)?
+                        .clone()
                 }
                 ValueType::InvocationScopedNative { mut family, .. } => {
                     family.native_projection = None;

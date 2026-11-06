@@ -3,6 +3,10 @@ use super::prelude::*;
 
 #[path = "scoped_regions/liveness.rs"]
 mod liveness;
+#[path = "scoped_regions/native_loans.rs"]
+mod native_loans;
+#[path = "scoped_regions/try_captures.rs"]
+mod try_captures;
 
 type NativeLenderPlace = (Span, Vec<ReferenceProjection>);
 
@@ -116,7 +120,8 @@ pub(super) fn validate_scoped_regions(package: &SemanticPackage) -> Result<(), S
             }
         }
         validate_node(package, unit, &unit.tree.root)?;
-        validate_function_native_lenders(package, unit)?;
+        try_captures::validate(package, unit, &unit.tree.root, false)?;
+        native_loans::validate_function_native_lenders(package, unit)?;
     }
     Ok(())
 }
@@ -155,115 +160,6 @@ fn field_has_native_loan(package: &SemanticPackage, value_type: &ValueType) -> b
         _ => {}
     });
     borrowed
-}
-
-fn validate_function_native_lenders(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
-) -> Result<(), SemanticFailure> {
-    fn find_binding_initializer<'a>(
-        unit: &SemanticUnit,
-        node: &'a SyntaxNode,
-        binding: Span,
-    ) -> Option<&'a SyntaxNode> {
-        if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
-            && declared_bindings_at_node(unit, node).any(|declared| declared.span == binding)
-        {
-            return node.children.last();
-        }
-        node.children
-            .iter()
-            .find_map(|child| find_binding_initializer(unit, child, binding))
-    }
-    fn find_function(node: &SyntaxNode, function: Span) -> Option<&SyntaxNode> {
-        if node.kind == SyntaxKind::FunctionDeclaration && node.span == function {
-            return Some(node);
-        }
-        node.children
-            .iter()
-            .find_map(|child| find_function(child, function))
-    }
-    let mut flows = BTreeMap::new();
-    for binding in &unit.typed_bindings {
-        let ValueType::InvocationScopedNative {
-            concrete: true,
-            expression_scoped: false,
-            region: Some((file, start, end)),
-            lifetimes,
-            ..
-        } = &binding.value_type
-        else {
-            continue;
-        };
-        if !lifetimes.iter().any(|lifetime| lifetime != "'static") {
-            continue;
-        }
-        let function_span = Span {
-            file: *file,
-            start: *start,
-            end: *end,
-        };
-        // Exact invocation-scoped callback results already have a distinct
-        // higher-ranked lender/escape contract. They are not new local-loan
-        // return declarations.
-        if unit.functions.iter().any(|contract| {
-            contract.span == function_span
-                && matches!(
-                    contract.return_type,
-                    Some(ValueType::InvocationScopedNative { .. })
-                )
-        }) {
-            continue;
-        }
-        let Some(function) = find_function(&unit.tree.root, function_span) else {
-            continue;
-        };
-        let Some(initializer) = find_binding_initializer(unit, &unit.tree.root, binding.span)
-        else {
-            continue;
-        };
-        let mut places = Vec::new();
-        let Some(mut lenders) =
-            scoped_native_lender_spans(package, unit, initializer, binding, &mut places)
-        else {
-            return Err(failure(
-                &unit.source,
-                "T0119",
-                "cannot establish a local native value's source lifetime",
-                initializer.span,
-            ));
-        };
-        lenders.sort_unstable();
-        lenders.dedup();
-        // The producer activates this loan; earlier initialization and mutation
-        // of its owners are not invalidations of a not-yet-existing value.
-        let active = Span {
-            start: initializer.span.end,
-            ..function_span
-        };
-        let live_after = flows
-            .entry(function_span)
-            .or_insert_with(|| liveness::Flow::new(package, unit, function))
-            .live_origins(binding.span);
-        validate_lender_stability(
-            package,
-            unit,
-            active,
-            function,
-            None,
-            &lenders,
-            NativePlaceLoan {
-                places: &places,
-                live_after: Some(&live_after),
-            },
-        )?;
-        // Escape traversal expands the set with dependent locals. Those are
-        // not additional owners that every sibling destination must outlive.
-        validate_local_lender_destinations(unit, function_span, function, &lenders)?;
-        validate_region_escape_node(unit, function_span, function, &mut lenders)?;
-    }
-    validate_native_return_escapes(unit, &unit.tree.root, None)?;
-    Ok(())
 }
 
 fn validate_native_return_escapes(
@@ -370,14 +266,13 @@ fn validate_region(
         })?;
     let mut places = Vec::new();
     let mut owner_lenders =
-        scoped_native_lender_spans(package, unit, acquisition, binding, &mut places).ok_or_else(
-            || {
+        scoped_native_lender_spans(package, unit, acquisition, binding, &mut places, true)
+            .ok_or_else(|| {
                 invalid(
                     acquisition.span,
                     "cannot establish the scoped-access guard's source lifetime",
                 )
-            },
-        )?;
+            })?;
     owner_lenders.sort_unstable();
     owner_lenders.dedup();
     let mut lenders = vec![binding.span];
@@ -553,7 +448,9 @@ fn fixed_call_uses_lender_incompatibly(
         .first()
         .and_then(|callee| super::diagnostics::typed_member_call(unit, callee))
         .is_some_and(|(receiver, ty, member)| {
-            let mode = super::diagnostics::member_invocation_mode(package, unit, &ty, &member);
+            let mode = super::diagnostics::member_invocation_mode_at(
+                package, unit, receiver, &ty, &member,
+            );
             (mode == InvocationMode::Mutable && is_owner(receiver))
                 || (mode == InvocationMode::Consuming && is_lender(receiver))
         })
@@ -990,12 +887,83 @@ fn ordinary_acquisition_lenders(
     }
 }
 
+struct LenderOrigins {
+    lenders: BTreeSet<Span>,
+    matched: BTreeSet<String>,
+    forwarded: bool,
+}
+
+fn argument_lender_origins(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    specialization: &super::model::ProjectedCallSpecialization,
+    lifetimes: &[String],
+    places: &mut Vec<NativeLenderPlace>,
+    expand_initializers: bool,
+) -> LenderOrigins {
+    let mut lenders = BTreeSet::new();
+    let mut matched = BTreeSet::new();
+    let mut forwarded = false;
+    if let Some(arguments) = call.children.get(1) {
+        for (index, parameter) in specialization.projected_parameters.iter().enumerate() {
+            let Some(argument) = super::bindings::projected_argument_for_parameter(
+                unit,
+                &specialization.projected_parameters,
+                arguments,
+                index,
+            ) else {
+                continue;
+            };
+            let mut parameter_lifetimes = Vec::new();
+            projected_lifetimes(&parameter.ty, &mut parameter_lifetimes);
+            if let Some(lifetime) = &parameter.borrow_lifetime {
+                parameter_lifetimes.push(lifetime.clone());
+            }
+            for lifetime in lifetimes.iter().filter(|lifetime| {
+                lifetime.as_str() != "'static"
+                    && parameter_lifetimes.contains(lifetime)
+                    && !(lifetime.as_str() == "'_"
+                        && specialization.projected_receiver_lifetime.as_deref() == Some("'_"))
+            }) {
+                matched.insert(lifetime.clone());
+                if !expand_initializers
+                    && parameter.borrow_lifetime.as_ref() != Some(lifetime)
+                    && matches!(
+                        infer_value_type(unit, argument, &unit.typed_bindings)
+                            .ok()
+                            .flatten(),
+                        Some(ValueType::InvocationScopedNative { .. })
+                    )
+                {
+                    forwarded = true;
+                } else {
+                    collect_native_lender_place(
+                        package,
+                        unit,
+                        argument,
+                        &mut lenders,
+                        places,
+                        expand_initializers,
+                    );
+                }
+            }
+        }
+    }
+    LenderOrigins {
+        lenders,
+        matched,
+        forwarded,
+    }
+}
+
 fn scoped_native_lender_spans(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     acquisition: &SyntaxNode,
     binding: &TypedBinding,
     places: &mut Vec<NativeLenderPlace>,
+    expand_initializers: bool,
 ) -> Option<Vec<Span>> {
     let ValueType::InvocationScopedNative {
         rust_type,
@@ -1027,34 +995,19 @@ fn scoped_native_lender_spans(
         return None;
     };
     let callee = call.children.first()?;
-    let mut lenders = BTreeSet::new();
-    let mut matched = BTreeSet::new();
-    if let Some(arguments) = call.children.get(1) {
-        for (index, parameter) in specialization.projected_parameters.iter().enumerate() {
-            let Some(argument) = super::bindings::projected_argument_for_parameter(
-                unit,
-                &specialization.projected_parameters,
-                arguments,
-                index,
-            ) else {
-                continue;
-            };
-            let mut parameter_lifetimes = Vec::new();
-            projected_lifetimes(&parameter.ty, &mut parameter_lifetimes);
-            if let Some(lifetime) = &parameter.borrow_lifetime {
-                parameter_lifetimes.push(lifetime.clone());
-            }
-            for lifetime in lifetimes.iter().filter(|lifetime| {
-                lifetime.as_str() != "'static"
-                    && parameter_lifetimes.contains(lifetime)
-                    && !(lifetime.as_str() == "'_"
-                        && specialization.projected_receiver_lifetime.as_deref() == Some("'_"))
-            }) {
-                matched.insert(lifetime.clone());
-                collect_native_lender_place(package, unit, argument, &mut lenders, places);
-            }
-        }
-    }
+    let LenderOrigins {
+        mut lenders,
+        mut matched,
+        mut forwarded,
+    } = argument_lender_origins(
+        package,
+        unit,
+        call,
+        specialization,
+        lifetimes,
+        places,
+        expand_initializers,
+    );
     if let Some(receiver_lifetime) = &specialization.projected_receiver_lifetime {
         for lifetime in lifetimes
             .iter()
@@ -1062,7 +1015,14 @@ fn scoped_native_lender_spans(
         {
             matched.insert(lifetime.clone());
             if let Some(receiver) = callee.children.first() {
-                collect_native_lender_place(package, unit, receiver, &mut lenders, places);
+                collect_native_lender_place(
+                    package,
+                    unit,
+                    receiver,
+                    &mut lenders,
+                    places,
+                    expand_initializers,
+                );
             }
         }
     }
@@ -1078,13 +1038,19 @@ fn scoped_native_lender_spans(
             lifetime.as_str() != "'static" && receiver_lifetimes.contains(lifetime)
         }) {
             matched.insert(lifetime.clone());
-            collect_native_lender_place(package, unit, receiver, &mut lenders, places);
+            if expand_initializers {
+                collect_native_lender_place(package, unit, receiver, &mut lenders, places, true);
+            } else {
+                // Reaching values retain the current producer, including after
+                // reassignment. The binding's first initializer is not its loan.
+                forwarded = true;
+            }
         }
     }
     if lifetimes
         .iter()
         .any(|lifetime| lifetime != "'static" && !matched.contains(lifetime))
-        || lenders.is_empty()
+        || (lenders.is_empty() && !forwarded)
     {
         None
     } else {
@@ -1098,6 +1064,7 @@ fn collect_native_lender_place(
     value: &SyntaxNode,
     lenders: &mut BTreeSet<Span>,
     places: &mut Vec<NativeLenderPlace>,
+    expand_initializers: bool,
 ) {
     // A declaration identity alone is not a local lender. Implicit receivers
     // have synthesized zero-width identities, not ordinary storage provenance.
@@ -1111,7 +1078,7 @@ fn collect_native_lender_place(
         })
     {
         lenders.insert(place.0);
-        if place.1.is_empty()
+        if expand_initializers && place.1.is_empty()
             && let Some(binding) = unit.typed_bindings.iter().find(|binding| {
                 binding.span == place.0
                     && matches!(
@@ -1124,7 +1091,7 @@ fn collect_native_lender_place(
             // Only follow an earlier producer, never a self-reference or backedge.
             && initializer.span.end <= value.span.start
             && let Some(origins) =
-                scoped_native_lender_spans(package, unit, initializer, binding, places)
+                scoped_native_lender_spans(package, unit, initializer, binding, places, true)
         {
             lenders.extend(origins);
         }

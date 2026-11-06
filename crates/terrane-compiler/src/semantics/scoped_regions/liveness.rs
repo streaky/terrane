@@ -22,6 +22,7 @@ struct Step {
     sources: BTreeSet<Span>,
     next: Vec<usize>,
     previous: Vec<usize>,
+    capture_region: Option<Span>,
 }
 
 pub(super) struct Flow {
@@ -276,12 +277,73 @@ impl Builder<'_> {
             next: catches,
             ..Step::default()
         });
-        node.children
+        let body = node
+            .children
             .iter()
             .find(|child| child.kind == SyntaxKind::Block)
             .map_or(routed.normal, |body| {
                 self.build(body, Exits { thrown, ..routed })
-            })
+            });
+        // Lowering captures the body and catches in one closure. Its access
+        // obligations cover even a statically non-throwing catch.
+        let mut reads = BTreeSet::new();
+        let mut capture_region = node.span;
+        capture_region.end = node.span.start;
+        for child in &node.children {
+            if child.kind != SyntaxKind::FinallyClause {
+                self.reads(child, &mut reads);
+                capture_region.end = capture_region.end.max(child.span.end);
+            }
+        }
+        self.step(Step {
+            span: Some(node.span),
+            reads,
+            next: vec![body, thrown],
+            capture_region: Some(capture_region),
+            ..Step::default()
+        })
+    }
+
+    fn switch_statement(&mut self, node: &SyntaxNode, exits: Exits) -> usize {
+        let selector = node.switch_selector();
+        let cases = node.switch_cases().collect::<Vec<_>>();
+        let mut remaining = exits.normal;
+        for case in cases.into_iter().rev() {
+            let [header, body] = case.children.as_slice() else {
+                continue;
+            };
+            let body = self.build(body, exits);
+            if header.kind == SyntaxKind::MatchCatchAll {
+                remaining = body;
+            } else {
+                for predicate in header.children.iter().rev() {
+                    remaining = if selector.is_none() {
+                        self.condition(predicate, body, remaining, exits)
+                    } else {
+                        let gate = self.step(Step {
+                            next: vec![body, remaining],
+                            ..Step::default()
+                        });
+                        self.build(
+                            predicate,
+                            Exits {
+                                normal: gate,
+                                ..exits
+                            },
+                        )
+                    };
+                }
+            }
+        }
+        selector.map_or(remaining, |selector| {
+            self.build(
+                selector,
+                Exits {
+                    normal: remaining,
+                    ..exits
+                },
+            )
+        })
     }
 
     #[expect(
@@ -309,33 +371,26 @@ impl Builder<'_> {
                 return self.loop_statement(node, exits);
             }
             SyntaxKind::TryStatement => return self.try_statement(node, exits),
-            SyntaxKind::SwitchStatement
-            | SyntaxKind::MatchStatement
-            | SyntaxKind::SelectStatement => {
+            SyntaxKind::SwitchStatement => return self.switch_statement(node, exits),
+            SyntaxKind::MatchStatement | SyntaxKind::SelectStatement => {
                 let mut entries = Vec::new();
                 for case in &node.children {
                     if matches!(
                         case.kind,
-                        SyntaxKind::SwitchCase
-                            | SyntaxKind::MatchCase
-                            | SyntaxKind::SelectCase
-                            | SyntaxKind::ElseClause
+                        SyntaxKind::MatchCase | SyntaxKind::SelectCase | SyntaxKind::ElseClause
                     ) {
                         entries.push(self.build(case, exits));
                     }
-                }
-                let exhaustive =
-                    node.kind != SyntaxKind::SwitchStatement || node.switch_has_default();
-                if !exhaustive {
-                    entries.push(exits.normal);
                 }
                 let gate = self.step(Step {
                     next: entries,
                     ..Step::default()
                 });
-                return if node.kind == SyntaxKind::SelectStatement {
-                    gate
-                } else if let Some(selector) = node.children.first() {
+                let selector = match node.kind {
+                    SyntaxKind::MatchStatement => node.children.first(),
+                    _ => None,
+                };
+                return if let Some(selector) = selector {
                     self.build(
                         selector,
                         Exits {
@@ -543,15 +598,36 @@ impl Flow {
                 break;
             }
         }
-        self.steps
-            .iter()
-            .enumerate()
-            .filter_map(|(index, step)| {
-                let values = reaching[index].as_ref()?;
-                (!values.is_disjoint(&self.live_after[index]) || !values.is_disjoint(&step.reads))
-                    .then_some(step.span)
-                    .flatten()
+        let mut live = BTreeSet::new();
+        let mut captures = Vec::new();
+        // A loan produced into hoisted storage inside a try also borrows the
+        // closure's captures, even though it does not reach the entry step.
+        // Keep its lenders stable throughout the body/catch capture boundary.
+        captures.extend(self.steps.iter().filter_map(|step| {
+            step.capture_region.filter(|region| {
+                region.file == origin.file
+                    && region.start <= origin.start
+                    && origin.end <= region.end
             })
-            .collect()
+        }));
+        for (index, step) in self.steps.iter().enumerate() {
+            let Some(values) = &reaching[index] else {
+                continue;
+            };
+            if !values.is_disjoint(&self.live_after[index]) || !values.is_disjoint(&step.reads) {
+                live.extend(step.span);
+                captures.extend(step.capture_region);
+            }
+        }
+        for step in &self.steps {
+            if let Some(span) = step.span
+                && captures.iter().any(|region| {
+                    region.file == span.file && region.start <= span.start && span.end <= region.end
+                })
+            {
+                live.insert(span);
+            }
+        }
+        live
     }
 }

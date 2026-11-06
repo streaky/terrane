@@ -247,12 +247,41 @@ fn collect_intentionally_unused_read_warning(
     }
 }
 
+fn collect_global_stores(unit: &SemanticUnit, node: &SyntaxNode, stores: &mut BTreeSet<Span>) {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && node.children.iter().any(|child| {
+            child.kind == SyntaxKind::DeclarationQualifier
+                && node_text(&unit.source, child) == "global"
+        })
+    {
+        stores.insert(node.span);
+    }
+    for child in &node.children {
+        collect_global_stores(unit, child, stores);
+    }
+}
+
 pub(crate) fn warnings(
     package: &SemanticPackage,
     lint_name_style: bool,
     lint_unused_functions: bool,
 ) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
+    let globally_read = package
+        .globals
+        .values()
+        .filter_map(|symbol| symbol.binding_span)
+        .filter(|span| {
+            package
+                .binding_events
+                .get(&span_key(*span))
+                .is_some_and(|events| {
+                    events
+                        .iter()
+                        .any(|event| matches!(event, BindingEvent::Read { .. }))
+                })
+        })
+        .collect::<BTreeSet<_>>();
     warnings.extend(package.import_warnings.iter().cloned());
 
     for unit in &package.units {
@@ -265,14 +294,9 @@ pub(crate) fn warnings(
         }
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
+        let mut global_stores = BTreeSet::new();
+        collect_global_stores(unit, &unit.tree.root, &mut global_stores);
         for binding in &unit.typed_bindings {
-            if package
-                .globals
-                .values()
-                .any(|symbol| symbol.declaration_span == Some(binding.span))
-            {
-                continue;
-            }
             let parameter = unit.functions.iter().any(|contract| {
                 contract
                     .parameters
@@ -306,6 +330,17 @@ pub(crate) fn warnings(
                     .iter()
                     .any(|event| matches!(event, BindingEvent::Write { .. }));
                 let initial_store = *store_span == binding.span;
+                if initial_store
+                    && !later_store
+                    && global_stores.contains(&binding.span)
+                    && package
+                        .globals
+                        .get(&binding.name)
+                        .and_then(|symbol| symbol.binding_span)
+                        .is_some_and(|span| globally_read.contains(&span))
+                {
+                    continue;
+                }
                 let (code, message) = if initial_store && !later_store {
                     if parameter || loop_target || binding.name.starts_with('_') {
                         continue;
@@ -420,7 +455,7 @@ pub(super) fn validate_discarded_temporary_mutations(
                     let family = member
                         .split_once('.')
                         .map_or(member.as_str(), |(family, _)| family);
-                    if member_invocation_mode(package, unit, &receiver_type, family)
+                    if member_invocation_mode_at(package, unit, receiver, &receiver_type, family)
                         == InvocationMode::Mutable
                     {
                         return Err(SemanticFailure {
@@ -526,6 +561,34 @@ pub(crate) fn member_invocation_mode(
         ) => InvocationMode::Mutable,
         _ => InvocationMode::Shared,
     }
+}
+pub(crate) fn member_invocation_mode_at(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    receiver: &SyntaxNode,
+    receiver_type: &ValueType,
+    member_name: &str,
+) -> InvocationMode {
+    let parameter = match receiver_type {
+        ValueType::TypeParameter(parameter) => Some(parameter.as_str()),
+        ValueType::Reference(item)
+        | ValueType::MutableReference(item)
+        | ValueType::SharedReference(item) => match item.value_type_ref() {
+            ValueType::TypeParameter(parameter) => Some(parameter.as_str()),
+            _ => None,
+        },
+        _ => None,
+    };
+    if let Some(parameter) = parameter
+        && let Some(bound) =
+            super::generics::type_parameter_bound_at(unit, receiver.span.start, parameter)
+    {
+        return method_contract(package, bound, member_name, false)
+            .map_or(InvocationMode::Shared, |method| {
+                method.written_invocation_mode
+            });
+    }
+    member_invocation_mode(package, unit, receiver_type, member_name)
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -836,9 +899,10 @@ fn binding_mutation_count(
                 ),
                 _ => false,
             };
-            member_invocation_mode(package, unit, &receiver_type, family) == InvocationMode::Mutable
+            resolves_to_binding(receiver)
+                && member_invocation_mode_at(package, unit, receiver, &receiver_type, family)
+                    == InvocationMode::Mutable
                 && (closure_writes == ClosureWrites::Include || !callable_field)
-                && resolves_to_binding(receiver)
         });
     let iterator_advance = iterator_binding
         && node.kind == SyntaxKind::ForStatement

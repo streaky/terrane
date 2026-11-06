@@ -355,7 +355,10 @@ impl Emitter<'_> {
             return narrowed;
         }
         if receiver.kind == SyntaxKind::Name
-            && matches!(self.value_type(receiver), Some(ValueType::Object(_)))
+            && matches!(
+                self.value_type(receiver),
+                Some(ValueType::Object(_) | ValueType::InvocationScopedNative { .. })
+            )
             && !self.receiver_needs_live_guard(receiver)
         {
             if let Some(binding) = self.local_typed_binding(receiver)
@@ -692,7 +695,10 @@ impl Emitter<'_> {
         };
         (String::new(), value)
     }
-    fn borrowed_index_place_parts(&mut self, receiver: &SyntaxNode) -> Option<(String, String)> {
+    pub(super) fn borrowed_index_place_parts(
+        &mut self,
+        receiver: &SyntaxNode,
+    ) -> Option<(String, String)> {
         let [collection, index] = receiver.children.as_slice() else {
             return None;
         };

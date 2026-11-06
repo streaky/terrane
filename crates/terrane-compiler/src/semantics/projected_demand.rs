@@ -560,7 +560,8 @@ impl<'a> SourceResults<'a> {
             let owners =
                 projected_expression_owners(source, receiver, imported, bindings, projection, self);
             let mut result = BTreeSet::new();
-            let mut found = false;
+            result.extend(self.substituted_call_owner(source, call, imported));
+            let mut found = !result.is_empty();
             for (namespace, owner) in owners {
                 if let Some(callable) = self.callable(
                     &namespace,
