@@ -1090,7 +1090,17 @@ fn collect_native_lender_place(
     lenders: &mut BTreeSet<Span>,
     places: &mut Vec<NativeLenderPlace>,
 ) {
-    if let Some(place) = super::calls::call_reference_origin(package, unit, value) {
+    // A declaration identity alone is not a local lender. Implicit receivers
+    // have synthesized zero-width identities, not ordinary storage provenance.
+    if let Some(place) =
+        super::calls::call_reference_origin(package, unit, value).filter(|(owner, _)| {
+            owner.start < owner.end
+                && unit
+                    .typed_bindings
+                    .iter()
+                    .any(|binding| binding.span == *owner)
+        })
+    {
         lenders.insert(place.0);
         if place.1.is_empty()
             && let Some(binding) = unit.typed_bindings.iter().find(|binding| {
