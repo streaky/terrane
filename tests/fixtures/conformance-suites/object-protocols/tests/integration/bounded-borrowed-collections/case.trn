@@ -1,0 +1,25 @@
+namespace bounded-borrowed-collections
+from /core/collections import list, map, unordered-map
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+function observe-list of (T implements named); values ref list of T
+    for value in values
+        print; (value.name;)
+function observe-map of (T implements named) int; values map of string, T
+    return values['item'].name;
+function observe-unordered of (T implements named) int; values ref unordered-map of string, T
+    return values['item'].name;
+function test-scenario;
+    values list of Item = list; (instance Item;)
+    observe-list; values
+    entries map of string, Item = map; item=(instance Item;)
+    print; (observe-map; entries)
+    entries2 unordered-map of string, Item = unordered-map; item=(instance Item;)
+    print; (observe-unordered; entries2)

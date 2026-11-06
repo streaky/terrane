@@ -562,6 +562,27 @@ impl Flow {
     }
 
     pub(super) fn live_origins(&self, origin: Span) -> BTreeSet<Span> {
+        // An alias retains lenders from subsequent assignments to its source
+        // storage, but not values killed before the alias was created.
+        let producer = self.steps.iter().enumerate().find_map(|(index, step)| {
+            step.span
+                .filter(|span| {
+                    span.file == origin.file && span.start <= origin.start && origin.end <= span.end
+                })
+                .and(step.definition)
+                .map(|storage| (index, storage))
+        });
+        let storage = producer.map(|(_, storage)| storage);
+        let mut reaches_producer = vec![false; self.steps.len()];
+        if let Some((index, _)) = producer {
+            let mut pending = vec![index];
+            while let Some(index) = pending.pop() {
+                if !reaches_producer[index] {
+                    reaches_producer[index] = true;
+                    pending.extend(self.steps[index].previous.iter().copied());
+                }
+            }
+        }
         let mut reaching = vec![None::<BTreeSet<Span>>; self.steps.len()];
         loop {
             let mut changed = false;
@@ -583,7 +604,12 @@ impl Flow {
                         span.file == origin.file
                             && span.start <= origin.start
                             && origin.end <= span.end
-                    }) || step.sources.iter().any(|source| values.contains(source));
+                    }) || step.sources.iter().any(|source| {
+                        values.contains(source)
+                            || (Some(*source) == storage
+                                && Some(definition) != storage
+                                && reaches_producer[index])
+                    });
                     values.remove(&definition);
                     if carries {
                         values.insert(definition);

@@ -26,18 +26,32 @@ fn validate_moved_value(
     unit: &SemanticUnit,
     statement: &SyntaxNode,
     value: &SyntaxNode,
+    repeating: bool,
 ) -> Result<(), SemanticFailure> {
     let value = named_value(value);
-    if let Some(ty @ ValueType::InvocationScopedNative { .. }) = unit.inferred_value_type(value)
+    if let Some(ty) = unit.inferred_value_type(value)
+        && (matches!(ty, ValueType::InvocationScopedNative { .. })
+            || (matches!(ty, ValueType::Object(_))
+                && !super::super::objects::value_type_is_cloneable(package, unit, &ty)))
         && !package.native_value_is_copyable(&ty)
         && let Some(binding) = super::binding_identity_at(unit, value)
         && binding.start < statement.span.start
         && rebinds(unit, statement, binding)
+        && (repeating
+            || package
+                .binding_events
+                .get(&span_key(binding))
+                .is_some_and(|events| {
+                    events.iter().any(|event| {
+                        matches!(event, BindingEvent::Read { span, .. }
+                            if span.file == statement.span.file && span.start >= statement.span.end)
+                    })
+                }))
     {
         return Err(failure(
             &unit.source,
             "T0058",
-            "a looped try closure cannot restore an outer native value after consuming it; acquire the value inside the try or move consumption outside the try",
+            "a try closure cannot restore an outer non-Copy value after consuming it; acquire and consume the value inside the try or move consumption outside the try",
             value.span,
         ));
     }
@@ -49,6 +63,7 @@ fn validate_consumption(
     unit: &SemanticUnit,
     statement: &SyntaxNode,
     node: &SyntaxNode,
+    repeating: bool,
 ) -> Result<(), SemanticFailure> {
     let receiver = if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
@@ -72,7 +87,7 @@ fn validate_consumption(
         None
     };
     if let Some(receiver) = receiver {
-        validate_moved_value(package, unit, statement, receiver)?;
+        validate_moved_value(package, unit, statement, receiver, repeating)?;
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -99,7 +114,7 @@ fn validate_consumption(
             if !borrowed
                 && let Some(value) = argument_for_parameter(unit, arguments, contract, index)
             {
-                validate_moved_value(package, unit, statement, value)?;
+                validate_moved_value(package, unit, statement, value, repeating)?;
             }
         }
     }
@@ -108,7 +123,7 @@ fn validate_consumption(
             child.kind,
             SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
         ) {
-            validate_consumption(package, unit, statement, child)?;
+            validate_consumption(package, unit, statement, child, repeating)?;
         }
     }
     Ok(())
@@ -138,8 +153,8 @@ pub(super) fn validate(
     } else {
         repeating
     };
-    if repeating && node.kind == SyntaxKind::TryStatement {
-        validate_consumption(package, unit, node, node)?;
+    if node.kind == SyntaxKind::TryStatement {
+        validate_consumption(package, unit, node, node, repeating)?;
     }
     for child in &node.children {
         validate(package, unit, child, repeating)?;

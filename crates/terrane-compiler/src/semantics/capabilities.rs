@@ -13,7 +13,7 @@ impl SemanticPackage {
             .get(native_rust_type(&self.projection, identity)?)
     }
 
-    pub(super) fn native_value_is_copyable(&self, value_type: &ValueType) -> bool {
+    pub(crate) fn native_value_is_copyable(&self, value_type: &ValueType) -> bool {
         match value_type {
             ValueType::Object(identity) => self.native_capability(identity).map_or_else(
                 || {

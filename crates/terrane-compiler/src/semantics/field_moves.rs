@@ -476,6 +476,10 @@ fn visit_assignment(
     Ok(flow)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "field ownership follows control exits, closure captures and consuming accesses in one traversal"
+)]
 fn visit(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -545,6 +549,25 @@ fn visit(
             });
         }
         _ => {}
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+        && let [receiver, _] = callee.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && super::namespaces::function_contract_for_call(package, unit, callee).is_some_and(
+            |contract| {
+                contract.owner.is_some()
+                    && contract.written_invocation_mode == InvocationMode::Consuming
+            },
+        )
+        && let Some(path) = path_at(unit, receiver)
+        && receiver.kind == SyntaxKind::MemberExpression
+    {
+        let flow = visit_children(package, unit, node, moved)?;
+        if destructive_move(package, unit, receiver)? {
+            moved.insert(path);
+        }
+        return Ok(flow);
     }
     if !moved.is_empty() {
         if matches!(

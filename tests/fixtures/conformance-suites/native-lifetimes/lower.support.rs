@@ -507,7 +507,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 18] = [
+    pub static FILES: [&str; 20] = [
         "tests/integration/native-loan-chain-rebind-receiver/case.trn",
         "tests/integration/native-loan-exclusive-branch/case.trn",
         "tests/integration/native-loan-finally-copy-rebind/case.trn",
@@ -520,14 +520,16 @@ mod __terrane_trace {
         "tests/integration/native-loan-rebound-other/case.trn",
         "tests/integration/native-loan-rebound-same/case.trn",
         "tests/integration/native-loan-return-branch/case.trn",
+        "tests/integration/native-loan-storage-alias-last-use/case.trn",
         "tests/integration/native-loan-try-finally-last-use/case.trn",
         "tests/integration/native-loan-try-local/case.trn",
         "tests/integration/native-loan-whole-last-use/case.trn",
         "tests/integration/native-loan-whole-move-last-use/case.trn",
         "tests/integration/native-loan-whole-mutate-last-use/case.trn",
         "tests/integration/native-loop-consuming-condition-break/case.trn",
+        "tests/integration/native-try-local-consume/case.trn",
     ];
-    pub static FUNCTIONS: [&str; 18] = [
+    pub static FUNCTIONS: [&str; 20] = [
         "/native-loan-chain-rebind-receiver::test-scenario",
         "/native-loan-exclusive-branch::test-scenario",
         "/native-loan-finally-copy-rebind::test-scenario",
@@ -540,14 +542,16 @@ mod __terrane_trace {
         "/native-loan-rebound-other::test-scenario",
         "/native-loan-rebound-same::test-scenario",
         "/native-loan-return-branch::test-scenario",
+        "/native-loan-storage-alias-last-use::test-scenario",
         "/native-loan-try-finally-last-use::test-scenario",
         "/native-loan-try-local::test-scenario",
         "/native-loan-whole-last-use::test-scenario",
         "/native-loan-whole-move-last-use::test-scenario",
         "/native-loan-whole-mutate-last-use::test-scenario",
         "/native-loop-consuming-condition-break::test-scenario",
+        "/native-try-local-consume::test-scenario",
     ];
-    pub static SITES: [Site; 94] = [
+    pub static SITES: [Site; 107] = [
         /* terrane-site-row: site 0: /native-loan-chain-rebind-receiver::test-scenario (tests/integration/native-loan-chain-rebind-receiver/case.trn:11:9-11:21) */
         { Site { function: 0, file: 0, line: 11, column: 9, end_line: 11, end_column: 21 } },
         /* terrane-site-row: site 1: /native-loan-chain-rebind-receiver::test-scenario (tests/integration/native-loan-chain-rebind-receiver/case.trn:12:9-12:21) */
@@ -682,60 +686,86 @@ mod __terrane_trace {
         { Site { function: 11, file: 11, line: 15, column: 19, end_line: 15, end_column: 31 } },
         /* terrane-site-row: site 66: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:17:13-17:20) */
         { Site { function: 11, file: 11, line: 17, column: 13, end_line: 17, end_column: 20 } },
-        /* terrane-site-row: site 67: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:11:9-11:21) */
-        { Site { function: 12, file: 12, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 68: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:12:9-12:16) */
-        { Site { function: 12, file: 12, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 69: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:14:17-14:24) */
-        { Site { function: 12, file: 12, line: 14, column: 17, end_line: 14, end_column: 24 } },
-        /* terrane-site-row: site 70: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:16:9-16:16) */
-        { Site { function: 12, file: 12, line: 16, column: 9, end_line: 16, end_column: 16 } },
-        /* terrane-site-row: site 71: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:17:13-17:25) */
-        { Site { function: 12, file: 12, line: 17, column: 13, end_line: 17, end_column: 25 } },
-        /* terrane-site-row: site 72: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 67: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:4:9-4:21) */
+        { Site { function: 12, file: 12, line: 4, column: 9, end_line: 4, end_column: 21 } },
+        /* terrane-site-row: site 68: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:5:9-5:21) */
+        { Site { function: 12, file: 12, line: 5, column: 9, end_line: 5, end_column: 21 } },
+        /* terrane-site-row: site 69: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:6:9-6:16) */
+        { Site { function: 12, file: 12, line: 6, column: 9, end_line: 6, end_column: 16 } },
+        /* terrane-site-row: site 70: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:8:9-8:16) */
+        { Site { function: 12, file: 12, line: 8, column: 9, end_line: 8, end_column: 16 } },
+        /* terrane-site-row: site 71: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:9:13-9:20) */
+        { Site { function: 12, file: 12, line: 9, column: 13, end_line: 9, end_column: 20 } },
+        /* terrane-site-row: site 72: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:10:13-10:20) */
+        { Site { function: 12, file: 12, line: 10, column: 13, end_line: 10, end_column: 20 } },
+        /* terrane-site-row: site 73: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:11:5-11:12) */
+        { Site { function: 12, file: 12, line: 11, column: 5, end_line: 11, end_column: 12 } },
+        /* terrane-site-row: site 74: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:12:13-12:25) */
+        { Site { function: 12, file: 12, line: 12, column: 13, end_line: 12, end_column: 25 } },
+        /* terrane-site-row: site 75: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:11:9-11:21) */
         { Site { function: 13, file: 13, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 73: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:13:13-13:20) */
-        { Site { function: 13, file: 13, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 74: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:14:17-14:24) */
+        /* terrane-site-row: site 76: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:12:9-12:16) */
+        { Site { function: 13, file: 13, line: 12, column: 9, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 77: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:14:17-14:24) */
         { Site { function: 13, file: 13, line: 14, column: 17, end_line: 14, end_column: 24 } },
-        /* terrane-site-row: site 75: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:16:17-16:29) */
-        { Site { function: 13, file: 13, line: 16, column: 17, end_line: 16, end_column: 29 } },
-        /* terrane-site-row: site 76: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:17:13-17:25) */
+        /* terrane-site-row: site 78: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:16:9-16:16) */
+        { Site { function: 13, file: 13, line: 16, column: 9, end_line: 16, end_column: 16 } },
+        /* terrane-site-row: site 79: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:17:13-17:25) */
         { Site { function: 13, file: 13, line: 17, column: 13, end_line: 17, end_column: 25 } },
-        /* terrane-site-row: site 77: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 80: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:11:9-11:21) */
         { Site { function: 14, file: 14, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 78: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:12:9-12:16) */
-        { Site { function: 14, file: 14, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 79: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:13:13-13:20) */
+        /* terrane-site-row: site 81: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:13:13-13:20) */
         { Site { function: 14, file: 14, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 80: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:14:9-14:21) */
-        { Site { function: 14, file: 14, line: 14, column: 9, end_line: 14, end_column: 21 } },
-        /* terrane-site-row: site 81: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:15:13-15:25) */
-        { Site { function: 14, file: 14, line: 15, column: 13, end_line: 15, end_column: 25 } },
-        /* terrane-site-row: site 82: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 82: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:14:17-14:24) */
+        { Site { function: 14, file: 14, line: 14, column: 17, end_line: 14, end_column: 24 } },
+        /* terrane-site-row: site 83: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:16:17-16:29) */
+        { Site { function: 14, file: 14, line: 16, column: 17, end_line: 16, end_column: 29 } },
+        /* terrane-site-row: site 84: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:17:13-17:25) */
+        { Site { function: 14, file: 14, line: 17, column: 13, end_line: 17, end_column: 25 } },
+        /* terrane-site-row: site 85: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:11:9-11:21) */
         { Site { function: 15, file: 15, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 83: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:12:9-12:16) */
+        /* terrane-site-row: site 86: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:12:9-12:16) */
         { Site { function: 15, file: 15, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 84: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:13:13-13:20) */
+        /* terrane-site-row: site 87: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:13:13-13:20) */
         { Site { function: 15, file: 15, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 85: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:15:13-15:29) */
-        { Site { function: 15, file: 15, line: 15, column: 13, end_line: 15, end_column: 29 } },
-        /* terrane-site-row: site 86: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 88: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:14:9-14:21) */
+        { Site { function: 15, file: 15, line: 14, column: 9, end_line: 14, end_column: 21 } },
+        /* terrane-site-row: site 89: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:15:13-15:25) */
+        { Site { function: 15, file: 15, line: 15, column: 13, end_line: 15, end_column: 25 } },
+        /* terrane-site-row: site 90: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:11:9-11:21) */
         { Site { function: 16, file: 16, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 87: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:12:9-12:16) */
+        /* terrane-site-row: site 91: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:12:9-12:16) */
         { Site { function: 16, file: 16, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 88: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:13:13-13:20) */
+        /* terrane-site-row: site 92: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:13:13-13:20) */
         { Site { function: 16, file: 16, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 89: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:14:5-14:12) */
-        { Site { function: 16, file: 16, line: 14, column: 5, end_line: 14, end_column: 12 } },
-        /* terrane-site-row: site 90: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:15:13-15:25) */
-        { Site { function: 16, file: 16, line: 15, column: 13, end_line: 15, end_column: 25 } },
-        /* terrane-site-row: site 91: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 93: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:15:13-15:29) */
+        { Site { function: 16, file: 16, line: 15, column: 13, end_line: 15, end_column: 29 } },
+        /* terrane-site-row: site 94: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:11:9-11:21) */
         { Site { function: 17, file: 17, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 92: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:12:9-12:16) */
+        /* terrane-site-row: site 95: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:12:9-12:16) */
         { Site { function: 17, file: 17, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 93: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:13:12-13:24) */
-        { Site { function: 17, file: 17, line: 13, column: 12, end_line: 13, end_column: 24 } },
+        /* terrane-site-row: site 96: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:13:13-13:20) */
+        { Site { function: 17, file: 17, line: 13, column: 13, end_line: 13, end_column: 20 } },
+        /* terrane-site-row: site 97: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:14:5-14:12) */
+        { Site { function: 17, file: 17, line: 14, column: 5, end_line: 14, end_column: 12 } },
+        /* terrane-site-row: site 98: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:15:13-15:25) */
+        { Site { function: 17, file: 17, line: 15, column: 13, end_line: 15, end_column: 25 } },
+        /* terrane-site-row: site 99: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:11:9-11:21) */
+        { Site { function: 18, file: 18, line: 11, column: 9, end_line: 11, end_column: 21 } },
+        /* terrane-site-row: site 100: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:12:9-12:16) */
+        { Site { function: 18, file: 18, line: 12, column: 9, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 101: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:13:12-13:24) */
+        { Site { function: 18, file: 18, line: 13, column: 12, end_line: 13, end_column: 24 } },
+        /* terrane-site-row: site 102: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:4:9-4:21) */
+        { Site { function: 19, file: 19, line: 4, column: 9, end_line: 4, end_column: 21 } },
+        /* terrane-site-row: site 103: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:6:13-6:20) */
+        { Site { function: 19, file: 19, line: 6, column: 13, end_line: 6, end_column: 20 } },
+        /* terrane-site-row: site 104: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:7:17-7:29) */
+        { Site { function: 19, file: 19, line: 7, column: 17, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 105: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:13:20-13:27) */
+        { Site { function: 19, file: 19, line: 13, column: 20, end_line: 13, end_column: 27 } },
+        /* terrane-site-row: site 106: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:14:21-14:36) */
+        { Site { function: 19, file: 19, line: 14, column: 21, end_line: 14, end_column: 36 } },
     ];
     #[cold]
     #[inline(never)]

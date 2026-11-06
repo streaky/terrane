@@ -1,0 +1,8 @@
+namespace app
+from /core/collections import list
+function consume of (T); values list of T
+    for value in values
+        print; 1
+function main;
+    values list of int = list; 7
+    consume; values

@@ -109,6 +109,81 @@ pub(super) fn is_reserved_namespace_segment(component: &str) -> bool {
             .is_some_and(|suffix| suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
 }
 
+pub(super) fn collect_top_level_globals(
+    units: &[SemanticUnit],
+    globals: &mut BTreeMap<String, Symbol>,
+) -> Result<(), SemanticFailure> {
+    let mut namespaces = BTreeMap::new();
+    for unit in units {
+        for node in &unit.tree.root.children {
+            if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+                && declaration_from_syntax(unit, node).is_some_and(|declaration| declaration.global)
+            {
+                collect_declaration(unit, node, &mut namespaces, globals)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn validate_global_writes(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    for unit in &package.units {
+        fn visit(
+            package: &SemanticPackage,
+            unit: &SemanticUnit,
+            node: &SyntaxNode,
+        ) -> Result<(), SemanticFailure> {
+            if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+                && let Some(declaration) = declaration_from_syntax(unit, node)
+                && declaration.global
+                && let Some(symbol) = package.globals.get(&declaration.name)
+                && let Some(span) = symbol.declaration_span
+                && let Some(declaration_unit) = package
+                    .units
+                    .iter()
+                    .find(|candidate| candidate.source.id() == span.file)
+                && let Some(expected) = declaration_unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| {
+                        binding.name == declaration.name
+                            && span.start <= binding.span.start
+                            && binding.span.end <= span.end
+                    })
+                    .map(|binding| &binding.value_type)
+                && let Some(value) = node.children.last().filter(|child| {
+                    !matches!(
+                        child.kind,
+                        SyntaxKind::Visibility
+                            | SyntaxKind::DeclarationQualifier
+                            | SyntaxKind::TypeExpression
+                    )
+                })
+                && let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)?
+            {
+                validate_value_destination(
+                    &unit.source,
+                    &unit.descriptors,
+                    &declaration.name,
+                    expected,
+                    &actual,
+                    value,
+                    "T0002",
+                )?;
+            }
+            for child in &node.children {
+                visit(package, unit, child)?;
+            }
+            Ok(())
+        }
+
+        for node in &unit.tree.root.children {
+            visit(package, unit, node)?;
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn collect_unit(
     unit: &SemanticUnit,
     namespaces: &mut BTreeMap<String, Namespace>,
@@ -222,6 +297,7 @@ fn validate_global_declaration(
     if declaration.global
         && top_level
         && let Some(existing) = globals.get(&declaration.name)
+        && existing.declaration_span != Some(node.span)
     {
         let first = existing
             .declaration_span

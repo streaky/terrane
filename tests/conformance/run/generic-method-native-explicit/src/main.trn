@@ -1,0 +1,24 @@
+namespace app
+from /deps/terrane-query-witness import Holder, View
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+    consuming function take T;
+        return move this.value
+class Factory
+    function both of (B) Box of B; value B
+        return instance (Box of B); (move value)
+    function direct of (B) B; value B
+        return move value
+    static function static-both of (B) Box of B; value B
+        return instance (Box of B); (move value)
+function free-both of (B) Box of B; value B
+    return instance (Box of B); (move value)
+function unbox of (T) T; box Box of T
+    return box.take;
+function main;
+    factory = instance Factory;
+    box = (factory.both of Holder); (Holder::new;)
+    value = unbox; (move box)
+    print; (value.label_len;)

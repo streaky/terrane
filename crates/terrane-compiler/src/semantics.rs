@@ -114,7 +114,8 @@ pub(crate) use descriptors::{
     descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,
 };
 pub(crate) use diagnostics::{
-    ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in, warnings,
+    ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in, member_invocation_mode_at,
+    warnings,
 };
 pub(crate) use display::display_method;
 pub(crate) use enums::projected_enum_payload_type;

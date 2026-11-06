@@ -874,6 +874,7 @@ fn analyze_parsed_with_projection(
 
     let mut imports = Vec::new();
     let mut globals = BTreeMap::<String, Symbol>::new();
+    collect_top_level_globals(&units, &mut globals)?;
     for unit in &units {
         collect_unit(unit, &mut namespaces, &mut globals, &mut imports)?;
     }
@@ -1138,6 +1139,7 @@ fn analyze_parsed_with_projection(
     validate_projected_static_declines(&semantic)?;
     super::ownership::validate_reference_expression_sites(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_global_writes(&semantic)?;
     stage.finish();
     super::documents::validate_package_document_codecs(&semantic)?;
     let references = crate::compilation_progress::start(

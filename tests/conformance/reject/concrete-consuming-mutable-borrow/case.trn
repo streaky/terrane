@@ -1,0 +1,15 @@
+namespace app
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+function consume int; value mutable ref Item
+    return value.finish;
+function main;
+    item = instance Item;
+    print; (consume; item)

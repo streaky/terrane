@@ -322,12 +322,15 @@ impl Emitter<'_> {
         format!("{operator}{operand}")
     }
 
-    pub(super) fn source_applied_function(&self, node: &SyntaxNode) -> Option<String> {
+    pub(super) fn source_applied_function_parts(
+        &self,
+        node: &SyntaxNode,
+    ) -> Option<(&FunctionContract, Vec<String>)> {
         if matches!(
             node.kind,
             SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
         ) {
-            return self.source_applied_function(node.children.first()?);
+            return self.source_applied_function_parts(node.children.first()?);
         }
         if node.kind != SyntaxKind::AppliedType {
             return None;
@@ -365,6 +368,11 @@ impl Emitter<'_> {
                     .map(|value_type| rust_value_type(self.package, value_type.clone()))
             })
             .collect::<Option<Vec<_>>>()?;
+        Some((contract, arguments))
+    }
+
+    pub(super) fn source_applied_function(&self, node: &SyntaxNode) -> Option<String> {
+        let (contract, arguments) = self.source_applied_function_parts(node)?;
         Some(format!(
             "{}::<{}>",
             function_name(self.package, contract),

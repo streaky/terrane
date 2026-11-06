@@ -5,6 +5,8 @@ interface named
     function name int;
     mutable function increment int;
     consuming function finish int;
+    function add int; amount int
+        return amount
 
 class value implements named
     amount int = 1
@@ -15,6 +17,8 @@ class value implements named
         return this.amount
     consuming function finish int;
         return this.amount
+    function add int; amount int
+        return this.amount + amount
 
 function observe of (T implements named) int; values list of T
     return values[0].name;
@@ -25,10 +29,16 @@ function mutate of (T implements named) int; item mutable ref T
 function consume of (T implements named) int; item T
     return item.finish;
 
+function bounded-add of (T implements named) int; item T
+    return item.add; 2
+
 function test-scenario;
     values list of value = list; (instance value;)
     print; (observe; values)
     item = instance value;
     print; (mutate; item)
     print; (item.name;)
+    print; (bounded-add; item)
+    print; (1.add; 2)
     print; (consume; item)
+

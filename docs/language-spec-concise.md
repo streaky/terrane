@@ -136,7 +136,7 @@ namespace_wide_order: otherwise last import wins; multi-file order is normalized
 retain_both: establish selective alias before namespace-wide import
 ```
 
-Top-level plain assignment is namespace-local, including root namespace. `global` explicitly creates/replaces program-global identity and does not erase lexical provenance/visibility. A namespace variable is readable and writable only by other namespace-level declarations in that namespace, so `public` on one is meaningless and rejected rather than accepted as documentation.
+Top-level plain assignment is namespace-local, including root namespace. `global` explicitly creates or updates one program-global identity and does not erase lexical provenance/visibility; duplicate top-level declarations are rejected. A namespace variable is readable and writable only by other namespace-level declarations in that namespace, so `public` on one is meaningless and rejected rather than accepted as documentation.
 
 ```terrane
 namespace application/commands
@@ -318,6 +318,7 @@ function connect connection; host string, port int, timeout int = 10
 - `constant`, not `const`.
 - Default visibility public; strict visibility mode can require explicit qualifiers.
 - Classes, functions, interfaces, and enums declare lexical type parameters with `of (T, U)`; a binder may require one nominal interface with `T implements describable`. Applications use `of int` or `of (int, string)` and remain invariant. Explicit arguments, ordinary inputs, callable contracts, and the immediate written destination/return select one consistent closed application; later statements, absence alone, or interface/union widening do not select it. Generic bodies are checked against declared bounds, without hidden copying or defaults. See `manual/reference/records/language/types/generics.yaml`.
+- An enclosing function/class type parameter may forward its declared interface bound to another generic call; selected method arguments substitute throughout nested results. Declared bounded members take precedence over numeric built-in names. Consuming calls cannot move through `ref T` or `mutable ref T`; owned list iteration over bare `T` rejects with `T0135`, while borrowed iteration remains supported.
 - Authored interfaces declare supplied type slots with `associated type Name`; classes bind them with `associated type Name = Type`. Method signatures, inheritance and closed interface applications retain those bindings; bare `type` remains an ordinary field name. Missing/duplicate bindings and incompatible implementations reject before lowering. Ordinary typed bodies map native calls, whose exact input-selected associated result and equality obligations must be proven.
 - An `enum` declares a closed nominal family of scoped variants, optionally with named payload parameters. Construct with `instance State::variant; field = value`; evaluate arguments once in written order. Exhaustive `match`/`case` handles each variant or a final `case else`; optional enums also require `case none`. `match ref` borrows payloads and `match move` transfers them, including cleanup. A native payload requiring conversion to unbounded `int` becomes an independent value; fixed-width integer payloads retain their native references. See `manual/reference/records/language/types/unions.yaml`.
 
@@ -906,6 +907,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 ## GLOBAL
 
 - Program globals form explicit initialization graph; cycles diagnosed.
+- At most one top-level declaration introduces each program-global name (`S2005` otherwise). Collect it before function-body updates regardless of namespace order, and check every write against its declared scalar type. Matching explicit update types remain allowed. Without a top-level declaration, function-body `global` retains declaration behavior.
 - Materialized program-global and namespace `constant`/ordinary data storage currently supports scalars only. Object/composite data is rejected with `T0226`; use locals or parameters. Compiler-resolved descriptor/callable identities are unaffected. See `lang.declarations.globals`.
 - Mutable globals used across threads must satisfy shared-thread-safe protocol.
 - Prefer standard thread-local object over second global grammar.

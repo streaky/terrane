@@ -933,7 +933,10 @@ fn binding_mutation_count(
                 ) || infer_value_type(unit, target, &unit.typed_bindings)
                     .ok()
                     .flatten()
-                    .is_some_and(|ty| application_is_resource_owning(package, &ty))
+                    .is_some_and(|ty| {
+                        application_is_resource_owning(package, &ty)
+                            || !super::objects::value_type_is_cloneable(package, unit, &ty)
+                    })
                     && target.children.first().is_some_and(|receiver| {
                         let Ok(Some(ValueType::Object(object))) =
                             infer_value_type(unit, receiver, &unit.typed_bindings)

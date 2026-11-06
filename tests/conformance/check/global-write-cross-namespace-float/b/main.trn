@@ -1,0 +1,4 @@
+namespace b
+
+function main;
+    global calls = 1.5

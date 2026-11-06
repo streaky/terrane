@@ -379,6 +379,25 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             {
                 validate_async_field_borrow(unit, receiver)?;
             }
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+                && let Some(ValueType::Reference(item) | ValueType::MutableReference(item)) =
+                    infer_value_type(unit, receiver, &unit.typed_bindings)?
+                && super::diagnostics::member_invocation_mode_at(
+                    package,
+                    unit,
+                    receiver,
+                    item.value_type_ref(),
+                    node_text(&unit.source, member),
+                ) == InvocationMode::Consuming
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0135",
+                    "a consuming method cannot move out of a borrowed receiver",
+                    ungroup(receiver).span,
+                ));
+            }
             if let Some(contract) = function_contract_for_call(package, unit, callee)
                 && callee.kind == SyntaxKind::MemberExpression
                 && matches!(
@@ -883,16 +902,18 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 })
                 .collect::<Vec<_>>();
             let receiver_transferred = function_contract_for_call(package, unit, callee)
-                .filter(|contract| {
-                    contract.owner.is_some()
-                        && contract.written_invocation_mode == InvocationMode::Consuming
+                .filter(|contract| contract.owner.is_some())
+                .and_then(|_| typed_member_call(unit, callee))
+                .filter(|(receiver, ty, member)| {
+                    super::diagnostics::member_invocation_mode_at(
+                        package, unit, receiver, ty, member,
+                    ) == InvocationMode::Consuming
                 })
-                .and_then(|_| callee.children.first())
+                .map(|(receiver, _, _)| ungroup(receiver))
                 .filter(|receiver| receiver.kind == SyntaxKind::Name)
                 .and_then(|receiver| {
                     binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
-                })
-                .filter(|binding| noncopyable_binding(package, unit, *binding));
+                });
             for child in &node.children {
                 visit(
                     package,
@@ -1330,6 +1351,37 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         .find(|child| child.kind != SyntaxKind::Block)
                 })
                 .flatten();
+            if let Some(collection) = collection {
+                let cloneable = match infer_value_type(unit, collection, &unit.typed_bindings)? {
+                    Some(
+                        ValueType::List(item)
+                        | ValueType::Set(item)
+                        | ValueType::UnorderedSet(item)
+                        | ValueType::Tuple(item, _),
+                    ) => super::objects::value_type_is_cloneable(
+                        package,
+                        unit,
+                        item.value_type_ref(),
+                    ),
+                    Some(ValueType::Map(key, value) | ValueType::UnorderedMap(key, value)) => {
+                        super::objects::value_type_is_cloneable(package, unit, key.value_type_ref())
+                            && super::objects::value_type_is_cloneable(
+                                package,
+                                unit,
+                                value.value_type_ref(),
+                            )
+                    }
+                    _ => true,
+                };
+                if !cloneable {
+                    return Err(failure(
+                        &unit.source,
+                        "T0135",
+                        "value iteration requires Clone items; iterate through `ref` to borrow non-Clone or unconstrained items",
+                        collection.span,
+                    ));
+                }
+            }
             let loop_bindings = node
                 .children
                 .iter()

@@ -1365,6 +1365,10 @@ fn callable_effects_compatible(
         .all(|identity| throwable_identity_type(identity).is_some_and(|actual| accepts(&actual)))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "destination compatibility and native lifetime mismatch diagnostics share one ordered validation path"
+)]
 pub(super) fn validate_value_destination(
     source: &SourceFile,
     objects: &[DescriptorContract],
@@ -1416,6 +1420,59 @@ pub(super) fn validate_value_destination(
     }
     if value_types_compatible(objects, destination, supplied) {
         return Ok(());
+    }
+    if let (
+        ValueType::InvocationScopedNative {
+            family: expected_family,
+            rust_type: expected_rust,
+            lifetimes: expected_lifetimes,
+            region: expected_region,
+            ..
+        },
+        ValueType::InvocationScopedNative {
+            family: actual_family,
+            rust_type: actual_rust,
+            lifetimes: actual_lifetimes,
+            region: actual_region,
+            ..
+        },
+    ) = (destination, supplied)
+        && expected_family == actual_family
+        && (expected_rust != actual_rust
+            || expected_lifetimes != actual_lifetimes
+            || expected_region != actual_region)
+    {
+        return Err(failure(
+            source,
+            "T0119",
+            format!(
+                "cannot replace `{name}` with a native value using an incompatible lifetime or region representation: existing `{expected_rust}` ({expected_lifetimes:?}, region {expected_region:?}), supplied `{actual_rust}` ({actual_lifetimes:?}, region {actual_region:?}); bind the helper result to a new local instead"
+            ),
+            value.span,
+        ));
+    }
+    if let (
+        ValueType::InvocationScopedNative {
+            family,
+            rust_type,
+            lifetimes,
+            region,
+            ..
+        },
+        ValueType::Object(actual),
+    ) = (destination, supplied)
+        && family.namespace == actual.namespace
+        && family.name == actual.name
+    {
+        return Err(failure(
+            source,
+            "T0119",
+            format!(
+                "cannot replace `{name}`: existing native `{rust_type}` (lifetimes {lifetimes:?}, region {region:?}) and helper result `{}` have incompatible scoped lifetime representations; bind the helper result to a new local instead",
+                actual.name
+            ),
+            value.span,
+        ));
     }
     Err(failure(
         source,
@@ -1546,7 +1603,12 @@ pub(super) fn object_types_compatible(
                     left.namespace == right.namespace
                         && left.name == right.name
                         && left.application == right.application
-                        && left.type_arguments == right.type_arguments
+                        && left.type_arguments.len() == right.type_arguments.len()
+                        && left
+                            .type_arguments
+                            .iter()
+                            .zip(&right.type_arguments)
+                            .all(|(left, right)| reference_storage_types_equal(left, right))
                         && left.native_arguments == right.native_arguments
                 }
                 (Some(_), None) | (None, Some(_)) => {

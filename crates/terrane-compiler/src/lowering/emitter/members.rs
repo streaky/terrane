@@ -11,7 +11,32 @@ fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emi
             .children
             .last()
             .is_some_and(|operand| operand.span == target);
+    let consumes_here = (node.kind == SyntaxKind::CallExpression)
+        .then(|| node.children.first())
+        .flatten()
+        .filter(|callee| callee.kind == SyntaxKind::MemberExpression)
+        .and_then(|callee| {
+            let mut receiver = callee.children.first()?;
+            while receiver.kind == SyntaxKind::GroupExpression {
+                receiver = receiver.children.first()?;
+            }
+            let member = callee.children.last()?;
+            Some(
+                receiver.span == target
+                    && emitter.value_type(receiver).is_some_and(|ty| {
+                        crate::semantics::member_invocation_mode_at(
+                            emitter.package,
+                            emitter.unit,
+                            receiver,
+                            &ty,
+                            emitter.text(member),
+                        ) == InvocationMode::Consuming
+                    }),
+            )
+        })
+        .unwrap_or(false);
     move_here
+        || consumes_here
         || node
             .children
             .iter()
@@ -285,6 +310,8 @@ impl Emitter<'_> {
         if receiver.kind == SyntaxKind::Name
             && self.value_type(receiver).is_some_and(|value_type| {
                 self.value_type_owns_resource(&value_type)
+                    || (matches!(value_type, ValueType::InvocationScopedNative { .. })
+                        && !self.package.native_value_is_copyable(&value_type))
                     || matches!(value_type, ValueType::Object(identity)
                         if self.package.projection.item(&identity.namespace, &identity.name).is_none())
             })

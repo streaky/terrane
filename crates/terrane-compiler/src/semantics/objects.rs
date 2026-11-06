@@ -900,6 +900,15 @@ fn cloneable_object(
     else {
         return false;
     };
+    // Source classes use Rust's derived Clone implementation, which requires
+    // every selected type argument to be Clone, including phantom arguments.
+    if !identity
+        .type_arguments
+        .iter()
+        .all(|argument| cloneable_value_type(package, argument, visiting))
+    {
+        return false;
+    }
     if application_is_resource_owning(package, value_type) {
         return false;
     }

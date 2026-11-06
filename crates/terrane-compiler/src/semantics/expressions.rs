@@ -351,6 +351,7 @@ fn infer_nonbinary_value_type(
             unit,
             &contract.generic_parameters,
             &substitutions,
+            node.span.start,
         ) {
             return Err(failure(
                 &unit.source,
@@ -1805,6 +1806,25 @@ fn infer_nonbinary_value_type(
                 ),
                 receiver.span,
             ));
+        }
+        if let Some(contract) = call_base_contract(unit, node, bindings)?
+            && !contract.generic_parameters.is_empty()
+        {
+            return Ok(super::generics::select_unit_callable_contract(
+                None, unit, node, contract, bindings,
+            )
+            .map(|(selected, _)| {
+                let result = ElementType::new(
+                    selected
+                        .return_type
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                if selected.is_async {
+                    ValueType::Task(result, selected.task_transferability)
+                } else {
+                    result.value_type()
+                }
+            }));
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression

@@ -1,0 +1,6 @@
+namespace global-write-boolean
+
+global calls int = 0
+
+function main;
+    global calls = true

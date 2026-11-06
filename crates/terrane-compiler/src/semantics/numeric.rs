@@ -21,6 +21,14 @@ pub(super) fn infer_arithmetic_family_type(
     if matches!(receiver_type, Some(ValueType::Object(_))) {
         return Ok(None);
     }
+    if let Some(ValueType::TypeParameter(parameter)) = &receiver_type
+        && let Some(bound) =
+            super::generics::type_parameter_bound_at(unit, receiver.span.start, parameter)
+        && super::member_inference::object_member_type(unit, bound, family.source_name(), false)
+            .is_some()
+    {
+        return Ok(None);
+    }
     let Some(ValueType::Scalar(receiver_type)) = receiver_type else {
         return Err(failure(
             &unit.source,

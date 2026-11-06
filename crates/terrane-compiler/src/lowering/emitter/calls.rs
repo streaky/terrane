@@ -267,7 +267,24 @@ impl Emitter<'_> {
             .projected_function_for_call(source_callee, is_unsafe)
             .is_some();
         let mut callee = source_callee;
-        if projected_application {
+        let mut application = source_callee;
+        while matches!(
+            application.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+        ) {
+            let Some(inner) = application.children.first() else {
+                break;
+            };
+            application = inner;
+        }
+        let source_method_application = (!projected_application
+            && application.kind == SyntaxKind::AppliedType
+            && application
+                .children
+                .first()
+                .is_some_and(|base| base.kind == SyntaxKind::MemberExpression))
+        .then_some(application);
+        if projected_application || source_method_application.is_some() {
             while matches!(
                 callee.kind,
                 SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
@@ -761,7 +778,7 @@ impl Emitter<'_> {
             && !matches!(
                 find_node_by_span(&self.unit.tree.root, method.receiver)
                     .and_then(|receiver| self.receiver_value_type(receiver)),
-                Some(ValueType::Object(_))
+                Some(ValueType::Object(_) | ValueType::TypeParameter(_))
             )
         {
             let receiver_node = find_node_by_span(&self.unit.tree.root, method.receiver)
@@ -3191,6 +3208,10 @@ impl Emitter<'_> {
             } else {
                 format!("{name}::<{}>", generic_arguments.join(", "))
             }
+        } else if let Some((_, arguments)) = source_method_application
+            .and_then(|application| self.source_applied_function_parts(application))
+        {
+            format!("{name}::<{}>", arguments.join(", "))
         } else {
             name
         };

@@ -1,0 +1,6 @@
+namespace global-write-typed-mismatch
+
+global calls int = 0
+
+function main;
+    global calls string = 'text'

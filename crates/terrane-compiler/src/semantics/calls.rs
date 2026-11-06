@@ -1991,6 +1991,14 @@ pub(crate) fn selected_callable_contract(
         let Some(bound) = &parameter.bound else {
             continue;
         };
+        // Unit selection already proved an enclosing parameter's declared bound.
+        // Only concrete implementors need the package-wide interface lookup.
+        if matches!(
+            substitutions.get(&parameter.name),
+            Some(ValueType::TypeParameter(_))
+        ) {
+            continue;
+        }
         let Some(ValueType::Object(actual)) = substitutions.get(&parameter.name) else {
             return None;
         };
