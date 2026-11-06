@@ -1,0 +1,9 @@
+package = "conformance/object-protocols"
+artifact = "library"
+rust-toolchain = "pinned"
+
+[namespaces]
+"conformance/object-protocols" = "src"
+
+[testing]
+integration = "tests/integration"

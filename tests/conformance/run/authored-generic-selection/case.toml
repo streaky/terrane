@@ -1,3 +1,4 @@
 phase = "run"
 status = "accept"
-canonical-rust = true
+suite = "object-protocols"
+test = "/authored-generic-selection::test-scenario"

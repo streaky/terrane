@@ -1,2 +1,4 @@
 phase = "run"
 status = "accept"
+suite = "control-flow"
+test = "/conformance/loop-body-backedge-inferred-rhs::test-scenario"

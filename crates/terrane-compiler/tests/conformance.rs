@@ -889,17 +889,28 @@ fn compile_shared_suite(
 }
 
 fn run_shared_suites(manifests: &[PathBuf], build: &ConformanceBuild) {
-    let suites = shared_suite_groups(manifests);
-    for (suite, case_manifests) in suites {
-        let suite_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/conformance-suites")
-            .join(&suite);
-        let mut case_timings = case_manifests
-            .iter()
-            .map(|path| prepare_shared_case(path, &build.root))
-            .collect::<Vec<_>>();
-        let mut suite_timing = CaseTiming::named(&format!("shared-suite/{suite}/compile"));
-        let tier = compile_shared_suite(&suite, &suite_root, &case_manifests);
+    let suites = shared_suite_groups(manifests)
+        .into_iter()
+        .collect::<Vec<_>>();
+    let prepared = parallel_map_indexed(
+        &suites,
+        conformance_jobs(suites.len()),
+        |_, (suite, case_manifests)| {
+            let suite_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tests/fixtures/conformance-suites")
+                .join(suite);
+            let case_timings = case_manifests
+                .iter()
+                .map(|path| prepare_shared_case(path, &build.root))
+                .collect::<Vec<_>>();
+            let suite_timing = CaseTiming::named(&format!("shared-suite/{suite}/compile"));
+            let tier = compile_shared_suite(suite, &suite_root, case_manifests);
+            (suite_root, case_timings, suite_timing, tier)
+        },
+    );
+    for ((suite, case_manifests), (suite_root, mut case_timings, mut suite_timing, tier)) in
+        suites.into_iter().zip(prepared)
+    {
         let mut selected = Vec::new();
         for manifest_path in &case_manifests {
             let manifest = fs::read_to_string(manifest_path).unwrap();

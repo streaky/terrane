@@ -1,9 +1,0 @@
-namespace typed-destinations
-function answer int;
-  return 41
-function main;
-  text = 'Terrane'
-  total int = text.length
-  total = total + 1
-  print; (answer;)
-  print; total

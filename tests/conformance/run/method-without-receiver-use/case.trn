@@ -1,9 +1,0 @@
-namespace method-without-receiver-use
-
-class answerer
- function answer int;
-  return 42
-
-function main;
- value = instance answerer;
- print; (value.answer;)

@@ -1,5 +1,0 @@
-namespace exact-constant-membership
-function main;
-  print; 127 is a int8
-  print; 128 is a int8
-  print; 1.5 is a float32
