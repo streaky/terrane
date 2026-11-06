@@ -668,10 +668,16 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .is_none_or(|method| method.chain_role.is_none())
             && match &receiver_type {
                 ValueType::InvocationScopedNative { .. } => {
-                    !value_type_is_cloneable(package, unit, &receiver_type)
+                    matches!(
+                        ungroup(receiver).kind,
+                        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+                    ) && !value_type_is_cloneable(package, unit, &receiver_type)
                 }
                 ValueType::Object(_) => {
-                    !value_type_is_cloneable(package, unit, &receiver_type)
+                    (matches!(
+                        ungroup(receiver).kind,
+                        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+                    ) && !value_type_is_cloneable(package, unit, &receiver_type))
                         || resolved_object_span(package, object_name)
                             .is_some_and(|span| resource_objects.contains(&span_key(span)))
                 }
