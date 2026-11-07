@@ -481,7 +481,10 @@ pub(super) fn analyze_function_contract(
         .children
         .iter()
         .find(|child| child.kind == SyntaxKind::TypeExpression)
-        .map(|type_node| declared_value_type(unit, type_node, aliases))
+        .map(|type_node| {
+            super::types::validate_scalar_union_declaration(unit, type_node, aliases)?;
+            declared_value_type(unit, type_node, aliases)
+        })
         .transpose()?;
     let mut parameters = Vec::new();
     let mut optional_seen = false;
@@ -503,7 +506,10 @@ pub(super) fn analyze_function_contract(
                 .iter()
                 .find(|child| child.kind == SyntaxKind::TypeExpression);
             let value_type = type_node
-                .map(|type_node| declared_value_type(unit, type_node, aliases))
+                .map(|type_node| {
+                    super::types::validate_scalar_union_declaration(unit, type_node, aliases)?;
+                    declared_value_type(unit, type_node, aliases)
+                })
                 .transpose()?;
             let variadic = parameter
                 .children

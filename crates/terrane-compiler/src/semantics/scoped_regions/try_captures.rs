@@ -1,4 +1,5 @@
 //! Source diagnostics for native values moved into lowering-owned try closures.
+use super::super::capabilities::rust_value_is_copy;
 use super::super::prelude::*;
 use super::liveness::Flow;
 
@@ -32,18 +33,19 @@ fn validate_moved_value(
 ) -> Result<(), SemanticFailure> {
     let value = named_value(value);
     if let Some(ty) = unit.inferred_value_type(value)
-        && matches!(
-            ty,
-            ValueType::InvocationScopedNative { .. }
-                | ValueType::Object(_)
-                | ValueType::TypeParameter(_)
-        )
+        && !rust_value_is_copy(&ty)
         && !package.native_value_is_copyable(&ty)
+        && !matches!(
+            &ty,
+            ValueType::Reference(_)
+                | ValueType::MutableReference(_)
+                | ValueType::SharedReference(_)
+        )
         && (explicit
-            || application_is_resource_owning(package, &ty)
-            || matches!(&ty, ValueType::Object(identity)
-                if package.projection.item(&identity.namespace, &identity.name).is_none())
-            || super::field_has_native_loan(package, &ty))
+            || !matches!(&ty, ValueType::Object(identity)
+                if package.projection.item(&identity.namespace, &identity.name).is_some()
+                    && super::super::objects::value_type_is_cloneable(package, unit, &ty)
+                    && !application_is_resource_owning(package, &ty)))
         && let Some(binding) = super::binding_identity_at(unit, value)
         && binding.start < statement.span.start
         && rebinds(unit, statement, binding)
@@ -94,7 +96,14 @@ fn validate_consumption(
         None
     };
     if let Some(receiver) = receiver {
-        validate_moved_value(package, unit, statement, receiver, flow, true)?;
+        validate_moved_value(
+            package,
+            unit,
+            statement,
+            receiver,
+            flow,
+            node.kind == SyntaxKind::UnaryExpression,
+        )?;
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -233,20 +242,25 @@ pub(super) fn completion_capture_slots(
                 .find(|child| child.kind == SyntaxKind::FinallyClause)
         {
             let mut writes = BTreeSet::new();
+            let mut body_uses = BTreeSet::new();
             let mut uses = BTreeSet::new();
-            collect(unit, body, true, &mut writes);
+            collect(unit, node, true, &mut writes);
+            collect(unit, body, false, &mut body_uses);
             collect(unit, finally, false, &mut uses);
             for binding in unit.typed_bindings.iter().filter(|binding| {
                 binding.span.end <= node.span.start
                     && writes.contains(&binding.span)
+                    && body_uses.contains(&binding.span)
                     && uses.contains(&binding.span)
             }) {
-                if matches!(
-                    binding.value_type,
-                    ValueType::Object(_)
-                        | ValueType::InvocationScopedNative { .. }
-                        | ValueType::TypeParameter(_)
-                ) && !package.native_value_is_copyable(&binding.value_type)
+                if !rust_value_is_copy(&binding.value_type)
+                    && !package.native_value_is_copyable(&binding.value_type)
+                    && !matches!(
+                        &binding.value_type,
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
+                    )
                 {
                     slots.insert(binding.span);
                 }

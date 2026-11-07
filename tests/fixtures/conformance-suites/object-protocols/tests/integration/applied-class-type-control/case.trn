@@ -1,0 +1,9 @@
+namespace applied-class-type-control
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+
+function test-scenario;
+    box = instance Box of int; 1
+    print; box.value

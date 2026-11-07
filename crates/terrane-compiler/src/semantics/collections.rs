@@ -702,6 +702,21 @@ pub(super) fn infer_collection_call_type(
         })
         .min_by_key(|binding| binding.span.end - binding.span.start)
         .map(|binding| &binding.value_type)
+        .or_else(|| {
+            unit.descriptors
+                .iter()
+                .flat_map(|object| &object.fields)
+                .find_map(|field| {
+                    let mut initializer =
+                        find_node_by_span(&unit.tree.root, field.initializer_span?)?;
+                    while initializer.kind == SyntaxKind::GroupExpression
+                        && let [inner] = initializer.children.as_slice()
+                    {
+                        initializer = inner;
+                    }
+                    (initializer.span == node.span).then_some(&field.value_type)
+                })
+        })
         && collection_constructor_matches(unit, node, expected, bindings)
     {
         return Ok(Some(expected.clone()));

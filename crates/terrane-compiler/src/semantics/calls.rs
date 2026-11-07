@@ -40,6 +40,26 @@ pub(super) fn validate_string_member_expression(
     Ok(())
 }
 
+fn assigned_value_expression(node: &SyntaxNode) -> Option<&SyntaxNode> {
+    match node.kind {
+        SyntaxKind::Binding | SyntaxKind::Assignment => {
+            let target_span = node.children.first()?.span;
+            node.children.iter().rev().find(|child| {
+                child.span != target_span
+                    && !matches!(
+                        child.kind,
+                        SyntaxKind::Visibility
+                            | SyntaxKind::DeclarationQualifier
+                            | SyntaxKind::TypeExpression
+                    )
+            })
+        }
+        SyntaxKind::ReturnStatement => node.children.first(),
+        SyntaxKind::GroupExpression => Some(node),
+        _ => None,
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "call validation remains one traversal so every call form shares lexical scope and contracts"
@@ -59,6 +79,7 @@ pub(super) fn validate_call_nodes<'a>(
             | SyntaxKind::ImportSelection
             | SyntaxKind::ImportAlias
             | SyntaxKind::NamespaceDeclaration
+            | SyntaxKind::TypeExpression
     ) {
         return Ok(());
     }
@@ -102,6 +123,10 @@ pub(super) fn validate_call_nodes<'a>(
                     argument.span,
                 ));
             }
+            super::expressions::validate_applied_collection_type_value(
+                unit,
+                argument.children.last().unwrap_or(argument),
+            )?;
             validate_call_nodes(
                 package,
                 unit,
@@ -125,6 +150,26 @@ pub(super) fn validate_call_nodes<'a>(
         ));
     }
 
+    if let Some(value) = assigned_value_expression(node) {
+        super::expressions::validate_applied_collection_type_value(unit, value)?;
+    }
+    if matches!(
+        node.kind,
+        SyntaxKind::IfStatement | SyntaxKind::WhileStatement
+    ) && let Some(condition) = node.children.first()
+    {
+        super::expressions::validate_applied_collection_type_value(unit, condition)?;
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(arguments) = node.children.get(1)
+    {
+        for argument in &arguments.children {
+            super::expressions::validate_applied_collection_type_value(
+                unit,
+                argument.children.last().unwrap_or(argument),
+            )?;
+        }
+    }
     validate_resolved_assignment(package, unit, node, contracts)?;
     validate_numeric_coercion_call(unit, node, scoped_bindings)?;
     if node.kind == SyntaxKind::CallExpression
@@ -1763,7 +1808,13 @@ fn validate_argument_destination(
             // Alias facades can name the same proven native storage differently.
             actual.clone()
         }
-        (ValueType::MutableReference(inner) | ValueType::SharedReference(inner), _) => {
+        (ValueType::MutableReference(inner) | ValueType::SharedReference(inner), _)
+            if super::types::reference_target_types_equal(
+                package,
+                inner.value_type_ref(),
+                actual,
+            ) =>
+        {
             inner.value_type()
         }
         _ => expected.clone(),

@@ -1,0 +1,17 @@
+namespace generic-interface-implementation-bound
+interface named
+    function name int;
+interface described of (T implements named)
+    function describe int;
+class Item implements named
+    function name int;
+        return 3
+class Box of (T implements named) implements described of T
+    value T
+    function construct; value T
+        this.value = move value
+    function describe int;
+        return this.value.name;
+function test-scenario;
+    box = instance Box of Item; (instance Item;)
+    print; (box.describe;)

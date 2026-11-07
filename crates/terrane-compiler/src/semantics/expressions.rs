@@ -1,4 +1,30 @@
 use super::prelude::*;
+pub(super) fn validate_applied_collection_type_value(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let mut value = value;
+    while matches!(
+        value.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::CallExpression
+    ) && let Some(inner) = value.children.first()
+    {
+        value = inner;
+    }
+    if value.kind != SyntaxKind::AppliedType
+        || !value.children.first().is_some_and(|constructor| {
+            collection_constructor_identity(unit, constructor, &unit.typed_bindings).is_some()
+        })
+    {
+        return Ok(());
+    }
+    Err(failure(
+        &unit.source,
+        "T0012",
+        "an applied collection type is not a value; use a destination-typed empty collection",
+        value.span,
+    ))
+}
 
 pub(super) fn call_base_designator(mut callee: &SyntaxNode) -> Option<&SyntaxNode> {
     while matches!(

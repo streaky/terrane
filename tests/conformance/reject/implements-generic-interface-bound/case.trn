@@ -1,0 +1,9 @@
+namespace implements-generic-interface-bound
+interface named
+    function name int;
+class plain
+interface constrained of (T implements named)
+    function value int;
+class invalid implements constrained of plain
+    function value int;
+        return 1

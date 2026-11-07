@@ -1,0 +1,5 @@
+namespace heterogeneous-scalar-union-nested
+from /core/collections import list
+function accept; values list of int|string
+  return
+function main;

@@ -1,0 +1,12 @@
+namespace app
+from /deps/terrane-query-witness import Holder
+from /core/collections import list
+class F of (T)
+    n int = 1
+
+function r int; l ref list of F of Holder
+    return l[0].n + 1
+
+function main;
+    l list of F of Holder = list; (instance F of Holder;)
+    print; (r; l)

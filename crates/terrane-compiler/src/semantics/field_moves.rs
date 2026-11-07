@@ -92,7 +92,7 @@ fn field_owner(
     }
 }
 
-fn destructive_move(
+pub(crate) fn field_access_transfers(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     access: &SyntaxNode,
@@ -528,7 +528,7 @@ fn visit(
         && let Some(path) = path_at(unit, access)
     {
         check_access(unit, &path, moved, access.span)?;
-        if destructive_move(package, unit, access, false)? {
+        if field_access_transfers(package, unit, access, false)? {
             moved.insert(path);
         }
         return Ok(FieldFlow::normal());
@@ -581,7 +581,7 @@ fn visit(
         && receiver.kind == SyntaxKind::MemberExpression
     {
         let flow = visit_children(package, unit, node, moved)?;
-        if destructive_move(package, unit, receiver, true)? {
+        if field_access_transfers(package, unit, receiver, true)? {
             moved.insert(path);
         }
         return Ok(flow);

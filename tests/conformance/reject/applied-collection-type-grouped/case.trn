@@ -1,0 +1,4 @@
+namespace applied-collection-type-grouped
+from /core/collections import list
+function main;
+    values = (list of int);

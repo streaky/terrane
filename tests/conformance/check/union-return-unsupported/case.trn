@@ -1,6 +1,0 @@
-namespace union-return-unsupported
-function choose int8 | int32;
-  value int8 = 1
-  return value
-function main;
-  print; (choose;)

@@ -1,0 +1,4 @@
+namespace heterogeneous-scalar-union-parameter
+function accept int; value int|string
+  return 1
+function main;

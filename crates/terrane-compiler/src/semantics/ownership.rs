@@ -61,23 +61,31 @@ fn validate_field_snapshot(
             value.span,
         ));
     }
-    if value.kind == SyntaxKind::MemberExpression
-        && let Some(receiver) = value.children.first()
-        && ungroup(receiver).kind == SyntaxKind::IndexExpression
-        && let Some(ValueType::Object(identity)) =
-            infer_value_type(unit, receiver, &unit.typed_bindings)?
-        && package
-            .projection
-            .item(&identity.namespace, &identity.name)
-            .is_none()
-        && !value_type_is_cloneable(package, unit, &ValueType::Object(identity))
-    {
-        return Err(failure(
-            &unit.source,
-            "T0135",
-            "indexed source objects cannot snapshot a non-Clone field; borrow the field or use a supported mutable receiver",
-            receiver.span,
-        ));
+    // Follow the receiver place, not an owned snapshot of each intermediate
+    // field. An indexed non-Clone owner still cannot be materialized merely
+    // because the final selected field is Copy.
+    let mut path = value;
+    while path.kind == SyntaxKind::MemberExpression {
+        let Some(receiver) = path.children.first().map(ungroup) else {
+            break;
+        };
+        if receiver.kind == SyntaxKind::IndexExpression
+            && let Some(ValueType::Object(identity)) =
+                infer_value_type(unit, receiver, &unit.typed_bindings)?
+            && package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_none()
+            && !value_type_is_cloneable(package, unit, &ValueType::Object(identity))
+        {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "indexed source objects cannot snapshot a non-Clone field; borrow the field or use a supported mutable receiver",
+                receiver.span,
+            ));
+        }
+        path = receiver;
     }
     Ok(())
 }
@@ -371,19 +379,39 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         {
             validate_field_snapshot(package, unit, value)?;
         }
+        if node.kind == SyntaxKind::BinaryExpression
+            && let [left, right] = node.children.as_slice()
+        {
+            let operator = unit.source.text()[left.span.end..right.span.start].trim();
+            // Equality against none observes presence, not an owned field value.
+            let presence = matches!(operator, "==" | "!=")
+                && (infer_value_type(unit, left, &unit.typed_bindings)?
+                    == Some(ValueType::Scalar(ScalarType::None))
+                    || infer_value_type(unit, right, &unit.typed_bindings)?
+                        == Some(ValueType::Scalar(ScalarType::None)));
+            if !presence {
+                validate_field_snapshot(package, unit, left)?;
+                validate_field_snapshot(package, unit, right)?;
+            }
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::IfStatement | SyntaxKind::WhileStatement
+        ) && let Some(condition) = node.children.first()
+        {
+            validate_field_snapshot(package, unit, condition)?;
+        }
+        if node.kind == SyntaxKind::UnaryExpression
+            && !matches!(
+                unary_operator_text(unit, node).as_deref(),
+                Some("ref" | "mutable ref" | "move")
+            )
+            && let Some(operand) = node.children.last()
+        {
+            validate_field_snapshot(package, unit, operand)?;
+        }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
-            && (ungroup(callee).kind == SyntaxKind::MemberExpression
-                || arguments.children.iter().any(|argument| {
-                    argument.children.last().is_some_and(|value| {
-                        matches!(
-                            value.kind,
-                            SyntaxKind::MemberExpression
-                                | SyntaxKind::IndexExpression
-                                | SyntaxKind::GroupExpression
-                        )
-                    })
-                }))
         {
             if ungroup(callee).kind == SyntaxKind::Name
                 && package
@@ -392,7 +420,19 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         callee.span.start,
                         node_text(&unit.source, ungroup(callee)),
                     )
-                    .is_some_and(|symbol| symbol.identity == "/core/output::print")
+                    .is_some_and(|symbol| {
+                        symbol.identity == "/core/output::print"
+                            || symbol.identity.starts_with("/core/collections::")
+                                && matches!(
+                                    symbol.name.as_str(),
+                                    "list"
+                                        | "tuple"
+                                        | "map"
+                                        | "set"
+                                        | "unordered-map"
+                                        | "unordered-set"
+                                )
+                    })
             {
                 for argument in &arguments.children {
                     if let Some(value) = argument.children.last() {
@@ -775,7 +815,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     matches!(
                         ungroup(receiver).kind,
                         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
-                    ) && !value_type_is_cloneable(package, unit, &receiver_type)
+                    ) && !package.native_value_is_copyable(&receiver_type)
                 }
                 ValueType::Object(_) => resolved_object_span(package, object_name)
                     .is_some_and(|span| resource_objects.contains(&span_key(span))),
@@ -975,9 +1015,14 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
                 })
                 .filter(|binding| {
-                    noncopyable_binding(package, unit, *binding)
-                        || matches!(&unit.typed_bindings[*binding].value_type, ValueType::Object(identity)
-                            if package.projection.item(&identity.namespace, &identity.name).is_none())
+                    let ty = &unit.typed_bindings[*binding].value_type;
+                    let native_clone_conversion = matches!(ty, ValueType::MutableReference(item)
+                        if matches!(item.value_type_ref(), ValueType::Object(identity)
+                            if package.projection.item(&identity.namespace, &identity.name).is_some()
+                                && value_type_is_cloneable(package, unit, item.value_type_ref())));
+                    !native_clone_conversion && (noncopyable_binding(package, unit, *binding)
+                        || matches!(ty, ValueType::Object(identity)
+                            if package.projection.item(&identity.namespace, &identity.name).is_none()))
                 });
             for child in &node.children {
                 visit(

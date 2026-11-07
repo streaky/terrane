@@ -1,0 +1,14 @@
+namespace app
+from /deps/terrane-query-witness import Holder
+from /core/collections import list
+class F of (T)
+    n int = 1
+
+class G of (U)
+    f F of U
+    function construct; f F of U
+        this.f = move f
+
+function main;
+    l list of G of Holder = list; (instance G of Holder; (instance F of Holder;))
+    print; l[0].f.n

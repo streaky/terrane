@@ -1,0 +1,3 @@
+namespace field-default-bool-mismatch
+class InvalidDefaults
+    flag bool = 'a'

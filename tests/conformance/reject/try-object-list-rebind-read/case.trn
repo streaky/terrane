@@ -1,0 +1,16 @@
+namespace app
+from /core/collections import list, tuple
+class K
+    n int = 1
+
+function eat int; k list of K
+    return 1
+
+function main;
+    o list of K = list; (instance K;)
+    try
+        print; (eat; o)
+        o = list; (instance K;)
+    finally
+        print; 2
+    print; o[0].n

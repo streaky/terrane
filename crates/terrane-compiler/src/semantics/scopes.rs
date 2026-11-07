@@ -29,7 +29,10 @@ pub(super) fn collect_lexical_scopes(
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
                     for method in &block.children {
-                        if method.kind == SyntaxKind::FunctionDeclaration {
+                        if matches!(
+                            method.kind,
+                            SyntaxKind::FunctionDeclaration | SyntaxKind::Binding
+                        ) {
                             add_lexical_scope(unit, context, &mut scopes, method, None)?;
                         } else {
                             collect_expression_scopes(unit, context, &mut scopes, method)?;

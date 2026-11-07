@@ -1,0 +1,14 @@
+namespace inherited-interface-generic-ancestor
+from /core/collections import list
+interface Root of (T)
+    function value T;
+interface Middle of (T) implements Root of list of T
+interface Leaf implements Middle of int
+class Item implements Leaf
+    function value list of int;
+        return list; 1, 2
+function inspect of (T implements Leaf) int; value T
+    return (value.value;).length
+function test-scenario;
+    item = instance Item;
+    print; (inspect; item)

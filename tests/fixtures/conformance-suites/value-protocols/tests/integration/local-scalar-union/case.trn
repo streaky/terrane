@@ -1,0 +1,11 @@
+namespace local-scalar-union
+function choose; flag bool
+    if flag
+        value int = 1
+    else
+        value string = 'text'
+    print; value
+
+function test-scenario;
+    choose; true
+    choose; false

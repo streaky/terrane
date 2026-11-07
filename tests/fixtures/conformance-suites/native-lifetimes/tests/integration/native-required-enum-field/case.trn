@@ -1,0 +1,22 @@
+namespace native-required-enum-field
+from /deps/terrane-query-witness import NE
+class R
+    value NE
+    sibling int = 9
+    function construct;
+        this.value = NE::A;
+    consuming function finish uint64;
+        return this.value.code;
+class Outer
+    inner R
+    function construct;
+        this.inner = instance R;
+function test-scenario;
+    value = instance R;
+    print; (value.value.code;)
+    print; value.sibling
+    outer = instance Outer;
+    print; (outer.inner.value.code;)
+    print; outer.inner.sibling
+    owned = instance R;
+    print; (owned.finish;)

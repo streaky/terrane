@@ -1054,6 +1054,55 @@ pub(super) fn parse_declared_value_type(
     None
 }
 
+pub(super) fn validate_scalar_union_declaration(
+    unit: &SemanticUnit,
+    type_node: &SyntaxNode,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Result<(), SemanticFailure> {
+    fn visit(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        aliases: &BTreeMap<String, ScalarType>,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::UnionType {
+            let mut arms = Vec::new();
+            let mut scalar_only = true;
+            for arm in &node.children {
+                let name = node_text(&unit.source, arm).trim();
+                match aliases
+                    .get(name)
+                    .copied()
+                    .or_else(|| unit.descriptor_alias_at(name, arm.span.start))
+                {
+                    Some(value) => {
+                        if !arms.contains(&value) {
+                            arms.push(value);
+                        }
+                    }
+                    None => scalar_only = false,
+                }
+            }
+            if scalar_only
+                && arms.len() > 1
+                && !(arms.len() == 2 && arms.contains(&ScalarType::None))
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "heterogeneous scalar unions are supported only as local binding destinations",
+                    node.span,
+                ));
+            }
+        }
+        for child in &node.children {
+            visit(unit, child, aliases)?;
+        }
+        Ok(())
+    }
+
+    visit(unit, type_node, aliases)
+}
+
 pub(super) fn union_destination_candidates(
     unit: &SemanticUnit,
     type_node: &SyntaxNode,
@@ -1794,11 +1843,7 @@ pub(super) fn value_types_compatible(
             value_types_compatible(objects, expected, actual)
         }
         (ValueType::Tuple(expected_item, None), ValueType::Tuple(actual_item, _)) => {
-            value_types_compatible(
-                objects,
-                &expected_item.value_type(),
-                &actual_item.value_type(),
-            )
+            value_types_compatible(&[], &expected_item.value_type(), &actual_item.value_type())
         }
         (
             ValueType::Tuple(expected_item, Some(expected_length)),
@@ -1806,7 +1851,7 @@ pub(super) fn value_types_compatible(
         ) => {
             expected_length == actual_length
                 && value_types_compatible(
-                    objects,
+                    &[],
                     &expected_item.value_type(),
                     &actual_item.value_type(),
                 )
@@ -1858,7 +1903,9 @@ pub(super) fn value_types_compatible(
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))
         | (ValueType::IterationStep(expected), ValueType::IterationStep(actual))
         | (ValueType::AsyncIterationStep(expected), ValueType::AsyncIterationStep(actual)) => {
-            value_types_compatible(objects, &expected.value_type(), &actual.value_type())
+            // Containers retain their element storage; nominal upcasts must be
+            // applied to each element before constructing the destination.
+            value_types_compatible(&[], &expected.value_type(), &actual.value_type())
         }
         (
             ValueType::Map(expected_key, expected_value),
@@ -1872,15 +1919,12 @@ pub(super) fn value_types_compatible(
             ValueType::Entry(expected_key, expected_value),
             ValueType::Entry(actual_key, actual_value),
         ) => {
-            value_types_compatible(
-                objects,
-                &expected_key.value_type(),
-                &actual_key.value_type(),
-            ) && value_types_compatible(
-                objects,
-                &expected_value.value_type(),
-                &actual_value.value_type(),
-            )
+            value_types_compatible(&[], &expected_key.value_type(), &actual_key.value_type())
+                && value_types_compatible(
+                    &[],
+                    &expected_value.value_type(),
+                    &actual_value.value_type(),
+                )
         }
         (
             ValueType::Function(expected_parameters, expected_result, expected_effects),

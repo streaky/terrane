@@ -387,34 +387,9 @@ pub(super) fn object_method_mutates(
     object_identity: &ObjectIdentity,
     method_name: &str,
 ) -> bool {
-    fn contract_mutates(
-        unit: &SemanticUnit,
-        object_identity: &ObjectIdentity,
-        method_name: &str,
-    ) -> bool {
-        if let Some(method) = unit.functions.iter().find(|method| {
-            method.owner_identity.as_ref() == Some(object_identity) && method.name == method_name
-        }) {
-            return method.written_invocation_mode == InvocationMode::Mutable;
-        }
-        unit.descriptors
-            .iter()
-            .find(|object| object.identity == *object_identity)
-            .and_then(|object| object.base.as_ref())
-            .is_some_and(|base| contract_mutates(unit, base, method_name))
-    }
-
-    if package.units.iter().any(|candidate| {
-        candidate
-            .descriptors
-            .iter()
-            .find(|object| {
-                object.identity == *object_identity
-                    || (!object_identity.type_arguments.is_empty()
-                        && object.identity.base() == object_identity.base())
-            })
-            .is_some_and(|object| contract_mutates(candidate, &object.identity, method_name))
-    }) {
+    if method_contract(package, object_identity, method_name, false)
+        .is_some_and(|method| method.written_invocation_mode == InvocationMode::Mutable)
+    {
         return true;
     }
 
@@ -1010,10 +985,9 @@ fn binding_mutation_count(
             if receiver.kind != SyntaxKind::MemberExpression || !resolves_to_binding(owner) {
                 return false;
             }
-            let source_value = matches!(&receiver_type, ValueType::TypeParameter(_))
-                || matches!(&receiver_type, ValueType::Object(identity)
-                    if package.projection.item(&identity.namespace, &identity.name).is_none());
-            if !source_value && !application_is_resource_owning(package, &receiver_type) {
+            if !super::field_moves::field_access_transfers(package, unit, receiver, true)
+                .unwrap_or(false)
+            {
                 return false;
             }
             let Ok(Some(ValueType::Object(identity))) =

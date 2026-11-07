@@ -1,0 +1,4 @@
+namespace heterogeneous-scalar-union-return
+function value int|string;
+  return 1
+function main;

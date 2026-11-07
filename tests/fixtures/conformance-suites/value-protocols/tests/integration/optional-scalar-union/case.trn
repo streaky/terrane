@@ -1,0 +1,6 @@
+namespace optional-scalar-union
+function test-scenario;
+  value int|none = 7
+  print; value
+  value = none
+  print; value == none

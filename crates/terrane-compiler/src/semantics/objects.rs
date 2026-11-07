@@ -134,6 +134,102 @@ pub(crate) fn effective_object_interfaces(
     interfaces
 }
 
+fn validate_inheritance_cycles(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn visit(
+        identity: &ObjectIdentity,
+        edges: &BTreeMap<ObjectIdentity, Vec<(ObjectIdentity, Span)>>,
+        active: &mut BTreeSet<ObjectIdentity>,
+        complete: &mut BTreeSet<ObjectIdentity>,
+    ) -> Option<Span> {
+        let key = identity.base();
+        if active.contains(&key) {
+            return None;
+        }
+        if !complete.insert(key.clone()) {
+            return None;
+        }
+        active.insert(key.clone());
+        for (target, span) in edges.get(&key).into_iter().flatten() {
+            if active.contains(target) {
+                return Some(*span);
+            }
+            if let Some(span) = visit(target, edges, active, complete) {
+                return Some(span);
+            }
+        }
+        active.remove(&key);
+        None
+    }
+
+    let mut edges = BTreeMap::<ObjectIdentity, Vec<(ObjectIdentity, Span)>>::new();
+    for unit in &package.units {
+        for descriptor in &unit.descriptors {
+            let relations = descriptor.base.iter().chain(&descriptor.interfaces);
+            edges
+                .entry(descriptor.identity.base())
+                .or_default()
+                .extend(relations.map(|relation| (relation.base(), descriptor.span)));
+        }
+    }
+    let mut complete = BTreeSet::new();
+    for identity in edges.keys() {
+        if let Some(span) = visit(identity, &edges, &mut BTreeSet::new(), &mut complete) {
+            let source = package
+                .units
+                .iter()
+                .find(|unit| unit.source.id() == span.file)
+                .expect("inheritance declaration belongs to a semantic unit");
+            return Err(failure(
+                &source.source,
+                "T0054",
+                "cyclic class or interface inheritance is not supported",
+                span,
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_implemented_interface_bounds(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    for unit in &package.units {
+        for implementor in &unit.descriptors {
+            for relation in &implementor.interfaces {
+                let Some(interface) = package
+                    .units
+                    .iter()
+                    .flat_map(|candidate| &candidate.descriptors)
+                    .find(|candidate| candidate.identity.base() == relation.base())
+                else {
+                    continue;
+                };
+                let substitutions = interface
+                    .generic_parameters
+                    .iter()
+                    .zip(&relation.type_arguments)
+                    .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                    .collect::<BTreeMap<_, _>>();
+                if !super::generics::generic_bounds_satisfied(
+                    unit,
+                    &interface.generic_parameters,
+                    &substitutions,
+                    implementor.span.start,
+                ) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0012",
+                        format!(
+                            "implemented interface `{}` has unsatisfied generic bounds",
+                            interface.name
+                        ),
+                        implementor.span,
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn field_metadata(
     unit: &SemanticUnit,
     field: &SyntaxNode,
@@ -374,6 +470,7 @@ pub(super) fn analyze_descriptor_contracts(
                     .iter()
                     .find(|child| child.kind == SyntaxKind::TypeExpression)
                 {
+                    super::types::validate_scalar_union_declaration(unit, type_node, &visible)?;
                     declared_value_type_with_visible_objects(
                         unit,
                         type_node,
@@ -2153,7 +2250,10 @@ fn validate_none_field_default(
     if matches!(literal.kind, SyntaxKind::Name | SyntaxKind::Literal)
         && infer_value_type(unit, literal, &unit.typed_bindings)?
             == Some(ValueType::Scalar(ScalarType::None))
-        && !matches!(field.value_type, ValueType::Optional(_))
+        && !matches!(
+            field.value_type,
+            ValueType::Optional(_) | ValueType::Scalar(ScalarType::None)
+        )
     {
         return Err(failure(
             &unit.source,
@@ -2163,6 +2263,51 @@ fn validate_none_field_default(
         ));
     }
     Ok(())
+}
+
+fn validate_field_default(
+    unit: &SemanticUnit,
+    field: &ObjectField,
+    initializer: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    validate_none_field_default(unit, field, initializer)?;
+    let context = format!("class field {}", field.name);
+    if contextual_collection_constructor_matches(
+        unit,
+        initializer,
+        &field.value_type,
+        &unit.typed_bindings,
+    ) {
+        return validate_collection_constructor_value(
+            unit,
+            initializer,
+            &field.value_type,
+            &context,
+            &unit.typed_bindings,
+        );
+    }
+    let actual = infer_value_type(unit, initializer, &unit.typed_bindings)?.ok_or_else(|| {
+        failure(
+            &unit.source,
+            "T0060",
+            format!("{context} initializer type cannot be inferred"),
+            initializer.span,
+        )
+    })?;
+    if actual == ValueType::Scalar(ScalarType::None)
+        && field.value_type == ValueType::Scalar(ScalarType::None)
+    {
+        return Ok(());
+    }
+    validate_value_destination(
+        &unit.source,
+        &unit.descriptors,
+        &context,
+        &field.value_type,
+        &actual,
+        initializer,
+        "T0060",
+    )
 }
 
 pub(super) fn validate_class_field_initializers(
@@ -2185,10 +2330,6 @@ pub(super) fn validate_class_field_initializers(
         for effective in effective_object_fields(package, object) {
             let field = effective.field;
             if let Some(initializer_span) = field.initializer_span {
-                let function_field = matches!(
-                    field.value_type,
-                    ValueType::Function(..) | ValueType::AsyncFunction(..)
-                );
                 let initializer = find_node_by_span(&effective.unit.tree.root, initializer_span)
                     .ok_or_else(|| {
                         failure(
@@ -2198,32 +2339,7 @@ pub(super) fn validate_class_field_initializers(
                             field.span,
                         )
                     })?;
-                if !function_field {
-                    validate_none_field_default(effective.unit, field, initializer)?;
-                    continue;
-                }
-                let actual =
-                    infer_value_type(effective.unit, initializer, &effective.unit.typed_bindings)?
-                        .ok_or_else(|| {
-                            failure(
-                                &effective.unit.source,
-                                "T0060",
-                                format!(
-                                    "class field `{}` initializer type cannot be inferred",
-                                    field.name
-                                ),
-                                initializer.span,
-                            )
-                        })?;
-                validate_value_destination(
-                    &effective.unit.source,
-                    &effective.unit.descriptors,
-                    &format!("class field {}", field.name),
-                    &field.value_type,
-                    &actual,
-                    initializer,
-                    "T0060",
-                )?;
+                validate_field_default(effective.unit, field, initializer)?;
                 continue;
             }
             if super::bindings::declaration_is_constant(package, field.span)
@@ -3087,6 +3203,7 @@ fn analyze_source_enums(
                                     field.span,
                                 )
                             })?;
+                        super::types::validate_scalar_union_declaration(unit, field_type, aliases)?;
                         payload.push(SourceEnumField {
                             name: node_text(&unit.source, field_name).to_owned(),
                             span: field.span,
@@ -3157,6 +3274,72 @@ fn prepare_source_enums(package: &mut SemanticPackage) -> Result<(), SemanticFai
     Ok(())
 }
 
+fn materialize_imported_ancestor_contracts(package: &mut SemanticPackage) {
+    let descriptors = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .cloned()
+        .collect::<Vec<_>>();
+    let functions = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .cloned()
+        .collect::<Vec<_>>();
+    for unit in &mut package.units {
+        let mut pending = unit
+            .descriptors
+            .iter()
+            .filter(|descriptor| descriptor.identity.namespace != unit.namespace)
+            .flat_map(|descriptor| {
+                descriptor
+                    .base
+                    .iter()
+                    .chain(&descriptor.interfaces)
+                    .cloned()
+            })
+            .collect::<Vec<_>>();
+        let mut visited = unit
+            .descriptors
+            .iter()
+            .map(|descriptor| descriptor.identity.base())
+            .collect::<BTreeSet<_>>();
+        let mut ancestors = Vec::new();
+        while let Some(identity) = pending.pop() {
+            let key = identity.base();
+            if !visited.insert(key.clone()) {
+                continue;
+            }
+            let Some(parent) = descriptors
+                .iter()
+                .find(|descriptor| descriptor.identity.base() == key)
+            else {
+                continue;
+            };
+            pending.extend(parent.base.iter().chain(&parent.interfaces).cloned());
+            ancestors.push(parent.clone());
+        }
+        let ancestor_ids = ancestors
+            .iter()
+            .map(|descriptor| descriptor.identity.base())
+            .collect::<BTreeSet<_>>();
+        for method in functions.iter().filter(|method| {
+            method
+                .owner_identity
+                .as_ref()
+                .is_some_and(|owner| ancestor_ids.contains(&owner.base()))
+        }) {
+            if !unit.functions.iter().any(|existing| {
+                existing.owner_identity == method.owner_identity && existing.span == method.span
+            }) {
+                unit.functions.push(method.clone());
+            }
+        }
+        unit.descriptors.extend(ancestors);
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Keeps the ordered type-declaration preparation pipeline together."
@@ -3194,6 +3377,8 @@ pub(super) fn prepare_type_declarations(
         };
         package.units[index].descriptors = descriptors;
     }
+    validate_inheritance_cycles(package)?;
+    validate_implemented_interface_bounds(package)?;
     super::source_associated::close_class_interfaces(package)?;
     prepare_source_enums(package)?;
     populate_object_aliases(package);
@@ -3251,6 +3436,7 @@ pub(super) fn prepare_type_declarations(
         package.units[index].functions = functions;
     }
     apply_projected_method_contracts(&mut package.units, &package.projection);
+    materialize_imported_ancestor_contracts(package);
     for unit in &mut package.units {
         for descriptor in &mut unit.descriptors {
             if descriptor.kind == ObjectKind::Interface {

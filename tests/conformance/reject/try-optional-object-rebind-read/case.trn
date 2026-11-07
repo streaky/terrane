@@ -1,0 +1,16 @@
+namespace app
+from /core/collections import list, tuple
+class K
+    n int = 1
+
+function eat int; k K|none
+    return 1
+
+function main;
+    o K|none = instance K;
+    try
+        print; (eat; o)
+        o = instance K;
+    finally
+        print; 2
+    print; (o is a none)

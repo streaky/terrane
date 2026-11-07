@@ -1,0 +1,6 @@
+namespace cycle/b
+
+from /cycle/a import p
+
+public interface q implements p
+    function b int;

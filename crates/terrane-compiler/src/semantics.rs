@@ -107,6 +107,7 @@ pub(crate) use bindings::{
     binding_store_value_is_read, callback_contract, descriptor_binding_is_materialized,
 };
 pub(crate) use calls::selected_callable_contract;
+pub(crate) use capabilities::rust_value_is_copy;
 pub(crate) use collections::collection_member_call;
 pub(crate) use contracts::{
     descriptor_expression_category, descriptor_expression_type, task_expression_throwables,
@@ -121,7 +122,8 @@ pub(crate) use diagnostics::{
 };
 pub(crate) use display::display_method;
 pub(crate) use enums::projected_enum_payload_type;
-pub(crate) use generics::{bind_generic_type, substitute_value_type};
+pub(crate) use field_moves::field_access_transfers;
+pub(crate) use generics::{bind_generic_type, explicit_callable_arguments, substitute_value_type};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
     AnnotationTarget, ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects,

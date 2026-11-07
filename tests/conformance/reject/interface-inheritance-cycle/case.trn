@@ -1,0 +1,5 @@
+namespace interface-inheritance-cycle
+interface a implements b
+interface b implements a
+function main;
+    return

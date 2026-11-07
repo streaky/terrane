@@ -345,7 +345,8 @@ impl Emitter<'_> {
         else {
             return None;
         };
-        let mut substitutions = BTreeMap::new();
+        let mut substitutions =
+            crate::semantics::explicit_callable_arguments(self.unit, node, contract)?;
         for (parameter, actual) in contract.parameters.iter().zip(&parameters) {
             crate::semantics::bind_generic_type(
                 &parameter.element_value_type()?,

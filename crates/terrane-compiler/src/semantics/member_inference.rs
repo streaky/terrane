@@ -205,6 +205,40 @@ fn method_value_type(method: &FunctionContract) -> Option<ValueType> {
     })
 }
 
+fn applied_method_owner(
+    unit: &SemanticUnit,
+    identity: &ObjectIdentity,
+    owner: &ObjectIdentity,
+    visited: &mut BTreeSet<ObjectIdentity>,
+) -> Option<ObjectIdentity> {
+    let identity = selected_descriptor_identity(unit, identity);
+    if !visited.insert(identity.clone()) {
+        return None;
+    }
+    if identity.base() == owner.base() {
+        return Some(identity);
+    }
+    let descriptor = descriptor_contract(unit, &identity)?;
+    let substitutions = descriptor
+        .generic_parameters
+        .iter()
+        .zip(&identity.type_arguments)
+        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+        .collect::<BTreeMap<_, _>>();
+    for relation in descriptor.base.iter().chain(&descriptor.interfaces) {
+        let ValueType::Object(applied) = super::generics::substitute_value_type(
+            &ValueType::Object(relation.clone()),
+            &substitutions,
+        ) else {
+            continue;
+        };
+        if let Some(found) = applied_method_owner(unit, &applied, owner, visited) {
+            return Some(found);
+        }
+    }
+    None
+}
+
 pub(crate) fn object_member_type(
     unit: &SemanticUnit,
     object_identity: &ObjectIdentity,
@@ -217,13 +251,24 @@ pub(crate) fn object_member_type(
     }
     if let Some(method) = object_method_contract(unit, object_identity, member, is_static) {
         let selected_identity = selected_descriptor_identity(unit, object_identity);
-        let substitutions = object_type_substitutions(object, &selected_identity);
+        let owner_identity = method.owner_identity.as_ref().and_then(|owner| {
+            applied_method_owner(unit, &selected_identity, owner, &mut BTreeSet::new())
+        });
+        let owner_descriptor = owner_identity
+            .as_ref()
+            .and_then(|identity| descriptor_contract(unit, identity));
+        let substitutions = owner_descriptor.map_or_else(
+            || object_type_substitutions(object, &selected_identity),
+            |descriptor| object_type_substitutions(descriptor, owner_identity.as_ref().unwrap()),
+        );
+        let native_arguments = owner_identity
+            .as_ref()
+            .map_or(&selected_identity.native_arguments, |identity| {
+                &identity.native_arguments
+            });
         return method_value_type(method).map(|value_type| {
             let value_type = super::generics::substitute_value_type(&value_type, &substitutions);
-            super::calls::substitute_projected_value_generics(
-                &value_type,
-                &selected_identity.native_arguments,
-            )
+            super::calls::substitute_projected_value_generics(&value_type, native_arguments)
         });
     }
     for used_trait in &object.traits {

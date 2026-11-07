@@ -74,6 +74,11 @@ fn visit(
     unit: &SemanticUnit,
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::AppliedType {
+        for argument in node.children.iter().skip(1) {
+            validate_annotation(package, unit, argument)?;
+        }
+    }
     for child in &node.children {
         if child.kind == SyntaxKind::TypeExpression {
             if matches!(

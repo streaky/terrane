@@ -397,7 +397,7 @@ fn validate_generic_substitutions(
     Ok(())
 }
 
-fn explicit_callable_arguments(
+pub(crate) fn explicit_callable_arguments(
     unit: &SemanticUnit,
     callee: &SyntaxNode,
     contract: &FunctionContract,

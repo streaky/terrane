@@ -3,11 +3,11 @@ include!("lower.support.rs");
 // Source: tests/integration/native-field-copy-clone-conversion/case.trn
 // Namespace: native-field-copy-clone-conversion
 #[derive(Clone)]
-pub struct R {
+pub struct TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642D636F70792D636C6F6E652D636F6E76657273696F6E0052 {
     pub t: Option<Token>,
     pub e: Option<CloneEnum>,
 }
-impl R {
+impl TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642D636F70792D636C6F6E652D636F6E76657273696F6E0052 {
     pub fn terrane_construct() -> Self {
         let mut __terrane_constructed_value = Self { t: None, e: None };
         __terrane_constructed_value.construct();
@@ -53,7 +53,9 @@ impl R {
         }
     }
 }
-fn observe(r: &R) -> Result<u64, TerraneError> {
+fn observe(
+    r: &TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642D636F70792D636C6F6E652D636F6E76657273696F6E0052,
+) -> Result<u64, TerraneError> {
     return Ok(
         __terrane_raised_err(
             terrane_int_support::coerce::<
@@ -151,10 +153,10 @@ fn test_scenario_terrane_native_field_copy_clone_conversion() -> Result<
     (),
     TerraneError,
 > {
-    let r: R;
+    let r: TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642D636F70792D636C6F6E652D636F6E76657273696F6E0052;
     let mut i: terrane_int_support::Int;
     let mut e: CloneEnum;
-    r = R::terrane_construct();
+    r = TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642D636F70792D636C6F6E652D636F6E76657273696F6E0052::terrane_construct();
     i = terrane_int_support::Int::from(0_i128);
     while i < terrane_int_support::Int::from(2_i128) {
         println!(
@@ -240,6 +242,199 @@ fn test_scenario_terrane_native_field_copy_clone_conversion() -> Result<
     );
     Ok(())
 }
+// Source: tests/integration/native-finally-only-rewrite/case.trn
+// Namespace: native-finally-only-rewrite
+fn test_scenario_terrane_native_finally_only_rewrite() {
+    let h: Holder;
+    let mut v: Option<terrane_query_witness::View<'_>> = None;
+    h = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            11 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:4:9-4:21 */,
+    );
+    let _ = v
+        .insert(
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > { Ok((&h).view()) }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_query_witness",
+                                        "terrane_query_witness::Holder::view",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+
+                    12 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:5:9-5:16 */,
+            ),
+        );
+    let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(|
+                | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok(v.take()
+                .expect("flow-proven availability").into_size()) })) { Ok(result) =>
+                result ?, Err(payload) => return Err(crate
+                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
+                ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+                u128)) } } (), 13 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:7:17-7:29 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_0: TerraneCompletion<()> = (|| {
+        let _ = v
+            .insert(
+                __terrane_raised_completion!(
+                    | | -> Result < _, crate ::TerraneForeignError > { { let value =
+                    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                    Result < _, crate ::TerraneForeignError > { Ok((&h).view()) })) {
+                    Ok(result) => result ?, Err(payload) => return Err(crate
+                    ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                    "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
+                    ::TerraneForeignError > (value) } } (), 14 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:9:13-9:20 */
+                ),
+            );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(| |
+            -> Result < _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok((&v.as_ref()
+            .expect("flow-proven available binding")).size()) })) { Ok(result) => result
+            ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+            u128)) } } (), 15 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:10:17-10:24 */))
+        );
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
+// Source: tests/integration/native-inferred-copy-view/case.trn
+// Namespace: native-inferred-copy-view
+fn test_scenario_terrane_native_inferred_copy_view() {
+    let holder: Holder;
+    let inferred: terrane_collection_support::List<terrane_query_witness::CopyView<'_>>;
+    let typed: terrane_collection_support::List<CopyView>;
+    holder = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            16 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:5:14-5:26 */,
+    );
+    inferred = terrane_collection_support::List::<
+        terrane_query_witness::CopyView<'_>,
+    >::new(
+        vec![
+            { let value : terrane_query_witness::CopyView < '_ > = __terrane_raised(| |
+            -> Result < _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
+            result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
+            ::TerraneForeignError > (value) } } (), 17 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:6:23-6:40 */).into();
+            value }
+        ],
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
+        __terrane_raised(inferred
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        18 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:7:13-7:24 */)),
+        18 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:7:13-7:24 */);
+        __terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let value =
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+        crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
+        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 19 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:7:13-7:30 */) })
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
+        __terrane_raised(inferred
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        20 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:8:13-8:24 */)),
+        20 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:8:13-8:24 */);
+        __terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let value =
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+        crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
+        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 21 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:8:13-8:30 */) })
+    );
+    typed = terrane_collection_support::List::<
+        CopyView,
+    >::new(
+        vec![
+            __terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let
+            value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+            Result < _, crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) {
+            Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
+            ::TerraneForeignError > (value) } } (), 22 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:9:37-9:54 */)
+        ],
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
+        __terrane_raised(typed
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        23 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:10:13-10:21 */)),
+        23 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:10:13-10:21 */);
+        __terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let value =
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+        crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
+        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 24 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:10:13-10:27 */) })
+    );
+}
 // Source: tests/integration/native-loan-chain-rebind-receiver/case.trn
 // Namespace: native-loan-chain-rebind-receiver
 pub struct TerraneNsNativeLoanChainRebindReceiverWIdentity2F6E61746976652D6C6F616E2D636861696E2D726562696E642D72656365697665720057 {
@@ -271,12 +466,12 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            11 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:11:9-11:21 */,
+            25 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:11:9-11:21 */,
     );
     k = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            12 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:12:9-12:21 */,
+            26 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:12:9-12:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -302,7 +497,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
             }
         }(),
 
-            13 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:13:9-13:16 */,
+            27 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:13:9-13:16 */,
     );
     a = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -328,7 +523,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
             }
         }(),
 
-            14 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:14:9-14:24 */,
+            28 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:14:9-14:24 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -354,7 +549,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
             }
         }(),
 
-            15 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:15:9-15:16 */,
+            29 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:15:9-15:16 */,
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -364,7 +559,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 16 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:16:13-16:20 */)),
+        (), 30 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:16:13-16:20 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _, crate
         ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
@@ -372,7 +567,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 17 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:16:24-16:31 */))
+        (), 31 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:16:24-16:31 */))
     );
 }
 // Source: tests/integration/native-loan-exclusive-branch/case.trn
@@ -406,12 +601,12 @@ fn test_scenario_terrane_native_loan_exclusive_branch() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                18 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:11:22-11:34 */,
+                32 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                19 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:11:38-11:50 */,
+                33 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:11:38-11:50 */,
         ),
     );
     v = __terrane_raised(
@@ -443,7 +638,7 @@ fn test_scenario_terrane_native_loan_exclusive_branch() {
             }
         }(),
 
-            20 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:12:9-12:22 */,
+            34 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:12:9-12:22 */,
     );
     c = true;
     if c {
@@ -451,7 +646,7 @@ fn test_scenario_terrane_native_loan_exclusive_branch() {
             let __terrane_value = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
-                    21 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:15:19-15:31 */,
+                    35 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:15:19-15:31 */,
             );
             w.inner = Some(__terrane_value);
         }
@@ -464,7 +659,7 @@ fn test_scenario_terrane_native_loan_exclusive_branch() {
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-            u128)) } } (), 22 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:17:17-17:24 */))
+            u128)) } } (), 36 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:17:17-17:24 */))
         );
     }
     println!("{}", terrane_scalar_support::scalar_text(&7));
@@ -499,7 +694,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            23 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:11:9-11:21 */,
+            37 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:11:9-11:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -525,7 +720,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
             }
         }(),
 
-            24 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:12:9-12:21 */,
+            38 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:12:9-12:21 */,
     );
     i = terrane_int_support::Int::from(0_i128);
     while i < terrane_int_support::Int::from(2_i128) {
@@ -560,7 +755,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
                 "terrane_query_witness", "terrane_query_witness::CopyView::size")) };
                 Ok:: < _, crate ::TerraneForeignError >
                 (terrane_int_support::Int::from_u128(value as u128)) } } (),
-                25 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:18:21-18:28 */))
+                39 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:18:21-18:28 */))
             );
             v = __terrane_raised_completion!(
                 | | -> Result < _, crate ::TerraneForeignError > { { let value = match
@@ -569,7 +764,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
                 result ?, Err(payload) => return Err(crate
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
-                ::TerraneForeignError > (value) } } (), 26 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:19:17-19:29 */
+                ::TerraneForeignError > (value) } } (), 40 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:19:17-19:29 */
             );
             TerraneCompletion::Normal
         })();
@@ -620,12 +815,12 @@ fn test_scenario_terrane_native_loan_loop_refreshed() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                27 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:11:22-11:34 */,
+                41 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                28 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:11:38-11:50 */,
+                42 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:11:38-11:50 */,
         ),
     );
     i = terrane_int_support::Int::from(0_i128);
@@ -659,7 +854,7 @@ fn test_scenario_terrane_native_loan_loop_refreshed() {
                 }
             }(),
 
-                29 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:14:13-14:26 */,
+                43 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:14:13-14:26 */,
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
@@ -669,13 +864,13 @@ fn test_scenario_terrane_native_loan_loop_refreshed() {
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-            u128)) } } (), 30 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:15:17-15:24 */))
+            u128)) } } (), 44 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:15:17-15:24 */))
         );
         {
             let __terrane_value = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
-                    31 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:16:19-16:31 */,
+                    45 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:16:19-16:31 */,
             );
             w.inner = Some(__terrane_value);
         }
@@ -712,7 +907,7 @@ fn test_scenario_terrane_native_loan_owned_observation() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            32 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:11:9-11:21 */,
+            46 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:11:9-11:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -738,7 +933,7 @@ fn test_scenario_terrane_native_loan_owned_observation() {
             }
         }(),
 
-            33 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:12:9-12:16 */,
+            47 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:12:9-12:16 */,
     );
     observed = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -767,12 +962,12 @@ fn test_scenario_terrane_native_loan_owned_observation() {
             }
         }(),
 
-            34 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:13:16-13:23 */,
+            48 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:13:16-13:23 */,
     );
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            35 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:14:9-14:21 */,
+            49 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:14:9-14:21 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&observed));
     println!(
@@ -783,7 +978,7 @@ fn test_scenario_terrane_native_loan_owned_observation() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 36 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:16:13-16:25 */))
+        u128)) } } (), 50 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:16:13-16:25 */))
     );
 }
 // Source: tests/integration/native-loan-predicate-last-use/case.trn
@@ -816,12 +1011,12 @@ fn test_scenario_terrane_native_loan_predicate_last_use() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                37 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:11:22-11:34 */,
+                51 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                38 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:11:38-11:50 */,
+                52 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:11:38-11:50 */,
         ),
     );
     v = __terrane_raised(
@@ -853,7 +1048,7 @@ fn test_scenario_terrane_native_loan_predicate_last_use() {
             }
         }(),
 
-            39 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:12:9-12:22 */,
+            53 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:12:9-12:22 */,
     );
     if __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -882,14 +1077,14 @@ fn test_scenario_terrane_native_loan_predicate_last_use() {
             }
         }(),
 
-            40 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:14:15-14:22 */,
+            54 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:14:15-14:22 */,
     ) > terrane_int_support::Int::from(100_i128)
     {
         {
             let __terrane_value = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
-                    41 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:15:23-15:35 */,
+                    55 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:15:23-15:35 */,
             );
             w.inner = Some(__terrane_value);
         }
@@ -928,12 +1123,12 @@ fn test_scenario_terrane_native_loan_predicate_switch() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                42 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:11:22-11:34 */,
+                56 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                43 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:11:38-11:50 */,
+                57 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:11:38-11:50 */,
         ),
     );
     v = __terrane_raised(
@@ -965,7 +1160,7 @@ fn test_scenario_terrane_native_loan_predicate_switch() {
             }
         }(),
 
-            44 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:12:9-12:22 */,
+            58 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:12:9-12:22 */,
     );
     i = 1;
     if i == 0 {
@@ -973,7 +1168,7 @@ fn test_scenario_terrane_native_loan_predicate_switch() {
             let __terrane_value = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
-                    45 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:16:23-16:35 */,
+                    59 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:16:23-16:35 */,
             );
             w.inner = Some(__terrane_value);
         }
@@ -986,7 +1181,7 @@ fn test_scenario_terrane_native_loan_predicate_switch() {
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-            u128)) } } (), 46 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:18:21-18:28 */))
+            u128)) } } (), 60 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:18:21-18:28 */))
         );
     }
     println!("{}", terrane_scalar_support::scalar_text(&7));
@@ -1022,12 +1217,12 @@ fn test_scenario_terrane_native_loan_predicate_three_arms() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                47 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:11:22-11:34 */,
+                61 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                48 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:11:38-11:50 */,
+                62 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:11:38-11:50 */,
         ),
     );
     v = __terrane_raised(
@@ -1059,7 +1254,7 @@ fn test_scenario_terrane_native_loan_predicate_three_arms() {
             }
         }(),
 
-            49 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:12:9-12:22 */,
+            63 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:12:9-12:22 */,
     );
     i = 2;
     if i == 0 {
@@ -1067,7 +1262,7 @@ fn test_scenario_terrane_native_loan_predicate_three_arms() {
             let __terrane_value = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
-                    50 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:16:23-16:35 */,
+                    64 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:16:23-16:35 */,
             );
             w.inner = Some(__terrane_value);
         }
@@ -1082,7 +1277,7 @@ fn test_scenario_terrane_native_loan_predicate_three_arms() {
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-            u128)) } } (), 51 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:20:21-20:28 */))
+            u128)) } } (), 65 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:20:21-20:28 */))
         );
     }
 }
@@ -1117,12 +1312,12 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            52 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:11:9-11:21 */,
+            66 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:11:9-11:21 */,
     );
     k = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            53 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:12:9-12:21 */,
+            67 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:12:9-12:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -1148,7 +1343,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
             }
         }(),
 
-            54 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:13:9-13:16 */,
+            68 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:13:9-13:16 */,
     );
     let _ = &v;
     v = __terrane_raised(
@@ -1175,7 +1370,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
             }
         }(),
 
-            55 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:14:9-14:16 */,
+            69 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:14:9-14:16 */,
     );
     a = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -1201,7 +1396,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
             }
         }(),
 
-            56 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:15:9-15:24 */,
+            70 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:15:9-15:24 */,
     );
     __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -1231,7 +1426,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
             }
         }(),
 
-            57 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:16:5-16:12 */,
+            71 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:16:5-16:12 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1241,7 +1436,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 58 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:17:13-17:20 */))
+        (), 72 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:17:13-17:20 */))
     );
 }
 // Source: tests/integration/native-loan-rebound-other/case.trn
@@ -1274,12 +1469,12 @@ fn test_scenario_terrane_native_loan_rebound_other() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                59 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:11:22-11:34 */,
+                73 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                60 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:11:38-11:50 */,
+                74 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:11:38-11:50 */,
         ),
     );
     v = __terrane_raised(
@@ -1311,7 +1506,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
             }
         }(),
 
-            61 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:12:9-12:22 */,
+            75 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:12:9-12:22 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1321,13 +1516,13 @@ fn test_scenario_terrane_native_loan_rebound_other() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 62 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:13:13-13:20 */))
+        (), 76 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:13:13-13:20 */))
     );
     {
         let __terrane_value = __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                63 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:14:15-14:27 */,
+                77 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:14:15-14:27 */,
         );
         w.inner = Some(__terrane_value);
     }
@@ -1360,7 +1555,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
             }
         }(),
 
-            64 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:15:9-15:22 */,
+            78 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:15:9-15:22 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1370,7 +1565,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 65 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:16:13-16:20 */))
+        (), 79 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:16:13-16:20 */))
     );
 }
 // Source: tests/integration/native-loan-rebound-same/case.trn
@@ -1403,12 +1598,12 @@ fn test_scenario_terrane_native_loan_rebound_same() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                66 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:11:22-11:34 */,
+                80 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                67 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:11:38-11:50 */,
+                81 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:11:38-11:50 */,
         ),
     );
     v = __terrane_raised(
@@ -1440,7 +1635,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
             }
         }(),
 
-            68 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:12:9-12:22 */,
+            82 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:12:9-12:22 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1450,13 +1645,13 @@ fn test_scenario_terrane_native_loan_rebound_same() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 69 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:13:13-13:20 */))
+        (), 83 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:13:13-13:20 */))
     );
     {
         let __terrane_value = __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                70 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:14:15-14:27 */,
+                84 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:14:15-14:27 */,
         );
         w.inner = Some(__terrane_value);
     }
@@ -1489,7 +1684,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
             }
         }(),
 
-            71 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:15:9-15:22 */,
+            85 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:15:9-15:22 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1499,7 +1694,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 72 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:16:13-16:20 */))
+        (), 86 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:16:13-16:20 */))
     );
 }
 // Source: tests/integration/native-loan-return-branch/case.trn
@@ -1533,12 +1728,12 @@ fn test_scenario_terrane_native_loan_return_branch() {
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                73 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:11:22-11:34 */,
+                87 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:11:22-11:34 */,
         ),
         __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
-                74 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:11:38-11:50 */,
+                88 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:11:38-11:50 */,
         ),
     );
     v = __terrane_raised(
@@ -1570,7 +1765,7 @@ fn test_scenario_terrane_native_loan_return_branch() {
             }
         }(),
 
-            75 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:12:9-12:22 */,
+            89 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:12:9-12:22 */,
     );
     c = false;
     if c {
@@ -1578,7 +1773,7 @@ fn test_scenario_terrane_native_loan_return_branch() {
             let __terrane_value = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
-                    76 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:15:19-15:31 */,
+                    90 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:15:19-15:31 */,
             );
             w.inner = Some(__terrane_value);
         }
@@ -1592,7 +1787,7 @@ fn test_scenario_terrane_native_loan_return_branch() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 77 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:17:13-17:20 */))
+        (), 91 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:17:13-17:20 */))
     );
 }
 // Source: tests/integration/native-loan-storage-alias-last-use/case.trn
@@ -1605,12 +1800,12 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            78 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:4:9-4:21 */,
+            92 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:4:9-4:21 */,
     );
     k = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            79 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:5:9-5:21 */,
+            93 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:5:9-5:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -1636,7 +1831,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
             }
         }(),
 
-            80 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:6:9-6:16 */,
+            94 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:6:9-6:16 */,
     );
     a = v;
     v = __terrane_raised(
@@ -1663,7 +1858,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
             }
         }(),
 
-            81 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:8:9-8:16 */,
+            95 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:8:9-8:16 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1673,7 +1868,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 82 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:9:13-9:20 */))
+        (), 96 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:9:13-9:20 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1683,7 +1878,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 83 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:10:13-10:20 */))
+        (), 97 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:10:13-10:20 */))
     );
     __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -1713,7 +1908,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
             }
         }(),
 
-            84 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:11:5-11:12 */,
+            98 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:11:5-11:12 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -1723,7 +1918,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 85 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:12:13-12:25 */))
+        u128)) } } (), 99 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:12:13-12:25 */))
     );
 }
 // Source: tests/integration/native-loan-try-finally-last-use/case.trn
@@ -1755,7 +1950,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            86 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:11:9-11:21 */,
+            100 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:11:9-11:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -1781,7 +1976,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
             }
         }(),
 
-            87 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:12:9-12:16 */,
+            101 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:12:9-12:16 */,
     );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -1794,7 +1989,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 88 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:14:17-14:24 */))
+                u128)) } } (), 102 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:14:17-14:24 */))
             );
             TerraneCompletion::Normal
         })();
@@ -1820,7 +2015,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
             result ?, Err(payload) => return Err(crate
             ::__terrane_dependency_panic(payload, "terrane_query_witness",
             "terrane_query_witness::Holder::bump")) }; Ok:: < _, crate
-            ::TerraneForeignError > (()) } } (), 89 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:16:9-16:16 */
+            ::TerraneForeignError > (()) } } (), 103 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:16:9-16:16 */
         );
         TerraneCompletion::Normal
     })();
@@ -1844,7 +2039,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 90 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:17:13-17:25 */))
+        u128)) } } (), 104 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:17:13-17:25 */))
     );
 }
 // Source: tests/integration/native-loan-try-local/case.trn
@@ -1876,7 +2071,7 @@ fn test_scenario_terrane_native_loan_try_local() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            91 /* terrane-site: tests/integration/native-loan-try-local/case.trn:11:9-11:21 */,
+            105 /* terrane-site: tests/integration/native-loan-try-local/case.trn:11:9-11:21 */,
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -1889,7 +2084,7 @@ fn test_scenario_terrane_native_loan_try_local() {
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
                         ::__terrane_dependency_panic(payload, "terrane_query_witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                        ::TerraneForeignError > (value) } } (), 92 /* terrane-site: tests/integration/native-loan-try-local/case.trn:13:13-13:20 */
+                        ::TerraneForeignError > (value) } } (), 106 /* terrane-site: tests/integration/native-loan-try-local/case.trn:13:13-13:20 */
                     ),
                 );
             println!(
@@ -1902,7 +2097,7 @@ fn test_scenario_terrane_native_loan_try_local() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 93 /* terrane-site: tests/integration/native-loan-try-local/case.trn:14:17-14:24 */))
+                u128)) } } (), 107 /* terrane-site: tests/integration/native-loan-try-local/case.trn:14:17-14:24 */))
             );
             TerraneCompletion::Normal
         })();
@@ -1927,7 +2122,7 @@ fn test_scenario_terrane_native_loan_try_local() {
                         "terrane_query_witness::Holder::label_len")) }; Ok:: < _, crate
                         ::TerraneForeignError >
                         (terrane_int_support::Int::from_u128(value as u128)) } } (),
-                        94 /* terrane-site: tests/integration/native-loan-try-local/case.trn:16:17-16:29 */))
+                        108 /* terrane-site: tests/integration/native-loan-try-local/case.trn:16:17-16:29 */))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -1953,7 +2148,7 @@ fn test_scenario_terrane_native_loan_try_local() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 95 /* terrane-site: tests/integration/native-loan-try-local/case.trn:17:13-17:25 */))
+        u128)) } } (), 109 /* terrane-site: tests/integration/native-loan-try-local/case.trn:17:13-17:25 */))
     );
 }
 // Source: tests/integration/native-loan-whole-last-use/case.trn
@@ -1985,7 +2180,7 @@ fn test_scenario_terrane_native_loan_whole_last_use() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            96 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:11:9-11:21 */,
+            110 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:11:9-11:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2011,7 +2206,7 @@ fn test_scenario_terrane_native_loan_whole_last_use() {
             }
         }(),
 
-            97 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:12:9-12:16 */,
+            111 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:12:9-12:16 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -2021,12 +2216,12 @@ fn test_scenario_terrane_native_loan_whole_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 98 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:13:13-13:20 */))
+        (), 112 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:13:13-13:20 */))
     );
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            99 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:14:9-14:21 */,
+            113 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:14:9-14:21 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -2036,7 +2231,7 @@ fn test_scenario_terrane_native_loan_whole_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 100 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:15:13-15:25 */))
+        u128)) } } (), 114 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:15:13-15:25 */))
     );
 }
 // Source: tests/integration/native-loan-whole-move-last-use/case.trn
@@ -2069,7 +2264,7 @@ fn test_scenario_terrane_native_loan_whole_move_last_use() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            101 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:11:9-11:21 */,
+            115 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:11:9-11:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2095,7 +2290,7 @@ fn test_scenario_terrane_native_loan_whole_move_last_use() {
             }
         }(),
 
-            102 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:12:9-12:16 */,
+            116 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:12:9-12:16 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -2105,7 +2300,7 @@ fn test_scenario_terrane_native_loan_whole_move_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 103 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:13:13-13:20 */))
+        (), 117 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:13:13-13:20 */))
     );
     moved = h;
     println!(
@@ -2116,7 +2311,7 @@ fn test_scenario_terrane_native_loan_whole_move_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 104 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:15:13-15:29 */))
+        u128)) } } (), 118 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:15:13-15:29 */))
     );
 }
 // Source: tests/integration/native-loan-whole-mutate-last-use/case.trn
@@ -2148,7 +2343,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            105 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:11:9-11:21 */,
+            119 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:11:9-11:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2174,7 +2369,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
             }
         }(),
 
-            106 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:12:9-12:16 */,
+            120 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:12:9-12:16 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -2184,7 +2379,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 107 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:13:13-13:20 */))
+        (), 121 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:13:13-13:20 */))
     );
     __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2214,7 +2409,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
             }
         }(),
 
-            108 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:14:5-14:12 */,
+            122 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:14:5-14:12 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -2224,7 +2419,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 109 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:15:13-15:25 */))
+        u128)) } } (), 123 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:15:13-15:25 */))
     );
 }
 // Source: tests/integration/native-loop-consuming-condition-break/case.trn
@@ -2256,7 +2451,7 @@ fn test_scenario_terrane_native_loop_consuming_condition_break() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            110 /* terrane-site: tests/integration/native-loop-consuming-condition-break/case.trn:11:9-11:21 */,
+            124 /* terrane-site: tests/integration/native-loop-consuming-condition-break/case.trn:11:9-11:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2282,7 +2477,7 @@ fn test_scenario_terrane_native_loop_consuming_condition_break() {
             }
         }(),
 
-            111 /* terrane-site: tests/integration/native-loop-consuming-condition-break/case.trn:12:9-12:16 */,
+            125 /* terrane-site: tests/integration/native-loop-consuming-condition-break/case.trn:12:9-12:16 */,
     );
     while __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2311,12 +2506,374 @@ fn test_scenario_terrane_native_loop_consuming_condition_break() {
             }
         }(),
 
-            112 /* terrane-site: tests/integration/native-loop-consuming-condition-break/case.trn:13:12-13:24 */,
+            126 /* terrane-site: tests/integration/native-loop-consuming-condition-break/case.trn:13:12-13:24 */,
     ) > terrane_int_support::Int::from(0_i128)
     {
         println!("{}", terrane_scalar_support::scalar_text(&1));
         break;
     }
+}
+// Source: tests/integration/native-ref-clone-repeat/case.trn
+// Namespace: native-ref-clone-repeat
+fn twice(value: &mut CloneEnum) -> Result<u64, TerraneError> {
+    let first: terrane_int_support::Int;
+    let second: terrane_int_support::Int;
+    first = __terrane_raised_err(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((*value).clone().code()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::CloneEnum::code",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(terrane_int_support::Int::from_u128(value as u128))
+            }
+        }(),
+
+            127 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:4:13-4:24 */,
+    )?;
+    second = __terrane_raised_err(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((*value).clone().code()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::CloneEnum::code",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(terrane_int_support::Int::from_u128(value as u128))
+            }
+        }(),
+
+            128 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:5:14-5:25 */,
+    )?;
+    return Ok(
+        __terrane_raised_err(
+            terrane_int_support::coerce::<u64>(&(first.clone() + second.clone())),
+
+                129 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:6:12-6:26 */,
+        )?,
+    );
+}
+fn copied(value: &mut Token) -> Result<u64, TerraneError> {
+    let first: terrane_int_support::Int;
+    first = __terrane_raised_err(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((*value).clone().value()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::Token::value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(terrane_int_support::Int::from_u128(value as u128))
+            }
+        }(),
+
+            130 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:8:13-8:25 */,
+    )?;
+    return Ok(
+        __terrane_raised_err(
+            terrane_int_support::coerce::<
+                u64,
+            >(
+                &(first.clone()
+                    + __terrane_raised_err(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            {
+                                let value = match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| -> Result<
+                                        _,
+                                        crate::TerraneForeignError,
+                                    > { Ok((*value).clone().value()) }),
+                                ) {
+                                    Ok(result) => result?,
+                                    Err(payload) => {
+                                        return Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane_query_witness",
+                                                "terrane_query_witness::Token::value",
+                                            ),
+                                        );
+                                    }
+                                };
+                                Ok::<
+                                    _,
+                                    crate::TerraneForeignError,
+                                >(terrane_int_support::Int::from_u128(value as u128))
+                            }
+                        }(),
+
+                            131 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:9:21-9:33 */,
+                    )?),
+            ),
+
+                132 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:9:12-9:34 */,
+        )?,
+    );
+}
+fn test_scenario_terrane_native_ref_clone_repeat() -> Result<(), TerraneError> {
+    let mut value: CloneEnum;
+    let mut token: Token;
+    value = __terrane_raised_err(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(terrane_query_witness::CloneEnum::A) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::CloneEnum::A",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+
+            133 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:11:13-11:26 */,
+    )?;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(twice(&mut
+        value), 134 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:12:13-12:25 */) ?)
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(| | -> Result <
+        _, crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(value.clone().code()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane_query_witness", "terrane_query_witness::CloneEnum::code")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+        u128)) } } (), 135 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:13:13-13:24 */) ?)
+    );
+    token = __terrane_raised_err(
+        terrane_static_trn_546f6b656e_new(),
+
+            136 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:14:13-14:24 */,
+    )?;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(copied(&mut
+        token), 137 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:15:13-15:26 */) ?)
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(| | -> Result <
+        _, crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(token.value()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane_query_witness", "terrane_query_witness::Token::value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+        u128)) } } (), 138 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:16:13-16:25 */) ?)
+    );
+    Ok(())
+}
+// Source: tests/integration/native-required-enum-field/case.trn
+// Namespace: native-required-enum-field
+pub struct TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052 {
+    pub value: Option<NE>,
+    pub sibling: terrane_int_support::Int,
+}
+impl TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052 {
+    pub fn terrane_construct() -> Self {
+        let mut __terrane_constructed_value = Self {
+            value: None,
+            sibling: terrane_int_support::Int::from(9_i128),
+        };
+        __terrane_constructed_value.construct();
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self) {
+        {
+            let __terrane_value = __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > { Ok(terrane_query_witness::NE::A) }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_query_witness",
+                                        "terrane_query_witness::NE::A",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+
+                    139 /* terrane-site: tests/integration/native-required-enum-field/case.trn:7:22-7:28 */,
+            );
+            self.value = Some(__terrane_value);
+        }
+    }
+    pub fn finish(mut self) -> Result<u64, TerraneError> {
+        return Ok(
+            __terrane_raised_err(
+                terrane_int_support::coerce::<
+                    u64,
+                >(
+                    &__terrane_raised_err(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            {
+                                let value = match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| -> Result<
+                                        _,
+                                        crate::TerraneForeignError,
+                                    > {
+                                        Ok(
+                                            self
+                                                .value
+                                                .take()
+                                                .expect("required field initialized")
+                                                .code(),
+                                        )
+                                    }),
+                                ) {
+                                    Ok(result) => result?,
+                                    Err(payload) => {
+                                        return Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane_query_witness",
+                                                "terrane_query_witness::NE::code",
+                                            ),
+                                        );
+                                    }
+                                };
+                                Ok::<
+                                    _,
+                                    crate::TerraneForeignError,
+                                >(terrane_int_support::Int::from_u128(value as u128))
+                            }
+                        }(),
+
+                            140 /* terrane-site: tests/integration/native-required-enum-field/case.trn:9:16-9:32 */,
+                    )?,
+                ),
+
+                    140 /* terrane-site: tests/integration/native-required-enum-field/case.trn:9:16-9:32 */,
+            )?,
+        );
+    }
+}
+pub struct Outer {
+    pub inner: Option<
+        TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052,
+    >,
+}
+impl Outer {
+    pub fn terrane_construct() -> Self {
+        let mut __terrane_constructed_value = Self { inner: None };
+        __terrane_constructed_value.construct();
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self) {
+        {
+            let __terrane_value = TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052::terrane_construct();
+            self.inner = Some(__terrane_value);
+        }
+    }
+}
+fn test_scenario_terrane_native_required_enum_field() -> Result<(), TerraneError> {
+    let mut value: TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052;
+    let mut outer: Outer;
+    let owned: TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052;
+    value = TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052::terrane_construct();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(| | -> Result <
+        _, crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(value.value.take()
+        .expect("required field initialized").code()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane_query_witness", "terrane_query_witness::NE::code")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 141 /* terrane-site: tests/integration/native-required-enum-field/case.trn:16:13-16:30 */) ?)
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&value.sibling));
+    outer = Outer::terrane_construct();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(| | -> Result <
+        _, crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(outer.inner.as_mut()
+        .expect("required field initialized").value.take()
+        .expect("required field initialized").code()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane_query_witness", "terrane_query_witness::NE::code")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 142 /* terrane-site: tests/integration/native-required-enum-field/case.trn:19:13-19:36 */) ?)
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&outer.inner.as_ref()
+        .expect("required field initialized").sibling)
+    );
+    owned = TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052::terrane_construct();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(owned.finish(),
+        143 /* terrane-site: tests/integration/native-required-enum-field/case.trn:22:13-22:26 */) ?)
+    );
+    Ok(())
 }
 // Source: tests/integration/native-try-body-rewrite-control/case.trn
 // Namespace: native-try-body-rewrite-control
@@ -2326,7 +2883,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            113 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:4:9-4:21 */,
+            144 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:4:9-4:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2352,7 +2909,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
             }
         }(),
 
-            114 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:5:9-5:16 */,
+            145 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:5:9-5:16 */,
     );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -2365,7 +2922,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 115 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:7:17-7:29 */))
+                u128)) } } (), 146 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:7:17-7:29 */))
             );
             v = __terrane_raised_completion!(
                 | | -> Result < _, crate ::TerraneForeignError > { { let value = match
@@ -2374,7 +2931,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
                 result ?, Err(payload) => return Err(crate
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                ::TerraneForeignError > (value) } } (), 116 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:8:13-8:20 */
+                ::TerraneForeignError > (value) } } (), 147 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:8:13-8:20 */
             );
             println!(
                 "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(|
@@ -2385,7 +2942,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 117 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:9:17-9:24 */))
+                u128)) } } (), 148 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:9:17-9:24 */))
             );
             TerraneCompletion::Normal
         })();
@@ -2428,7 +2985,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            118 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:4:9-4:21 */,
+            149 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:4:9-4:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2454,7 +3011,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
             }
         }(),
 
-            119 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:5:9-5:16 */,
+            150 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:5:9-5:16 */,
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -2467,7 +3024,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 120 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:7:17-7:29 */))
+                u128)) } } (), 151 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:7:17-7:29 */))
             );
             v = __terrane_raised_completion!(
                 | | -> Result < _, crate ::TerraneForeignError > { { let value = match
@@ -2476,7 +3033,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                 result ?, Err(payload) => return Err(crate
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                ::TerraneForeignError > (value) } } (), 121 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:8:13-8:20 */
+                ::TerraneForeignError > (value) } } (), 152 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:8:13-8:20 */
             );
             let _ = &v;
             TerraneCompletion::Normal
@@ -2497,7 +3054,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
                         ::__terrane_dependency_panic(payload, "terrane_query_witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                        ::TerraneForeignError > (value) } } (), 122 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:10:13-10:20 */
+                        ::TerraneForeignError > (value) } } (), 153 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:10:13-10:20 */
                     );
                     println!(
                         "{}",
@@ -2510,7 +3067,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                         "terrane_query_witness::View::size")) }; Ok:: < _, crate
                         ::TerraneForeignError >
                         (terrane_int_support::Int::from_u128(value as u128)) } } (),
-                        123 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:11:17-11:24 */))
+                        154 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:11:17-11:24 */))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -2538,12 +3095,12 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            124 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:4:9-4:21 */,
+            155 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:4:9-4:21 */,
     );
     k = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            125 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:5:9-5:21 */,
+            156 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:5:9-5:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2569,7 +3126,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
             }
         }(),
 
-            126 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:6:9-6:21 */,
+            157 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:6:9-6:21 */,
     );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -2582,7 +3139,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
                 "terrane_query_witness", "terrane_query_witness::CopyView::size")) };
                 Ok:: < _, crate ::TerraneForeignError >
                 (terrane_int_support::Int::from_u128(value as u128)) } } (),
-                127 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:8:17-8:24 */))
+                158 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:8:17-8:24 */))
             );
             v = __terrane_raised_completion!(
                 | | -> Result < _, crate ::TerraneForeignError > { { let value = match
@@ -2591,7 +3148,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
                 result ?, Err(payload) => return Err(crate
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
-                ::TerraneForeignError > (value) } } (), 128 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:9:13-9:25 */
+                ::TerraneForeignError > (value) } } (), 159 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:9:13-9:25 */
             );
             TerraneCompletion::Normal
         })();
@@ -2618,7 +3175,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
-            as u128)) } } (), 129 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:11:17-11:24 */))
+            as u128)) } } (), 160 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:11:17-11:24 */))
         );
         TerraneCompletion::Normal
     })();
@@ -2642,7 +3199,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
         => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 130 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:12:13-12:20 */))
+        u128)) } } (), 161 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:12:13-12:20 */))
     );
 }
 // Source: tests/integration/native-try-finally-dominating-rewrite/case.trn
@@ -2653,7 +3210,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            131 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:4:9-4:21 */,
+            162 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:4:9-4:21 */,
     );
     let _ = v
         .insert(
@@ -2681,7 +3238,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                     }
                 }(),
 
-                    132 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:5:9-5:16 */,
+                    163 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:5:9-5:16 */,
             ),
         );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
@@ -2696,7 +3253,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 133 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:7:17-7:29 */))
+                u128)) } } (), 164 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:7:17-7:29 */))
             );
             let _ = v
                 .insert(
@@ -2707,7 +3264,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
                         ::__terrane_dependency_panic(payload, "terrane_query_witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                        ::TerraneForeignError > (value) } } (), 134 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:8:13-8:20 */
+                        ::TerraneForeignError > (value) } } (), 165 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:8:13-8:20 */
                     ),
                 );
             let _ = &v;
@@ -2737,7 +3294,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                     Ok(result) => result ?, Err(payload) => return Err(crate
                     ::__terrane_dependency_panic(payload, "terrane_query_witness",
                     "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                    ::TerraneForeignError > (value) } } (), 135 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:10:13-10:20 */
+                    ::TerraneForeignError > (value) } } (), 166 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:10:13-10:20 */
                 ),
             );
         println!(
@@ -2749,7 +3306,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-            u128)) } } (), 136 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:11:17-11:24 */))
+            u128)) } } (), 167 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:11:17-11:24 */))
         );
         TerraneCompletion::Normal
     })();
@@ -2774,7 +3331,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            137 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:4:9-4:21 */,
+            168 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:4:9-4:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -2800,7 +3357,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
             }
         }(),
 
-            138 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:5:9-5:16 */,
+            169 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:5:9-5:16 */,
     );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -2830,7 +3387,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::View::into_size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
-            as u128)) } } (), 139 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:9:17-9:29 */))
+            as u128)) } } (), 170 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:9:17-9:29 */))
         );
         v = __terrane_raised_completion!(
             | | -> Result < _, crate ::TerraneForeignError > { { let value = match
@@ -2838,7 +3395,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
             crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
-            crate ::TerraneForeignError > (value) } } (), 140 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:10:13-10:20 */
+            crate ::TerraneForeignError > (value) } } (), 171 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:10:13-10:20 */
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(| |
@@ -2848,7 +3405,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-            u128)) } } (), 141 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:11:17-11:24 */))
+            u128)) } } (), 172 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:11:17-11:24 */))
         );
         TerraneCompletion::Normal
     })();
@@ -2875,7 +3432,7 @@ fn test_scenario_terrane_native_try_local_consume() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            142 /* terrane-site: tests/integration/native-try-local-consume/case.trn:4:9-4:21 */,
+            173 /* terrane-site: tests/integration/native-try-local-consume/case.trn:4:9-4:21 */,
     );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -2888,7 +3445,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
                         ::__terrane_dependency_panic(payload, "terrane_query_witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                        ::TerraneForeignError > (value) } } (), 143 /* terrane-site: tests/integration/native-try-local-consume/case.trn:6:13-6:20 */
+                        ::TerraneForeignError > (value) } } (), 174 /* terrane-site: tests/integration/native-try-local-consume/case.trn:6:13-6:20 */
                     ),
                 );
             println!(
@@ -2901,7 +3458,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 144 /* terrane-site: tests/integration/native-try-local-consume/case.trn:7:17-7:29 */))
+                u128)) } } (), 175 /* terrane-site: tests/integration/native-try-local-consume/case.trn:7:17-7:29 */))
             );
             TerraneCompletion::Normal
         })();
@@ -2951,7 +3508,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                             "terrane_query_witness",
                             "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                             ::TerraneForeignError > (value) } } (),
-                            145 /* terrane-site: tests/integration/native-try-local-consume/case.trn:13:20-13:27 */
+                            176 /* terrane-site: tests/integration/native-try-local-consume/case.trn:13:20-13:27 */
                         ),
                     );
                 println!(
@@ -2965,7 +3522,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                     ::__terrane_dependency_panic(payload, "terrane_query_witness",
                     "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                     ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                    u128)) } } (), 146 /* terrane-site: tests/integration/native-try-local-consume/case.trn:14:21-14:36 */))
+                    u128)) } } (), 177 /* terrane-site: tests/integration/native-try-local-consume/case.trn:14:21-14:36 */))
                 );
                 TerraneCompletion::Normal
             })();
@@ -3014,12 +3571,12 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            147 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:4:9-4:21 */,
+            178 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:4:9-4:21 */,
     );
     k = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            148 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:5:9-5:21 */,
+            179 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:5:9-5:21 */,
     );
     v = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -3045,7 +3602,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
             }
         }(),
 
-            149 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:6:9-6:16 */,
+            180 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:6:9-6:16 */,
     );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -3058,7 +3615,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 150 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:8:17-8:29 */))
+                u128)) } } (), 181 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:8:17-8:29 */))
             );
             v = __terrane_raised_completion!(
                 | | -> Result < _, crate ::TerraneForeignError > { { let value = match
@@ -3067,7 +3624,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
                 result ?, Err(payload) => return Err(crate
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                ::TerraneForeignError > (value) } } (), 151 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:9:13-9:20 */
+                ::TerraneForeignError > (value) } } (), 182 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:9:13-9:20 */
             );
             let _ = &v;
             TerraneCompletion::Normal
@@ -3126,7 +3683,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
             }
         }(),
 
-            152 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:12:9-12:16 */,
+            183 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:12:9-12:16 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -3136,7 +3693,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 153 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:13:13-13:20 */))
+        (), 184 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:13:13-13:20 */))
     );
 }
 // Source: <compiler-generated test registry>
@@ -3183,81 +3740,107 @@ fn main() {
             }
         }
         "1" => {
-            test_scenario_terrane_native_loan_chain_rebind_receiver();
+            test_scenario_terrane_native_finally_only_rewrite();
         }
         "2" => {
-            test_scenario_terrane_native_loan_exclusive_branch();
+            test_scenario_terrane_native_inferred_copy_view();
         }
         "3" => {
-            test_scenario_terrane_native_loan_finally_copy_rebind();
+            test_scenario_terrane_native_loan_chain_rebind_receiver();
         }
         "4" => {
-            test_scenario_terrane_native_loan_loop_refreshed();
+            test_scenario_terrane_native_loan_exclusive_branch();
         }
         "5" => {
-            test_scenario_terrane_native_loan_owned_observation();
+            test_scenario_terrane_native_loan_finally_copy_rebind();
         }
         "6" => {
-            test_scenario_terrane_native_loan_predicate_last_use();
+            test_scenario_terrane_native_loan_loop_refreshed();
         }
         "7" => {
-            test_scenario_terrane_native_loan_predicate_switch();
+            test_scenario_terrane_native_loan_owned_observation();
         }
         "8" => {
-            test_scenario_terrane_native_loan_predicate_three_arms();
+            test_scenario_terrane_native_loan_predicate_last_use();
         }
         "9" => {
-            test_scenario_terrane_native_loan_rebound_alias_chain();
+            test_scenario_terrane_native_loan_predicate_switch();
         }
         "10" => {
-            test_scenario_terrane_native_loan_rebound_other();
+            test_scenario_terrane_native_loan_predicate_three_arms();
         }
         "11" => {
-            test_scenario_terrane_native_loan_rebound_same();
+            test_scenario_terrane_native_loan_rebound_alias_chain();
         }
         "12" => {
-            test_scenario_terrane_native_loan_return_branch();
+            test_scenario_terrane_native_loan_rebound_other();
         }
         "13" => {
-            test_scenario_terrane_native_loan_storage_alias_last_use();
+            test_scenario_terrane_native_loan_rebound_same();
         }
         "14" => {
-            test_scenario_terrane_native_loan_try_finally_last_use();
+            test_scenario_terrane_native_loan_return_branch();
         }
         "15" => {
-            test_scenario_terrane_native_loan_try_local();
+            test_scenario_terrane_native_loan_storage_alias_last_use();
         }
         "16" => {
-            test_scenario_terrane_native_loan_whole_last_use();
+            test_scenario_terrane_native_loan_try_finally_last_use();
         }
         "17" => {
-            test_scenario_terrane_native_loan_whole_move_last_use();
+            test_scenario_terrane_native_loan_try_local();
         }
         "18" => {
-            test_scenario_terrane_native_loan_whole_mutate_last_use();
+            test_scenario_terrane_native_loan_whole_last_use();
         }
         "19" => {
-            test_scenario_terrane_native_loop_consuming_condition_break();
+            test_scenario_terrane_native_loan_whole_move_last_use();
         }
         "20" => {
-            test_scenario_terrane_native_try_body_rewrite_control();
+            test_scenario_terrane_native_loan_whole_mutate_last_use();
         }
         "21" => {
-            test_scenario_terrane_native_try_catch_dominating_rewrite();
+            test_scenario_terrane_native_loop_consuming_condition_break();
         }
         "22" => {
-            test_scenario_terrane_native_try_copy_finally_control();
+            if let Err(error) = test_scenario_terrane_native_ref_clone_repeat() {
+                let skipped = error.descriptor_name() == "/core/testing::test-skip";
+                __terrane_test_record(
+                    if skipped { "skipped" } else { "failed" },
+                    &error,
+                );
+                std::process::exit(if skipped { 102 } else { 101 });
+            }
         }
         "23" => {
-            test_scenario_terrane_native_try_finally_dominating_rewrite();
+            if let Err(error) = test_scenario_terrane_native_required_enum_field() {
+                let skipped = error.descriptor_name() == "/core/testing::test-skip";
+                __terrane_test_record(
+                    if skipped { "skipped" } else { "failed" },
+                    &error,
+                );
+                std::process::exit(if skipped { 102 } else { 101 });
+            }
         }
         "24" => {
-            test_scenario_terrane_native_try_finally_rewrite_control();
+            test_scenario_terrane_native_try_body_rewrite_control();
         }
         "25" => {
-            test_scenario_terrane_native_try_local_consume();
+            test_scenario_terrane_native_try_catch_dominating_rewrite();
         }
         "26" => {
+            test_scenario_terrane_native_try_copy_finally_control();
+        }
+        "27" => {
+            test_scenario_terrane_native_try_finally_dominating_rewrite();
+        }
+        "28" => {
+            test_scenario_terrane_native_try_finally_rewrite_control();
+        }
+        "29" => {
+            test_scenario_terrane_native_try_local_consume();
+        }
+        "30" => {
             test_scenario_terrane_native_try_unconditional_rewrite_control();
         }
         _ => {

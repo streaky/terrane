@@ -1,0 +1,4 @@
+namespace heterogeneous-scalar-union-field
+class holder
+  value int|string = 1
+function main;

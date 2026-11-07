@@ -44,11 +44,11 @@ fn protocol_transfer_bounds(
 }
 
 fn effective_source_interface_methods(
-    unit: &crate::semantics::SemanticUnit,
+    package: &SemanticPackage,
     object: &DescriptorContract,
 ) -> Vec<FunctionContract> {
     fn collect(
-        unit: &crate::semantics::SemanticUnit,
+        package: &SemanticPackage,
         object: &DescriptorContract,
         identity: &crate::semantics::ObjectIdentity,
         methods: &mut Vec<FunctionContract>,
@@ -64,22 +64,29 @@ fn effective_source_interface_methods(
             .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
             .collect();
         for inherited in &object.interfaces {
-            if let Some(parent) = unit.descriptors.iter().find(|candidate| {
-                candidate.kind == ObjectKind::Interface
-                    && candidate.identity.base() == inherited.base()
-            }) {
-                let ValueType::Object(applied) = crate::semantics::substitute_value_type(
-                    &ValueType::Object(inherited.clone()),
-                    &substitutions,
-                ) else {
-                    unreachable!("interface substitution retains nominal identity")
-                };
-                collect(unit, parent, &applied, methods, visited);
-            }
+            let Some(parent) = package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.descriptors)
+                .find(|candidate| {
+                    candidate.kind == ObjectKind::Interface
+                        && candidate.identity.base() == inherited.base()
+                })
+            else {
+                continue;
+            };
+            let ValueType::Object(applied) = crate::semantics::substitute_value_type(
+                &ValueType::Object(inherited.clone()),
+                &substitutions,
+            ) else {
+                unreachable!("interface substitution retains nominal identity")
+            };
+            collect(package, parent, &applied, methods, visited);
         }
-        for method in unit
-            .functions
+        for method in package
+            .units
             .iter()
+            .flat_map(|unit| &unit.functions)
             .filter(|method| method.owner_identity.as_ref() == Some(&object.identity))
         {
             let mut method = method.clone();
@@ -112,7 +119,13 @@ fn effective_source_interface_methods(
             .collect(),
     );
     let mut methods = Vec::new();
-    collect(unit, object, &identity, &mut methods, &mut BTreeSet::new());
+    collect(
+        package,
+        object,
+        &identity,
+        &mut methods,
+        &mut BTreeSet::new(),
+    );
     methods
 }
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
@@ -390,7 +403,7 @@ impl<'a> Emitter<'a> {
             ObjectKind::Interface => {
                 let name = rust_object_type_name(self.package, &object.identity);
                 let protocol = format!("{name}Protocol");
-                let methods = effective_source_interface_methods(self.unit, object)
+                let methods = effective_source_interface_methods(self.package, object)
                     .into_iter()
                     .filter(|method| {
                         !Self::omit_advanced_stream_method(advanced_streams, self.unit, method)
@@ -553,6 +566,14 @@ impl<'a> Emitter<'a> {
                 self.line(&format!(
                     "pub struct {name}{generic_declaration}(Box<dyn {protocol_use}>);"
                 ));
+                for ancestor in crate::semantics::effective_object_interfaces(self.package, object)
+                {
+                    let ancestor_use = rust_source_type_application(self.package, &ancestor);
+                    let child_use = format!("{name}{generic_use}");
+                    self.line(&format!(
+                        "impl{generic_declaration} From<{child_use}> for {ancestor_use} {{ fn from(value: {child_use}) -> Self {{ Self(value.0) }} }}"
+                    ));
+                }
                 if !object.resource_owning {
                     self.line(&format!(
                     "impl{generic_declaration} Clone for {name}{generic_use} {{ fn clone(&self) -> Self {{ Self(self.0.clone()) }} }}"
@@ -1617,7 +1638,7 @@ impl<'a> Emitter<'a> {
                         .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
                         .collect();
                     let interface_methods =
-                        effective_source_interface_methods(interface_unit, interface)
+                        effective_source_interface_methods(self.package, interface)
                             .into_iter()
                             .map(|method| {
                                 let mut method = crate::semantics::bind_projected_requirement(

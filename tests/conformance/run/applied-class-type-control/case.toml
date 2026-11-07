@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "object-protocols"
+test = "/applied-class-type-control::test-scenario"

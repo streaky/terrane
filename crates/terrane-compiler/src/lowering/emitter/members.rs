@@ -4,20 +4,6 @@ pub(super) enum GuardScope {
     Place,
 }
 
-fn source_consuming_receiver(receiver: &SyntaxNode, emitter: &super::Emitter<'_>) -> bool {
-    emitter
-        .receiver_value_type(receiver)
-        .is_some_and(|value_type| match value_type {
-            crate::semantics::ValueType::TypeParameter(_) => true,
-            crate::semantics::ValueType::Object(identity) => emitter
-                .package
-                .projection
-                .item(&identity.namespace, &identity.name)
-                .is_none(),
-            _ => false,
-        })
-}
-
 fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emitter<'_>) -> bool {
     let move_here = node.kind == SyntaxKind::UnaryExpression
         && emitter.unary_operator(node).as_deref() == Some("move")
@@ -46,7 +32,13 @@ fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emi
                 let member = callee.children.last()?;
                 Some(
                     receiver.span == target
-                        && source_consuming_receiver(receiver, emitter)
+                        && crate::semantics::field_access_transfers(
+                            emitter.package,
+                            emitter.unit,
+                            receiver,
+                            true,
+                        )
+                        .expect("field transfer must be validated before lowering")
                         && emitter.value_type(receiver).is_some_and(|ty| {
                             crate::semantics::member_invocation_mode_at(
                                 emitter.package,
@@ -236,7 +228,7 @@ impl Emitter<'_> {
                 if matches!(
                     item.value_type_ref(),
                     ValueType::InvocationScopedNative { .. }
-                ) =>
+                ) && !self.package.native_value_is_copyable(item.value_type_ref()) =>
             {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
                     let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));

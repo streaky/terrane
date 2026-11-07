@@ -1,0 +1,4 @@
+namespace self-inheritance-cycle
+class Cycle extends Cycle
+function main;
+    return

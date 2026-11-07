@@ -1,0 +1,10 @@
+namespace app
+from /deps/terrane-query-witness import NE
+class R
+    value NE
+    function construct;
+        this.value = NE::A;
+function main;
+    r = instance R;
+    print; (r.value.code;)
+    print; (r.value.code;)

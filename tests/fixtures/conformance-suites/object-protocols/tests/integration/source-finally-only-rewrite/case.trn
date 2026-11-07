@@ -1,0 +1,21 @@
+namespace source-finally-only-rewrite
+from /core/collections import list
+class K
+    n int = 1
+    consuming function finish int;
+        return this.n
+function eat int; values list of int
+    return values[0]
+function test-scenario;
+    k = instance K;
+    try
+        print; (k.finish;)
+    finally
+        k = instance K;
+        print; k.n
+    values list of int = list; 3
+    try
+        print; (eat; values)
+    finally
+        values = list; 4
+        print; values[0]

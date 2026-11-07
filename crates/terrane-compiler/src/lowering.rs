@@ -37,7 +37,8 @@ mod prelude {
             bound_method, collection_member_call, contextual_constant,
             descriptor_binding_is_materialized, descriptor_contract_by_identity,
             effective_object_fields, float_member_contract, is_numeric, narrowed_optional_type,
-            narrowed_value_type, object_member_type, promoted_integer_type, string_call_selection,
+            narrowed_value_type, object_member_type, promoted_integer_type, rust_value_is_copy,
+            string_call_selection,
         },
         syntax::{SyntaxKind, SyntaxNode},
     };
