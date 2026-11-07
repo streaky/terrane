@@ -30,6 +30,7 @@ fn main() {
         second = __terrane_item_0.value;
         let _ = &second;
         second = terrane_int_support::Int::from(9_i128);
+        let _ = &second;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&second)

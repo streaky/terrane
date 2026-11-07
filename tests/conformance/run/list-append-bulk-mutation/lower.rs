@@ -584,7 +584,6 @@ fn main() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            let _ = &value;
             {
                 let __terrane_collection_argument_0 = value;
                 __terrane_list_append_11.push(__terrane_collection_argument_0);
@@ -653,7 +652,6 @@ fn main() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 };
-                let _ = &value;
                 {
                     let __terrane_collection_argument_0 = value;
                     __terrane_list_append_12.push(__terrane_collection_argument_0);
@@ -681,7 +679,6 @@ fn main() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            let _ = &value;
             {
                 let __terrane_collection_argument_0 = value;
                 __terrane_list_append_13.push(__terrane_collection_argument_0);
@@ -705,7 +702,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &value;
         {
             let __terrane_collection_argument_0 = value;
             self_source.append(__terrane_collection_argument_0);

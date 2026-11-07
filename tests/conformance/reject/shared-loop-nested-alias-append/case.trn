@@ -1,0 +1,11 @@
+namespace shared-loop-nested-alias-append
+from /core/collections import list
+
+function main;
+    values = list; 1
+    alias = mutable ref values
+    for value in ref alias
+        for nested in ref values
+            print; value
+            print; nested
+            alias.append; 2

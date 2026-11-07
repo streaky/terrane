@@ -211,6 +211,23 @@ pub(super) fn analyze_binding_node(
                     "T0002",
                 )?;
             }
+        } else if matches!(actual, ValueType::Union(_)) {
+            validate_value_destination(
+                &unit.source,
+                &unit.descriptors,
+                &name,
+                &ValueType::Union(
+                    previous
+                        .destination_arms
+                        .iter()
+                        .copied()
+                        .map(ValueType::Scalar)
+                        .collect(),
+                ),
+                &actual,
+                initializer,
+                "T0002",
+            )?;
         } else {
             select_union_candidates(
                 &unit.source,

@@ -456,6 +456,10 @@ impl Emitter<'_> {
             .is_some_and(|binding| self.binding_may_be_unassigned(binding))
         {
             self.line(&format!("let _ = {target}.insert({value});"));
+        } else if assigned_binding.as_ref().is_some_and(|binding| {
+            crate::semantics::native_copy_stores_are_independent(self.package, self.unit, binding)
+        }) {
+            self.line(&format!("let {target} = {value};"));
         } else {
             self.line(&format!("{target} = {value};"));
         }
@@ -2007,6 +2011,7 @@ impl Emitter<'_> {
                 self.loop_counter += 1;
                 let (source, text_unit) = self.for_iterable_source(
                     collection,
+                    node,
                     collection_type.as_ref(),
                     text_iteration,
                     loop_index,

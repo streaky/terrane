@@ -2098,6 +2098,8 @@ pub(crate) fn selected_callable_contract(
             .then(|| super::native_constructors::implicit_record_constructor(package, unit, call))
             .flatten();
     };
+    let owner_specialized = specialize_static_owner(package, unit, designator, contract);
+    let contract = owner_specialized.as_ref().unwrap_or(contract);
     if contract.generic_parameters.is_empty() {
         if callee.kind == SyntaxKind::AppliedType {
             return None;
@@ -2149,6 +2151,45 @@ pub(crate) fn selected_callable_contract(
     }
     canonicalize_selected_contract(package, &mut selected);
     Some(selected)
+}
+
+fn specialize_static_owner(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    designator: &SyntaxNode,
+    contract: &FunctionContract,
+) -> Option<FunctionContract> {
+    if !contract.is_static || designator.kind != SyntaxKind::StaticMemberExpression {
+        return None;
+    }
+    let receiver = designator.children.first()?;
+    let identity = super::namespaces::class_designator_identity(unit, receiver)?;
+    if identity.type_arguments.is_empty() {
+        return None;
+    }
+    let descriptor = package
+        .units
+        .iter()
+        .flat_map(|owner| &owner.descriptors)
+        .find(|descriptor| descriptor.identity.base() == identity.base())?;
+    let substitutions = descriptor
+        .generic_parameters
+        .iter()
+        .zip(&identity.type_arguments)
+        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+        .collect();
+    let mut specialized = contract.clone();
+    for parameter in &mut specialized.parameters {
+        parameter.value_type = parameter
+            .value_type
+            .as_ref()
+            .map(|value_type| substitute_value_type(value_type, &substitutions));
+    }
+    specialized.return_type = specialized
+        .return_type
+        .as_ref()
+        .map(|value_type| substitute_value_type(value_type, &substitutions));
+    Some(specialized)
 }
 
 fn close_non_generic_contract(

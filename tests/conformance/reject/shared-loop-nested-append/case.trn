@@ -1,0 +1,10 @@
+namespace shared-loop-nested-append
+from /core/collections import list
+
+function main;
+    values = list; 1
+    others = list; 2
+    for value in ref values
+        for other in ref others
+            print; value, other
+            values.append; 3

@@ -1761,7 +1761,6 @@ impl<'unit> Emitter<'unit> {
             && !shared
             && !copy
             && !matches!(value_type, ValueType::MutableReference(_))
-            && !self.value_type_owns_resource(value_type)
             && !self.binding_value_is_reused(node)
             && !self.non_consuming_capture_read(node);
         let mutable_storage = mutable && !shared;

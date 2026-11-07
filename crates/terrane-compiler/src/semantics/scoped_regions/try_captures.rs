@@ -41,14 +41,11 @@ fn validate_moved_value(
                 | ValueType::MutableReference(_)
                 | ValueType::SharedReference(_)
         )
-        // Ordinary callable arguments clone their Arc-backed handle; they do
-        // not move the outer binding as an explicit `move` would.
-        && (explicit || !matches!(&ty, ValueType::Function(..) | ValueType::AsyncFunction(..)))
+        // Ordinary by-value call arguments clone reusable values when possible.
+        // Consuming receivers and explicit moves still transfer ownership.
         && (explicit
-            || !matches!(&ty, ValueType::Object(identity)
-                if package.projection.item(&identity.namespace, &identity.name).is_some()
-                    && super::super::objects::value_type_is_cloneable(package, unit, &ty)
-                    && !application_is_resource_owning(package, &ty)))
+            || !super::super::objects::value_type_is_cloneable(package, unit, &ty)
+            || application_is_resource_owning(package, &ty))
         && let Some(binding) = super::binding_identity_at(unit, value)
         && binding.start < statement.span.start
         && rebinds(unit, statement, binding)
@@ -78,16 +75,21 @@ fn visit_consumption(
             package, unit, receiver, &ty, &member,
         ) == InvocationMode::Consuming
     {
-        Some(receiver)
+        let native_clone_conversion = matches!(&ty, ValueType::Object(identity)
+            if package.projection.item(&identity.namespace, &identity.name).is_some()
+                && super::super::objects::value_type_is_cloneable(package, unit, &ty));
+        Some((receiver, !native_clone_conversion))
     } else if node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("move")
     {
-        node.children.last()
+        node.children.last().map(|value| (value, true))
     } else {
         None
     };
-    if let Some(receiver) = receiver {
-        consume(receiver, node.kind == SyntaxKind::UnaryExpression)?;
+    if let Some((receiver, explicit)) = receiver {
+        // Source consuming receivers and explicit moves transfer; projected owned
+        // Clone receivers retain their canonical clone conversion.
+        consume(receiver, explicit)?;
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()

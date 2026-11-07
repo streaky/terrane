@@ -970,6 +970,43 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
+            && callee.kind == SyntaxKind::MemberExpression
+            && callee
+                .children
+                .last()
+                .is_some_and(|member| node_text(&unit.source, member) == "append")
+            && let Some(receiver) = callee.children.first()
+            && matches!(
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+                    .ok()
+                    .flatten(),
+                Some(ValueType::List(_))
+            )
+            && let Some(argument) = arguments.children.first()
+        {
+            let value = ungroup(argument.children.last().unwrap_or(argument));
+            let transferred = (value.kind == SyntaxKind::Name)
+                .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
+                .flatten()
+                .filter(|binding| noncopyable_binding(package, unit, *binding));
+            for child in &node.children {
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
+            }
+            if let Some(transferred) = transferred {
+                moved.insert(transferred);
+            }
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
             && let Some(parameters) = function_parameters(package, unit, callee)
         {
             for (index, argument) in arguments.children.iter().enumerate() {
@@ -1959,6 +1996,32 @@ fn symbolic_lender_parameter(
             });
         }
         SyntaxKind::CallExpression => {
+            if let Some(specialization) = unit
+                .projected_call_specializations
+                .get(&span_key(node.span))
+                && let Some(receiver_lifetime) = &specialization.projected_receiver_lifetime
+                && let crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                    lifetimes,
+                    ..
+                } = &specialization.projected_result
+                && lifetimes.iter().any(|lifetime| lifetime != "'static")
+                && lifetimes
+                    .iter()
+                    .all(|lifetime| lifetime == "'static" || lifetime == receiver_lifetime)
+                && let Some(receiver) = node
+                    .children
+                    .first()
+                    .and_then(|callee| callee.children.first())
+            {
+                return symbolic_lender_parameter(
+                    package,
+                    unit,
+                    receiver,
+                    contract,
+                    known,
+                    visited_bindings,
+                );
+            }
             let callee = package_function_contract(package, unit, node)?;
             let lender = *known.get(&contract_key(callee))?;
             let argument = argument_for_parameter(unit, node.children.get(1)?, callee, lender)?;
@@ -1977,14 +2040,14 @@ fn symbolic_lender_parameter(
     let binding = binding_at(unit, node)?;
     if let Some(index) = contract.parameters.iter().position(|parameter| {
         parameter.name == binding.name
-            && matches!(
-                parameter.value_type,
-                Some(
+            && parameter.value_type.as_ref().is_some_and(|ty| {
+                matches!(
+                    ty,
                     ValueType::Reference(_)
                         | ValueType::MutableReference(_)
                         | ValueType::SharedReference(_)
-                )
-            )
+                ) || super::scoped_regions::field_has_native_loan(package, ty)
+            })
     }) {
         return Some(index);
     }
@@ -2040,11 +2103,14 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
         let mut changed = false;
         for unit in &package.units {
             for contract in unit.local_functions() {
-                if !matches!(
-                    contract.return_type,
-                    Some(ValueType::Reference(_) | ValueType::MutableReference(_))
-                ) || known.contains_key(&contract_key(contract))
-                {
+                let lends_result = contract.return_type.as_ref().is_some_and(|ty| {
+                    matches!(ty, ValueType::Reference(_) | ValueType::MutableReference(_))
+                        || (matches!(
+                            ty,
+                            ValueType::Object(_) | ValueType::InvocationScopedNative { .. }
+                        ) && super::scoped_regions::field_has_native_loan(package, ty))
+                });
+                if !lends_result || known.contains_key(&contract_key(contract)) {
                     continue;
                 }
                 let mut returns = Vec::new();
@@ -3442,6 +3508,7 @@ pub(super) fn validate_referenced_replacements(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     for unit in &package.units {
+        exclusive_loans::validate_shared_iteration_access(package, unit, &unit.tree.root)?;
         for (&observer_key, provenance) in &unit.reference_provenance {
             let Some(observer) = unit.typed_bindings.iter().find(|binding| {
                 (binding.span.start, binding.span.end) == observer_key

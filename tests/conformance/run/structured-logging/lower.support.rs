@@ -3319,42 +3319,6 @@ pub fn decode_document(
 }
 // Source: core/logging.trn
 // Namespace: core/logging
-#[allow(dead_code)]
-#[derive(Clone)]
-enum TerraneUnionF3S5342 {
-    Arm0(LogField),
-    Arm1(String),
-}
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF3S5342 {
-    fn write_scalar(&self, output: &mut String) {
-        match self {
-            Self::Arm0(_) => {
-                unreachable!("semantic display refinement excludes this union arm")
-            }
-            Self::Arm1(value) => {
-                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
-            }
-        }
-    }
-}
-#[allow(dead_code)]
-#[derive(Clone)]
-enum TerraneUnionF3S5641 {
-    Arm0(LogField),
-    Arm1(String),
-}
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF3S5641 {
-    fn write_scalar(&self, output: &mut String) {
-        match self {
-            Self::Arm0(_) => {
-                unreachable!("semantic display refinement excludes this union arm")
-            }
-            Self::Arm1(value) => {
-                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
-            }
-        }
-    }
-}
 #[derive(Clone)]
 pub struct LogLevel {
     pub name: String,
@@ -3864,26 +3828,19 @@ impl LogContext {
     }
     pub fn adding_field(&self, addition: LogField) -> LogContext {
         let mut value: LogContext;
-        let mut existing: TerraneUnionF3S5342;
+        let mut existing: LogField;
+        let mut existing_2: String;
         value = LogContext::terrane_construct();
         let __terrane_iterable_2 = self.fields.clone();
         let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
             __terrane_iterable_2.as_slice(),
         );
         loop {
-            existing = TerraneUnionF3S5342::Arm0(
-                match __terrane_iterator_2.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            value
-                .append_field(
-                    match existing {
-                        TerraneUnionF3S5342::Arm0(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    },
-                );
+            existing = match __terrane_iterator_2.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_field(existing);
         }
         value.append_field(addition);
         let __terrane_iterable_3 = self.spans.clone();
@@ -3891,67 +3848,40 @@ impl LogContext {
             __terrane_iterable_3.as_slice(),
         );
         loop {
-            existing = TerraneUnionF3S5342::Arm1(
-                match __terrane_iterator_3.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            let _ = &existing;
-            value
-                .append_span(
-                    match &existing {
-                        TerraneUnionF3S5342::Arm1(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    }
-                        .clone(),
-                );
+            existing_2 = match __terrane_iterator_3.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_span(existing_2);
         }
         return value;
     }
     pub fn adding_span(&self, span: String) -> LogContext {
         let mut value: LogContext;
-        let mut existing: TerraneUnionF3S5641;
+        let mut existing: LogField;
+        let mut existing_2: String;
         value = LogContext::terrane_construct();
         let __terrane_iterable_4 = self.fields.clone();
         let mut __terrane_iterator_4 = terrane_collection_support::slice_iterator(
             __terrane_iterable_4.as_slice(),
         );
         loop {
-            existing = TerraneUnionF3S5641::Arm0(
-                match __terrane_iterator_4.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            value
-                .append_field(
-                    match existing {
-                        TerraneUnionF3S5641::Arm0(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    },
-                );
+            existing = match __terrane_iterator_4.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_field(existing);
         }
         let __terrane_iterable_5 = self.spans.clone();
         let mut __terrane_iterator_5 = terrane_collection_support::slice_iterator(
             __terrane_iterable_5.as_slice(),
         );
         loop {
-            existing = TerraneUnionF3S5641::Arm1(
-                match __terrane_iterator_5.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            let _ = &existing;
-            value
-                .append_span(
-                    match &existing {
-                        TerraneUnionF3S5641::Arm1(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    }
-                        .clone(),
-                );
+            existing_2 = match __terrane_iterator_5.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_span(existing_2);
         }
         value.append_span(span);
         return value;
@@ -4200,9 +4130,8 @@ pub fn emit_at(
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            let _ = &item;
             {
-                let __terrane_collection_argument_0 = item.clone();
+                let __terrane_collection_argument_0 = item;
                 __terrane_list_append_3.push(__terrane_collection_argument_0);
             };
         }

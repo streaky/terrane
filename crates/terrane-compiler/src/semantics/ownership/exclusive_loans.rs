@@ -26,6 +26,16 @@ pub(super) fn owner_place_path(
             .children
             .first()
             .and_then(|child| owner_place_path(package, unit, child, owner, provenances)),
+        SyntaxKind::UnaryExpression
+            if matches!(
+                super::unary_operator_text(unit, node).as_deref(),
+                Some("ref" | "mutable ref" | "shared ref")
+            ) =>
+        {
+            node.children
+                .last()
+                .and_then(|child| owner_place_path(package, unit, child, owner, provenances))
+        }
         SyntaxKind::MemberExpression => {
             let [receiver, member] = node.children.as_slice() else {
                 return None;
@@ -237,4 +247,52 @@ pub(super) fn has_exclusive_lineage(
         };
         current = parent;
     }
+}
+
+pub(super) fn validate_shared_iteration_access(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), super::SemanticFailure> {
+    if node.kind == SyntaxKind::ForStatement
+        && let [_, collection, body] = node.children.as_slice()
+        && collection.kind == SyntaxKind::UnaryExpression
+        && super::unary_operator_text(unit, collection).as_deref() == Some("ref")
+        && let Some(provenance) = super::expression_provenance(
+            package,
+            unit,
+            collection,
+            &unit.reference_provenance,
+            &unit.reference_return_lenders,
+        )
+        && let Some(conflict) = first_owner_access_between(
+            package,
+            unit,
+            body,
+            OwnerAccessWindow {
+                owner: provenance.owner,
+                borrowed_path: &provenance.path,
+                // The iterator, not its element's last use, keeps this loan
+                // live throughout the body, including nested iterations.
+                // No binding descends from this expression: writes through
+                // aliases must conflict just like writes to the owner.
+                observer: collection.span,
+                provenances: &unit.reference_provenance,
+                writes_only: true,
+                start: body.span.start,
+                end: body.span.end,
+            },
+        )
+    {
+        return Err(super::failure(
+            &unit.source,
+            "T0059",
+            "cannot mutate a collection while its shared reference iterator is live",
+            conflict,
+        ));
+    }
+    for child in &node.children {
+        validate_shared_iteration_access(package, unit, child)?;
+    }
+    Ok(())
 }

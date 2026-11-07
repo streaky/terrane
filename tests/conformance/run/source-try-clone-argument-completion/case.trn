@@ -1,0 +1,12 @@
+namespace app
+from /core/collections import list
+function eat int; o list of int
+    return o.length
+function main;
+    o list of int = list; 1
+    try
+        o = list; 2
+        print; (eat; o)
+    finally
+        print; 0
+    print; o[0]

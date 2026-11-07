@@ -12,23 +12,28 @@ pub(super) fn retain_appended_native_origins(
     let [callee, arguments] = node.children.as_slice() else {
         return Ok(());
     };
-    if callee.kind != SyntaxKind::MemberExpression
-        || callee
-            .children
-            .last()
-            .is_none_or(|member| node_text(&unit.source, member) != "append")
-    {
+    if callee.kind != SyntaxKind::MemberExpression {
         return Ok(());
     }
-    let Some((receiver, ValueType::List(_), operation)) =
-        collection_member_call(unit, callee, visible)?
+    let member_name = callee
+        .children
+        .last()
+        .map(|member| node_text(&unit.source, member));
+    if !matches!(member_name, Some("append" | "set")) {
+        return Ok(());
+    }
+    let Some((receiver, receiver_type, operation)) = collection_member_call(unit, callee, visible)?
     else {
         return Ok(());
     };
-    if operation != "append" || receiver.kind != SyntaxKind::Name {
+    if operation != member_name.unwrap_or_default() || receiver.kind != SyntaxKind::Name {
         return Ok(());
     }
-    let Some(argument) = arguments.children.first() else {
+    let value_position = usize::from(operation != "append");
+    let Some(argument) = arguments.children.get(value_position) else {
+        return Ok(());
+    };
+    let (ValueType::List(_) | ValueType::Map(_, _)) = receiver_type else {
         return Ok(());
     };
     let value = argument.children.last().unwrap_or(argument);
@@ -41,11 +46,13 @@ pub(super) fn retain_appended_native_origins(
     }) else {
         return Ok(());
     };
-    let ValueType::List(item) = &mut binding.value_type else {
-        return Ok(());
+    let item = match &mut binding.value_type {
+        ValueType::List(item) if operation == "append" => item.value_type_mut(),
+        ValueType::Map(_, value) if operation == "set" => value.value_type_mut(),
+        _ => return Ok(()),
     };
-    if value_types_compatible(&unit.descriptors, item.value_type_ref(), &actual) {
-        super::types::retain_native_origins(item.value_type_mut(), &actual);
+    if value_types_compatible(&unit.descriptors, item, &actual) {
+        super::types::retain_native_origins(item, &actual);
         if let Some(stored) = bindings
             .iter_mut()
             .find(|stored| stored.span == binding.span)

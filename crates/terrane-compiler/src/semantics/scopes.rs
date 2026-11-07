@@ -290,9 +290,7 @@ pub(super) fn populate_node(
             {
                 for name_node in &target.children {
                     let name = node_text(&unit.source, name_node).to_owned();
-                    if !scopes[index].symbols.contains_key(&name) {
-                        insert_local(unit, scopes, index, name, name_node.span)?;
-                    } else if visible_local_symbol(scopes, index, &name)
+                    if visible_local_symbol(scopes, index, &name)
                         .is_some_and(|symbol| symbol.kind == SymbolKind::Function)
                     {
                         return Err(failure(
@@ -302,6 +300,9 @@ pub(super) fn populate_node(
                             name_node.span,
                         ));
                     }
+                    // Each iteration target has its own declaration identity,
+                    // even when a previous loop used the same spelling.
+                    insert_local_replacement(unit, scopes, index, name, name_node.span);
                 }
             }
             for child in &node.children {

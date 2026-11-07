@@ -26,11 +26,30 @@ fn canonical_binding_span(unit: &SemanticUnit, name: &str, position: usize) -> O
         .map(|binding| binding.span)
 }
 
-fn record_join_binding_ids(unit: &mut SemanticUnit, node: &SyntaxNode, name: &str, identity: Span) {
+fn record_join_binding_ids(
+    unit: &mut SemanticUnit,
+    node: &SyntaxNode,
+    name: &str,
+    identity: Span,
+    dead_iteration_outputs: Option<&BTreeSet<Span>>,
+) {
     if matches!(
         node.kind,
         SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
     ) {
+        return;
+    }
+    if node.kind == SyntaxKind::ForStatement
+        && node.children.first().is_some_and(|target| {
+            target.kind == SyntaxKind::ForTarget
+                && target.children.iter().any(|target| {
+                    node_text(&unit.source, target) == name
+                        && dead_iteration_outputs.is_some_and(|dead| dead.contains(&target.span))
+                })
+        })
+    {
+        // This loop's result does not reach the join. Its binder and body
+        // writes retain their own storage, not the restored outer carrier.
         return;
     }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
@@ -94,7 +113,7 @@ fn record_join_binding_ids(unit: &mut SemanticUnit, node: &SyntaxNode, name: &st
         }
     }
     for child in &node.children {
-        record_join_binding_ids(unit, child, name, identity);
+        record_join_binding_ids(unit, child, name, identity, dead_iteration_outputs);
     }
 }
 fn record_join_for_env(unit: &mut SemanticUnit, node: &SyntaxNode, env: &FlowEnv) {
@@ -103,7 +122,13 @@ fn record_join_for_env(unit: &mut SemanticUnit, node: &SyntaxNode, env: &FlowEnv
             && (matches!(value_type, ValueType::Union(_))
                 || unit.flow_binding_types.contains_key(&identity))
         {
-            record_join_binding_ids(unit, node, name, identity);
+            record_join_binding_ids(
+                unit,
+                node,
+                name,
+                identity,
+                env.dead_iteration_outputs.as_deref(),
+            );
         }
     }
 }
@@ -239,6 +264,7 @@ struct FlowEnv {
     carrier_types: BTreeMap<String, ValueType>,
     uncertain: BTreeSet<String>,
     origins: BTreeMap<String, BTreeSet<Span>>,
+    dead_iteration_outputs: Option<std::sync::Arc<BTreeSet<Span>>>,
 }
 
 impl FlowEnv {
@@ -249,6 +275,7 @@ impl FlowEnv {
             carrier_types: BTreeMap::new(),
             uncertain: BTreeSet::new(),
             origins: BTreeMap::new(),
+            dead_iteration_outputs: None,
         }
     }
 }
@@ -361,6 +388,9 @@ fn merge_flow_states(
                 })
                 .collect::<BTreeSet<_>>();
             let mut merged = FlowEnv::new(BTreeMap::new());
+            merged
+                .dead_iteration_outputs
+                .clone_from(&envs[0].dead_iteration_outputs);
             for name in names {
                 let value_type = joined_flow_value_type(unit, &envs, &name);
                 let prior_carriers = envs
@@ -745,6 +775,86 @@ fn merge_envs(unit: &mut SemanticUnit, span: Span, envs: Vec<FlowEnv>) -> FlowEn
     .unwrap_or_else(|| FlowEnv::new(BTreeMap::new()))
 }
 
+fn collect_dead_iteration_outputs(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    dead: &mut BTreeSet<Span>,
+) {
+    if node.kind == SyntaxKind::ForStatement
+        && let Some(target) = node
+            .children
+            .first()
+            .filter(|target| target.kind == SyntaxKind::ForTarget)
+    {
+        for name in &target.children {
+            let Some(binding) = unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == name.span)
+            else {
+                continue;
+            };
+            let needs_join = unit.typed_bindings.iter().any(|other| {
+                other.name == binding.name
+                    && other.scope == binding.scope
+                    && other.value_type != binding.value_type
+            });
+            if needs_join
+                && !unit
+                    .flow_read_bindings
+                    .iter()
+                    .any(|((file, start, end), origins)| {
+                        *file == node.span.file
+                            && *start >= node.span.end
+                            && unit.source.text().get(*start..*end) == Some(binding.name.as_str())
+                            && origins.iter().any(|origin| {
+                                origin.file == node.span.file
+                                    && origin.start >= node.span.start
+                                    && origin.end <= node.span.end
+                            })
+                    })
+            {
+                dead.insert(name.span);
+            }
+        }
+    }
+    for child in &node.children {
+        collect_dead_iteration_outputs(unit, child, dead);
+    }
+}
+
+fn validate_iteration_carriers(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::ForTarget {
+        for name in &node.children {
+            let identity = unit
+                .flow_binding_ids
+                .get(&(name.span.file, name.span.start, name.span.end))
+                .copied()
+                .unwrap_or(name.span);
+            if matches!(unit.flow_binding_types.get(&identity), Some(ValueType::Union(arms))
+            if arms.iter().any(|arm| {
+                matches!(arm, ValueType::InvocationScopedNative { .. })
+                    || matches!(arm, ValueType::Reference(item) | ValueType::MutableReference(item)
+                        if matches!(item.value_type_ref(), ValueType::InvocationScopedNative { .. }))
+            })) {
+                return Err(failure(
+                    &unit.source,
+                    "T0119",
+                    "native view values with differing storage forms cannot share a live loop carrier",
+                    name.span,
+                ));
+            }
+        }
+    }
+    for child in &node.children {
+        validate_iteration_carriers(unit, child)?;
+    }
+    Ok(())
+}
+
 pub(super) fn validate_definite_assignment(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -761,64 +871,81 @@ pub(super) fn validate_definite_assignment(
         }
     }
     for unit in &mut package.units {
-        unit.rust_storage_names.take();
-        unit.flow_types.clear();
-        unit.flow_binding_ids.clear();
-        unit.flow_binding_types.clear();
-        unit.flow_availability.clear();
-        unit.flow_replacements.clear();
-        unit.flow_read_bindings.clear();
-        let mut functions = Vec::new();
-        let tree = unit.tree.clone();
-        collect_functions(&tree.root, &mut functions);
-        for function in functions {
-            let mut declared = unit
-                .typed_bindings
-                .iter()
-                .filter(|binding| binding.scope == Some(function.span))
-                .filter(|binding| !matches!(binding.name.as_str(), "self" | "this"))
-                .map(|binding| binding.name.clone())
-                .collect();
-            let mut assigned = BTreeSet::new();
-            let mut active = FlowEnv::new(BTreeMap::new());
-            if let Some(parameters) = function
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::ParameterList)
-            {
-                for parameter in &parameters.children {
-                    if let Some(name) = parameter
-                        .children
-                        .iter()
-                        .find(|child| child.kind == SyntaxKind::Name)
-                    {
-                        let name = node_text(&unit.source, name).to_owned();
-                        assigned.insert(name.clone());
-                        if let Some(binding) = unit
-                            .typed_bindings
+        // First retain the ordinary function-owned joins and collect canonical
+        // reaching origins. Only units with dead, type-changing loop outputs
+        // need a second pass to omit their otherwise-unused union carriers.
+        let mut dead_iteration_outputs = std::sync::Arc::new(BTreeSet::new());
+        loop {
+            unit.rust_storage_names.take();
+            unit.flow_types.clear();
+            unit.flow_binding_ids.clear();
+            unit.flow_binding_types.clear();
+            unit.flow_availability.clear();
+            unit.flow_replacements.clear();
+            unit.flow_read_bindings.clear();
+            let mut functions = Vec::new();
+            let tree = unit.tree.clone();
+            collect_functions(&tree.root, &mut functions);
+            for function in &functions {
+                let mut declared = unit
+                    .typed_bindings
+                    .iter()
+                    .filter(|binding| binding.scope == Some(function.span))
+                    .filter(|binding| !matches!(binding.name.as_str(), "self" | "this"))
+                    .map(|binding| binding.name.clone())
+                    .collect();
+                let mut assigned = BTreeSet::new();
+                let mut active = FlowEnv::new(BTreeMap::new());
+                active.dead_iteration_outputs = Some(dead_iteration_outputs.clone());
+                if let Some(parameters) = function
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::ParameterList)
+                {
+                    for parameter in &parameters.children {
+                        if let Some(name) = parameter
+                            .children
                             .iter()
-                            .find(|binding| binding.span == parameter.span)
+                            .find(|child| child.kind == SyntaxKind::Name)
                         {
-                            active
-                                .types
-                                .insert(name.clone(), binding.value_type.clone());
-                            active.binding_ids.insert(name.clone(), binding.span);
-                            active
-                                .origins
-                                .insert(name.clone(), BTreeSet::from([binding.span]));
+                            let name = node_text(&unit.source, name).to_owned();
+                            assigned.insert(name.clone());
+                            if let Some(binding) = unit
+                                .typed_bindings
+                                .iter()
+                                .find(|binding| binding.span == parameter.span)
+                            {
+                                active
+                                    .types
+                                    .insert(name.clone(), binding.value_type.clone());
+                                active.binding_ids.insert(name.clone(), binding.span);
+                                active
+                                    .origins
+                                    .insert(name.clone(), BTreeSet::from([binding.span]));
+                            }
                         }
                     }
                 }
+                if let Some(block) = function
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Block)
+                {
+                    flow_block(unit, block, active);
+                    validate_assignment_block(unit, block, &mut declared, &mut assigned)?;
+                }
             }
-            if let Some(block) = function
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Block)
-            {
-                flow_block(unit, block, active);
-                validate_assignment_block(unit, block, &mut declared, &mut assigned)?;
+            if !dead_iteration_outputs.is_empty() {
+                break;
             }
+            let mut dead = BTreeSet::new();
+            collect_dead_iteration_outputs(unit, &tree.root, &mut dead);
+            if dead.is_empty() {
+                break;
+            }
+            dead_iteration_outputs = std::sync::Arc::new(dead);
         }
+        validate_iteration_carriers(unit, &unit.tree.root)?;
     }
     Ok(())
 }
@@ -1221,6 +1348,24 @@ fn loop_entry(
     Some((state, has_initializer))
 }
 
+fn dead_iteration_locals(
+    unit: &SemanticUnit,
+    target: Option<&SyntaxNode>,
+    state: &FlowEnv,
+) -> Vec<(String, Span)> {
+    target
+        .into_iter()
+        .flat_map(|target| &target.children)
+        .filter(|name| {
+            state
+                .dead_iteration_outputs
+                .as_ref()
+                .is_some_and(|dead| dead.contains(&name.span))
+        })
+        .map(|name| (node_text(&unit.source, name).to_owned(), name.span))
+        .collect()
+}
+
 fn flow_loop(
     unit: &mut SemanticUnit,
     statement: &SyntaxNode,
@@ -1240,6 +1385,7 @@ fn flow_loop(
         .children
         .iter()
         .find(|child| child.kind == SyntaxKind::ForTarget);
+    let iteration_locals = dead_iteration_locals(unit, target, &state);
     let mut exits = Vec::new();
     if statement.kind == SyntaxKind::ForStatement {
         record_loop_header_reads(unit, statement, &state);
@@ -1274,6 +1420,12 @@ fn flow_loop(
         } else {
             FlowStates::from([(FlowExit::Normal, body_entry)])
         };
+        // A dead iteration result needs no post-loop carrier. Live results
+        // retain the ordinary function-owned joins and availability rules.
+        let result = result
+            .into_iter()
+            .map(|(exit, env)| (exit, leave_region(env, &head, &iteration_locals)))
+            .collect::<FlowStates>();
         if let Some(break_state) = result.get(&FlowExit::Break) {
             break_states.push(break_state.clone());
         }
@@ -1613,31 +1765,43 @@ fn flow_iteration_entry(unit: &mut SemanticUnit, target: &SyntaxNode, body_entry
             .iter()
             .find(|binding| binding.span == name.span)
         {
-            body_entry
-                .types
-                .insert(name_text.clone(), binding.value_type.clone());
-            if let Some(carrier) = body_entry
-                .binding_ids
-                .get(&name_text)
-                .copied()
-                .filter(|_| body_entry.carrier_types.contains_key(&name_text))
-            {
-                let accumulated = union_flow_types([
-                    body_entry.carrier_types[&name_text].clone(),
-                    binding.value_type.clone(),
-                ])
-                .unwrap_or(binding.value_type.clone());
-                body_entry
-                    .carrier_types
-                    .insert(name_text.clone(), accumulated.clone());
-                unit.flow_binding_types.insert(carrier, accumulated);
+            let separate = body_entry
+                .dead_iteration_outputs
+                .as_ref()
+                .is_some_and(|dead| dead.contains(&name.span));
+            let identity = if separate {
+                binding.span
             } else {
                 body_entry
                     .binding_ids
-                    .insert(name_text.clone(), binding.span);
-                body_entry
-                    .origins
-                    .insert(name_text.clone(), BTreeSet::from([binding.span]));
+                    .get(&name_text)
+                    .copied()
+                    .unwrap_or(binding.span)
+            };
+            let carrier = (!separate)
+                .then(|| {
+                    union_flow_types(
+                        body_entry
+                            .carrier_types
+                            .get(&name_text)
+                            .or_else(|| body_entry.types.get(&name_text))
+                            .cloned()
+                            .into_iter()
+                            .chain(std::iter::once(binding.value_type.clone())),
+                    )
+                })
+                .flatten();
+            body_entry
+                .types
+                .insert(name_text.clone(), binding.value_type.clone());
+            body_entry.binding_ids.insert(name_text.clone(), identity);
+            body_entry
+                .origins
+                .insert(name_text.clone(), BTreeSet::from([binding.span]));
+            body_entry.carrier_types.remove(&name_text);
+            if let Some(carrier) = carrier {
+                unit.flow_binding_types.insert(identity, carrier.clone());
+                body_entry.carrier_types.insert(name_text.clone(), carrier);
             }
         }
         if let Some(identity) = body_entry.binding_ids.get(&name_text).copied() {

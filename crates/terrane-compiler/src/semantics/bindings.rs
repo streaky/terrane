@@ -719,16 +719,15 @@ pub(super) fn record_declared_binding_writes(
     if node.kind == SyntaxKind::ForTarget {
         let mut recorded = false;
         for name in &node.children {
+            // Events describe reaching source values, not the Rust carrier
+            // that may be shared by several loop declarations. Match the
+            // target origin recorded by flow_iteration_entry and its reads.
             let identity = unit
-                .flow_binding_ids
-                .get(&span_key(name.span))
-                .copied()
-                .or_else(|| {
-                    unit.typed_bindings
-                        .iter()
-                        .find(|binding| binding.span == name.span)
-                        .map(|binding| binding.span)
-                })
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == name.span)
+                .map(|binding| binding.span)
+                .or_else(|| unit.flow_binding_ids.get(&span_key(name.span)).copied())
                 .or_else(|| {
                     unit.typed_bindings
                         .iter()
@@ -1098,6 +1097,46 @@ pub(crate) fn descriptor_binding_is_materialized(
         })
 }
 
+fn binding_read_crosses_completion_capture(
+    package: &SemanticPackage,
+    declaration: Span,
+    read: Span,
+    later: &[BindingEvent],
+) -> bool {
+    fn visit(node: &SyntaxNode, declaration: Span, read: Span, later: &[BindingEvent]) -> bool {
+        if node.span.start > read.start || read.end > node.span.end {
+            return false;
+        }
+        if node.kind == SyntaxKind::TryStatement
+            && declaration.start < node.span.start
+            && let Some(clause) = node.children.iter().find(|child| {
+                matches!(
+                    child.kind,
+                    SyntaxKind::Block | SyntaxKind::CatchClause | SyntaxKind::FinallyClause
+                ) && child.span.start <= read.start
+                    && read.end <= child.span.end
+            })
+            && later.iter().any(|event| {
+                matches!(event, BindingEvent::Read { span, .. }
+                    if span.start < clause.span.start || clause.span.end < span.end)
+            })
+        {
+            // Rebinding inside a lowered closure does not return ownership of
+            // a moved capture to its outer storage. Preserve that storage when
+            // another completion clause or a later statement still reads it.
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| visit(child, declaration, read, later))
+    }
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .is_some_and(|unit| visit(&unit.tree.root, declaration, read, later))
+}
+
 pub(crate) fn binding_read_value_is_reused(
     package: &SemanticPackage,
     declaration_span: Span,
@@ -1134,7 +1173,12 @@ pub(crate) fn binding_read_value_is_reused(
             }
             BindingEvent::Write { regions, .. } => {
                 if later_store_replaces(read_regions, regions) {
-                    return false;
+                    return binding_read_crosses_completion_capture(
+                        package,
+                        declaration_span,
+                        read_span,
+                        &events[read + 1..],
+                    );
                 }
                 intervening_stores.push(regions.as_slice());
             }
@@ -1146,6 +1190,81 @@ pub(crate) fn binding_read_value_is_reused(
             || declaration_span.start < loop_span.start
             || loop_span.end < declaration_span.end
     })
+}
+
+/// Independent straight-line stores of a Copy native view need independent
+/// Rust lifetime variables. Captured/address-observable and joined storage
+/// retains its existing single-place representation.
+pub(crate) fn native_copy_stores_are_independent(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    binding: &TypedBinding,
+) -> bool {
+    fn body(node: &SyntaxNode, scope: Span) -> Option<&SyntaxNode> {
+        if node.span == scope {
+            return node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Block);
+        }
+        node.children.iter().find_map(|child| body(child, scope))
+    }
+    fn stores(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        binding: Span,
+        direct: bool,
+    ) -> Option<usize> {
+        let writes = matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+            && (node.span == binding
+                || node.children.first().is_some_and(|target| {
+                    target.kind == SyntaxKind::Name
+                        && package
+                            .resolve_name_at(
+                                unit,
+                                target.span.start,
+                                node_text(&unit.source, target),
+                            )
+                            .is_some_and(|symbol| symbol.declaration_span == Some(binding))
+                }));
+        if writes && !direct {
+            return None;
+        }
+        node.children
+            .iter()
+            .try_fold(usize::from(writes), |count, child| {
+                stores(package, unit, child, binding, false).map(|nested| count + nested)
+            })
+    }
+    if !matches!(binding.value_type, ValueType::InvocationScopedNative { .. })
+        || !package.native_value_is_copyable(&binding.value_type)
+        || unit
+            .reference_owner_spans
+            .contains(&(binding.span.start, binding.span.end))
+        || unit.completion_capture_slots.contains(&binding.span)
+        || unit
+            .functions
+            .iter()
+            .any(|function| function.captures.contains(&binding.name))
+        || super::diagnostics::binding_span_has_interior_mutation(
+            package,
+            unit,
+            binding.span,
+            ClosureWrites::Include,
+        )
+    {
+        return false;
+    }
+    let Some(body) = binding.scope.and_then(|scope| body(&unit.tree.root, scope)) else {
+        return false;
+    };
+    body.children
+        .iter()
+        .try_fold(0, |count, statement| {
+            stores(package, unit, statement, binding.span, true).map(|writes| count + writes)
+        })
+        .is_some_and(|stores| stores > 1)
 }
 
 pub(crate) fn binding_store_value_is_read(

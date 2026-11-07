@@ -1344,7 +1344,6 @@ fn for_join(text: String) {
                     None => break,
                 },
             );
-            let _ = &last;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &last {
                 TerraneUnionF11S1017::Arm1(value) => value, _ =>
@@ -1475,7 +1474,6 @@ fn test_scenario_terrane_function_scope_control_equivalence() {
                 Some(item) => item,
                 None => break,
             };
-            let _ = &last;
             println!("{}", terrane_scalar_support::scalar_text(&last));
         }
     }
@@ -2304,7 +2302,6 @@ fn test_scenario_terrane_loop_shadowing_scope() {
                 terrane_collection_support::IterationStep::End => break,
             },
         );
-        let _ = &items;
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &items {
             TerraneUnionF27S130::Arm1(value) => value, _ =>
@@ -2365,7 +2362,6 @@ fn test_scenario_terrane_loop_shadowing_scope() {
                         },
                     ),
                 );
-            let _ = &entry;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match entry.as_ref()
                 .expect("flow-proven available binding") {

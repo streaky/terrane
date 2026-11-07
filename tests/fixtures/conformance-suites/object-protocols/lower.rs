@@ -83,6 +83,7 @@ pub struct TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D73746174
     TerraneType54,
 > {
     __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
+    pub n: terrane_int_support::Int,
 }
 impl<
     TerraneType54,
@@ -92,14 +93,118 @@ impl<
     pub fn terrane_construct() -> Self {
         Self {
             __terrane_phantom: std::marker::PhantomData,
+            n: terrane_int_support::Int::from(1_i128),
         }
+    }
+    pub fn own(&self) -> terrane_int_support::Int {
+        return TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            TerraneType54,
+        >::terrane_static_mk();
     }
     pub fn terrane_static_mk() -> terrane_int_support::Int {
         return terrane_int_support::Int::from(3_i128);
     }
+    pub fn terrane_static_list_length(
+        values: terrane_collection_support::List<TerraneType54>,
+    ) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(values.length());
+    }
+    pub fn terrane_static_echoed(value: TerraneType54) -> TerraneType54 {
+        return value;
+    }
+    pub fn terrane_static_empty() -> TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051<
+        TerraneType54,
+    > {
+        return TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            TerraneType54,
+        >::terrane_construct();
+    }
+    pub fn terrane_static_generic<TerraneType55>(value: TerraneType55) -> TerraneType55 {
+        return value;
+    }
+    pub fn terrane_static_again() -> terrane_int_support::Int {
+        return TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            TerraneType54,
+        >::terrane_static_mk();
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78<
+    TerraneType54,
+> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
+    pub value: Option<TerraneType54>,
+}
+impl<
+    TerraneType54,
+> TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78<
+    TerraneType54,
+> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self {
+            __terrane_phantom: std::marker::PhantomData,
+            value: None,
+        };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+    pub fn terrane_static_make(
+        value: TerraneType54,
+    ) -> TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78<
+        TerraneType54,
+    > {
+        return TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78::<
+            TerraneType54,
+        >::terrane_construct(value);
+    }
+}
+fn invoke(
+    callback: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>,
+) -> terrane_int_support::Int {
+    return callback();
 }
 fn test_scenario_terrane_applied_static_generic_owner() {
     let maker: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
+    let echo: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    >;
+    let length: std::sync::Arc<
+        dyn Fn(
+            terrane_collection_support::List<terrane_int_support::Int>,
+        ) -> terrane_int_support::Int + Send + Sync,
+    >;
+    let empty: TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051<
+        terrane_int_support::Int,
+    >;
+    let factory: std::sync::Arc<
+        dyn Fn(
+        ) -> TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051<
+                terrane_int_support::Int,
+            > + Send + Sync,
+    >;
+    let other: TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051<
+        terrane_int_support::Int,
+    >;
+    let __trn_626f78: TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78<
+        terrane_int_support::Int,
+    >;
+    let boxed: std::sync::Arc<
+        dyn Fn(
+            terrane_int_support::Int,
+        ) -> TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78<
+                terrane_int_support::Int,
+            > + Send + Sync,
+    >;
+    let another: TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78<
+        terrane_int_support::Int,
+    >;
+    let alternate: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
     maker = std::sync::Arc::new(
         TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
             terrane_int_support::Int,
@@ -111,6 +216,95 @@ fn test_scenario_terrane_applied_static_generic_owner() {
         terrane_scalar_support::scalar_text(&TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
         < terrane_int_support::Int > ::terrane_static_mk())
     );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
+        < terrane_int_support::Int >
+        ::terrane_static_echoed(terrane_int_support::Int::from(7_i128)))
+    );
+    echo = std::sync::Arc::new(
+        TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            terrane_int_support::Int,
+        >::terrane_static_echoed,
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&echo(terrane_int_support::Int::from(8_i128)))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
+        < terrane_int_support::Int >
+        ::terrane_static_list_length(terrane_collection_support::List:: <
+        terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(2_i128),
+        terrane_int_support::Int::from(3_i128)])))
+    );
+    length = std::sync::Arc::new(
+        TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            terrane_int_support::Int,
+        >::terrane_static_list_length,
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&length(terrane_collection_support::List:: <
+        terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(1_i128)])))
+    );
+    empty = TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+        terrane_int_support::Int,
+    >::terrane_static_empty();
+    println!("{}", terrane_scalar_support::scalar_text(&empty.n));
+    factory = std::sync::Arc::new(
+        TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            terrane_int_support::Int,
+        >::terrane_static_empty,
+    );
+    other = factory();
+    println!("{}", terrane_scalar_support::scalar_text(&other.n));
+    __trn_626f78 = TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78::<
+        terrane_int_support::Int,
+    >::terrane_static_make(terrane_int_support::Int::from(9_i128));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__trn_626f78.value.as_ref()
+        .expect("required field initialized"))
+    );
+    boxed = std::sync::Arc::new(
+        TerraneNsAppliedStaticGenericOwnerBoxIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E657200426F78::<
+            terrane_int_support::Int,
+        >::terrane_static_make,
+    );
+    another = boxed(terrane_int_support::Int::from(10_i128));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&another.value.as_ref()
+        .expect("required field initialized"))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
+        < terrane_int_support::Int > ::terrane_static_generic:: <
+        terrane_int_support::Int > (terrane_int_support::Int::from(11_i128)))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
+        < String > ::terrane_static_generic(terrane_int_support::Int::from(12_i128)))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
+        < terrane_int_support::Int > ::terrane_static_again())
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&other.own()));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&invoke(std::sync::Arc::new(TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
+        < terrane_int_support::Int > ::terrane_static_mk)))
+    );
+    alternate = std::sync::Arc::new(
+        TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            String,
+        >::terrane_static_mk,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&alternate()));
 }
 // Source: tests/integration/authored-enum-catch-all/case.trn
 // Namespace: authored-enum-catch-all

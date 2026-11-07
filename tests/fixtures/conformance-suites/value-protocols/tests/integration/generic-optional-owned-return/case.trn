@@ -1,0 +1,15 @@
+namespace generic-optional-owned-return
+function choose of (T) T; value T|none, fallback T
+    if value is a none
+        return fallback
+    return value
+function choose-present of (T) T; value T|none, fallback T
+    if value != none
+        return value
+    return fallback
+function test-scenario;
+    print; (choose; 7, 9)
+    print; (choose; none, 9)
+    print; (choose-present; 'present', 'fallback')
+    print; (choose-present; none, 'fallback')
+    print; (choose of (int); 11, 12)

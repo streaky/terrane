@@ -1,0 +1,9 @@
+namespace shared-loop-alias-append
+from /core/collections import list
+
+function main;
+    values = list; 1
+    alias = mutable ref values
+    for value in ref alias
+        print; value
+        alias.append; 2

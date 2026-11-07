@@ -687,10 +687,19 @@ impl Emitter<'_> {
                             let rust_type = scoped_rust_type
                                 .as_deref()
                                 .expect("scoped item Rust type was computed");
-                            format!(
-                                "{{ let value: {rust_type} = ({}).into(); value }}",
-                                self.expression(value)
-                            )
+                            let expression = self.expression(value);
+                            if matches!(
+                                self.value_type(value),
+                                Some(ValueType::InvocationScopedNative { rust_type: actual, .. })
+                                    if crate::rust_ir::rust_type_constructors_match(rust_type, &actual)
+                            ) {
+                                // Identity Into fixes the input and output to one
+                                // lifetime. A direct value coercion lets Copy views
+                                // retain the snapshot's shorter lender region.
+                                format!("{{ let value: {rust_type} = {expression}; value }}")
+                            } else {
+                                format!("{{ let value: {rust_type} = ({expression}).into(); value }}")
+                            }
                         } else {
                             self.expression_as(value, item.value_type())
                         }

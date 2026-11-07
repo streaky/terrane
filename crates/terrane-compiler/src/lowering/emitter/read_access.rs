@@ -333,13 +333,12 @@ impl Emitter<'_> {
             {
                 format!("{source}.terrane_borrowing_iterator()")
             }
-            Some(ValueType::List(_)) => {
+            Some(ValueType::List(_) | ValueType::Tuple(_, _)) => {
                 format!("terrane_collection_support::slice_iterator({source}.as_slice())")
             }
             Some(
                 ValueType::Map(_, _)
                 | ValueType::Set(_)
-                | ValueType::Tuple(_, _)
                 | ValueType::Range
                 | ValueType::UnorderedMap(_, _)
                 | ValueType::UnorderedSet(_),
@@ -370,6 +369,7 @@ impl Emitter<'_> {
     pub(super) fn for_iterable_source(
         &mut self,
         collection: &SyntaxNode,
+        scope: &SyntaxNode,
         collection_type: Option<&ValueType>,
         text_iteration: Option<(String, String, crate::semantics::TextUnit)>,
         loop_index: usize,
@@ -379,6 +379,34 @@ impl Emitter<'_> {
                 self.line(&setup);
             }
             (source, Some(unit))
+        } else if matches!(
+            collection_type,
+            Some(ValueType::List(item) | ValueType::Tuple(item, _))
+                if matches!(item.value_type_ref(), ValueType::InvocationScopedNative { .. })
+        ) {
+            // Value iteration preserves the collection. Lend stable storage, but
+            // snapshot before a body that changes it (including appends).
+            let expression = if self.read_borrow_is_stable_in(collection, scope) {
+                let (setup, reference) = self.operand_reference_parts(collection, false);
+                if !setup.is_empty() {
+                    self.line(&setup);
+                }
+                reference
+            } else {
+                let (setup, reference) = self.operand_reference_parts(collection, false);
+                let constructor = if matches!(collection_type, Some(ValueType::Tuple(_, _))) {
+                    "Tuple"
+                } else {
+                    "List"
+                };
+                // Scoped lists mutate unique backing storage rather than using
+                // the ordinary 'static COW path. A handle clone would leave
+                // the source shared and panic on append.
+                format!(
+                    "{{ {setup}terrane_collection_support::{constructor}::new(({reference}).as_slice().to_vec()) }}"
+                )
+            };
+            (expression, None)
         } else {
             (
                 match collection_type {
@@ -391,17 +419,16 @@ impl Emitter<'_> {
         if matches!(collection_type, Some(ValueType::Iterator(_)))
             && collection.kind == SyntaxKind::Name
         {
-            (expression, unit)
-        } else {
-            let name = format!("__terrane_iterable_{loop_index}");
-            let mutable = if matches!(collection_type, Some(ValueType::Iterator(_))) {
-                "mut "
-            } else {
-                ""
-            };
-            self.line(&format!("let {mutable}{name} = {expression};"));
-            (name, unit)
+            return (expression, unit);
         }
+        let name = format!("__terrane_iterable_{loop_index}");
+        let mutable = if matches!(collection_type, Some(ValueType::Iterator(_))) {
+            "mut "
+        } else {
+            ""
+        };
+        self.line(&format!("let {mutable}{name} = {expression};"));
+        (name, unit)
     }
 
     pub(super) fn for_iterator_constructor(

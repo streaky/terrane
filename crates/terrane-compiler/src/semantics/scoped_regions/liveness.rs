@@ -157,6 +157,25 @@ impl Builder<'_> {
             }
         }
     }
+    fn iteration_loan_entry(&mut self, node: &SyntaxNode, body_entry: usize) -> usize {
+        if node.kind == SyntaxKind::ForStatement
+            && let [target, collection, _body] = node.children.as_slice()
+            && target.kind == SyntaxKind::ForTarget
+        {
+            let mut event = Step {
+                next: vec![body_entry],
+                ..Step::default()
+            };
+            event.reads.extend(self.identity(collection));
+            if let Some(name) = target.children.first() {
+                event.definition = self.identity(name);
+            }
+            self.loan_sources(collection, &mut event.sources);
+            return self.step(event);
+        }
+        body_entry
+    }
+
     fn loop_statement(&mut self, node: &SyntaxNode, exits: Exits) -> usize {
         if node.kind == SyntaxKind::ForStatement
             && let [initial, condition, update, body] = node.children.as_slice()
@@ -231,6 +250,7 @@ impl Builder<'_> {
                 },
             )
         });
+        let body_entry = self.iteration_loan_entry(node, body_entry);
         self.steps[gate].next = match condition
             .and_then(|condition| super::super::scope_flow::constant_boolean(self.unit, condition))
         {
@@ -459,23 +479,27 @@ impl Builder<'_> {
                 }
             }
             if callee.kind == SyntaxKind::MemberExpression
-                && callee
-                    .children
-                    .last()
-                    .is_some_and(|member| node_text(&self.unit.source, member) == "append")
+                && callee.children.last().is_some_and(|member| {
+                    matches!(node_text(&self.unit.source, member), "append" | "set")
+                })
                 && let Some(receiver) = callee.children.first()
                 && matches!(
                     infer_value_type(self.unit, receiver, &self.unit.typed_bindings)
                         .ok()
                         .flatten(),
-                    Some(ValueType::List(_))
+                    Some(ValueType::List(_) | ValueType::Map(_, _))
                 )
             {
                 event.definition = self.identity(receiver);
                 if let Some(definition) = event.definition {
                     event.sources.insert(definition);
                 }
-                if let Some(argument) = arguments.children.first() {
+                if let Some(argument) = arguments.children.get(usize::from(
+                    callee
+                        .children
+                        .last()
+                        .is_none_or(|member| node_text(&self.unit.source, member) != "append"),
+                )) {
                     self.loan_sources(argument, &mut event.sources);
                 }
             }
@@ -598,11 +622,21 @@ impl Flow {
                 break;
             }
         }
-        flow.aliases = flow.storage_aliases();
+        flow.aliases = flow.storage_aliases(package, unit);
         flow
     }
 
-    fn storage_aliases(&self) -> Vec<Option<StorageAliases>> {
+    fn storage_aliases(
+        &self,
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+    ) -> Vec<Option<StorageAliases>> {
+        let copied = unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| package.native_value_is_copyable(&binding.value_type))
+            .map(|binding| binding.span)
+            .collect::<BTreeSet<_>>();
         let mut aliases = vec![None::<StorageAliases>; self.steps.len()];
         loop {
             let mut changed = false;
@@ -627,6 +661,10 @@ impl Flow {
                             sources.extend(inherited);
                         }
                     }
+                    // Copy views snapshot the reaching loan, not the source
+                    // variable's storage region. Later assignments to that
+                    // variable must not retroactively lend to the snapshot.
+                    sources.retain(|source| !copied.contains(source));
                     sources.remove(&definition);
                     state.remove(&definition);
                     if !sources.is_empty() {

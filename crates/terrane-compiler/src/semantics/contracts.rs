@@ -281,13 +281,10 @@ pub(super) fn collect_typed_bindings(
             item_type,
         )?;
         for binding in &loop_bindings {
-            let existing = visible_bindings
-                .iter()
-                .rev()
-                .find(|existing| existing.name == binding.name);
-            if existing.is_some_and(|existing| existing.value_type == binding.value_type) {
-                continue;
-            }
+            // Every loop target is a declaration, even when its spelling and
+            // type match a prior target. Reaching flow decides whether their
+            // live outputs share storage; declaration inference must retain
+            // each target's origin for that decision.
             visible_bindings.push(binding.clone());
             bindings.push(binding.clone());
         }

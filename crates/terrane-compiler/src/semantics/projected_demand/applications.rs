@@ -114,6 +114,61 @@ impl SourceResults<'_> {
             _ => Vec::new(),
         }
     }
+    fn loop_binding_header(
+        &self,
+        unit: &SemanticUnit,
+        name_node: &SyntaxNode,
+        name: &str,
+        imported: &BTreeMap<String, ProjectedOwner>,
+        visited: &mut BTreeSet<Span>,
+    ) -> Option<HeaderType> {
+        fn find_loop<'a>(
+            source: &SourceFile,
+            node: &'a SyntaxNode,
+            name: &str,
+            position: usize,
+            result: &mut Option<&'a SyntaxNode>,
+        ) {
+            if node.kind == SyntaxKind::ForStatement
+                && let [target, _collection, body] = node.children.as_slice()
+                && body.span.start <= position
+                && position <= body.span.end
+                && target.children.iter().any(|binder| {
+                    binder.kind == SyntaxKind::Name
+                        && &source.text()[binder.span.start..binder.span.end] == name
+                })
+            {
+                *result = Some(node);
+            }
+            for child in &node.children {
+                find_loop(source, child, name, position, result);
+            }
+        }
+        let mut selected = None;
+        find_loop(
+            &unit.source,
+            &unit.tree.root,
+            name,
+            name_node.span.start,
+            &mut selected,
+        );
+        let statement = selected?;
+        let [target, collection, _] = statement.children.as_slice() else {
+            return None;
+        };
+        let index = target.children.iter().position(|binder| {
+            binder.kind == SyntaxKind::Name
+                && &unit.source.text()[binder.span.start..binder.span.end] == name
+        })?;
+        let collection = self.expression_header(unit, collection, imported, visited)?;
+        match collection.name.as_str() {
+            "list" | "tuple" | "set" | "unordered-set" | "map" | "unordered-map" => {
+                collection.arguments.into_iter().nth(index)
+            }
+            _ => None,
+        }
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "header-only inference keeps binding, field and callable substitutions in one syntax dispatch"
@@ -140,6 +195,9 @@ impl SourceResults<'_> {
                     owner: Some(owner),
                     arguments: Vec::new(),
                 });
+            }
+            if let Some(header) = self.loop_binding_header(unit, node, name, imported, visited) {
+                return Some(header);
             }
             let mut declaration = None;
             find_preceding_binding(

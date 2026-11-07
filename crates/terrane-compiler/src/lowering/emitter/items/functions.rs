@@ -273,6 +273,57 @@ impl Emitter<'_> {
         }
     }
 
+    fn native_lender_signature_type(&self, value_type: &ValueType) -> Option<String> {
+        let ValueType::Object(identity) = value_type else {
+            return None;
+        };
+        let item = self
+            .package
+            .projection
+            .item(&identity.namespace, &identity.name)?;
+        let crate::rust_interop::projection::ProjectedKind::ForeignType {
+            native_view_type,
+            generic_parameters,
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        let native = identity
+            .native_projection
+            .as_deref()
+            .filter(|native| {
+                crate::rust_ir::rust_lifetimes(native)
+                    .iter()
+                    .any(|lifetime| lifetime != "'static")
+            })
+            .or(native_view_type.as_deref())?;
+        let lifetimes = crate::rust_ir::rust_lifetimes(native);
+        if !lifetimes.iter().any(|lifetime| lifetime != "'static") {
+            return None;
+        }
+        let replacements = generic_parameters
+            .iter()
+            .map(|parameter| &parameter.name)
+            .zip(&identity.type_arguments)
+            .chain(identity.native_arguments.iter())
+            .map(|(name, ty)| (name.clone(), rust_value_type(self.package, ty.clone())))
+            .collect();
+        let mut native = crate::rust_ir::instantiate_rust_generics(native, &replacements);
+        for lifetime in lifetimes
+            .iter()
+            .filter(|lifetime| lifetime.as_str() != "'static")
+        {
+            native = native.replace(lifetime, "'a");
+        }
+        Some(
+            self.package
+                .projection
+                .canonical_native_type(&native)
+                .into_owned(),
+        )
+    }
+
     pub(in crate::lowering::emitter) fn invocation_scoped_type_generics(
         &self,
         node: &SyntaxNode,
@@ -509,6 +560,7 @@ impl Emitter<'_> {
             if contract.is_static
                 && let ValueType::Object(returned) = &return_type
                 && contract.owner.as_deref() == Some(returned.name.as_str())
+                && returned.type_arguments.is_empty()
                 && let Some(effective) = &self.current_object
             {
                 ValueType::Object(effective.clone())
@@ -529,24 +581,32 @@ impl Emitter<'_> {
                 .get(&(contract.span.file, contract.span.start, contract.span.end))
                 .cloned();
         }
+        let reference_lender = self
+            .unit
+            .reference_return_lenders
+            .get(&(contract.span.file, contract.span.start, contract.span.end))
+            .copied();
         let scoped_lifetime = if let Some(ValueType::InvocationScopedNative {
             rust_type,
             lifetimes,
             ..
         }) = &mut return_type
         {
-            for lifetime in lifetimes.iter() {
-                *rust_type = rust_type.replace(lifetime, "'view");
+            let result_lifetime = if reference_lender.is_some() {
+                "'a"
+            } else {
+                "'view"
+            };
+            for lifetime in lifetimes
+                .iter()
+                .filter(|lifetime| lifetime.as_str() != "'static")
+            {
+                *rust_type = rust_type.replace(lifetime, result_lifetime);
             }
-            Some("'view")
+            Some(result_lifetime)
         } else {
             None
         };
-        let reference_lender = self
-            .unit
-            .reference_return_lenders
-            .get(&(contract.span.file, contract.span.start, contract.span.end))
-            .copied();
         let scoped_type_generics = return_type
             .as_ref()
             .and_then(|return_type| match return_type {
@@ -654,6 +714,9 @@ impl Emitter<'_> {
                 (Some(ValueType::Reference(item)), false) if scoped_lifetime == Some("'view") => {
                     format!("&'view {}", rust_reference_element_type(self.package, item))
                 }
+                (Some(value_type), true) => self
+                    .native_lender_signature_type(value_type)
+                    .unwrap_or_else(|| rust_value_type(self.package, value_type.clone())),
                 _ => binding_type.map_or_else(
                     || "i128".to_owned(),
                     |value_type| rust_value_type(self.package, value_type),
@@ -683,6 +746,9 @@ impl Emitter<'_> {
                         )
                     }
                     ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
+                    value_type if reference_lender.is_some() => self
+                        .native_lender_signature_type(&value_type)
+                        .unwrap_or_else(|| rust_value_type(self.package, value_type)),
                     value_type => rust_value_type(self.package, value_type),
                 },
             );
@@ -701,6 +767,9 @@ impl Emitter<'_> {
                     )
                 }
                 ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
+                value_type if reference_lender.is_some() => self
+                    .native_lender_signature_type(&value_type)
+                    .unwrap_or_else(|| rust_value_type(self.package, value_type)),
                 return_type => rust_value_type(self.package, return_type),
             };
             write!(self.output, " -> {return_type}").unwrap();
@@ -875,7 +944,13 @@ impl Emitter<'_> {
                     self.line(&format!("let mut {name} = None;"));
                 }
             } else {
-                let requires_mutable = if self.reference_backed(binding) {
+                let requires_mutable = if crate::semantics::native_copy_stores_are_independent(
+                    self.package,
+                    unit,
+                    binding,
+                ) {
+                    false
+                } else if self.reference_backed(binding) {
                     binding_storage_is_replaced(
                         self.package,
                         unit,

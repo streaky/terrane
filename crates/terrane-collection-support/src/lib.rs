@@ -424,6 +424,11 @@ impl<T> Tuple<T> {
     pub fn length(&self) -> i128 {
         self.0.len() as i128
     }
+    /// Lends the elements without imposing a static lifetime on their values.
+    #[must_use]
+    pub fn as_slice(&self) -> &[T] {
+        self.0.as_slice()
+    }
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)

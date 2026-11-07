@@ -20,7 +20,7 @@ fn main() {
             crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane_query_witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
-            crate ::TerraneForeignError > (value) } } (), 1 /* terrane-site: src/main.trn:8:16-8:23 */).into(); value }
+            crate ::TerraneForeignError > (value) } } (), 1 /* terrane-site: src/main.trn:8:16-8:23 */); value }
         ],
     );
     let __terrane_iterable_0 = &l;

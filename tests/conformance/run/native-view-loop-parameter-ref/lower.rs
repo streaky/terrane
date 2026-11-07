@@ -65,7 +65,7 @@ fn main() {
             result ?, Err(payload) => return Err(crate
             ::__terrane_dependency_panic(payload, "terrane_query_witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
-            ::TerraneForeignError > (value) } } (), 2 /* terrane-site: src/main.trn:14:38-14:50 */).into(); value }
+            ::TerraneForeignError > (value) } } (), 2 /* terrane-site: src/main.trn:14:38-14:50 */); value }
         ],
     );
     println!("{}", terrane_scalar_support::scalar_text(&total(&values)));

@@ -188,15 +188,14 @@ fn main() {
             terrane_int_support::Int::from(2_i128)
         ],
     );
-    let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_4,
+    let mut __terrane_iterator_4 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_4.as_slice(),
     );
     loop {
         outer_item = match __terrane_iterator_4.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &outer_item;
         total = total.clone() + outer_item.clone();
         let __terrane_iterable_5 = terrane_collection_support::List::<
             terrane_int_support::Int,
@@ -209,7 +208,6 @@ fn main() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            let _ = &inner_item;
             copy = ha.clone();
             total = total.clone()
                 + {

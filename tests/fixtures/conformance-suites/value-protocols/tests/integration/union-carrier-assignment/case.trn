@@ -1,0 +1,16 @@
+namespace union-carrier-assignment
+function observe; use-number bool
+    original int|string = 'alpha'
+    if use-number
+        original = 7
+    destination string|int = 'old'
+    destination = original
+    original = 'changed'
+    if destination is a string
+        print; destination
+    else
+        print; destination + 1
+    print; original
+function test-scenario;
+    observe; false
+    observe; true

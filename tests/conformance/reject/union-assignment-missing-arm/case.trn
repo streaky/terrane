@@ -1,0 +1,10 @@
+namespace union-assignment-missing-arm
+function observe; flag bool
+    original int|string|bool = 'alpha'
+    if flag
+        original = true
+    destination int|string = 1
+    destination = original
+    print; destination
+function main;
+    observe; true

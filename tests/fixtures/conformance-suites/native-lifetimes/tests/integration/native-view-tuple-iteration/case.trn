@@ -1,0 +1,23 @@
+namespace native-view-tuple-iteration
+from /deps/terrane-query-witness import Holder, CopyView
+from /core/collections import tuple
+
+function test-scenario;
+    holder = Holder::new;
+    values tuple of CopyView = tuple; (holder.copy_view;)
+    for value in values
+        print; (value.size;)
+    print; values.length
+    for value in values
+        print; (value.size;)
+    inferred = tuple; (holder.copy_view;)
+    for value in inferred
+        print; (value.size;)
+    for value in ref inferred
+        print; (value.size;)
+    for value in (tuple; (holder.copy_view;))
+        print; (value.size;)
+    numbers = tuple; 1, 2
+    for number in numbers
+        print; number
+    print; numbers.length

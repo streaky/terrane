@@ -137,7 +137,7 @@ pub(super) fn record_completion_capture_slots(package: &mut SemanticPackage) {
     }
 }
 
-fn field_has_native_loan(package: &SemanticPackage, value_type: &ValueType) -> bool {
+pub(super) fn field_has_native_loan(package: &SemanticPackage, value_type: &ValueType) -> bool {
     let mut borrowed = false;
     super::capabilities::walk_value_type(value_type, &mut |value_type| match value_type {
         ValueType::InvocationScopedNative { .. } => borrowed = true,
@@ -174,6 +174,7 @@ fn field_has_native_loan(package: &SemanticPackage, value_type: &ValueType) -> b
 }
 
 fn validate_native_return_escapes(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
     function: Option<Span>,
@@ -186,15 +187,80 @@ fn validate_native_return_escapes(
     } else {
         function
     };
-    if node.kind == SyntaxKind::ReturnStatement
-        && let Some(function) = function
-        && !unit.functions.iter().any(|contract| {
+    let exact_scoped_result = function.is_some_and(|function| {
+        unit.functions.iter().any(|contract| {
             contract.span == function
                 && matches!(
                     contract.return_type,
                     Some(ValueType::InvocationScopedNative { .. })
                 )
         })
+    });
+    if node.kind == SyntaxKind::ReturnStatement
+        && !exact_scoped_result
+        && let Some(value) = node.children.last()
+        && infer_value_type(unit, value, &unit.typed_bindings)
+            .ok()
+            .flatten()
+            .is_some_and(|ty| field_has_native_loan(package, &ty))
+    {
+        let mut lenders = BTreeSet::new();
+        let mut places = Vec::new();
+        native_loans::collect_native_view_origins(package, unit, value, &mut lenders, &mut places);
+        // Direct return expressions have no destination binding from which to
+        // recover origins. Their reaching reads still identify lender parameters.
+        collect_flow_lenders(unit, value.span, &mut lenders);
+        for lender in lenders {
+            let Some(binding) = unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == lender)
+            else {
+                continue;
+            };
+            // Passing through a view is not a new loan from parameter storage.
+            if field_has_native_loan(package, &binding.value_type) {
+                continue;
+            }
+            let external = matches!(
+                binding.value_type,
+                ValueType::Reference(_) | ValueType::MutableReference(_)
+            ) || unit
+                .reference_provenance
+                .get(&(binding.span.start, binding.span.end))
+                .is_some_and(|origin| origin.external_lender);
+            if external
+                && function.is_some_and(|function| {
+                    unit.functions.iter().any(|contract| {
+                        contract.span == function
+                            && contract.return_type.as_ref().is_some_and(|ty| {
+                                matches!(
+                                    ty,
+                                    ValueType::Object(_) | ValueType::InvocationScopedNative { .. }
+                                ) && field_has_native_loan(package, ty)
+                            })
+                    })
+                })
+            {
+                // Scalar borrowed helper results have a supported native ABI.
+                // Collection-producing returns do not share that contract.
+                return Ok(());
+            }
+            return Err(failure(
+                &unit.source,
+                if external { "T0119" } else { "T0240" },
+                if external {
+                    "returning a native view produced from a lender parameter is unsupported"
+                } else {
+                    "a native loan of local storage cannot escape through a return"
+                },
+                value.span,
+            ));
+        }
+    }
+    if node.kind == SyntaxKind::ReturnStatement
+        && let Some(function) = function
+        && !exact_scoped_result
         && let Some(value) = node.children.last()
         && infer_value_type(unit, value, &unit.typed_bindings)
             .ok()
@@ -210,7 +276,7 @@ fn validate_native_return_escapes(
         ));
     }
     for child in &node.children {
-        validate_native_return_escapes(unit, child, function)?;
+        validate_native_return_escapes(package, unit, child, function)?;
     }
     Ok(())
 }

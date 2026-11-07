@@ -465,6 +465,23 @@ fn task_write_liveness_preserves_unread_overwrites() {
 }
 
 #[test]
+fn repeated_loop_target_reads_match_each_declaration() {
+    let source = concat!(
+        "namespace loop-liveness\n",
+        "from /core/collections import range\n",
+        "function main;\n",
+        "    for index in (range; 0, 2)\n",
+        "        print; index\n",
+        "    for index in (range; 0, 2)\n",
+        "        print; index\n",
+        "    for index in (range; 0, 2)\n",
+        "        print; index\n",
+    );
+    let semantic = analyze(&Package::implicit("main.trn", source.to_owned())).unwrap();
+    assert_eq!(warnings(&semantic, false, false), Vec::new());
+}
+
+#[test]
 fn object_union_arm_identity_follows_import_aliases() {
     let package = Package::implicit(
         "main.trn",

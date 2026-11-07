@@ -1,0 +1,10 @@
+namespace nested-view-loops
+from /deps/terrane-query-witness import Holder
+from /core/collections import list
+
+function test-scenario;
+    holder = Holder::new;
+    nested = list; (list; (holder.copy_view;))
+    for outer in ref nested
+        for inner in ref outer
+            print; (inner.size;)

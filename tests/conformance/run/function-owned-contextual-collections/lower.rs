@@ -68,7 +68,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &index;
         let _ = state
             .insert(
                 TerraneUnionF0S135::Arm1(index == terrane_int_support::Int::from(3_i128)),

@@ -35,7 +35,7 @@ fn find_function(node: &SyntaxNode, function: Span) -> Option<&SyntaxNode> {
         .iter()
         .find_map(|child| find_function(child, function))
 }
-fn collect_native_view_origins(
+pub(super) fn collect_native_view_origins(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -60,7 +60,7 @@ fn collect_native_view_origins(
         && infer_value_type(unit, node, &unit.typed_bindings)
             .ok()
             .flatten()
-            .is_some_and(|ty| package.native_value_is_copyable(&ty))
+            .is_some_and(|ty| super::field_has_native_loan(package, &ty))
     {
         let origins =
             unit.flow_read_bindings
@@ -77,6 +77,14 @@ fn collect_native_view_origins(
             if initializer.span.end <= node.span.start {
                 collect_noncopy_flow_lenders(package, unit, initializer.span, lenders);
                 collect_native_view_origins(package, unit, initializer, lenders, places);
+            }
+        }
+        let mut appended = Vec::new();
+        collect_append_producers(unit, &unit.tree.root, identity, &mut appended);
+        for producer in appended {
+            if producer.span.end <= node.span.start {
+                collect_noncopy_flow_lenders(package, unit, producer.span, lenders);
+                collect_native_view_origins(package, unit, producer, lenders, places);
             }
         }
     }
@@ -98,6 +106,7 @@ pub(super) fn validate_function_native_lenders(
     package: &SemanticPackage,
     unit: &SemanticUnit,
 ) -> Result<(), SemanticFailure> {
+    validate_native_return_escapes(package, unit, &unit.tree.root, None)?;
     let mut flows = BTreeMap::new();
     for binding in &unit.typed_bindings {
         let ValueType::InvocationScopedNative {
@@ -133,7 +142,8 @@ pub(super) fn validate_function_native_lenders(
         for initializer in producers {
             // Pure transfers inherit the original producer through reaching
             // values; they do not create a second loan with stale lenders.
-            if call_returning_scoped_native(unit, initializer, rust_type).is_none() {
+            let mut places = Vec::new();
+            let lenders = if call_returning_scoped_native(unit, initializer, rust_type).is_none() {
                 let mut transferred = initializer;
                 while matches!(
                     transferred.kind,
@@ -145,17 +155,16 @@ pub(super) fn validate_function_native_lenders(
                 if binding_identity_at(unit, transferred).is_some() {
                     continue;
                 }
-                return Err(failure(
-                    &unit.source,
-                    "T0119",
-                    "cannot establish a local native value's source lifetime",
-                    initializer.span,
-                ));
-            }
-            let mut places = Vec::new();
-            let Some(mut lenders) =
+                super::super::calls::call_reference_origin(package, unit, transferred).map(
+                    |(owner, path)| {
+                        places.push((owner, path));
+                        vec![owner]
+                    },
+                )
+            } else {
                 scoped_native_lender_spans(package, unit, initializer, binding, &mut places, false)
-            else {
+            };
+            let Some(mut lenders) = lenders else {
                 return Err(failure(
                     &unit.source,
                     "T0119",
@@ -188,7 +197,6 @@ pub(super) fn validate_function_native_lenders(
         }
     }
     validate_collection_native_lenders(package, unit, &mut flows)?;
-    validate_native_return_escapes(unit, &unit.tree.root, None)?;
     Ok(())
 }
 
@@ -223,21 +231,16 @@ fn collect_append_producers<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
         && callee.kind == SyntaxKind::MemberExpression
+        && let Some(member) = callee.children.last()
+        && matches!(node_text(&unit.source, member), "append" | "set")
         && let Some(receiver) = callee.children.first()
-        && matches!(
-            infer_value_type(unit, receiver, &unit.typed_bindings)
-                .ok()
-                .flatten(),
-            Some(ValueType::List(_))
-        )
         && binding_identity_at(unit, receiver) == Some(binding)
-        && callee
+        && let Some(arguments) = node.children.get(1)
+        && let Some(argument) = arguments
             .children
-            .last()
-            .is_some_and(|name| node_text(&unit.source, name) == "append")
-        && let Some(argument) = node.children.get(1).and_then(|args| args.children.first())
+            .get(usize::from(node_text(&unit.source, member) != "append"))
     {
-        producers.push(argument);
+        producers.push(argument.children.last().unwrap_or(argument));
     }
     for child in &node.children {
         collect_append_producers(unit, child, binding, producers);
@@ -250,16 +253,11 @@ fn validate_collection_native_lenders(
     flows: &mut BTreeMap<Span, liveness::Flow>,
 ) -> Result<(), SemanticFailure> {
     for binding in &unit.typed_bindings {
-        let is_collection = matches!(
-            binding.value_type,
-            ValueType::List(_)
-                | ValueType::Set(_)
-                | ValueType::UnorderedSet(_)
-                | ValueType::Map(_, _)
-                | ValueType::UnorderedMap(_, _)
-                | ValueType::Tuple(..)
-        ) && super::field_has_native_loan(package, &binding.value_type);
-        if !is_collection {
+        // Written native-view aliases can be the result of a source helper
+        // without carrying an InvocationScopedNative wrapper.
+        if matches!(binding.value_type, ValueType::InvocationScopedNative { .. })
+            || !super::field_has_native_loan(package, &binding.value_type)
+        {
             continue;
         }
         let function_span = super::scoped_region(&binding.value_type)

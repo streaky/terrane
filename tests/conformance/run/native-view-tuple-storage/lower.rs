@@ -40,9 +40,7 @@ fn main() {
     );
     t = terrane_collection_support::Tuple::<
         terrane_query_witness::CopyView<'_>,
-    >::new(
-        vec![{ let value : terrane_query_witness::CopyView < '_ > = c.into(); value }],
-    );
+    >::new(vec![{ let value : terrane_query_witness::CopyView <'_ > = c; value }]);
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
         crate ::TerraneForeignError > { { let value = match
@@ -78,7 +76,7 @@ fn main() {
             Ok(result) => result ?, Err(payload) => return Err(crate
             ::__terrane_dependency_panic(payload, "terrane_query_witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
-            ::TerraneForeignError > (value) } } (), 5 /* terrane-site: src/main.trn:12:29-12:41 */).into(); value }])
+            ::TerraneForeignError > (value) } } (), 5 /* terrane-site: src/main.trn:12:29-12:41 */); value }])
         ],
     );
     println!(
