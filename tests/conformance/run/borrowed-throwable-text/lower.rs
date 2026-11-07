@@ -85,7 +85,7 @@ fn make_error(replacement: bool) -> TerraneError {
                     __terrane_handled_0 = true;
                     let _ = error.insert(__terrane_error_0.clone());
                     return TerraneCompletion::Return(
-                        error.take().expect("flow-proven availability"),
+                        error.as_ref().expect("flow-proven available binding").clone(),
                     );
                 }
                 if !__terrane_handled_0 {

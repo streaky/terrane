@@ -159,7 +159,10 @@ fn main() {
                                             let _ = replacement.insert(__terrane_error_2.clone());
                                             let _ = error
                                                 .insert(
-                                                    replacement.take().expect("flow-proven availability"),
+                                                    replacement
+                                                        .as_ref()
+                                                        .expect("flow-proven available binding")
+                                                        .clone(),
                                                 );
                                         }
                                         if !__terrane_handled_2 {

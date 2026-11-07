@@ -216,8 +216,9 @@ fn reraised(choice: terrane_int_support::Int) -> Result<(), TerraneError> {
                     let _ = error.insert(__terrane_error_1.clone());
                     return TerraneCompletion::Error(
                         error
-                            .take()
-                            .expect("flow-proven availability")
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .clone()
                             .at(6 /* terrane-site: case.trn:45:9-45:20 */),
                     );
                 }

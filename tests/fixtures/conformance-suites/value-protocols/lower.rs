@@ -6553,8 +6553,9 @@ fn test_scenario_terrane_typed_catch_bindings() -> Result<(), TerraneError> {
                             let _ = caught_2.insert(__terrane_error_3.clone());
                             return TerraneCompletion::Error(
                                 caught_2
-                                    .take()
-                                    .expect("flow-proven availability")
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .clone()
                                     .at(
 
                                             202 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:19:7-19:19 */,
