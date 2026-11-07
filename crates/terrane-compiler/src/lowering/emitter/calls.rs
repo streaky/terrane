@@ -582,12 +582,13 @@ impl Emitter<'_> {
 
         if let Ok(Some((receiver, receiver_type, member))) =
             collection_member_call(self.unit, callee, &self.unit.typed_bindings)
-            && member.contains('.')
+            && (member.contains('.') || member == "get")
         {
-            if matches!(member.as_str(), "get.checked" | "remove.checked")
+            if matches!(member.as_str(), "get" | "get.checked" | "remove.checked")
                 && let Some(argument) = arguments.children.first()
             {
                 let remove = member == "remove.checked";
+                let checked = member != "get";
                 let argument = argument.children.last().unwrap_or(argument);
                 let (setup, receiver_value) = if remove && self.receiver_needs_live_guard(receiver)
                 {
@@ -599,9 +600,16 @@ impl Emitter<'_> {
                     ValueType::List(_) | ValueType::Tuple(_, _) => {
                         let index =
                             self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
-                        format!(
-                            "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
-                        )
+                        if checked {
+                            format!(
+                                "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
+                            )
+                        } else {
+                            self.fallible(
+                                format!("terrane_collection_support::index_from_int(&({index})).and_then(|index| ({receiver_value}).get_or_error(index))"),
+                                node,
+                            )
+                        }
                     }
                     ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
                         let key = self.expression_as(argument, key.value_type());
@@ -609,8 +617,13 @@ impl Emitter<'_> {
                             format!(
                                 "{{ let __terrane_key = {key}; ({receiver_value}).remove_checked(&__terrane_key) }}"
                             )
-                        } else {
+                        } else if checked {
                             format!("({receiver_value}).get(&({key})).cloned()")
+                        } else {
+                            self.fallible(
+                                format!("({receiver_value}).get_or_error(&({key}))"),
+                                node,
+                            )
                         }
                     }
                     _ => String::new(),
@@ -2801,20 +2814,35 @@ impl Emitter<'_> {
                     }
                 }
                 Some(crate::rust_interop::projection::Receiver::Move) => {
-                    self.consuming_native_receiver_expression(receiver)
+                    let value = self.consuming_native_receiver_expression(receiver);
+                    if stage_receiver {
+                        stage_native_input(value)
+                    } else {
+                        value
+                    }
                 }
                 Some(crate::rust_interop::projection::Receiver::DerefMove(depth)) => {
-                    format!(
+                    let value = format!(
                         "{}({})",
                         "*".repeat(depth),
                         self.consuming_native_receiver_expression(receiver)
-                    )
+                    );
+                    if stage_receiver {
+                        stage_native_input(value)
+                    } else {
+                        value
+                    }
                 }
                 Some(crate::rust_interop::projection::Receiver::BoxedMove) => {
-                    format!(
+                    let value = format!(
                         "Box::new({})",
                         self.consuming_native_receiver_expression(receiver)
-                    )
+                    );
+                    if stage_receiver {
+                        stage_native_input(value)
+                    } else {
+                        value
+                    }
                 }
                 _ => self.receiver_expression(receiver),
             };
@@ -2959,7 +2987,14 @@ impl Emitter<'_> {
                 shared_argument_setup.push_str(&setup);
                 place
             } else if contract.written_invocation_mode == InvocationMode::Mutable {
-                self.native_receiver_expression(receiver, true)
+                if projected_function.is_none() && contract.owner.is_some() {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, true, GuardScope::Expression);
+                    shared_argument_setup.push_str(&setup);
+                    place
+                } else {
+                    self.native_receiver_expression(receiver, true)
+                }
             } else {
                 self.receiver_expression(receiver)
             };

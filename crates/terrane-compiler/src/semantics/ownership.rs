@@ -43,17 +43,40 @@ fn requires_noncopyable_projection_access(
     )
 }
 
-fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<(), SemanticFailure> {
+fn validate_field_snapshot(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let value = ungroup(value);
     if requires_noncopyable_projection_access(unit, value)? {
         return Err(failure(
             &unit.source,
             "T0135",
-            if ungroup(value).kind == SyntaxKind::IndexExpression {
+            if value.kind == SyntaxKind::IndexExpression {
                 "indexing cannot copy an unconstrained type parameter; use a concrete typed adapter or a supported borrow"
             } else {
                 "field snapshot cannot copy a non-Clone or unconstrained value; borrow the field or use explicit `move` through a mutable receiver"
             },
-            ungroup(value).span,
+            value.span,
+        ));
+    }
+    if value.kind == SyntaxKind::MemberExpression
+        && let Some(receiver) = value.children.first()
+        && ungroup(receiver).kind == SyntaxKind::IndexExpression
+        && let Some(ValueType::Object(identity)) =
+            infer_value_type(unit, receiver, &unit.typed_bindings)?
+        && package
+            .projection
+            .item(&identity.namespace, &identity.name)
+            .is_none()
+        && !value_type_is_cloneable(package, unit, &ValueType::Object(identity))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "indexed source objects cannot snapshot a non-Clone field; borrow the field or use a supported mutable receiver",
+            receiver.span,
         ));
     }
     Ok(())
@@ -346,11 +369,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::ReturnStatement
         ) && let Some(value) = node.children.last()
         {
-            validate_field_snapshot(unit, value)?;
+            validate_field_snapshot(package, unit, value)?;
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
-            && (callee.kind == SyntaxKind::MemberExpression
+            && (ungroup(callee).kind == SyntaxKind::MemberExpression
                 || arguments.children.iter().any(|argument| {
                     argument.children.last().is_some_and(|value| {
                         matches!(
@@ -362,6 +385,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     })
                 }))
         {
+            let callee = ungroup(callee);
             let projected = super::bindings::projected_function_for_call(
                 package,
                 unit,
@@ -381,22 +405,49 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             if callee.kind == SyntaxKind::MemberExpression
                 && let [receiver, member] = callee.children.as_slice()
-                && let Some(ValueType::Reference(item) | ValueType::MutableReference(item)) =
-                    infer_value_type(unit, receiver, &unit.typed_bindings)?
-                && super::diagnostics::member_invocation_mode_at(
-                    package,
-                    unit,
-                    receiver,
-                    item.value_type_ref(),
-                    node_text(&unit.source, member),
-                ) == InvocationMode::Consuming
             {
-                return Err(failure(
-                    &unit.source,
-                    "T0135",
-                    "a consuming method cannot move out of a borrowed receiver",
-                    ungroup(receiver).span,
-                ));
+                let mut root = ungroup(receiver);
+                while root.kind == SyntaxKind::MemberExpression {
+                    let Some(parent) = root.children.first() else {
+                        break;
+                    };
+                    root = ungroup(parent);
+                }
+                if matches!(
+                    infer_value_type(unit, root, &unit.typed_bindings)?,
+                    Some(
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_),
+                    )
+                ) && let Some(receiver_type) =
+                    infer_value_type(unit, receiver, &unit.typed_bindings)?
+                    && super::diagnostics::member_invocation_mode_at(
+                        package,
+                        unit,
+                        receiver,
+                        &receiver_type,
+                        node_text(&unit.source, member),
+                    ) == InvocationMode::Consuming
+                {
+                    let receiver_type = match &receiver_type {
+                        ValueType::Reference(inner)
+                        | ValueType::MutableReference(inner)
+                        | ValueType::SharedReference(inner) => inner.value_type_ref(),
+                        value_type => value_type,
+                    };
+                    let cloneable_projected = matches!(receiver_type, ValueType::Object(identity)
+                        if package.projection.item(&identity.namespace, &identity.name).is_some()
+                            && value_type_is_cloneable(package, unit, receiver_type));
+                    if !cloneable_projected {
+                        return Err(failure(
+                            &unit.source,
+                            "T0135",
+                            "a consuming method cannot move out of a borrowed receiver",
+                            root.span,
+                        ));
+                    }
+                }
             }
             if let Some(contract) = function_contract_for_call(package, unit, callee)
                 && callee.kind == SyntaxKind::MemberExpression
@@ -449,7 +500,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         if borrowed {
                             validate_async_field_borrow(unit, value)?;
                         } else {
-                            validate_field_snapshot(unit, value)?;
+                            validate_field_snapshot(package, unit, value)?;
                         }
                     }
                 }
@@ -1534,6 +1585,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         .map(|object| span_key(object.span))
         .collect();
     for unit in &package.units {
+        super::collections::validate_copy_requirements(package, unit)?;
         visit(
             package,
             unit,

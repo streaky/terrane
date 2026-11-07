@@ -4,6 +4,20 @@ pub(super) enum GuardScope {
     Place,
 }
 
+fn source_consuming_receiver(receiver: &SyntaxNode, emitter: &super::Emitter<'_>) -> bool {
+    emitter
+        .receiver_value_type(receiver)
+        .is_some_and(|value_type| match value_type {
+            crate::semantics::ValueType::TypeParameter(_) => true,
+            crate::semantics::ValueType::Object(identity) => emitter
+                .package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_none(),
+            _ => false,
+        })
+}
+
 fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emitter<'_>) -> bool {
     let move_here = node.kind == SyntaxKind::UnaryExpression
         && emitter.unary_operator(node).as_deref() == Some("move")
@@ -11,30 +25,43 @@ fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emi
             .children
             .last()
             .is_some_and(|operand| operand.span == target);
-    let consumes_here = (node.kind == SyntaxKind::CallExpression)
-        .then(|| node.children.first())
-        .flatten()
-        .filter(|callee| callee.kind == SyntaxKind::MemberExpression)
-        .and_then(|callee| {
-            let mut receiver = callee.children.first()?;
-            while receiver.kind == SyntaxKind::GroupExpression {
-                receiver = receiver.children.first()?;
-            }
-            let member = callee.children.last()?;
-            Some(
-                receiver.span == target
-                    && emitter.value_type(receiver).is_some_and(|ty| {
-                        crate::semantics::member_invocation_mode_at(
-                            emitter.package,
-                            emitter.unit,
-                            receiver,
-                            &ty,
-                            emitter.text(member),
-                        ) == InvocationMode::Consuming
-                    }),
-            )
-        })
-        .unwrap_or(false);
+    let consumes_here = if node.kind == SyntaxKind::CallExpression {
+        node.children
+            .first()
+            .map(|mut callee| {
+                while callee.kind == SyntaxKind::GroupExpression {
+                    let Some(grouped) = callee.children.first() else {
+                        break;
+                    };
+                    callee = grouped;
+                }
+                callee
+            })
+            .filter(|callee| callee.kind == SyntaxKind::MemberExpression)
+            .and_then(|callee| {
+                let mut receiver = callee.children.first()?;
+                while receiver.kind == SyntaxKind::GroupExpression {
+                    receiver = receiver.children.first()?;
+                }
+                let member = callee.children.last()?;
+                Some(
+                    receiver.span == target
+                        && source_consuming_receiver(receiver, emitter)
+                        && emitter.value_type(receiver).is_some_and(|ty| {
+                            crate::semantics::member_invocation_mode_at(
+                                emitter.package,
+                                emitter.unit,
+                                receiver,
+                                &ty,
+                                emitter.text(member),
+                            ) == InvocationMode::Consuming
+                        }),
+                )
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    };
     move_here
         || consumes_here
         || node
@@ -347,20 +374,19 @@ impl Emitter<'_> {
         }
         if let [holder, member] = receiver.children.as_slice()
             && receiver.kind == SyntaxKind::MemberExpression
-            && let Some(ValueType::Object(identity)) = self.receiver_value_type(holder)
             && self
-                .package
-                .projection
-                .item(&identity.namespace, &identity.name)
-                .is_none()
+                .receiver_value_type(holder)
+                .is_some_and(|value_type| matches!(value_type, ValueType::Object(_)))
             && !self.is_throwable_value(holder)
             && !self.receiver_needs_live_guard(holder)
-            && let Some(ValueType::Object(field_identity)) = self.receiver_value_type(receiver)
             && self
-                .package
-                .projection
-                .item(&field_identity.namespace, &field_identity.name)
-                .is_some()
+                .receiver_value_type(receiver)
+                .is_some_and(|value_type| {
+                    matches!(
+                        value_type,
+                        ValueType::Object(_) | ValueType::TypeParameter(_)
+                    )
+                })
         {
             let holder_value = self.native_receiver_expression(holder, mutable);
             let (place, borrowed) = self.object_field_place(holder, member, mutable, &holder_value);
@@ -1232,7 +1258,11 @@ impl Emitter<'_> {
             } else {
                 owned_snapshot
             };
-            let guard = self.receiver_guard_expression(receiver);
+            let (guard_setup, guard) = if explicit_field_move {
+                self.receiver_place_parts(receiver, true, GuardScope::Expression)
+            } else {
+                (String::new(), self.receiver_guard_expression(receiver))
+            };
             let field = self.native_field_name(receiver_type.as_ref(), self.text(member));
             let copy_suffix = if owned_snapshot.is_some() {
                 ""
@@ -1293,12 +1323,24 @@ impl Emitter<'_> {
             if self.assignment_target {
                 return access;
             }
-            // Rust extends inline lock temporaries to the surrounding statement.
-            // Materialize the read here so sibling expressions cannot relock it.
-            return format!("({{ let __terrane_snapshot = {access}; __terrane_snapshot }})");
+            return if guard_setup.is_empty() {
+                format!("({{ let __terrane_snapshot = {access}; __terrane_snapshot }})")
+            } else {
+                format!("{{ {guard_setup} let __terrane_snapshot = {access}; __terrane_snapshot }}")
+            };
         }
         let receiver_node = receiver;
-        let receiver = self.receiver_expression(receiver_node);
+        let receiver = if explicit_field_move && required_field {
+            let (setup, place) =
+                self.receiver_place_parts(receiver_node, true, GuardScope::Expression);
+            if setup.is_empty() {
+                place
+            } else {
+                format!("{{ {setup}{place} }}")
+            }
+        } else {
+            self.receiver_expression(receiver_node)
+        };
         if self.text(member) == "length"
             && matches!(
                 self.value_type(node),
@@ -1453,6 +1495,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn member_materializes_owned_value(&self, node: &SyntaxNode) -> bool {
+        if contains_move_of(&self.unit.tree.root, node.span, self) {
+            return true;
+        }
         let [receiver, member] = node.children.as_slice() else {
             return false;
         };
@@ -1527,9 +1572,10 @@ impl Emitter<'_> {
         if self.value_type(node).is_some_and(|value_type| {
             crate::semantics::value_type_contains_nonclone_foreign(self.unit, &value_type)
         }) {
-            return projected_result_expression(value, ty);
+            projected_result_expression(value, ty)
+        } else {
+            Self::borrowed_field_result(&format!("&({value})"), ty)
         }
-        Self::borrowed_field_result(&format!("&({value})"), ty)
     }
 
     fn borrowed_field_result(

@@ -161,6 +161,29 @@ pub(super) fn validate_global_writes(package: &SemanticPackage) -> Result<(), Se
                 })
                 && let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)?
             {
+                if let Some(annotation) = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::TypeExpression)
+                {
+                    let aliases = visible_descriptor_aliases(
+                        &unit.descriptor_aliases,
+                        unit.source.id(),
+                        annotation.span.start,
+                    );
+                    let declared = declared_value_type(unit, annotation, &aliases)?;
+                    if &declared != expected {
+                        return Err(failure(
+                            &unit.source,
+                            "T0002",
+                            format!(
+                                "global update `{}` declares `{declared}`, but its canonical type is `{expected}`",
+                                declaration.name
+                            ),
+                            annotation.span,
+                        ));
+                    }
+                }
                 validate_value_destination(
                     &unit.source,
                     &unit.descriptors,

@@ -900,6 +900,10 @@ pub(super) fn validate_coercion_family_expression(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Resolved assignments validate destination, callable specialization, and transfer contracts together"
+)]
 pub(super) fn validate_resolved_assignment(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -986,11 +990,25 @@ pub(super) fn validate_resolved_assignment(
     };
     if initializer.kind == SyntaxKind::Name
         && let Some(contract) = function_contract_for_call(package, unit, initializer)
-        && !contract.generic_parameters.is_empty()
-        && let Some(closed) =
-            super::generics::close_generic_callable_value(unit, contract, &actual, &expected)
     {
-        actual = closed;
+        match super::generics::close_generic_callable_value(
+            unit,
+            contract,
+            &actual,
+            &expected,
+            initializer.span.start,
+        ) {
+            Ok(Some(closed)) => actual = closed,
+            Err(()) => {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "generic callable type arguments do not satisfy their bounds",
+                    initializer.span,
+                ));
+            }
+            Ok(None) => {}
+        }
     }
     validate_value_destination(
         &unit.source,

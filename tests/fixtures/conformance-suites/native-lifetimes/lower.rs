@@ -2078,6 +2078,323 @@ fn test_scenario_terrane_native_loop_consuming_condition_break() {
         break;
     }
 }
+// Source: tests/integration/native-try-body-rewrite-control/case.trn
+// Namespace: native-try-body-rewrite-control
+fn test_scenario_terrane_native_try_body_rewrite_control() {
+    let h: Holder;
+    let mut v: terrane_query_witness::View<'_>;
+    h = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            102 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:4:9-4:21 */,
+    );
+    v = __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&h).view()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::Holder::view",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+
+            103 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:5:9-5:16 */,
+    );
+    let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(|
+                | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok(v.into_size()) })) { Ok(result) =>
+                result ?, Err(payload) => return Err(crate
+                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
+                ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+                u128)) } } (), 104 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:7:17-7:29 */))
+            );
+            v = __terrane_raised_completion!(
+                | | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) =>
+                result ?, Err(payload) => return Err(crate
+                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
+                ::TerraneForeignError > (value) } } (), 105 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:8:13-8:20 */
+            );
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(|
+                | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) =>
+                result ?, Err(payload) => return Err(crate
+                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                "terrane_query_witness::View::size")) }; Ok:: < _, crate
+                ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+                u128)) } } (), 106 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:9:17-9:24 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_0: TerraneCompletion<()> = (|| {
+        println!("{}", terrane_scalar_support::scalar_text(&1));
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
+// Source: tests/integration/native-try-copy-finally-control/case.trn
+// Namespace: native-try-copy-finally-control
+fn test_scenario_terrane_native_try_copy_finally_control() {
+    let h: Holder;
+    let k: Holder;
+    let mut v: terrane_query_witness::CopyView<'_>;
+    h = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            107 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:4:9-4:21 */,
+    );
+    k = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            108 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:5:9-5:21 */,
+    );
+    v = __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&h).copy_view()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::Holder::copy_view",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+
+            109 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:6:9-6:21 */,
+    );
+    let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(|
+                | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result
+                ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+                "terrane_query_witness", "terrane_query_witness::CopyView::size")) };
+                Ok:: < _, crate ::TerraneForeignError >
+                (terrane_int_support::Int::from_u128(value as u128)) } } (),
+                110 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:8:17-8:24 */))
+            );
+            v = __terrane_raised_completion!(
+                | | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok((&k).copy_view()) })) { Ok(result) =>
+                result ?, Err(payload) => return Err(crate
+                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
+                ::TerraneForeignError > (value) } } (), 111 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:9:13-9:25 */
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_0: TerraneCompletion<()> = (|| {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(| |
+            -> Result < _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result ?,
+            Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
+            as u128)) } } (), 112 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:11:17-11:24 */))
+        );
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result ?, Err(payload)
+        => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+        u128)) } } (), 113 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:12:13-12:20 */))
+    );
+}
+// Source: tests/integration/native-try-finally-rewrite-control/case.trn
+// Namespace: native-try-finally-rewrite-control
+fn test_scenario_terrane_native_try_finally_rewrite_control() {
+    let h: Holder;
+    let mut v: terrane_query_witness::View<'_>;
+    h = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            114 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:4:9-4:21 */,
+    );
+    v = __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&h).view()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::Holder::view",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+
+            115 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:5:9-5:16 */,
+    );
+    let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!("{}", terrane_scalar_support::scalar_text(&0));
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_0: TerraneCompletion<()> = (|| {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(| |
+            -> Result < _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok(v.into_size()) })) { Ok(result) => result
+            ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+            "terrane_query_witness", "terrane_query_witness::View::into_size")) }; Ok:: <
+            _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
+            as u128)) } } (), 116 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:9:17-9:29 */))
+        );
+        v = __terrane_raised_completion!(
+            | | -> Result < _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) => result ?,
+            Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+            "terrane_query_witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
+            crate ::TerraneForeignError > (value) } } (), 117 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:10:13-10:20 */
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(| |
+            -> Result < _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
+            Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+            u128)) } } (), 118 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:11:17-11:24 */))
+        );
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
 // Source: tests/integration/native-try-local-consume/case.trn
 // Namespace: native-try-local-consume
 fn test_scenario_terrane_native_try_local_consume() {
@@ -2088,7 +2405,7 @@ fn test_scenario_terrane_native_try_local_consume() {
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            102 /* terrane-site: tests/integration/native-try-local-consume/case.trn:4:9-4:21 */,
+            119 /* terrane-site: tests/integration/native-try-local-consume/case.trn:4:9-4:21 */,
     );
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -2101,7 +2418,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
                         ::__terrane_dependency_panic(payload, "terrane_query_witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
-                        ::TerraneForeignError > (value) } } (), 103 /* terrane-site: tests/integration/native-try-local-consume/case.trn:6:13-6:20 */
+                        ::TerraneForeignError > (value) } } (), 120 /* terrane-site: tests/integration/native-try-local-consume/case.trn:6:13-6:20 */
                     ),
                 );
             println!(
@@ -2114,7 +2431,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 104 /* terrane-site: tests/integration/native-try-local-consume/case.trn:7:17-7:29 */))
+                u128)) } } (), 121 /* terrane-site: tests/integration/native-try-local-consume/case.trn:7:17-7:29 */))
             );
             TerraneCompletion::Normal
         })();
@@ -2164,7 +2481,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                             "terrane_query_witness",
                             "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                             ::TerraneForeignError > (value) } } (),
-                            105 /* terrane-site: tests/integration/native-try-local-consume/case.trn:13:20-13:27 */
+                            122 /* terrane-site: tests/integration/native-try-local-consume/case.trn:13:20-13:27 */
                         ),
                     );
                 println!(
@@ -2178,7 +2495,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                     ::__terrane_dependency_panic(payload, "terrane_query_witness",
                     "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                     ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                    u128)) } } (), 106 /* terrane-site: tests/integration/native-try-local-consume/case.trn:14:21-14:36 */))
+                    u128)) } } (), 123 /* terrane-site: tests/integration/native-try-local-consume/case.trn:14:21-14:36 */))
                 );
                 TerraneCompletion::Normal
             })();
@@ -2217,6 +2534,140 @@ fn test_scenario_terrane_native_try_local_consume() {
         }
         i = i.clone() + terrane_int_support::Int::from(1_i128);
     }
+}
+// Source: tests/integration/native-try-unconditional-rewrite-control/case.trn
+// Namespace: native-try-unconditional-rewrite-control
+fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
+    let h: Holder;
+    let k: Holder;
+    let mut v: terrane_query_witness::View<'_>;
+    h = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            124 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:4:9-4:21 */,
+    );
+    k = __terrane_raised(
+        terrane_static_trn_486f6c646572_new(),
+
+            125 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:5:9-5:21 */,
+    );
+    v = __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&h).view()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::Holder::view",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+
+            126 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:6:9-6:16 */,
+    );
+    let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!(|
+                | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok(v.into_size()) })) { Ok(result) =>
+                result ?, Err(payload) => return Err(crate
+                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
+                ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+                u128)) } } (), 127 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:8:17-8:29 */))
+            );
+            v = __terrane_raised_completion!(
+                | | -> Result < _, crate ::TerraneForeignError > { { let value = match
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+                crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) =>
+                result ?, Err(payload) => return Err(crate
+                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
+                ::TerraneForeignError > (value) } } (), 128 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:9:13-9:20 */
+            );
+            let _ = &v;
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_0: TerraneCompletion<()> = (|| {
+        println!("{}", terrane_scalar_support::scalar_text(&1));
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    v = __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&k).view()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::Holder::view",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+
+            129 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:12:9-12:16 */,
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 130 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:13:13-13:20 */))
+    );
 }
 // Source: <compiler-generated test registry>
 // Namespace: core/testing/runner
@@ -2309,7 +2760,19 @@ fn main() {
             test_scenario_terrane_native_loop_consuming_condition_break();
         }
         "19" => {
+            test_scenario_terrane_native_try_body_rewrite_control();
+        }
+        "20" => {
+            test_scenario_terrane_native_try_copy_finally_control();
+        }
+        "21" => {
+            test_scenario_terrane_native_try_finally_rewrite_control();
+        }
+        "22" => {
             test_scenario_terrane_native_try_local_consume();
+        }
+        "23" => {
+            test_scenario_terrane_native_try_unconditional_rewrite_control();
         }
         _ => {
             eprintln!("unknown Terrane test case");

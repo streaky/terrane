@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "object-protocols"
+test = "/generic-conditional-clone-and-inherited-interface::test-scenario"

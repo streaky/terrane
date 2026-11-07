@@ -120,7 +120,7 @@ pub(super) fn validate_scoped_regions(package: &SemanticPackage) -> Result<(), S
             }
         }
         validate_node(package, unit, &unit.tree.root)?;
-        try_captures::validate(package, unit, &unit.tree.root, false)?;
+        try_captures::validate(package, unit, &unit.tree.root)?;
         native_loans::validate_function_native_lenders(package, unit)?;
     }
     Ok(())

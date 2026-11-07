@@ -1,0 +1,20 @@
+namespace app
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+class Hold of (T implements named)
+    x T
+    function construct; x T
+        this.x = move x
+    consuming function get int;
+        (this.x).finish;
+        return this.x.name;
+function main;
+    hold = instance Hold of Item; (instance Item;)
+    print; (hold.get;)

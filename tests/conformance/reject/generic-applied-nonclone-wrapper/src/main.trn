@@ -1,0 +1,17 @@
+namespace app
+from /deps/terrane-query-witness import Holder
+class F of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class G of (U)
+    f F of U
+    n int
+    function construct; value U, n int
+        this.f = instance (F of U); (move value)
+        this.n = move n
+function main;
+    value = instance (G of Holder); (Holder::new;, 7)
+    copy = value
+    print; value.n
+    print; copy.n

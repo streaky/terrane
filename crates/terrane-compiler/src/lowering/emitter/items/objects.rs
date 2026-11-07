@@ -17,8 +17,8 @@ use crate::{
     },
     semantics::{
         CanonicalDefault, DescriptorContract, EffectiveObjectField, FunctionContract,
-        GenericParameterContract, InvocationMode, ObjectKind, SemanticPackage, ValueType,
-        canonical_default, effective_object_fields,
+        InvocationMode, ObjectKind, SemanticPackage, ValueType, canonical_default,
+        effective_object_fields,
     },
     syntax::{SyntaxKind, SyntaxNode},
 };
@@ -43,6 +43,43 @@ fn protocol_transfer_bounds(
     }
 }
 
+fn effective_source_interface_methods<'a>(
+    unit: &'a crate::semantics::SemanticUnit,
+    object: &'a DescriptorContract,
+) -> Vec<&'a FunctionContract> {
+    fn collect<'a>(
+        unit: &'a crate::semantics::SemanticUnit,
+        object: &'a DescriptorContract,
+        methods: &mut Vec<&'a FunctionContract>,
+        visited: &mut BTreeSet<crate::semantics::ObjectIdentity>,
+    ) {
+        if !visited.insert(object.identity.base()) {
+            return;
+        }
+        for inherited in &object.interfaces {
+            if let Some(parent) = unit.descriptors.iter().find(|candidate| {
+                candidate.kind == ObjectKind::Interface
+                    && candidate.identity.base() == inherited.base()
+            }) {
+                collect(unit, parent, methods, visited);
+            }
+        }
+        for method in effective_object_methods(unit, object) {
+            if let Some(index) = methods.iter().position(|existing| {
+                existing.name == method.name
+                    && existing.is_static == method.is_static
+                    && existing.is_unsafe == method.is_unsafe
+            }) {
+                methods[index] = method;
+            } else {
+                methods.push(method);
+            }
+        }
+    }
+    let mut methods = Vec::new();
+    collect(unit, object, &mut methods, &mut BTreeSet::new());
+    methods
+}
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
     match canonical_default(value_type)? {
         CanonicalDefault::BoolFalse => Some("false".to_owned()),
@@ -60,18 +97,6 @@ fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) ->
         | CanonicalDefault::EmptySet
         | CanonicalDefault::EmptyUnorderedMap
         | CanonicalDefault::EmptyUnorderedSet => rust_empty_collection(package, value_type),
-    }
-}
-fn is_source_type_parameter(
-    value_type: &ValueType,
-    parameters: &[GenericParameterContract],
-) -> bool {
-    match value_type {
-        ValueType::TypeParameter(name) => {
-            parameters.iter().any(|parameter| parameter.name == *name)
-        }
-        ValueType::Optional(inner) => is_source_type_parameter(inner, parameters),
-        _ => false,
     }
 }
 
@@ -330,7 +355,7 @@ impl<'a> Emitter<'a> {
             ObjectKind::Interface => {
                 let name = rust_object_type_name(self.package, &object.identity);
                 let protocol = format!("{name}Protocol");
-                let methods = effective_object_methods(self.unit, object)
+                let methods = effective_source_interface_methods(self.unit, object)
                     .into_iter()
                     .filter(|method| {
                         !Self::omit_advanced_stream_method(advanced_streams, self.unit, method)
@@ -395,12 +420,13 @@ impl<'a> Emitter<'a> {
                 } else {
                     " : "
                 };
+                let trait_bounds = transfer_bounds;
                 let has_unsafe_methods = methods.iter().any(|method| method.is_unsafe);
                 if object.is_unsafe || has_unsafe_methods {
                     self.line("#[allow(unsafe_code)]");
                 }
                 self.line(&format!(
-                    "pub {}trait {protocol}{generic_declaration}{transfer_separator}{transfer_bounds} {{",
+                    "pub {}trait {protocol}{generic_declaration}{transfer_separator}{trait_bounds} {{",
                     if object.is_unsafe { "unsafe " } else { "" }
                 ));
                 self.indent += 1;
@@ -654,13 +680,11 @@ impl<'a> Emitter<'a> {
                     )
                 });
                 let conditional_generic_clone = !has_destructor
+                    && !object.resource_owning
                     && !object.generic_parameters.is_empty()
                     && instance_fields.iter().all(|field| {
-                        crate::semantics::value_type_is_cloneable(
+                        crate::semantics::value_type_is_cloneable_assuming_parameters(
                             self.package,
-                            self.unit,
-                            &field.field.value_type,
-                        ) || is_source_type_parameter(
                             &field.field.value_type,
                             &object.generic_parameters,
                         )
@@ -1539,28 +1563,33 @@ impl<'a> Emitter<'a> {
                         .zip(&interface_identity.type_arguments)
                         .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
                         .collect();
-                    let interface_methods = effective_object_methods(interface_unit, interface)
-                        .into_iter()
-                        .map(|method| {
-                            let mut method = crate::semantics::bind_projected_requirement(
-                                method,
-                                interface_identity.application.as_deref(),
-                            );
-                            for parameter in &mut method.parameters {
-                                parameter.value_type =
-                                    parameter.value_type.as_ref().map(|value_type| {
+                    let interface_methods =
+                        effective_source_interface_methods(interface_unit, interface)
+                            .into_iter()
+                            .map(|method| {
+                                let mut method = crate::semantics::bind_projected_requirement(
+                                    method,
+                                    interface_identity.application.as_deref(),
+                                );
+                                for parameter in &mut method.parameters {
+                                    parameter.value_type =
+                                        parameter.value_type.as_ref().map(|value_type| {
+                                            crate::semantics::substitute_value_type(
+                                                value_type,
+                                                &substitutions,
+                                            )
+                                        });
+                                }
+                                method.return_type =
+                                    method.return_type.as_ref().map(|value_type| {
                                         crate::semantics::substitute_value_type(
                                             value_type,
                                             &substitutions,
                                         )
                                     });
-                            }
-                            method.return_type = method.return_type.as_ref().map(|value_type| {
-                                crate::semantics::substitute_value_type(value_type, &substitutions)
-                            });
-                            method
-                        })
-                        .collect::<Vec<_>>();
+                                method
+                            })
+                            .collect::<Vec<_>>();
                     for method in &interface_methods {
                         let implementation = effective_object_methods(self.unit, object)
                             .into_iter()
@@ -1582,9 +1611,11 @@ impl<'a> Emitter<'a> {
                             (InvocationMode::Mutable, _) => "&mut self",
                             (InvocationMode::Shared, _) => "&self",
                         };
+                        let (method_generics, _) =
+                            rust_generic_parameters(self.package, &method.generic_parameters);
                         write!(
                             self.output,
-                            "{}fn {}({receiver}",
+                            "{}fn {}{method_generics}({receiver}",
                             if method.is_unsafe { "unsafe " } else { "" },
                             function_name(self.package, method)
                         )

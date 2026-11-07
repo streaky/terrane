@@ -1,0 +1,7 @@
+namespace app
+from /core/collections import unordered-map
+function put of (T); value T
+    values unordered-map of string, T = unordered-map;
+    values['k'] = move value
+function main;
+    put; 1

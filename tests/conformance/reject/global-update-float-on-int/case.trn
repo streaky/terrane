@@ -1,0 +1,5 @@
+namespace app
+global calls int = 0
+function main;
+    global calls float = 1.5
+    print; calls

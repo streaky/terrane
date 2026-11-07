@@ -864,7 +864,37 @@ fn infer_nonbinary_value_type(
                     }
                     return Ok(Some(ValueType::Object(identity)));
                 }
-                if descriptor.generic_parameters.is_empty() || !identity.type_arguments.is_empty() {
+                let selected_arguments = identity
+                    .type_arguments
+                    .iter()
+                    .chain(identity.application.iter().map(Box::as_ref))
+                    .collect::<Vec<_>>();
+                let has_application = !selected_arguments.is_empty();
+                if has_application {
+                    let substitutions = descriptor
+                        .generic_parameters
+                        .iter()
+                        .zip(selected_arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                        .collect::<BTreeMap<_, _>>();
+                    if !super::generics::generic_bounds_satisfied(
+                        unit,
+                        &descriptor.generic_parameters,
+                        &substitutions,
+                        class.span.start,
+                    ) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0012",
+                            format!(
+                                "application of class `{}` does not satisfy its type parameter bounds",
+                                descriptor.name
+                            ),
+                            class.span,
+                        ));
+                    }
+                }
+                if descriptor.generic_parameters.is_empty() || has_application {
                     return Ok(Some(ValueType::Object(identity)));
                 }
                 let mut substitutions = BTreeMap::new();
@@ -929,6 +959,22 @@ fn infer_nonbinary_value_type(
                                 .map(|name| format!("`{name}`"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
+                        ),
+                        class.span,
+                    ));
+                }
+                if !super::generics::generic_bounds_satisfied(
+                    unit,
+                    &descriptor.generic_parameters,
+                    &substitutions,
+                    class.span.start,
+                ) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0012",
+                        format!(
+                            "application of class `{}` does not satisfy its type parameter bounds",
+                            descriptor.name
                         ),
                         class.span,
                     ));

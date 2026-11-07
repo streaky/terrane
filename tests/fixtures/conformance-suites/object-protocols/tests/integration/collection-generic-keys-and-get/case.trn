@@ -1,0 +1,22 @@
+namespace collection-generic-keys-and-get
+from /core/collections import list, map, unordered-map, tuple
+function keys of (T) list of string; values map of string, T
+    return values.keys;
+function unordered-keys of (T) list of string; values unordered-map of string, T
+    return values.keys;
+function test-scenario;
+    values map of string, int = map; a=7, b=9
+    names = keys; values
+    print; names[0]
+    print; names[1]
+    found = values.get; 'b'
+    print; found
+    other unordered-map of string, int = unordered-map; k=11
+    other-names = unordered-keys; other
+    print; other-names[0]
+    unordered-found = other.get; 'k'
+    print; unordered-found
+    numbers list of int = list; 13
+    print; (numbers.get; 0)
+    fixed tuple of int = tuple; 17
+    print; (fixed.get; 0)

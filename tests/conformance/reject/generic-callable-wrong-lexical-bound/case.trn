@@ -1,0 +1,13 @@
+namespace generic-callable-wrong-lexical-bound
+interface named
+    function name int;
+class Item implements named
+    function name int;
+        return 1
+function target of (T implements named) int; value T
+    return value.name;
+function forward of (T) int; value T
+    callback function from T to int = target
+    return callback; (move value)
+function main;
+    print; (forward; (instance Item;))

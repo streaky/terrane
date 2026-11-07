@@ -17,6 +17,9 @@ impl CopyView<'_> {
         self.0.len()
     }
 }
+pub fn copy_identity(value: CopyView<'_>) -> CopyView<'_> {
+    value
+}
 pub struct Spec<'a>(&'a str);
 impl Clone for Spec<'_> {
     fn clone(&self) -> Self {

@@ -1,0 +1,15 @@
+namespace generic-class-missing-lexical-bound
+interface named
+    function name int;
+class Item implements named
+    function name int;
+        return 1
+class Wrapper of (T implements named)
+    value T
+    function construct; value T
+        this.value = move value
+function make of (U) int; value U
+    wrapper = instance (Wrapper of U); (move value)
+    return 1
+function main;
+    print; (make; (instance Item;))

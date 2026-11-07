@@ -487,7 +487,7 @@ pub(super) fn infer_collection_call_type(
     };
     if let Some((_receiver, receiver_type, member)) =
         collection_member_call(unit, callee, bindings)?
-        && member.contains('.')
+        && (member.contains('.') || member == "get")
     {
         if !descriptor_has_member(unit, &receiver_type, &member) {
             return Err(failure(
@@ -497,7 +497,7 @@ pub(super) fn infer_collection_call_type(
                 callee.span,
             ));
         }
-        if matches!(member.as_str(), "get.checked" | "remove.checked") {
+        if matches!(member.as_str(), "get" | "get.checked" | "remove.checked") {
             let [argument] = arguments.children.as_slice() else {
                 return Err(failure(
                     &unit.source,
@@ -508,7 +508,7 @@ pub(super) fn infer_collection_call_type(
             };
             let argument = argument.children.last().unwrap_or(argument);
             return match (receiver_type, member.as_str()) {
-                (ValueType::List(item) | ValueType::Tuple(item, _), "get.checked") => {
+                (ValueType::List(item) | ValueType::Tuple(item, _), "get" | "get.checked") => {
                     validate_collection_constructor_value(
                         unit,
                         argument,
@@ -516,11 +516,15 @@ pub(super) fn infer_collection_call_type(
                         "collection index",
                         bindings,
                     )?;
-                    Ok(Some(ValueType::Optional(Box::new(item.value_type()))))
+                    Ok(Some(if member == "get" {
+                        item.value_type()
+                    } else {
+                        ValueType::Optional(Box::new(item.value_type()))
+                    }))
                 }
                 (
                     ValueType::Map(key, value) | ValueType::UnorderedMap(key, value),
-                    "get.checked" | "remove.checked",
+                    "get" | "get.checked" | "remove.checked",
                 ) => {
                     validate_collection_constructor_value(
                         unit,
@@ -529,7 +533,11 @@ pub(super) fn infer_collection_call_type(
                         "map key",
                         bindings,
                     )?;
-                    Ok(Some(ValueType::Optional(Box::new(value.value_type()))))
+                    Ok(Some(if member == "get" {
+                        value.value_type()
+                    } else {
+                        ValueType::Optional(Box::new(value.value_type()))
+                    }))
                 }
                 _ => Ok(None),
             };
@@ -894,4 +902,77 @@ pub(super) fn infer_iterator_call_type(
             node.span,
         )
     })
+}
+
+pub(super) fn validate_copy_requirements(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+) -> Result<(), SemanticFailure> {
+    fn validate_item(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        item: &ElementType,
+        span: Span,
+    ) -> Result<(), SemanticFailure> {
+        if !super::objects::value_type_is_cloneable(package, unit, item.value_type_ref()) {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "collection operation cannot implicitly copy non-Clone or unconstrained elements; use a concrete typed adapter",
+                span,
+            ));
+        }
+        Ok(())
+    }
+
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && let Some((_, ty, member)) =
+                collection_member_call(unit, callee, &unit.typed_bindings)?
+        {
+            let copied = match (&ty, member.as_str()) {
+                (
+                    ValueType::List(item),
+                    "get" | "get.checked" | "append" | "set" | "remove" | "clear" | "sort"
+                    | "sort.descending",
+                )
+                | (ValueType::Tuple(item, _), "get" | "get.checked")
+                | (
+                    ValueType::Map(_, item) | ValueType::UnorderedMap(_, item),
+                    "get" | "get.checked" | "set" | "remove" | "remove.checked" | "clear"
+                    | "values" | "entries",
+                ) => Some(item),
+                _ => None,
+            };
+            if let Some(item) = copied {
+                validate_item(package, unit, item, node.span)?;
+            }
+        }
+        if node.kind == SyntaxKind::Assignment
+            && let Some(target) = node.children.first()
+            && target.kind == SyntaxKind::IndexExpression
+            && let Some(receiver) = target.children.first()
+            && let Some(ty) = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
+        {
+            let copied = match &ty {
+                ValueType::List(item)
+                | ValueType::Map(_, item)
+                | ValueType::UnorderedMap(_, item) => Some(item),
+                _ => None,
+            };
+            if let Some(item) = copied {
+                validate_item(package, unit, item, target.span)?;
+            }
+        }
+        for child in &node.children {
+            visit(package, unit, child)?;
+        }
+        Ok(())
+    }
+    visit(package, unit, &unit.tree.root)
 }

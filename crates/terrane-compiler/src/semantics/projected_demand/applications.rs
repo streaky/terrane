@@ -45,6 +45,19 @@ impl SourceResults<'_> {
         None
     }
 
+    pub(super) fn index_result_owner(
+        &self,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        imported: &BTreeMap<String, ProjectedOwner>,
+    ) -> Option<ProjectedOwner> {
+        if node.kind != SyntaxKind::IndexExpression {
+            return None;
+        }
+        self.expression_header(unit, node, imported, &mut BTreeSet::new())?
+            .owner
+    }
+
     fn expression_header(
         &self,
         unit: &SemanticUnit,
@@ -59,7 +72,15 @@ impl SourceResults<'_> {
         visited.remove(&node.span);
         result
     }
-
+    pub(super) fn index_result_owner_for_source(
+        &self,
+        source: &SourceFile,
+        node: &SyntaxNode,
+        imported: &BTreeMap<String, ProjectedOwner>,
+    ) -> Option<ProjectedOwner> {
+        let unit = &self.units[*self.unit_indices.get(&source.id())?];
+        self.index_result_owner(unit, node, imported)
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "header-only inference keeps binding, field and callable substitutions in one syntax dispatch"
@@ -104,6 +125,18 @@ impl SourceResults<'_> {
                 return self.header_type(&unit.source, ty, &BTreeMap::new(), imported);
             }
             return self.expression_header(unit, declaration.children.last()?, imported, visited);
+        }
+        if node.kind == SyntaxKind::IndexExpression {
+            let [receiver, _index] = node.children.as_slice() else {
+                return None;
+            };
+            let collection = self.expression_header(unit, receiver, imported, visited)?;
+            let index = match collection.name.as_str() {
+                "list" => 0,
+                "map" | "unordered-map" => 1,
+                _ => return None,
+            };
+            return collection.arguments.into_iter().nth(index);
         }
         if node.kind == SyntaxKind::MemberExpression {
             let [receiver, member] = node.children.as_slice() else {

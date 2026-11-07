@@ -261,25 +261,40 @@ fn collect_global_stores(unit: &SemanticUnit, node: &SyntaxNode, stores: &mut BT
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Warning selection combines program-global reads with per-binding events and lint policy"
+)]
 pub(crate) fn warnings(
     package: &SemanticPackage,
     lint_name_style: bool,
     lint_unused_functions: bool,
 ) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
+    let mut global_stores = BTreeSet::new();
+    for unit in &package.units {
+        collect_global_stores(unit, &unit.tree.root, &mut global_stores);
+    }
     let globally_read = package
-        .globals
-        .values()
-        .filter_map(|symbol| symbol.binding_span)
-        .filter(|span| {
+        .units
+        .iter()
+        .flat_map(|unit| &unit.typed_bindings)
+        .filter(|binding| global_stores.contains(&binding.span))
+        .filter(|binding| {
             package
                 .binding_events
-                .get(&span_key(*span))
+                .get(&span_key(binding.span))
                 .is_some_and(|events| {
                     events
                         .iter()
                         .any(|event| matches!(event, BindingEvent::Read { .. }))
                 })
+        })
+        .filter_map(|binding| {
+            package
+                .globals
+                .get(&binding.name)
+                .and_then(|symbol| symbol.binding_span)
         })
         .collect::<BTreeSet<_>>();
     warnings.extend(package.import_warnings.iter().cloned());
@@ -294,8 +309,6 @@ pub(crate) fn warnings(
         }
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
-        let mut global_stores = BTreeSet::new();
-        collect_global_stores(unit, &unit.tree.root, &mut global_stores);
         for binding in &unit.typed_bindings {
             let parameter = unit.functions.iter().any(|contract| {
                 contract
@@ -493,6 +506,13 @@ pub(crate) fn typed_member_call<'a>(
     unit: &SemanticUnit,
     callee: &'a SyntaxNode,
 ) -> Option<(&'a SyntaxNode, ValueType, String)> {
+    let mut callee = callee;
+    while matches!(
+        callee.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+    ) {
+        callee = callee.children.first()?;
+    }
     if let Ok(Some(call)) = collection_member_call(unit, callee, &unit.typed_bindings) {
         return Some(call);
     }
@@ -961,6 +981,54 @@ fn binding_mutation_count(
                             })
                     }))
         });
+    let consuming_field_extraction = node.kind == SyntaxKind::CallExpression
+        && node.children.first().is_some_and(|callee| {
+            let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee) else {
+                return false;
+            };
+            if member_invocation_mode_at(package, unit, receiver, &receiver_type, &member)
+                != InvocationMode::Consuming
+            {
+                return false;
+            }
+            let mut receiver = receiver;
+            while receiver.kind == SyntaxKind::GroupExpression {
+                let Some(inner) = receiver.children.first() else {
+                    return false;
+                };
+                receiver = inner;
+            }
+            let [owner, field] = receiver.children.as_slice() else {
+                return false;
+            };
+            if receiver.kind != SyntaxKind::MemberExpression || !resolves_to_binding(owner) {
+                return false;
+            }
+            let source_value = matches!(&receiver_type, ValueType::TypeParameter(_))
+                || matches!(&receiver_type, ValueType::Object(identity)
+                    if package.projection.item(&identity.namespace, &identity.name).is_none());
+            if !source_value && !application_is_resource_owning(package, &receiver_type) {
+                return false;
+            }
+            let Ok(Some(ValueType::Object(identity))) =
+                infer_value_type(unit, owner, &unit.typed_bindings)
+            else {
+                return false;
+            };
+            package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.descriptors)
+                .find(|descriptor| descriptor.identity.base() == identity.base())
+                .is_some_and(|descriptor| {
+                    effective_object_fields(package, descriptor)
+                        .iter()
+                        .any(|candidate| {
+                            candidate.field.name == node_text(&unit.source, field)
+                                && candidate.field.required
+                        })
+                })
+        });
     let writes_here = usize::from(
         direct_write
             || mutator_call
@@ -969,6 +1037,7 @@ fn binding_mutation_count(
             || source_argument_write
             || exclusive_address
             || borrowed_callable_call
+            || consuming_field_extraction
             || field_extraction,
     );
     let mut child_counts = node.children.iter().map(|child| {

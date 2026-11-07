@@ -551,7 +551,7 @@ fn visit(
         _ => {}
     }
     if node.kind == SyntaxKind::CallExpression
-        && let Some(callee) = node.children.first()
+        && let Some(callee) = node.children.first().map(ungroup)
         && let [receiver, _] = callee.children.as_slice()
         && callee.kind == SyntaxKind::MemberExpression
         && super::namespaces::function_contract_for_call(package, unit, callee).is_some_and(
@@ -560,6 +560,7 @@ fn visit(
                     && contract.written_invocation_mode == InvocationMode::Consuming
             },
         )
+        && let receiver = ungroup(receiver)
         && let Some(path) = path_at(unit, receiver)
         && receiver.kind == SyntaxKind::MemberExpression
     {
@@ -577,7 +578,7 @@ fn visit(
             check_rust_access(unit, node, moved)?;
         }
         if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
+            && let Some(callee) = node.children.first().map(ungroup)
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
             && let Some(path) = path_at(unit, receiver)

@@ -291,14 +291,23 @@ pub(super) fn select_unit_callable_contract_result(
                     });
                 if let Some(callback) = callback
                     && !callback.generic_parameters.is_empty()
-                    && let Some(closed) = close_generic_callable_value(
+                {
+                    match close_generic_callable_value(
                         unit,
                         callback,
                         &actual,
                         &substitute_value_type(&expected, &substitutions),
-                    )
-                {
-                    actual = closed;
+                        value.span.start,
+                    ) {
+                        Ok(Some(closed)) => actual = closed,
+                        Err(()) => {
+                            return Err(GenericSelectionFailure::Argument(
+                                "generic callback type arguments do not satisfy their bounds"
+                                    .to_owned(),
+                            ));
+                        }
+                        Ok(None) => {}
+                    }
                 }
             }
             let expected = match expected {
@@ -556,54 +565,56 @@ pub(crate) fn close_generic_callable_value(
     contract: &FunctionContract,
     actual: &ValueType,
     expected: &ValueType,
-) -> Option<ValueType> {
+    position: usize,
+) -> Result<Option<ValueType>, ()> {
     if contract.generic_parameters.is_empty() {
-        return None;
+        return Ok(None);
     }
     let mut substitutions = BTreeMap::new();
     let (ValueType::Function(actual_parameters, actual_result, _)
     | ValueType::AsyncFunction(actual_parameters, actual_result, _, _)) = actual
     else {
-        return None;
+        return Ok(None);
     };
     let (ValueType::Function(expected_parameters, expected_result, _)
     | ValueType::AsyncFunction(expected_parameters, expected_result, _, _)) = expected
     else {
-        return None;
+        return Ok(None);
     };
     if actual_parameters.len() != expected_parameters.len() {
-        return None;
+        return Ok(None);
     }
     for (actual, expected) in actual_parameters.iter().zip(expected_parameters) {
-        bind_generic_type(
+        if bind_generic_type(
             actual.value_type_ref(),
             expected.value_type_ref(),
             &mut substitutions,
         )
-        .ok()?;
+        .is_err()
+        {
+            return Ok(None);
+        }
     }
-    bind_generic_type(
+    if bind_generic_type(
         actual_result.value_type_ref(),
         expected_result.value_type_ref(),
         &mut substitutions,
     )
-    .ok()?;
+    .is_err()
+    {
+        return Ok(None);
+    }
     if contract
         .generic_parameters
         .iter()
         .any(|parameter| !substitutions.contains_key(&parameter.name))
     {
-        return None;
+        return Ok(None);
     }
-    if !generic_bounds_satisfied(
-        unit,
-        &contract.generic_parameters,
-        &substitutions,
-        contract.span.start,
-    ) {
-        return None;
+    if !generic_bounds_satisfied(unit, &contract.generic_parameters, &substitutions, position) {
+        return Err(());
     }
-    Some(substitute_value_type(actual, &substitutions))
+    Ok(Some(substitute_value_type(actual, &substitutions)))
 }
 
 pub(crate) fn generic_bounds_satisfied(

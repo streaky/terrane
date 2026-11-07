@@ -1,5 +1,6 @@
 //! Source diagnostics for native values moved into lowering-owned try closures.
 use super::super::prelude::*;
+use super::liveness::Flow;
 
 fn named_value(mut node: &SyntaxNode) -> &SyntaxNode {
     while node.kind == SyntaxKind::GroupExpression && node.children.len() == 1 {
@@ -26,27 +27,49 @@ fn validate_moved_value(
     unit: &SemanticUnit,
     statement: &SyntaxNode,
     value: &SyntaxNode,
-    repeating: bool,
+    flow: &Flow,
+    explicit: bool,
 ) -> Result<(), SemanticFailure> {
     let value = named_value(value);
     if let Some(ty) = unit.inferred_value_type(value)
-        && (matches!(ty, ValueType::InvocationScopedNative { .. })
-            || (matches!(ty, ValueType::Object(_))
-                && !super::super::objects::value_type_is_cloneable(package, unit, &ty)))
+        && matches!(
+            ty,
+            ValueType::InvocationScopedNative { .. }
+                | ValueType::Object(_)
+                | ValueType::TypeParameter(_)
+        )
         && !package.native_value_is_copyable(&ty)
+        && (explicit
+            || application_is_resource_owning(package, &ty)
+            || super::field_has_native_loan(package, &ty))
         && let Some(binding) = super::binding_identity_at(unit, value)
         && binding.start < statement.span.start
         && rebinds(unit, statement, binding)
-        && (repeating
-            || package
-                .binding_events
-                .get(&span_key(binding))
-                .is_some_and(|events| {
-                    events.iter().any(|event| {
-                        matches!(event, BindingEvent::Read { span, .. }
-                            if span.file == statement.span.file && span.start >= statement.span.end)
-                    })
-                }))
+        && (package
+            .binding_events
+            .get(&span_key(binding))
+            .is_some_and(|events| {
+                events.iter().any(|event| {
+                    matches!(event, BindingEvent::Read { span, .. }
+                    if span.file == value.span.file
+                        && value.span.end <= span.start
+                        && statement.children.iter().any(|clause| {
+                            let separate_handler = clause.kind == SyntaxKind::FinallyClause
+                                && !(clause.span.start <= value.span.start
+                                    && value.span.end <= clause.span.end);
+                            let catch_after_body = clause.kind == SyntaxKind::CatchClause
+                                && statement.children.iter().any(|body| {
+                                    body.kind == SyntaxKind::Block
+                                        && body.span.start <= value.span.start
+                                        && value.span.end <= body.span.end
+                                });
+                            (separate_handler || catch_after_body)
+                                && clause.span.start <= span.start
+                                && span.end <= clause.span.end
+                        }))
+                })
+            })
+            || flow.reads_after_without_rewrite(statement.span, binding))
     {
         return Err(failure(
             &unit.source,
@@ -63,19 +86,14 @@ fn validate_consumption(
     unit: &SemanticUnit,
     statement: &SyntaxNode,
     node: &SyntaxNode,
-    repeating: bool,
+    flow: &Flow,
 ) -> Result<(), SemanticFailure> {
     let receiver = if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
-        && callee.kind == SyntaxKind::MemberExpression
-        && let [receiver, member] = callee.children.as_slice()
-        && let Some(ty) = unit.inferred_value_type(receiver)
+        && let Some((receiver, ty, member)) =
+            super::super::diagnostics::typed_member_call(unit, callee)
         && super::super::diagnostics::member_invocation_mode_at(
-            package,
-            unit,
-            receiver,
-            &ty,
-            node_text(&unit.source, member),
+            package, unit, receiver, &ty, &member,
         ) == InvocationMode::Consuming
     {
         Some(receiver)
@@ -87,7 +105,7 @@ fn validate_consumption(
         None
     };
     if let Some(receiver) = receiver {
-        validate_moved_value(package, unit, statement, receiver, repeating)?;
+        validate_moved_value(package, unit, statement, receiver, flow, true)?;
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -114,7 +132,7 @@ fn validate_consumption(
             if !borrowed
                 && let Some(value) = argument_for_parameter(unit, arguments, contract, index)
             {
-                validate_moved_value(package, unit, statement, value, repeating)?;
+                validate_moved_value(package, unit, statement, value, flow, false)?;
             }
         }
     }
@@ -123,8 +141,39 @@ fn validate_consumption(
             child.kind,
             SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
         ) {
-            validate_consumption(package, unit, statement, child, repeating)?;
+            validate_consumption(package, unit, statement, child, flow)?;
         }
+    }
+    Ok(())
+}
+
+fn contains_try(node: &SyntaxNode) -> bool {
+    node.kind == SyntaxKind::TryStatement
+        || node.children.iter().any(|child| {
+            !matches!(
+                child.kind,
+                SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+            ) && contains_try(child)
+        })
+}
+
+fn validate_in_function(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    flow: &Flow,
+) -> Result<(), SemanticFailure> {
+    if matches!(
+        node.kind,
+        SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+    ) {
+        return validate(package, unit, node);
+    }
+    if node.kind == SyntaxKind::TryStatement {
+        validate_consumption(package, unit, node, node, flow)?;
+    }
+    for child in &node.children {
+        validate_in_function(package, unit, child, flow)?;
     }
     Ok(())
 }
@@ -133,31 +182,20 @@ pub(super) fn validate(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    repeating: bool,
 ) -> Result<(), SemanticFailure> {
-    let repeating = if matches!(
+    if matches!(
         node.kind,
         SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
-    ) {
-        false
-    } else if matches!(
-        node.kind,
-        SyntaxKind::WhileStatement | SyntaxKind::ForStatement
-    ) {
-        repeating
-            || node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Block)
-                .is_some_and(super::super::scope_validation::loop_body_may_repeat)
-    } else {
-        repeating
-    };
-    if node.kind == SyntaxKind::TryStatement {
-        validate_consumption(package, unit, node, node, repeating)?;
+    ) && contains_try(node)
+    {
+        let flow = Flow::new(package, unit, node);
+        for child in &node.children {
+            validate_in_function(package, unit, child, &flow)?;
+        }
+        return Ok(());
     }
     for child in &node.children {
-        validate(package, unit, child, repeating)?;
+        validate(package, unit, child)?;
     }
     Ok(())
 }

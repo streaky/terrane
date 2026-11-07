@@ -476,12 +476,14 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 13] = [
+    pub static FILES: [&str; 15] = [
         "tests/integration/authored-generic-partial-construction/case.trn",
         "tests/integration/bounded-borrowed-collections/case.trn",
         "tests/integration/bounded-interface-receiver-modes/case.trn",
         "tests/integration/class-field-metadata/case.trn",
         "tests/integration/codec-class-methods/case.trn",
+        "tests/integration/collection-generic-keys-and-get/case.trn",
+        "tests/integration/generic-conditional-clone-and-inherited-interface/case.trn",
         "tests/integration/generic-index-borrow-controls/case.trn",
         "tests/integration/implicit-class-field-defaults/case.trn",
         "tests/integration/inherited-shared-field-writes/case.trn",
@@ -491,7 +493,7 @@ mod __terrane_trace {
         "core/streams.trn",
         "core/time.trn",
     ];
-    pub static FUNCTIONS: [&str; 29] = [
+    pub static FUNCTIONS: [&str; 31] = [
         "/authored-generic-partial-construction::construct",
         "/authored-generic-partial-construction::test-scenario",
         "/bounded-borrowed-collections::observe-map",
@@ -499,6 +501,8 @@ mod __terrane_trace {
         "/bounded-interface-receiver-modes::observe",
         "/class-field-metadata::test-scenario",
         "/codec-class-methods::test-scenario",
+        "/collection-generic-keys-and-get::test-scenario",
+        "/generic-conditional-clone-and-inherited-interface::test-scenario",
         "/generic-index-borrow-controls::first",
         "/generic-index-borrow-controls::borrowed-first",
         "/implicit-class-field-defaults::test-scenario",
@@ -522,7 +526,7 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 44] = [
+    pub static SITES: [Site; 53] = [
         /* terrane-site-row: site 0: /authored-generic-partial-construction::construct (tests/integration/authored-generic-partial-construction/case.trn:19:13-19:33) */
         { Site { function: 0, file: 0, line: 19, column: 13, end_line: 19, end_column: 33 } },
         /* terrane-site-row: site 1: /authored-generic-partial-construction::test-scenario (tests/integration/authored-generic-partial-construction/case.trn:33:17-33:61) */
@@ -547,70 +551,88 @@ mod __terrane_trace {
         { Site { function: 6, file: 4, line: 8, column: 13, end_line: 8, end_column: 43 } },
         /* terrane-site-row: site 11: /codec-class-methods::test-scenario (tests/integration/codec-class-methods/case.trn:13:13-13:46) */
         { Site { function: 6, file: 4, line: 13, column: 13, end_line: 13, end_column: 46 } },
-        /* terrane-site-row: site 12: /generic-index-borrow-controls::first (tests/integration/generic-index-borrow-controls/case.trn:9:12-9:20) */
-        { Site { function: 7, file: 5, line: 9, column: 12, end_line: 9, end_column: 20 } },
-        /* terrane-site-row: site 13: /generic-index-borrow-controls::borrowed-first (tests/integration/generic-index-borrow-controls/case.trn:13:21-13:29) */
-        { Site { function: 8, file: 5, line: 13, column: 21, end_line: 13, end_column: 29 } },
-        /* terrane-site-row: site 14: /implicit-class-field-defaults::test-scenario (tests/integration/implicit-class-field-defaults/case.trn:38:39-38:68) */
-        { Site { function: 9, file: 6, line: 38, column: 39, end_line: 38, end_column: 68 } },
-        /* terrane-site-row: site 15: /implicit-class-field-defaults::test-scenario (tests/integration/implicit-class-field-defaults/case.trn:38:75-38:105) */
-        { Site { function: 9, file: 6, line: 38, column: 75, end_line: 38, end_column: 105 } },
-        /* terrane-site-row: site 16: /inherited-shared-field-writes::test-scenario (tests/integration/inherited-shared-field-writes/case.trn:39:5-39:32) */
-        { Site { function: 10, file: 7, line: 39, column: 5, end_line: 39, end_column: 32 } },
-        /* terrane-site-row: site 17: /inherited-shared-field-writes::test-scenario (tests/integration/inherited-shared-field-writes/case.trn:40:12-40:27) */
-        { Site { function: 10, file: 7, line: 40, column: 12, end_line: 40, end_column: 27 } },
-        /* terrane-site-row: site 18: /inherited-shared-field-writes::test-scenario (tests/integration/inherited-shared-field-writes/case.trn:40:34-40:48) */
-        { Site { function: 10, file: 7, line: 40, column: 34, end_line: 40, end_column: 48 } },
-        /* terrane-site-row: site 19: /object-field-owned-snapshot::test-scenario (tests/integration/object-field-owned-snapshot/case.trn:99:5-99:25) */
-        { Site { function: 11, file: 8, line: 99, column: 5, end_line: 99, end_column: 25 } },
-        /* terrane-site-row: site 20: /object-field-owned-snapshot::test-scenario (tests/integration/object-field-owned-snapshot/case.trn:100:12-100:20) */
-        { Site { function: 11, file: 8, line: 100, column: 12, end_line: 100, end_column: 20 } },
-        /* terrane-site-row: site 21: /object-field-owned-snapshot::test-scenario (tests/integration/object-field-owned-snapshot/case.trn:101:12-101:26) */
-        { Site { function: 11, file: 8, line: 101, column: 12, end_line: 101, end_column: 26 } },
-        /* terrane-site-row: site 22: /shared-object-field-comparisons (tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38) */
-        { Site { function: 12, file: 9, line: 5, column: 18, end_line: 5, end_column: 38 } },
-        /* terrane-site-row: site 23: /shared-object-field-comparisons (tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38) */
-        { Site { function: 12, file: 9, line: 6, column: 18, end_line: 6, end_column: 38 } },
-        /* terrane-site-row: site 24: /shared-object-field-comparisons::replace (tests/integration/shared-object-field-comparisons/case.trn:18:15-18:35) */
-        { Site { function: 13, file: 9, line: 18, column: 15, end_line: 18, end_column: 35 } },
-        /* terrane-site-row: site 25: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:23:13-23:33) */
-        { Site { function: 14, file: 9, line: 23, column: 13, end_line: 23, end_column: 33 } },
-        /* terrane-site-row: site 26: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:32:19-32:33) */
-        { Site { function: 14, file: 9, line: 32, column: 19, end_line: 32, end_column: 33 } },
-        /* terrane-site-row: site 27: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:39:58-39:78) */
-        { Site { function: 14, file: 9, line: 39, column: 58, end_line: 39, end_column: 78 } },
-        /* terrane-site-row: site 28: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:39:82-39:102) */
-        { Site { function: 14, file: 9, line: 39, column: 82, end_line: 39, end_column: 102 } },
-        /* terrane-site-row: site 29: /trait-field-defaults::test-scenario (tests/integration/trait-field-defaults/case.trn:17:39-17:68) */
-        { Site { function: 15, file: 10, line: 17, column: 39, end_line: 17, end_column: 68 } },
-        /* terrane-site-row: site 30: /trait-field-defaults::test-scenario (tests/integration/trait-field-defaults/case.trn:17:75-17:104) */
-        { Site { function: 15, file: 10, line: 17, column: 75, end_line: 17, end_column: 104 } },
-        /* terrane-site-row: site 31: /core/streams::read (core/streams.trn:381:23-381:50) */
-        { Site { function: 16, file: 11, line: 381, column: 23, end_line: 381, end_column: 50 } },
-        /* terrane-site-row: site 32: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
-        { Site { function: 17, file: 11, line: 403, column: 23, end_line: 403, end_column: 46 } },
-        /* terrane-site-row: site 33: /core/streams::read-all (core/streams.trn:422:23-422:46) */
-        { Site { function: 18, file: 11, line: 422, column: 23, end_line: 422, end_column: 46 } },
-        /* terrane-site-row: site 34: /core/streams::read-async (core/streams.trn:427:23-427:50) */
-        { Site { function: 19, file: 11, line: 427, column: 23, end_line: 427, end_column: 50 } },
-        /* terrane-site-row: site 35: /core/time::multiply (core/time.trn:62:13-62:45) */
-        { Site { function: 20, file: 12, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 36: /core/time::seconds (core/time.trn:38:13-38:45) */
-        { Site { function: 21, file: 12, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 37: /core/time::milliseconds (core/time.trn:43:13-43:45) */
-        { Site { function: 22, file: 12, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 38: /core/time::microseconds (core/time.trn:48:13-48:45) */
-        { Site { function: 23, file: 12, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 39: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
-        { Site { function: 24, file: 12, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 40: /core/time::duration-until (core/time.trn:76:13-76:45) */
-        { Site { function: 25, file: 12, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 41: /core/time::at (core/time.trn:105:13-105:45) */
-        { Site { function: 26, file: 12, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 42: /core/time::sleep-until (core/time.trn:161:13-161:45) */
-        { Site { function: 27, file: 12, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 43: /core/time::interval (core/time.trn:172:13-172:45) */
-        { Site { function: 28, file: 12, line: 172, column: 13, end_line: 172, end_column: 45 } },
+        /* terrane-site-row: site 12: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:10:12-10:20) */
+        { Site { function: 7, file: 5, line: 10, column: 12, end_line: 10, end_column: 20 } },
+        /* terrane-site-row: site 13: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:11:12-11:20) */
+        { Site { function: 7, file: 5, line: 11, column: 12, end_line: 11, end_column: 20 } },
+        /* terrane-site-row: site 14: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:12:13-12:28) */
+        { Site { function: 7, file: 5, line: 12, column: 13, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 15: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:16:12-16:26) */
+        { Site { function: 7, file: 5, line: 16, column: 12, end_line: 16, end_column: 26 } },
+        /* terrane-site-row: site 16: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:17:23-17:37) */
+        { Site { function: 7, file: 5, line: 17, column: 23, end_line: 17, end_column: 37 } },
+        /* terrane-site-row: site 17: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:20:13-20:27) */
+        { Site { function: 7, file: 5, line: 20, column: 13, end_line: 20, end_column: 27 } },
+        /* terrane-site-row: site 18: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:22:13-22:25) */
+        { Site { function: 7, file: 5, line: 22, column: 13, end_line: 22, end_column: 25 } },
+        /* terrane-site-row: site 19: /generic-conditional-clone-and-inherited-interface::test-scenario (tests/integration/generic-conditional-clone-and-inherited-interface/case.trn:56:12-56:21) */
+        { Site { function: 8, file: 6, line: 56, column: 12, end_line: 56, end_column: 21 } },
+        /* terrane-site-row: site 20: /generic-conditional-clone-and-inherited-interface::test-scenario (tests/integration/generic-conditional-clone-and-inherited-interface/case.trn:56:12-56:31) */
+        { Site { function: 8, file: 6, line: 56, column: 12, end_line: 56, end_column: 31 } },
+        /* terrane-site-row: site 21: /generic-index-borrow-controls::first (tests/integration/generic-index-borrow-controls/case.trn:9:12-9:20) */
+        { Site { function: 9, file: 7, line: 9, column: 12, end_line: 9, end_column: 20 } },
+        /* terrane-site-row: site 22: /generic-index-borrow-controls::borrowed-first (tests/integration/generic-index-borrow-controls/case.trn:13:21-13:29) */
+        { Site { function: 10, file: 7, line: 13, column: 21, end_line: 13, end_column: 29 } },
+        /* terrane-site-row: site 23: /implicit-class-field-defaults::test-scenario (tests/integration/implicit-class-field-defaults/case.trn:38:39-38:68) */
+        { Site { function: 11, file: 8, line: 38, column: 39, end_line: 38, end_column: 68 } },
+        /* terrane-site-row: site 24: /implicit-class-field-defaults::test-scenario (tests/integration/implicit-class-field-defaults/case.trn:38:75-38:105) */
+        { Site { function: 11, file: 8, line: 38, column: 75, end_line: 38, end_column: 105 } },
+        /* terrane-site-row: site 25: /inherited-shared-field-writes::test-scenario (tests/integration/inherited-shared-field-writes/case.trn:39:5-39:32) */
+        { Site { function: 12, file: 9, line: 39, column: 5, end_line: 39, end_column: 32 } },
+        /* terrane-site-row: site 26: /inherited-shared-field-writes::test-scenario (tests/integration/inherited-shared-field-writes/case.trn:40:12-40:27) */
+        { Site { function: 12, file: 9, line: 40, column: 12, end_line: 40, end_column: 27 } },
+        /* terrane-site-row: site 27: /inherited-shared-field-writes::test-scenario (tests/integration/inherited-shared-field-writes/case.trn:40:34-40:48) */
+        { Site { function: 12, file: 9, line: 40, column: 34, end_line: 40, end_column: 48 } },
+        /* terrane-site-row: site 28: /object-field-owned-snapshot::test-scenario (tests/integration/object-field-owned-snapshot/case.trn:99:5-99:25) */
+        { Site { function: 13, file: 10, line: 99, column: 5, end_line: 99, end_column: 25 } },
+        /* terrane-site-row: site 29: /object-field-owned-snapshot::test-scenario (tests/integration/object-field-owned-snapshot/case.trn:100:12-100:20) */
+        { Site { function: 13, file: 10, line: 100, column: 12, end_line: 100, end_column: 20 } },
+        /* terrane-site-row: site 30: /object-field-owned-snapshot::test-scenario (tests/integration/object-field-owned-snapshot/case.trn:101:12-101:26) */
+        { Site { function: 13, file: 10, line: 101, column: 12, end_line: 101, end_column: 26 } },
+        /* terrane-site-row: site 31: /shared-object-field-comparisons (tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38) */
+        { Site { function: 14, file: 11, line: 5, column: 18, end_line: 5, end_column: 38 } },
+        /* terrane-site-row: site 32: /shared-object-field-comparisons (tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38) */
+        { Site { function: 14, file: 11, line: 6, column: 18, end_line: 6, end_column: 38 } },
+        /* terrane-site-row: site 33: /shared-object-field-comparisons::replace (tests/integration/shared-object-field-comparisons/case.trn:18:15-18:35) */
+        { Site { function: 15, file: 11, line: 18, column: 15, end_line: 18, end_column: 35 } },
+        /* terrane-site-row: site 34: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:23:13-23:33) */
+        { Site { function: 16, file: 11, line: 23, column: 13, end_line: 23, end_column: 33 } },
+        /* terrane-site-row: site 35: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:32:19-32:33) */
+        { Site { function: 16, file: 11, line: 32, column: 19, end_line: 32, end_column: 33 } },
+        /* terrane-site-row: site 36: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:39:58-39:78) */
+        { Site { function: 16, file: 11, line: 39, column: 58, end_line: 39, end_column: 78 } },
+        /* terrane-site-row: site 37: /shared-object-field-comparisons::test-scenario (tests/integration/shared-object-field-comparisons/case.trn:39:82-39:102) */
+        { Site { function: 16, file: 11, line: 39, column: 82, end_line: 39, end_column: 102 } },
+        /* terrane-site-row: site 38: /trait-field-defaults::test-scenario (tests/integration/trait-field-defaults/case.trn:17:39-17:68) */
+        { Site { function: 17, file: 12, line: 17, column: 39, end_line: 17, end_column: 68 } },
+        /* terrane-site-row: site 39: /trait-field-defaults::test-scenario (tests/integration/trait-field-defaults/case.trn:17:75-17:104) */
+        { Site { function: 17, file: 12, line: 17, column: 75, end_line: 17, end_column: 104 } },
+        /* terrane-site-row: site 40: /core/streams::read (core/streams.trn:381:23-381:50) */
+        { Site { function: 18, file: 13, line: 381, column: 23, end_line: 381, end_column: 50 } },
+        /* terrane-site-row: site 41: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
+        { Site { function: 19, file: 13, line: 403, column: 23, end_line: 403, end_column: 46 } },
+        /* terrane-site-row: site 42: /core/streams::read-all (core/streams.trn:422:23-422:46) */
+        { Site { function: 20, file: 13, line: 422, column: 23, end_line: 422, end_column: 46 } },
+        /* terrane-site-row: site 43: /core/streams::read-async (core/streams.trn:427:23-427:50) */
+        { Site { function: 21, file: 13, line: 427, column: 23, end_line: 427, end_column: 50 } },
+        /* terrane-site-row: site 44: /core/time::multiply (core/time.trn:62:13-62:45) */
+        { Site { function: 22, file: 14, line: 62, column: 13, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 45: /core/time::seconds (core/time.trn:38:13-38:45) */
+        { Site { function: 23, file: 14, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 46: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        { Site { function: 24, file: 14, line: 43, column: 13, end_line: 43, end_column: 45 } },
+        /* terrane-site-row: site 47: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        { Site { function: 25, file: 14, line: 48, column: 13, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 48: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        { Site { function: 26, file: 14, line: 53, column: 13, end_line: 53, end_column: 45 } },
+        /* terrane-site-row: site 49: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        { Site { function: 27, file: 14, line: 76, column: 13, end_line: 76, end_column: 45 } },
+        /* terrane-site-row: site 50: /core/time::at (core/time.trn:105:13-105:45) */
+        { Site { function: 28, file: 14, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 51: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        { Site { function: 29, file: 14, line: 161, column: 13, end_line: 161, end_column: 45 } },
+        /* terrane-site-row: site 52: /core/time::interval (core/time.trn:172:13-172:45) */
+        { Site { function: 30, file: 14, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -3643,7 +3665,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
-                31 /* terrane-site: core/streams.trn:381:23-381:50 */,
+                40 /* terrane-site: core/streams.trn:381:23-381:50 */,
             )?
         };
         return Ok(
@@ -3712,7 +3734,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&data, __terrane_string_argument_0),
-                32 /* terrane-site: core/streams.trn:403:23-403:46 */,
+                41 /* terrane-site: core/streams.trn:403:23-403:46 */,
             )?
         };
         return Ok(
@@ -3777,7 +3799,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&data, __terrane_string_argument_0),
-                33 /* terrane-site: core/streams.trn:422:23-422:46 */,
+                42 /* terrane-site: core/streams.trn:422:23-422:46 */,
             )?
         };
         return Ok(
@@ -3809,7 +3831,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
-                34 /* terrane-site: core/streams.trn:427:23-427:50 */,
+                43 /* terrane-site: core/streams.trn:427:23-427:50 */,
             )?
         };
         return Ok(
@@ -3857,7 +3879,7 @@ impl TextReader {
             };
             __terrane_raised_err(
                 terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
-                34 /* terrane-site: core/streams.trn:427:23-427:50 */,
+                43 /* terrane-site: core/streams.trn:427:23-427:50 */,
             )?
         };
         return Ok(
@@ -4345,7 +4367,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    35 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    44 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -4374,7 +4396,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    36 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    45 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -4402,7 +4424,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    37 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    46 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -4431,7 +4453,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    38 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    47 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -4460,7 +4482,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    39 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    48 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -4531,7 +4553,7 @@ impl MonotonicInstant {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    40 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    49 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -4637,7 +4659,7 @@ impl Deadline {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    41 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    50 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -4939,7 +4961,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    42 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    51 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -4975,7 +4997,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    43 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    52 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

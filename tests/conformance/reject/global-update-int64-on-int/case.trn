@@ -1,0 +1,5 @@
+namespace app
+global calls int = 0
+function main;
+    global calls int64 = 1
+    print; calls

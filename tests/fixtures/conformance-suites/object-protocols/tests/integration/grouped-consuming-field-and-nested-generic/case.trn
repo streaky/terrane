@@ -1,0 +1,27 @@
+namespace grouped-consuming-field-and-nested-generic
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+class Inner of (T implements named)
+    value T
+    function construct; value T
+        this.value = move value
+class Outer of (T implements named)
+    inner Inner of T
+    function construct; value T
+        this.inner = instance Inner of T; (move value)
+    consuming function finish int;
+        return this.inner.value.finish;
+    consuming function finish-via-local int;
+        nested = move this.inner
+        return nested.value.finish;
+function test-scenario;
+    item = instance Item;
+    print; ((instance Outer of Item; (move item)).finish;)
+    print; ((instance Outer of Item; (instance Item;)).finish-via-local;)

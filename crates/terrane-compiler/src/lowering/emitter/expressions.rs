@@ -130,6 +130,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn expression_throws_synchronously(&self, node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::IndexExpression {
+            return true;
+        }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
         {

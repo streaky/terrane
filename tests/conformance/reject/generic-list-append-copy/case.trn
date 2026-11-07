@@ -1,0 +1,7 @@
+namespace app
+from /core/collections import list
+function put of (T); value T
+    values list of T = list;
+    values.append; (move value)
+function main;
+    put; 1

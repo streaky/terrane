@@ -304,10 +304,23 @@ pub(super) fn analyze_binding_node(
                     value.span.start,
                 )
                 && let Some(actual) = infer_value_type(unit, value, bindings)?
-                && let Some(closed) =
-                    super::generics::close_generic_callable_value(unit, contract, &actual, expected)
             {
-                Ok(Some(closed))
+                match super::generics::close_generic_callable_value(
+                    unit,
+                    contract,
+                    &actual,
+                    expected,
+                    value.span.start,
+                ) {
+                    Ok(Some(closed)) => Ok(Some(closed)),
+                    Err(()) => Err(failure(
+                        &unit.source,
+                        "T0012",
+                        "generic callable type arguments do not satisfy their bounds",
+                        value.span,
+                    )),
+                    Ok(None) => infer_value_type(unit, value, bindings),
+                }
             } else {
                 infer_value_type(unit, value, bindings)
             }

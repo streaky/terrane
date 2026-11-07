@@ -25,10 +25,13 @@ struct Step {
     capture_region: Option<Span>,
 }
 
+type StorageAliases = BTreeMap<Span, BTreeSet<Span>>;
+
 pub(super) struct Flow {
     steps: Vec<Step>,
     entry: usize,
     live_after: Vec<BTreeSet<Span>>,
+    aliases: Vec<Option<StorageAliases>>,
 }
 
 struct Builder<'a> {
@@ -129,15 +132,25 @@ impl Builder<'_> {
             .ok()
             .flatten()
             .is_some_and(|ty| {
-                matches!(
-                    ty,
-                    ValueType::InvocationScopedNative { .. }
-                        | ValueType::Reference(_)
-                        | ValueType::MutableReference(_)
-                        | ValueType::Function(..)
-                        | ValueType::AsyncFunction(..)
-                )
+                super::field_has_native_loan(self.package, &ty)
+                    || matches!(
+                        ty,
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::Function(..)
+                            | ValueType::AsyncFunction(..)
+                    )
             })
+    }
+    fn loan_sources(&self, node: &SyntaxNode, sources: &mut BTreeSet<Span>) {
+        if node.kind == SyntaxKind::Name && self.carries_loan(node) {
+            sources.extend(self.identity(node));
+        }
+        for (index, child) in node.children.iter().enumerate() {
+            if super::super::scope_flow::is_flow_value_child(node, index, child) {
+                self.loan_sources(child, sources);
+            }
+        }
     }
     fn loop_statement(&mut self, node: &SyntaxNode, exits: Exits) -> usize {
         if node.kind == SyntaxKind::ForStatement
@@ -455,7 +468,7 @@ impl Builder<'_> {
             if let Some(value) = node.children.last()
                 && self.carries_loan(value)
             {
-                self.reads(value, &mut event.sources);
+                self.loan_sources(value, &mut event.sources);
             }
         }
         if matches!(
@@ -532,6 +545,7 @@ impl Flow {
             live_after: vec![BTreeSet::new(); builder.steps.len()],
             steps: builder.steps,
             entry,
+            aliases: Vec::new(),
         };
         let mut live_before = vec![BTreeSet::new(); flow.steps.len()];
         loop {
@@ -558,31 +572,86 @@ impl Flow {
                 break;
             }
         }
+        flow.aliases = flow.storage_aliases();
         flow
     }
 
-    pub(super) fn live_origins(&self, origin: Span) -> BTreeSet<Span> {
-        // An alias retains lenders from subsequent assignments to its source
-        // storage, but not values killed before the alias was created.
-        let producer = self.steps.iter().enumerate().find_map(|(index, step)| {
-            step.span
-                .filter(|span| {
-                    span.file == origin.file && span.start <= origin.start && origin.end <= span.end
-                })
-                .and(step.definition)
-                .map(|storage| (index, storage))
-        });
-        let storage = producer.map(|(_, storage)| storage);
-        let mut reaches_producer = vec![false; self.steps.len()];
-        if let Some((index, _)) = producer {
-            let mut pending = vec![index];
-            while let Some(index) = pending.pop() {
-                if !reaches_producer[index] {
-                    reaches_producer[index] = true;
-                    pending.extend(self.steps[index].previous.iter().copied());
+    fn storage_aliases(&self) -> Vec<Option<StorageAliases>> {
+        let mut aliases = vec![None::<StorageAliases>; self.steps.len()];
+        loop {
+            let mut changed = false;
+            for index in (0..self.steps.len()).rev() {
+                let step = &self.steps[index];
+                let mut incoming = (index == self.entry).then(StorageAliases::new);
+                for &previous in &step.previous {
+                    if let Some(state) = &aliases[previous] {
+                        let merged = incoming.get_or_insert_with(StorageAliases::new);
+                        for (binding, sources) in state {
+                            merged.entry(*binding).or_default().extend(sources);
+                        }
+                    }
+                }
+                let Some(mut state) = incoming else {
+                    continue;
+                };
+                if let Some(definition) = step.definition {
+                    let mut sources = step.sources.clone();
+                    for source in &step.sources {
+                        if let Some(inherited) = state.get(source) {
+                            sources.extend(inherited);
+                        }
+                    }
+                    sources.remove(&definition);
+                    state.remove(&definition);
+                    if !sources.is_empty() {
+                        state.insert(definition, sources);
+                    }
+                }
+                if aliases[index].as_ref() != Some(&state) {
+                    aliases[index] = Some(state);
+                    changed = true;
                 }
             }
+            if !changed {
+                return aliases;
+            }
         }
+    }
+
+    pub(super) fn reads_after_without_rewrite(&self, statement: Span, binding: Span) -> bool {
+        let mut pending = self
+            .steps
+            .iter()
+            .filter(|step| {
+                step.capture_region
+                    .is_some_and(|region| region.start == statement.start)
+            })
+            .flat_map(|step| step.next.iter().map(|next| (*next, false)))
+            .collect::<Vec<_>>();
+        let mut visited = vec![[false; 2]; self.steps.len()];
+        while let Some((index, mut outside)) = pending.pop() {
+            let step = &self.steps[index];
+            outside |= step.span.is_some_and(|span| {
+                span.file == statement.file
+                    && (span.start < statement.start || span.end > statement.end)
+            });
+            if std::mem::replace(&mut visited[index][usize::from(outside)], true) {
+                continue;
+            }
+            if outside {
+                if step.definition == Some(binding) {
+                    continue;
+                }
+                if step.reads.contains(&binding) {
+                    return true;
+                }
+            }
+            pending.extend(step.next.iter().map(|next| (*next, outside)));
+        }
+        false
+    }
+
+    pub(super) fn live_origins(&self, origin: Span) -> BTreeSet<Span> {
         let mut reaching = vec![None::<BTreeSet<Span>>; self.steps.len()];
         loop {
             let mut changed = false;
@@ -604,15 +673,27 @@ impl Flow {
                         span.file == origin.file
                             && span.start <= origin.start
                             && origin.end <= span.end
-                    }) || step.sources.iter().any(|source| {
-                        values.contains(source)
-                            || (Some(*source) == storage
-                                && Some(definition) != storage
-                                && reaches_producer[index])
-                    });
+                    }) || step.sources.iter().any(|source| values.contains(source));
                     values.remove(&definition);
                     if carries {
                         values.insert(definition);
+                        // Existing aliases retain future lenders assigned to their
+                        // source storage, including through transitive/branch aliases.
+                        loop {
+                            let mut joined = false;
+                            for &previous in &step.previous {
+                                if let Some(aliases) = &self.aliases[previous] {
+                                    for (alias, sources) in aliases {
+                                        if !sources.is_disjoint(&values) {
+                                            joined |= values.insert(*alias);
+                                        }
+                                    }
+                                }
+                            }
+                            if !joined {
+                                break;
+                            }
+                        }
                     }
                 }
                 if reaching[index].as_ref() != Some(&values) {

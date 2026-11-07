@@ -696,14 +696,26 @@ fn resource_identities(package: &SemanticPackage) -> BTreeSet<String> {
         .collect()
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "Recursive resource classification mirrors semantic value shapes and preserves generic-parameter ownership profiles"
-)]
 pub(crate) fn application_is_resource_owning(
     package: &SemanticPackage,
     value_type: &ValueType,
 ) -> bool {
+    application_is_resource_owning_assuming_parameters(package, value_type, &BTreeSet::new())
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive resource classification mirrors semantic value shapes and preserves generic-parameter ownership profiles"
+)]
+fn application_is_resource_owning_assuming_parameters(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    assumed_non_resource_parameters: &BTreeSet<String>,
+) -> bool {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "Resource traversal preserves recursive value shapes and selected generic ownership profiles"
+    )]
     fn owns(
         package: &SemanticPackage,
         value_type: &ValueType,
@@ -740,6 +752,13 @@ pub(crate) fn application_is_resource_owning(
                 let arguments = identity
                     .type_arguments
                     .iter()
+                    .chain(
+                        identity
+                            .application
+                            .iter()
+                            .map(Box::as_ref)
+                            .take(usize::from(identity.type_arguments.is_empty())),
+                    )
                     .map(|argument| owns(package, argument, resources, parameters, visiting))
                     .collect::<Vec<_>>();
                 let key = (identity.base(), arguments.clone());
@@ -868,11 +887,16 @@ pub(crate) fn application_is_resource_owning(
     {
         return !capability.cloneable;
     }
+    let parameters = assumed_non_resource_parameters
+        .iter()
+        .cloned()
+        .map(|name| (name, false))
+        .collect::<BTreeMap<_, _>>();
     owns(
         package,
         value_type,
         &resource_identities(package),
-        &BTreeMap::new(),
+        &parameters,
         &mut BTreeSet::new(),
     )
 }
@@ -882,6 +906,7 @@ fn cloneable_object(
     identity: &ObjectIdentity,
     value_type: &ValueType,
     visiting: &mut BTreeSet<ObjectIdentity>,
+    assumed_clone_parameters: &BTreeSet<String>,
 ) -> bool {
     if let Some(capability) = package.native_capability(identity) {
         return capability.cloneable;
@@ -900,16 +925,28 @@ fn cloneable_object(
     else {
         return false;
     };
-    // Source classes use Rust's derived Clone implementation, which requires
-    // every selected type argument to be Clone, including phantom arguments.
-    if !identity
-        .type_arguments
-        .iter()
-        .all(|argument| cloneable_value_type(package, argument, visiting))
-    {
+    let selected_arguments = identity.type_arguments.iter().chain(
+        identity
+            .application
+            .iter()
+            .map(Box::as_ref)
+            .take(usize::from(identity.type_arguments.is_empty())),
+    );
+    if !selected_arguments.clone().all(|argument| {
+        cloneable_value_type_assuming_parameters(
+            package,
+            argument,
+            visiting,
+            assumed_clone_parameters,
+        )
+    }) {
         return false;
     }
-    if application_is_resource_owning(package, value_type) {
+    if application_is_resource_owning_assuming_parameters(
+        package,
+        value_type,
+        assumed_clone_parameters,
+    ) {
         return false;
     }
     if !visiting.insert(identity.clone()) {
@@ -918,7 +955,7 @@ fn cloneable_object(
     let substitutions = descriptor
         .generic_parameters
         .iter()
-        .zip(&identity.type_arguments)
+        .zip(selected_arguments)
         .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
         .collect::<BTreeMap<_, _>>();
     let fields_cloneable = if descriptor.kind == ObjectKind::Enum {
@@ -937,7 +974,12 @@ fn cloneable_object(
                             &field.value_type,
                             &substitutions,
                         );
-                        cloneable_value_type(package, &field_type, visiting)
+                        cloneable_value_type_assuming_parameters(
+                            package,
+                            &field_type,
+                            visiting,
+                            assumed_clone_parameters,
+                        )
                     })
             })
     } else {
@@ -947,7 +989,12 @@ fn cloneable_object(
             .all(|field| {
                 let field_type =
                     super::generics::substitute_value_type(&field.field.value_type, &substitutions);
-                cloneable_value_type(package, &field_type, visiting)
+                cloneable_value_type_assuming_parameters(
+                    package,
+                    &field_type,
+                    visiting,
+                    assumed_clone_parameters,
+                )
             })
     };
     visiting.remove(identity);
@@ -959,9 +1006,18 @@ fn cloneable_value_type(
     value_type: &ValueType,
     visiting: &mut BTreeSet<ObjectIdentity>,
 ) -> bool {
+    cloneable_value_type_assuming_parameters(package, value_type, visiting, &BTreeSet::new())
+}
+
+fn cloneable_value_type_assuming_parameters(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    visiting: &mut BTreeSet<ObjectIdentity>,
+    assumed_clone_parameters: &BTreeSet<String>,
+) -> bool {
     match value_type {
+        ValueType::TypeParameter(name) => assumed_clone_parameters.contains(name),
         ValueType::MutableReference(_)
-        | ValueType::TypeParameter(_)
         | ValueType::Task(_, _)
         | ValueType::ScopedTask(_, _)
         | ValueType::TaskGroup(_)
@@ -972,14 +1028,30 @@ fn cloneable_value_type(
         | ValueType::ChannelPair(_)
         | ValueType::ChannelSender(_)
         | ValueType::ChannelReceiver(_) => false,
-        ValueType::Union(arms) => arms
-            .iter()
-            .all(|arm| cloneable_value_type(package, arm, visiting)),
-        ValueType::Optional(inner) => cloneable_value_type(package, inner, visiting),
+        ValueType::Union(arms) => arms.iter().all(|arm| {
+            cloneable_value_type_assuming_parameters(
+                package,
+                arm,
+                visiting,
+                assumed_clone_parameters,
+            )
+        }),
+        ValueType::Optional(inner) => cloneable_value_type_assuming_parameters(
+            package,
+            inner,
+            visiting,
+            assumed_clone_parameters,
+        ),
         ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
             !effects.borrowed_environment && effects.modes.written != InvocationMode::Consuming
         }
-        ValueType::Object(identity) => cloneable_object(package, identity, value_type, visiting),
+        ValueType::Object(identity) => cloneable_object(
+            package,
+            identity,
+            value_type,
+            visiting,
+            assumed_clone_parameters,
+        ),
         ValueType::List(inner)
         | ValueType::Set(inner)
         | ValueType::Tuple(inner, _)
@@ -988,18 +1060,47 @@ fn cloneable_value_type(
         | ValueType::AsyncIterationStep(inner)
         | ValueType::ChannelSendOutcome(inner)
         | ValueType::ChannelReceiveOutcome(inner)
-        | ValueType::DocumentDecodeOutcome(inner) => {
-            cloneable_value_type(package, inner.value_type_ref(), visiting)
-        }
+        | ValueType::DocumentDecodeOutcome(inner) => cloneable_value_type_assuming_parameters(
+            package,
+            inner.value_type_ref(),
+            visiting,
+            assumed_clone_parameters,
+        ),
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
         | ValueType::UnorderedMap(key, value) => {
-            cloneable_value_type(package, key.value_type_ref(), visiting)
-                && cloneable_value_type(package, value.value_type_ref(), visiting)
+            cloneable_value_type_assuming_parameters(
+                package,
+                key.value_type_ref(),
+                visiting,
+                assumed_clone_parameters,
+            ) && cloneable_value_type_assuming_parameters(
+                package,
+                value.value_type_ref(),
+                visiting,
+                assumed_clone_parameters,
+            )
         }
         _ => true,
     }
 }
+pub(crate) fn value_type_is_cloneable_assuming_parameters(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    parameters: &[GenericParameterContract],
+) -> bool {
+    let assumed_clone_parameters = parameters
+        .iter()
+        .map(|parameter| parameter.name.clone())
+        .collect::<BTreeSet<_>>();
+    cloneable_value_type_assuming_parameters(
+        package,
+        value_type,
+        &mut BTreeSet::new(),
+        &assumed_clone_parameters,
+    )
+}
+
 pub(crate) fn value_type_is_cloneable(
     package: &SemanticPackage,
     _unit: &SemanticUnit,
@@ -1360,6 +1461,25 @@ pub(super) fn validate_object_conformance(
                     })
                     .and_then(|base| effective_method(unit, base, name, is_unsafe))
             })
+    }
+    for unit in &package.units {
+        for interface in unit
+            .descriptors
+            .iter()
+            .filter(|descriptor| descriptor.kind == ObjectKind::Interface)
+        {
+            if let Some(method) = unit.functions.iter().find(|method| {
+                method.owner_identity.as_ref() == Some(&interface.identity)
+                    && !method.generic_parameters.is_empty()
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "generic methods on source interfaces cannot be represented by the generated dynamically dispatched protocol",
+                    method.span,
+                ));
+            }
+        }
     }
 
     for unit in &package.units {

@@ -543,6 +543,12 @@ impl<K: Eq + Hash, V> Map<K, V> {
         self.0.iter()
     }
 }
+impl<K: Eq + Hash + Clone, V> Map<K, V> {
+    #[must_use]
+    pub fn keys(&self) -> List<K> {
+        List::new(self.0.keys().cloned().collect())
+    }
+}
 impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     /// Borrows a value, separating value-semantic shared storage when required.
     #[inline]
@@ -574,10 +580,6 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
             return None;
         }
         Arc::make_mut(&mut self.0).shift_remove(key)
-    }
-    #[must_use]
-    pub fn keys(&self) -> List<K> {
-        List::new(self.0.keys().cloned().collect())
     }
     #[must_use]
     pub fn values(&self) -> List<V> {
@@ -745,6 +747,12 @@ impl<K: Eq + Hash + Clone, V> UnorderedMap<K, V> {
     }
 }
 
+impl<K: Eq + Hash + Clone, V> UnorderedMap<K, V> {
+    #[must_use]
+    pub fn keys(&self) -> List<K> {
+        List::new(self.0.iteration_keys.clone())
+    }
+}
 impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     /// Borrows a value, separating value-semantic shared storage when required.
     #[inline]
@@ -791,10 +799,6 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
             *position = index;
         }
         Some(value)
-    }
-    #[must_use]
-    pub fn keys(&self) -> List<K> {
-        List::new(self.0.iteration_keys.clone())
     }
     #[must_use]
     pub fn values(&self) -> List<V> {

@@ -74,6 +74,12 @@ impl Emitter<'_> {
 
     fn consuming_method_needs_mutable_self(&self, node: &SyntaxNode) -> bool {
         fn rooted_in_this(emitter: &Emitter<'_>, node: &SyntaxNode) -> bool {
+            if node.kind == SyntaxKind::GroupExpression {
+                return node
+                    .children
+                    .first()
+                    .is_some_and(|child| rooted_in_this(emitter, child));
+            }
             if node.kind == SyntaxKind::Name {
                 return emitter.text(node) == "this";
             }
@@ -102,11 +108,32 @@ impl Emitter<'_> {
         }
         if node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
-                callee.kind == SyntaxKind::MemberExpression
-                    && callee
-                        .children
-                        .first()
-                        .is_some_and(|receiver| rooted_in_this(self, receiver))
+                let mut callee = callee;
+                while matches!(callee.kind, SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType) {
+                    let Some(inner) = callee.children.first() else { return false; };
+                    callee = inner;
+                }
+                let [receiver, member] = callee.children.as_slice() else { return false; };
+                if callee.kind != SyntaxKind::MemberExpression || !rooted_in_this(self, receiver) {
+                    return false;
+                }
+                let mut receiver = receiver;
+                while receiver.kind == SyntaxKind::GroupExpression {
+                    let Some(inner) = receiver.children.first() else { return false; };
+                    receiver = inner;
+                }
+                let Some(value_type) = self.value_type(receiver) else { return false; };
+                match crate::semantics::member_invocation_mode_at(
+                    self.package, self.unit, receiver, &value_type, self.text(member),
+                ) {
+                    InvocationMode::Mutable => true,
+                    InvocationMode::Consuming => receiver.kind == SyntaxKind::MemberExpression
+                        && (self.value_type_owns_resource(&value_type)
+                            || matches!(value_type, ValueType::TypeParameter(_))
+                            || matches!(&value_type, ValueType::Object(identity)
+                                if self.package.projection.item(&identity.namespace, &identity.name).is_none())),
+                    InvocationMode::Shared => false,
+                }
             })
         {
             return true;

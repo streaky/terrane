@@ -55,6 +55,11 @@ fn projected_expression_owners(
             })
             .unwrap_or_default();
     }
+    if node.kind == SyntaxKind::IndexExpression
+        && let Some(owner) = source_results.index_result_owner_for_source(source, node, imported)
+    {
+        return BTreeSet::from([owner]);
+    }
     if matches!(
         node.kind,
         SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
