@@ -1192,9 +1192,9 @@ pub(crate) fn binding_read_value_is_reused(
     })
 }
 
-/// Independent straight-line stores of a Copy native view need independent
-/// Rust lifetime variables. Captured/address-observable and joined storage
-/// retains its existing single-place representation.
+/// Straight-line stores and unread nested stores of a Copy native view need
+/// independent Rust lifetime variables. Captured/address-observable and live
+/// joined storage retains its existing single-place representation.
 pub(crate) fn native_copy_stores_are_independent(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1228,7 +1228,7 @@ pub(crate) fn native_copy_stores_are_independent(
                             )
                             .is_some_and(|symbol| symbol.declaration_span == Some(binding))
                 }));
-        if writes && !direct {
+        if writes && !direct && binding_store_value_is_read(package, binding, node.span) {
             return None;
         }
         node.children

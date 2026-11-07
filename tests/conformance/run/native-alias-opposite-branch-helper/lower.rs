@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn exercise(flag: bool) {
     let h: Holder;
     let mut k: Holder;
-    let mut a: terrane_query_witness::CopyView<'_>;
+    let a: terrane_query_witness::CopyView<'_>;
     let mut b: terrane_query_witness::CopyView<'_>;
     h = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
@@ -66,7 +66,7 @@ fn exercise(flag: bool) {
         3 /* terrane-site: src/main.trn:8:9-8:21 */,
     );
     if flag {
-        a = __terrane_raised(
+        let a = __terrane_raised(
             || -> Result<_, crate::TerraneForeignError> {
                 {
                     let value = match std::panic::catch_unwind(

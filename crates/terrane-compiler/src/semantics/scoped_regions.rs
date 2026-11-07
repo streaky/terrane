@@ -38,16 +38,14 @@ pub(super) fn record_native_lender_owners(package: &mut SemanticPackage) {
                     }) else {
                         continue;
                     };
-                    let mut source_lifetimes = Vec::new();
-                    projected_lifetimes(&parameter.ty, &mut source_lifetimes);
-                    if let Some(lifetime) = &parameter.borrow_lifetime {
-                        source_lifetimes.push(lifetime.clone());
-                    }
+                    // A carried lifetime does not borrow the argument's storage.
+                    // Pin only an actual argument borrow used by the result.
+                    let source_lifetimes = parameter.borrow_lifetime.iter();
                     let matching = lifetimes
                         .iter()
                         .filter(|lifetime| {
                             lifetime.as_str() != "'static"
-                                && source_lifetimes.contains(lifetime)
+                                && source_lifetimes.clone().any(|source| source == *lifetime)
                                 && !(lifetime.as_str() == "'_"
                                     && specialization.projected_receiver_lifetime.as_deref()
                                         == Some("'_"))
@@ -59,25 +57,9 @@ pub(super) fn record_native_lender_owners(package: &mut SemanticPackage) {
                     }
                 }
                 let receiver_borrow = specialization.projected_receiver_lifetime.as_ref();
-                let receiver_type = node
-                    .children
-                    .first()
-                    .and_then(|callee| callee.children.first())
-                    .and_then(|receiver| {
-                        infer_value_type(unit, receiver, &unit.typed_bindings).ok()
-                    })
-                    .flatten();
-                let receiver_lifetimes = match receiver_type.as_ref() {
-                    Some(ValueType::InvocationScopedNative { lifetimes, .. }) => {
-                        lifetimes.as_slice()
-                    }
-                    _ => &[],
-                };
-                let receiver_matching = lifetimes.iter().any(|lifetime| {
-                    lifetime != "'static"
-                        && (receiver_borrow == Some(lifetime)
-                            || receiver_lifetimes.contains(lifetime))
-                });
+                let receiver_matching = lifetimes
+                    .iter()
+                    .any(|lifetime| lifetime != "'static" && receiver_borrow == Some(lifetime));
                 if receiver_matching
                     && let Some(receiver) = node
                         .children

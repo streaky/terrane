@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn main() {
     let h: Holder;
     let mut k: Holder;
-    let mut a: terrane_query_witness::CopyView<'_>;
+    let a: terrane_query_witness::CopyView<'_>;
     let b: terrane_query_witness::CopyView<'_>;
     let next: terrane_query_witness::CopyView<'_>;
     h = __terrane_raised(
@@ -100,7 +100,7 @@ fn main() {
         }(),
         4 /* terrane-site: src/main.trn:8:12-8:24 */,
     );
-    a = next;
+    let a = next;
     let _ = &a;
     __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {

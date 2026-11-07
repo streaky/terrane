@@ -4,7 +4,7 @@ include!("lower.support.rs");
 // Namespace: app
 fn main() {
     let holder: Holder;
-    let mut view: witness::CopyView<'_>;
+    let view: witness::CopyView<'_>;
     let mut counter: terrane_int_support::Int;
     holder = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
@@ -89,7 +89,7 @@ fn main() {
         );
         counter = counter.clone() + terrane_int_support::Int::from(1_i128);
     }
-    view = __terrane_raised(
+    let view = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
             {
                 let value = match std::panic::catch_unwind(

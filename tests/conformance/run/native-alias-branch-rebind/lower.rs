@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn exercise(flag: bool) {
     let h: Holder;
     let mut k: Holder;
-    let mut a: terrane_query_witness::CopyView<'_>;
+    let a: terrane_query_witness::CopyView<'_>;
     let b: terrane_query_witness::CopyView<'_>;
     let next: terrane_query_witness::CopyView<'_>;
     h = __terrane_raised(
@@ -68,7 +68,7 @@ fn exercise(flag: bool) {
             }(),
             3 /* terrane-site: src/main.trn:9:16-9:28 */,
         );
-        a = next;
+        let a = next;
         let _ = &a;
     }
     __terrane_raised(
