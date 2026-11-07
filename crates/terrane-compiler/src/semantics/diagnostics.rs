@@ -540,6 +540,12 @@ pub(crate) fn member_invocation_mode(
     receiver_type: &ValueType,
     member_name: &str,
 ) -> InvocationMode {
+    if let ValueType::Reference(item)
+    | ValueType::MutableReference(item)
+    | ValueType::SharedReference(item) = receiver_type
+    {
+        return member_invocation_mode(package, unit, item.value_type_ref(), member_name);
+    }
     if let ValueType::Object(identity)
     | ValueType::InvocationScopedNative {
         family: identity, ..

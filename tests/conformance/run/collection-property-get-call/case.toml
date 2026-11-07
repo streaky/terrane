@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "value-protocols"
+test = "/collection-property-get-call::test-scenario"

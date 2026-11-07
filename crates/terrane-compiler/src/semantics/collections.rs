@@ -914,6 +914,14 @@ pub(super) fn validate_copy_requirements(
         item: &ElementType,
         span: Span,
     ) -> Result<(), SemanticFailure> {
+        // Scoped collections have a separate native ownership/storage validator.
+        // Their append path transfers elements rather than using ordinary COW copies.
+        if matches!(
+            item.value_type_ref(),
+            ValueType::InvocationScopedNative { .. }
+        ) {
+            return Ok(());
+        }
         if !super::objects::value_type_is_cloneable(package, unit, item.value_type_ref()) {
             return Err(failure(
                 &unit.source,

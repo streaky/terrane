@@ -27,6 +27,7 @@ fn unbox<TerraneType54>(
 ) -> TerraneType54 {
     return __trn_626f78.take();
 }
+#[derive(Clone)]
 pub struct Factory<TerraneType54> {
     pub __trn_626f78: Option<TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54>>,
 }
