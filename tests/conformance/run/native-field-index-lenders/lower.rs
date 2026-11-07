@@ -343,14 +343,15 @@ fn main() {
         (), 14 /* terrane-site: src/main.trn:41:11-41:21 */))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_2 =
         &__terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let value
         = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok((&* wrapped.inner.as_ref()
         .expect("required field initialized")).view()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
-        crate ::TerraneForeignError > (value) } } (), 15 /* terrane-site: src/main.trn:42:12-42:31 */); __terrane_raised(| | -> Result < _, crate
+        crate ::TerraneForeignError > (value) } } (), 15 /* terrane-site: src/main.trn:42:12-42:31 */); let __terrane_native_input_0 =
+        &__terrane_receiver_value_2; __terrane_raised(| | -> Result < _, crate
         ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) { Ok(result) =>

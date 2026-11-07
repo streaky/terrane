@@ -190,6 +190,73 @@ fn collect(
     }
 }
 
+pub(super) fn validate_class_applications(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    let mut edges = Vec::new();
+    for unit in &package.units {
+        for owner in unit
+            .descriptors
+            .iter()
+            .filter(|owner| owner.kind == ObjectKind::Class)
+        {
+            for field in &owner.fields {
+                super::capabilities::walk_value_type(&field.value_type, &mut |value| {
+                    let ValueType::Object(identity) = value else {
+                        return;
+                    };
+                    let Some(target) = unit.descriptors.iter().find(|target| {
+                        target.identity.base() == identity.base()
+                            && target.kind == ObjectKind::Class
+                    }) else {
+                        return;
+                    };
+                    for (parameter, argument) in target
+                        .generic_parameters
+                        .iter()
+                        .zip(&identity.type_arguments)
+                    {
+                        for source in &owner.generic_parameters {
+                            if let Some(expands) = nested_parameter(argument, &source.name, false) {
+                                edges.push(Edge {
+                                    from: Binder {
+                                        file: owner.span.file,
+                                        start: owner.span.start,
+                                        name: source.name.clone(),
+                                    },
+                                    to: Binder {
+                                        file: target.span.file,
+                                        start: target.span.start,
+                                        name: parameter.name.clone(),
+                                    },
+                                    expands,
+                                    span: field.span,
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+    for edge in edges.iter().filter(|edge| edge.expands) {
+        if path_to(&edge.to, &edge.from, &edges, &mut BTreeSet::new()) {
+            let unit = package
+                .units
+                .iter()
+                .find(|unit| unit.source.id() == edge.span.file)
+                .expect("written class application retains its source unit");
+            return Err(failure(
+                &unit.source,
+                "T0140",
+                "recursive class application expands its own type arguments; use a stable recursive element type",
+                edge.span,
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     let mut edges = Vec::new();
     for unit in &package.units {

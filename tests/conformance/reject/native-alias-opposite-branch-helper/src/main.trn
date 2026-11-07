@@ -1,0 +1,16 @@
+namespace app
+from /deps/terrane-query-witness import Holder
+from /deps/terrane-query-witness import copy_identity as alias-view
+function exercise; flag bool
+    h = Holder::new;
+    k = Holder::new;
+    a = h.copy_view;
+    b = h.copy_view;
+    if flag
+        a = k.copy_view;
+    else
+        b = alias-view; a
+    k.bump;
+    print; (b.size;)
+function main;
+    exercise; true

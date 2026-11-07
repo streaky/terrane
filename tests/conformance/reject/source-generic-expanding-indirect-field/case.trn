@@ -1,0 +1,6 @@
+namespace app
+from /core/collections import list
+class N of (T)
+    children list of N of (T|none)
+function main;
+    print; 1

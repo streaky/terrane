@@ -113,6 +113,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&optional_counter_value(&optional_counter_2))
         );
         bump = {
+            let counter = counter;
             std::sync::Arc::new(move |counter: &mut Option<Counter>| -> () {
                 {
                     let counter = &mut *counter;
@@ -127,6 +128,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&optional_counter_value(&optional_counter_2))
         );
         bump_native = {
+            let counter = counter;
             std::sync::Arc::new(move |counter: &mut Counter| -> () {
                 {
                     let counter = &mut *counter;

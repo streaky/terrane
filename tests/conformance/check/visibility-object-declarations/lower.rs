@@ -41,7 +41,7 @@ pub trait PublicInterfaceProtocol: Send + Sync {
 }
 impl Clone for Box<dyn PublicInterfaceProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        PublicInterfaceProtocol::clone_box(&**self)
     }
 }
 pub struct PublicInterface(Box<dyn PublicInterfaceProtocol>);
@@ -62,7 +62,7 @@ pub trait PrivateInterfaceProtocol: Send + Sync {
 }
 impl Clone for Box<dyn PrivateInterfaceProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        PrivateInterfaceProtocol::clone_box(&**self)
     }
 }
 pub struct PrivateInterface(Box<dyn PrivateInterfaceProtocol>);
@@ -83,7 +83,7 @@ pub trait ProtectedInterfaceProtocol: Send + Sync {
 }
 impl Clone for Box<dyn ProtectedInterfaceProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        ProtectedInterfaceProtocol::clone_box(&**self)
     }
 }
 pub struct ProtectedInterface(Box<dyn ProtectedInterfaceProtocol>);

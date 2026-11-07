@@ -385,6 +385,21 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     })
                 }))
         {
+            if ungroup(callee).kind == SyntaxKind::Name
+                && package
+                    .resolve_name_at(
+                        unit,
+                        callee.span.start,
+                        node_text(&unit.source, ungroup(callee)),
+                    )
+                    .is_some_and(|symbol| symbol.identity == "/core/output::print")
+            {
+                for argument in &arguments.children {
+                    if let Some(value) = argument.children.last() {
+                        validate_field_snapshot(package, unit, value)?;
+                    }
+                }
+            }
             let callee = ungroup(callee);
             let projected = super::bindings::projected_function_for_call(
                 package,
@@ -762,14 +777,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
                     ) && !value_type_is_cloneable(package, unit, &receiver_type)
                 }
-                ValueType::Object(_) => {
-                    (matches!(
-                        ungroup(receiver).kind,
-                        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
-                    ) && !value_type_is_cloneable(package, unit, &receiver_type))
-                        || resolved_object_span(package, object_name)
-                            .is_some_and(|span| resource_objects.contains(&span_key(span)))
-                }
+                ValueType::Object(_) => resolved_object_span(package, object_name)
+                    .is_some_and(|span| resource_objects.contains(&span_key(span))),
                 _ => false,
             }
         {

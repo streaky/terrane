@@ -1,0 +1,7 @@
+namespace global-closure-after-write
+global calls int = 0
+function main;
+    global calls = 5
+    f = function int;
+        return calls
+    print; (f;)

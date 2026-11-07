@@ -777,51 +777,46 @@ pub(super) fn declared_value_type_with_visible_objects(
                     })
                 })
                 .unwrap_or(0);
+            let resolved_arguments = || {
+                arguments
+                    .iter()
+                    .map(resolve_argument)
+                    .collect::<Result<Vec<_>, _>>()
+            };
+            if expected != 0 && arguments.len() != expected {
+                return Err(failure(
+                    &unit.source,
+                    if identity.namespace.starts_with("/deps/") {
+                        "T0117"
+                    } else {
+                        "T0001"
+                    },
+                    format!(
+                        "`{base_name}` requires {expected} type arguments, found {}",
+                        arguments.len()
+                    ),
+                    shape.span,
+                ));
+            }
             if unit
                 .projected_interfaces_requiring_application
                 .contains(&identity.base())
                 && let [argument] = arguments
             {
-                return Ok(ValueType::Object(
-                    identity.with_application(resolve_argument(argument)?),
-                ));
+                let argument = resolve_argument(argument)?;
+                return Ok(ValueType::Object(identity.with_application(argument)));
             }
-            if identity.namespace.starts_with("/deps/") && !arguments.is_empty() {
-                return Ok(ValueType::Object(
-                    identity.with_type_arguments(
-                        arguments
-                            .iter()
-                            .map(resolve_argument)
-                            .collect::<Result<Vec<_>, _>>()?,
-                    ),
-                ));
-            }
-            if expected != 0 {
-                if arguments.len() != expected {
-                    return Err(failure(
-                        &unit.source,
-                        "T0001",
-                        format!(
-                            "`{base_name}` requires {expected} type arguments, found {}",
-                            arguments.len()
-                        ),
-                        shape.span,
-                    ));
-                }
-                return Ok(ValueType::Object(
-                    identity.with_type_arguments(
-                        arguments
-                            .iter()
-                            .map(resolve_argument)
-                            .collect::<Result<Vec<_>, _>>()?,
-                    ),
-                ));
+            if !arguments.is_empty() && (expected != 0 || identity.namespace.starts_with("/deps/"))
+            {
+                let resolved = resolved_arguments()?;
+                return Ok(ValueType::Object(identity.with_type_arguments(resolved)));
             }
             if let [argument] = arguments {
                 return Ok(ValueType::Object(
                     identity.with_application(resolve_argument(argument)?),
                 ));
             }
+            return Ok(ValueType::Object(identity));
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -1657,31 +1652,34 @@ pub(super) fn object_types_compatible(
         }
         declaration
     };
-    descriptor_for(actual).is_some_and(|object| {
-        if object
-            .interfaces
-            .iter()
-            .any(|interface| same_applied_nominal(expected, interface))
-        {
-            return true;
+    let mut pending = vec![actual.clone()];
+    let mut visited = BTreeSet::new();
+    while let Some(identity) = pending.pop() {
+        if !visited.insert(identity.clone()) {
+            continue;
         }
-        let mut base = object.base.as_ref();
-        while let Some(identity) = base {
-            let Some(base_object) = descriptor_for(identity) else {
-                break;
+        let Some(object) = descriptor_for(&identity) else {
+            continue;
+        };
+        let substitutions = object
+            .generic_parameters
+            .iter()
+            .zip(&identity.type_arguments)
+            .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+            .collect();
+        for relation in object.interfaces.iter().chain(object.base.iter()) {
+            let ValueType::Object(applied) =
+                substitute_value_type(&ValueType::Object(relation.clone()), &substitutions)
+            else {
+                unreachable!("nominal substitution retains nominal identity")
             };
-            if same_applied_nominal(expected, &base_object.identity)
-                || base_object
-                    .interfaces
-                    .iter()
-                    .any(|interface| same_applied_nominal(expected, interface))
-            {
+            if same_applied_nominal(expected, &applied) {
                 return true;
             }
-            base = base_object.base.as_ref();
+            pending.push(applied);
         }
-        false
-    })
+    }
+    false
 }
 
 /// Loan classification permits native aliases/provenance of the same storage,

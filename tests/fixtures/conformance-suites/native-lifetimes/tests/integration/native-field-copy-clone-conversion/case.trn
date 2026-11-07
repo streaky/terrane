@@ -1,0 +1,24 @@
+namespace native-field-copy-clone-conversion
+from /deps/terrane-query-witness import Token, CloneEnum
+class R
+    t Token
+    e CloneEnum
+    function construct;
+        this.t = Token::new;
+        this.e = CloneEnum::A;
+function observe uint64; r ref R
+    return r.t.value;
+function clone-observe uint64; r mutable ref CloneEnum
+    return r.code;
+function test-scenario;
+    r = instance R;
+    i int = 0
+    while i < 2
+        print; (r.t.value;)
+        print; ((r.t).value;)
+        print; (r.e.code;)
+        i = i + 1
+    print; (observe; r)
+    e = CloneEnum::A;
+    print; (clone-observe; e)
+    print; (clone-observe; e)

@@ -318,6 +318,9 @@ impl Emitter<'_> {
                     self.expression(receiver)
                 )
             }
+            Some(ValueType::MutableReference(_)) => {
+                format!("(*({})).clone()", self.expression(receiver))
+            }
             Some(ValueType::Reference(item))
                 if matches!(item.value_type_ref(), ValueType::TypeParameter(_)) =>
             {
@@ -634,7 +637,7 @@ impl Emitter<'_> {
         Some((setup, value, borrowed))
     }
 
-    fn object_field_place(
+    pub(super) fn object_field_place(
         &self,
         holder: &SyntaxNode,
         member: &SyntaxNode,

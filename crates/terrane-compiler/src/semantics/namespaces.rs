@@ -161,6 +161,17 @@ pub(super) fn validate_global_writes(package: &SemanticPackage) -> Result<(), Se
                 })
                 && let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)?
             {
+                if matches!(
+                    expected,
+                    ValueType::Function(..) | ValueType::AsyncFunction(..)
+                ) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0012",
+                        "function-valued program-global storage is not supported; use a named function or a local callable",
+                        node.span,
+                    ));
+                }
                 if let Some(annotation) = node
                     .children
                     .iter()
@@ -975,36 +986,6 @@ fn method_contract_with_safety<'a>(
     is_static: bool,
     is_unsafe: bool,
 ) -> Option<&'a FunctionContract> {
-    fn contract<'a>(
-        unit: &'a SemanticUnit,
-        object_identity: &ObjectIdentity,
-        method_name: &str,
-        is_static: bool,
-        is_unsafe: bool,
-    ) -> Option<&'a FunctionContract> {
-        unit.functions
-            .iter()
-            .find(|method| {
-                method.owner_identity.as_ref().is_some_and(|owner| {
-                    owner == object_identity
-                        || (!object_identity.type_arguments.is_empty()
-                            && owner.base() == object_identity.base())
-                }) && method.name == method_name
-                    && method.is_static == is_static
-                    && method.is_unsafe == is_unsafe
-            })
-            .or_else(|| {
-                unit.descriptors
-                    .iter()
-                    .find(|object| {
-                        object.identity == *object_identity
-                            || (!object_identity.type_arguments.is_empty()
-                                && object.identity.base() == object_identity.base())
-                    })
-                    .and_then(|object| object.base.as_ref())
-                    .and_then(|base| contract(unit, base, method_name, is_static, is_unsafe))
-            })
-    }
     let object = package
         .units
         .iter()
@@ -1019,7 +1000,7 @@ fn method_contract_with_safety<'a>(
         .iter()
         .find(|candidate| candidate.source.id() == object.span.file)
         .and_then(|candidate| {
-            contract(
+            object_method_contract_with_safety(
                 candidate,
                 &object.identity,
                 method_name,

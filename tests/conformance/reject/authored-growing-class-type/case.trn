@@ -1,0 +1,6 @@
+namespace authored-growing-class-type
+from /core/collections import list
+class box of (T)
+    nested box of (list of T)
+
+function main;

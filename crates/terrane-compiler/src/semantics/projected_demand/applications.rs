@@ -65,6 +65,13 @@ impl SourceResults<'_> {
         imported: &BTreeMap<String, ProjectedOwner>,
         visited: &mut BTreeSet<Span>,
     ) -> Option<HeaderType> {
+        let mut node = node;
+        while matches!(
+            node.kind,
+            SyntaxKind::Argument | SyntaxKind::GroupExpression | SyntaxKind::UnaryExpression
+        ) {
+            node = node.children.last()?;
+        }
         if !visited.insert(node.span) {
             return None;
         }
@@ -127,16 +134,16 @@ impl SourceResults<'_> {
             return self.expression_header(unit, declaration.children.last()?, imported, visited);
         }
         if node.kind == SyntaxKind::IndexExpression {
-            let [receiver, _index] = node.children.as_slice() else {
+            let [receiver, _] = node.children.as_slice() else {
                 return None;
             };
             let collection = self.expression_header(unit, receiver, imported, visited)?;
-            let index = match collection.name.as_str() {
-                "list" => 0,
+            let element = match collection.name.as_str() {
+                "list" | "tuple" => 0,
                 "map" | "unordered-map" => 1,
                 _ => return None,
             };
-            return collection.arguments.into_iter().nth(index);
+            return collection.arguments.into_iter().nth(element);
         }
         if node.kind == SyntaxKind::MemberExpression {
             let [receiver, member] = node.children.as_slice() else {
@@ -207,6 +214,23 @@ impl SourceResults<'_> {
             ) {
                 base = base.children.first()?;
             }
+            if base.kind == SyntaxKind::Name
+                && let Some(import) = self.imports(&unit.source).iter().find(|import| {
+                    import.alias == node_text(&unit.source, base)
+                        && import.target == "/core/collections"
+                        && matches!(import.object.as_str(), "list" | "tuple")
+                })
+            {
+                let element = arguments
+                    .children
+                    .first()
+                    .and_then(|argument| self.expression_header(unit, argument, imported, visited));
+                return Some(HeaderType {
+                    name: import.object.clone(),
+                    owner: None,
+                    arguments: element.into_iter().collect(),
+                });
+            }
             let callable = if base.kind == SyntaxKind::Name {
                 let name = node_text(&unit.source, base);
                 let import = self
@@ -235,6 +259,27 @@ impl SourceResults<'_> {
                     self.expression_header(unit, receiver, imported, visited)?
                         .owner?
                 };
+                if let Some(result_owner) = self
+                    .projection
+                    .projected_member_scoped_family_owner(
+                        &owner.0,
+                        &owner.1,
+                        node_text(&unit.source, member),
+                    )
+                    .or_else(|| {
+                        self.projection.projected_member_result_owner(
+                            &owner.0,
+                            &owner.1,
+                            node_text(&unit.source, member),
+                        )
+                    })
+                {
+                    return Some(HeaderType {
+                        name: result_owner.1.clone(),
+                        owner: Some(result_owner),
+                        arguments: Vec::new(),
+                    });
+                }
                 let Some(callable) = self.callable(
                     &owner.0,
                     Some(&owner.1),

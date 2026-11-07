@@ -10,6 +10,7 @@ impl Record {
     pub fn take(self) -> i64 { self.value }
     pub fn boxed(self: Box<Self>) -> i64 { self.value }
 }
+pub fn record(value: i64) -> Record { Record { value } }
 pub fn arc(value: i64) -> Arc<Record> { Arc::new(Record { value }) }
 pub fn same_arc(left: &Arc<Record>, right: &Arc<Record>) -> bool { Arc::ptr_eq(left, right) }
 pub fn rc(value: i64) -> Rc<Record> { Rc::new(Record { value }) }

@@ -538,7 +538,7 @@ pub trait BaseProtocol: Send + Sync {
 }
 impl Clone for Box<dyn BaseProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        BaseProtocol::clone_box(&**self)
     }
 }
 pub struct Base(Box<dyn BaseProtocol>);
@@ -562,7 +562,7 @@ pub trait ChildProtocol: Send + Sync {
 }
 impl Clone for Box<dyn ChildProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        ChildProtocol::clone_box(&**self)
     }
 }
 pub struct Child(Box<dyn ChildProtocol>);
@@ -621,7 +621,7 @@ pub trait DiamondProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DiamondProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DiamondProtocol::clone_box(&**self)
     }
 }
 pub struct Diamond(Box<dyn DiamondProtocol>);
@@ -695,7 +695,7 @@ pub trait LeftProtocol: Send + Sync {
 }
 impl Clone for Box<dyn LeftProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        LeftProtocol::clone_box(&**self)
     }
 }
 pub struct Left(Box<dyn LeftProtocol>);
@@ -735,7 +735,7 @@ pub trait MiddleProtocol: Send + Sync {
 }
 impl Clone for Box<dyn MiddleProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        MiddleProtocol::clone_box(&**self)
     }
 }
 pub struct Middle(Box<dyn MiddleProtocol>);
@@ -775,7 +775,7 @@ pub trait RightProtocol: Send + Sync {
 }
 impl Clone for Box<dyn RightProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        RightProtocol::clone_box(&**self)
     }
 }
 pub struct Right(Box<dyn RightProtocol>);

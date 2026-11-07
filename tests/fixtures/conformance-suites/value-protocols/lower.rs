@@ -5062,7 +5062,9 @@ for Box<
     dyn TerraneNsStringDisplayCompositionDisplayableIdentity2F737472696E672D646973706C61792D636F6D706F736974696F6E00646973706C617961626C65Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsStringDisplayCompositionDisplayableIdentity2F737472696E672D646973706C61792D636F6D706F736974696F6E00646973706C617961626C65Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsStringDisplayCompositionDisplayableIdentity2F737472696E672D646973706C61792D636F6D706F736974696F6E00646973706C617961626C65(
@@ -5512,7 +5514,9 @@ for Box<
     dyn TerraneNsStringDisplayGenericDisplayableIdentity2F737472696E672D646973706C61792D67656E6572696300646973706C617961626C65Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsStringDisplayGenericDisplayableIdentity2F737472696E672D646973706C61792D67656E6572696300646973706C617961626C65Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsStringDisplayGenericDisplayableIdentity2F737472696E672D646973706C61792D67656E6572696300646973706C617961626C65(

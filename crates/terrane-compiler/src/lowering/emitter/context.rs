@@ -238,6 +238,9 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn binding_may_be_unassigned(&self, binding: &TypedBinding) -> bool {
+        if self.unit.completion_capture_slots.contains(&binding.span) {
+            return true;
+        }
         self.unit
             .flow_availability
             .iter()

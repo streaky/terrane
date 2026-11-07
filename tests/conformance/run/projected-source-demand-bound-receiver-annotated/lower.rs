@@ -9,7 +9,7 @@ pub trait MakerProtocol: Send + Sync {
 }
 impl Clone for Box<dyn MakerProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        MakerProtocol::clone_box(&**self)
     }
 }
 pub struct Maker(Box<dyn MakerProtocol>);

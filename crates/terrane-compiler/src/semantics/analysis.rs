@@ -174,6 +174,7 @@ pub(super) fn parse_unit(
         flow_replacements: BTreeMap::new(),
         flow_availability: BTreeMap::new(),
         flow_read_bindings: BTreeMap::new(),
+        completion_capture_slots: BTreeSet::new(),
         invocation_scoped_function_results: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
@@ -1139,6 +1140,7 @@ fn analyze_parsed_with_projection(
     validate_projected_static_declines(&semantic)?;
     super::ownership::validate_reference_expression_sites(&semantic)?;
     analyze_types(&mut semantic)?;
+    super::written_types::validate(&semantic)?;
     validate_global_writes(&semantic)?;
     stage.finish();
     super::documents::validate_package_document_codecs(&semantic)?;
@@ -1219,6 +1221,7 @@ fn analyze_parsed_with_projection(
     super::annotations::populate_declaration_metadata(&mut semantic)?;
     super::modifiers::resolve_declaration_modifiers(&mut semantic)?;
     super::scoped_regions::validate_scoped_regions(&semantic)?;
+    super::scoped_regions::record_completion_capture_slots(&mut semantic);
     stage.finish();
     Ok(semantic)
 }

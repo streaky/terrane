@@ -1,0 +1,12 @@
+namespace app
+class P
+    value int = 1
+function eat; value P
+    print; value.value
+function main;
+    p = instance P;
+    try
+        eat; p
+        p = instance P;
+    finally
+        print; p.value

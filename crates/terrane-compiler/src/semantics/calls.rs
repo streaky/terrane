@@ -740,7 +740,7 @@ fn validate_projected_generic_arguments(
         let effective_interfaces =
             crate::semantics::effective_object_interfaces(package, implementor);
         let implemented = required.as_ref().and_then(|required| {
-            effective_interfaces.into_iter().find(|implemented| {
+            effective_interfaces.iter().find(|implemented| {
                 implemented.namespace == required.namespace && implemented.name == required.name
             })
         });
@@ -2034,7 +2034,7 @@ pub(crate) fn selected_callable_contract(
         if !implements_bound(actual)
             && !effective_object_interfaces(package, implementor)
                 .iter()
-                .any(|interface| implements_bound(interface))
+                .any(implements_bound)
         {
             return None;
         }

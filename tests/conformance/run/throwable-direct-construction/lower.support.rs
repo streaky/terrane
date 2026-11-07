@@ -776,7 +776,7 @@ pub trait SerializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SerializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SerializableProtocol::clone_box(&**self)
     }
 }
 pub struct Serializable(Box<dyn SerializableProtocol>);
@@ -797,7 +797,7 @@ pub trait DeserializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DeserializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DeserializableProtocol::clone_box(&**self)
     }
 }
 pub struct Deserializable(Box<dyn DeserializableProtocol>);
@@ -817,7 +817,7 @@ pub trait DocumentDecodableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentDecodableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentDecodableProtocol::clone_box(&**self)
     }
 }
 #[allow(
@@ -837,7 +837,7 @@ pub trait DocumentEncodableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentEncodableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentEncodableProtocol::clone_box(&**self)
     }
 }
 #[allow(
@@ -858,7 +858,7 @@ pub trait DocumentValidatableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentValidatableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentValidatableProtocol::clone_box(&**self)
     }
 }
 pub struct DocumentValidatable(Box<dyn DocumentValidatableProtocol>);

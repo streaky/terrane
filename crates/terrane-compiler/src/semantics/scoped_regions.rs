@@ -126,6 +126,17 @@ pub(super) fn validate_scoped_regions(package: &SemanticPackage) -> Result<(), S
     Ok(())
 }
 
+pub(super) fn record_completion_capture_slots(package: &mut SemanticPackage) {
+    let slots = package
+        .units
+        .iter()
+        .map(|unit| try_captures::completion_capture_slots(package, unit))
+        .collect::<Vec<_>>();
+    for (unit, slots) in package.units.iter_mut().zip(slots) {
+        unit.completion_capture_slots = slots;
+    }
+}
+
 fn field_has_native_loan(package: &SemanticPackage, value_type: &ValueType) -> bool {
     let mut borrowed = false;
     super::capabilities::walk_value_type(value_type, &mut |value_type| match value_type {

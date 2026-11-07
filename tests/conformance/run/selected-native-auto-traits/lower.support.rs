@@ -534,7 +534,7 @@ pub trait WorkerProtocol: Send + Sync {
 }
 impl Clone for Box<dyn WorkerProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        WorkerProtocol::clone_box(&**self)
     }
 }
 pub struct Worker(Box<dyn WorkerProtocol>);

@@ -1,0 +1,6 @@
+namespace global-closure-read
+global calls int = 0
+function main;
+    f = function int;
+        return calls
+    print; (f;)

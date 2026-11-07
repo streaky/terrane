@@ -96,6 +96,7 @@ fn destructive_move(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     access: &SyntaxNode,
+    implicit: bool,
 ) -> Result<bool, SemanticFailure> {
     let Some(owner) = field_owner(unit, access)? else {
         return Ok(false);
@@ -114,12 +115,27 @@ fn destructive_move(
     ) {
         return Ok(false);
     }
-    // Native fields move directly. Only authored optional fields leave a `none` slot.
-    if package
+    if implicit
+        && (package.native_value_is_copyable(&ty)
+            || matches!(&ty, ValueType::Object(identity)
+                if package.projection.item(&identity.namespace, &identity.name).is_some()
+                    && super::objects::value_type_is_cloneable(package, unit, &ty)))
+    {
+        return Ok(false);
+    }
+    // Source fields have slot-taking semantics even when their value is Clone.
+    let native_owner = package
         .projection
         .item(&owner.namespace, &owner.name)
-        .is_some()
+        .is_some();
+    if native_owner
+        && (package.native_value_is_copyable(&ty)
+            || super::objects::value_type_is_cloneable(package, unit, &ty))
     {
+        return Ok(false);
+    }
+    // Native fields move directly when no reusable native conversion exists.
+    if native_owner {
         return Ok(true);
     }
     Ok(!matches!(ty, ValueType::Optional(_)))
@@ -512,7 +528,7 @@ fn visit(
         && let Some(path) = path_at(unit, access)
     {
         check_access(unit, &path, moved, access.span)?;
-        if destructive_move(package, unit, access)? {
+        if destructive_move(package, unit, access, false)? {
             moved.insert(path);
         }
         return Ok(FieldFlow::normal());
@@ -565,7 +581,7 @@ fn visit(
         && receiver.kind == SyntaxKind::MemberExpression
     {
         let flow = visit_children(package, unit, node, moved)?;
-        if destructive_move(package, unit, receiver)? {
+        if destructive_move(package, unit, receiver, true)? {
             moved.insert(path);
         }
         return Ok(flow);

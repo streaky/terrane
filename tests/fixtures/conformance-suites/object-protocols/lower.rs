@@ -538,7 +538,9 @@ for Box<
     dyn TerraneNsAuthoredGenericInterfacesDescribableIdentity2F617574686F7265642D67656E657269632D696E7465726661636573006465736372696261626C65Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsAuthoredGenericInterfacesDescribableIdentity2F617574686F7265642D67656E657269632D696E7465726661636573006465736372696261626C65Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsAuthoredGenericInterfacesDescribableIdentity2F617574686F7265642D67656E657269632D696E7465726661636573006465736372696261626C65(
@@ -670,7 +672,7 @@ pub trait SourceProtocol<TerraneType54>: Send + Sync {
 }
 impl<TerraneType54> Clone for Box<dyn SourceProtocol<TerraneType54>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SourceProtocol::clone_box(&**self)
     }
 }
 pub struct Source<TerraneType54>(Box<dyn SourceProtocol<TerraneType54>>);
@@ -1104,7 +1106,9 @@ for Box<
     dyn TerraneNsAuthoredInterfaceTransferCompositionReadableIdentity2F617574686F7265642D696E746572666163652D7472616E736665722D636F6D706F736974696F6E007265616461626C65Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsAuthoredInterfaceTransferCompositionReadableIdentity2F617574686F7265642D696E746572666163652D7472616E736665722D636F6D706F736974696F6E007265616461626C65Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsAuthoredInterfaceTransferCompositionReadableIdentity2F617574686F7265642D696E746572666163652D7472616E736665722D636F6D706F736974696F6E007265616461626C65(
@@ -1830,7 +1834,9 @@ for Box<
     dyn TerraneNsBoundedGenericBoundForwardingNamedIdentity2F626F756E6465642D67656E657269632D626F756E642D666F7277617264696E67006E616D6564Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsBoundedGenericBoundForwardingNamedIdentity2F626F756E6465642D67656E657269632D626F756E642D666F7277617264696E67006E616D6564Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsBoundedGenericBoundForwardingNamedIdentity2F626F756E6465642D67656E657269632D626F756E642D666F7277617264696E67006E616D6564(
@@ -1856,7 +1862,7 @@ pub trait OtherProtocol: Send + Sync {
 }
 impl Clone for Box<dyn OtherProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        OtherProtocol::clone_box(&**self)
     }
 }
 pub struct Other(Box<dyn OtherProtocol>);
@@ -2107,12 +2113,12 @@ fn observe_terrane_bounded_interface_receiver_modes<
         __terrane_index_place_1.name()
     };
 }
-fn mutate<
+fn mutate_terrane_bounded_interface_receiver_modes<
     TerraneType54: TerraneNsBoundedInterfaceReceiverModesNamedIdentity2F626F756E6465642D696E746572666163652D72656365697665722D6D6F646573006E616D6564Protocol,
 >(item: &mut TerraneType54) -> terrane_int_support::Int {
     return item.increment();
 }
-fn consume<
+fn consume_terrane_bounded_interface_receiver_modes<
     TerraneType54: TerraneNsBoundedInterfaceReceiverModesNamedIdentity2F626F756E6465642D696E746572666163652D72656365697665722D6D6F646573006E616D6564Protocol,
 >(item: TerraneType54) -> terrane_int_support::Int {
     return Box::new(item).finish();
@@ -2139,7 +2145,11 @@ fn test_scenario_terrane_bounded_interface_receiver_modes() {
         terrane_scalar_support::scalar_text(&observe_terrane_bounded_interface_receiver_modes(values))
     );
     item = TerraneNsBoundedInterfaceReceiverModesValueIdentity2F626F756E6465642D696E746572666163652D72656365697665722D6D6F6465730076616C7565::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&mutate(&mut item)));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&mutate_terrane_bounded_interface_receiver_modes(&mut
+        item))
+    );
     println!("{}", terrane_scalar_support::scalar_text(&item.name()));
     println!("{}", terrane_scalar_support::scalar_text(&bounded_add(item.clone())));
     println!(
@@ -2147,7 +2157,10 @@ fn test_scenario_terrane_bounded_interface_receiver_modes() {
         terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(1_i128) +
         terrane_int_support::Int::from(2_i128)))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&consume(item)));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&consume_terrane_bounded_interface_receiver_modes(item))
+    );
 }
 // Source: tests/integration/class-field-metadata/case.trn
 // Namespace: class-field-metadata
@@ -3930,6 +3943,81 @@ fn test_scenario_terrane_explicit_class_operations() {
         terrane_scalar_support::scalar_text(&factory.read())
     );
 }
+// Source: tests/integration/explicit-generic-mutable-closure/case.trn
+// Namespace: explicit-generic-mutable-closure
+#[derive(Clone)]
+pub struct TerraneNsExplicitGenericMutableClosureBoxIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500426F78<
+    TerraneType54,
+> {
+    pub value: Option<TerraneType54>,
+}
+impl<
+    TerraneType54,
+> TerraneNsExplicitGenericMutableClosureBoxIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500426F78<
+    TerraneType54,
+> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsExplicitGenericMutableClosureCounterIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500436F756E746572 {
+    pub value: terrane_int_support::Int,
+}
+impl TerraneNsExplicitGenericMutableClosureCounterIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500436F756E746572 {
+    pub fn terrane_construct() -> Self {
+        Self {
+            value: terrane_int_support::Int::from(0_i128),
+        }
+    }
+    pub fn touch<TerraneType54>(
+        &mut self,
+        value: TerraneType54,
+    ) -> TerraneNsExplicitGenericMutableClosureBoxIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500426F78<
+        TerraneType54,
+    > {
+        {
+            let __terrane_value = self.value.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.value = __terrane_value;
+        }
+        return TerraneNsExplicitGenericMutableClosureBoxIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500426F78::<
+            TerraneType54,
+        >::terrane_construct(value);
+    }
+}
+fn test_scenario_terrane_explicit_generic_mutable_closure() {
+    let c: TerraneNsExplicitGenericMutableClosureCounterIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500436F756E746572;
+    let f: TerraneMutableCallable<(), terrane_int_support::Int>;
+    c = TerraneNsExplicitGenericMutableClosureCounterIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500436F756E746572::terrane_construct();
+    f = {
+        let mut c = c.clone();
+        TerraneMutableCallable::new(move |(): ()| -> terrane_int_support::Int {
+            let b: TerraneNsExplicitGenericMutableClosureBoxIdentity2F6578706C696369742D67656E657269632D6D757461626C652D636C6F7375726500426F78<
+                terrane_int_support::Int,
+            >;
+            b = c
+                .touch::<
+                    terrane_int_support::Int,
+                >(terrane_int_support::Int::from(7_i128));
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&b.value.as_ref()
+                .expect("required field initialized"))
+            );
+            return c.value.clone();
+        })
+    };
+    println!("{}", terrane_scalar_support::scalar_text(&f.call(())));
+    println!("{}", terrane_scalar_support::scalar_text(&f.call(())));
+}
 // Source: tests/integration/field-grouped-consuming-once/case.trn
 // Namespace: field-grouped-consuming-once
 pub trait TerraneNsFieldGroupedConsumingOnceNamedIdentity2F6669656C642D67726F757065642D636F6E73756D696E672D6F6E6365006E616D6564Protocol: Send + Sync {
@@ -4022,6 +4110,55 @@ fn test_scenario_terrane_field_grouped_consuming_once() {
         TerraneNsFieldGroupedConsumingOnceItemIdentity2F6669656C642D67726F757065642D636F6E73756D696E672D6F6E6365004974656D::terrane_construct(),
     );
     println!("{}", terrane_scalar_support::scalar_text(&holder.finish()));
+}
+// Source: tests/integration/finite-generic-class-type/case.trn
+// Namespace: finite-generic-class-type
+#[derive(Clone)]
+pub struct TerraneNsFiniteGenericClassTypeNodeIdentity2F66696E6974652D67656E657269632D636C6173732D74797065006E6F6465<
+    TerraneType54,
+> {
+    pub value: Option<TerraneType54>,
+    pub next: terrane_collection_support::List<
+        TerraneNsFiniteGenericClassTypeNodeIdentity2F66696E6974652D67656E657269632D636C6173732D74797065006E6F6465<
+            TerraneType54,
+        >,
+    >,
+}
+impl<
+    TerraneType54,
+> TerraneNsFiniteGenericClassTypeNodeIdentity2F66696E6974652D67656E657269632D636C6173732D74797065006E6F6465<
+    TerraneType54,
+> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self {
+            value: None,
+            next: terrane_collection_support::List::<
+                TerraneNsFiniteGenericClassTypeNodeIdentity2F66696E6974652D67656E657269632D636C6173732D74797065006E6F6465<
+                    TerraneType54,
+                >,
+            >::new(Vec::new()),
+        };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+}
+fn test_scenario_terrane_finite_generic_class_type() {
+    let n: TerraneNsFiniteGenericClassTypeNodeIdentity2F66696E6974652D67656E657269632D636C6173732D74797065006E6F6465<
+        terrane_int_support::Int,
+    >;
+    n = TerraneNsFiniteGenericClassTypeNodeIdentity2F66696E6974652D67656E657269632D636C6173732D74797065006E6F6465::<
+        terrane_int_support::Int,
+    >::terrane_construct(terrane_int_support::Int::from(1_i128));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&n.value.as_ref()
+        .expect("required field initialized"))
+    );
 }
 // Source: tests/integration/generic-conditional-clone-and-inherited-interface/case.trn
 // Namespace: generic-conditional-clone-and-inherited-interface
@@ -4163,7 +4300,9 @@ for Box<
     dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365(
@@ -4182,24 +4321,41 @@ impl TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E65
         self.0.base_value()
     }
 }
-pub trait SubProtocol: Send + Sync {
-    fn clone_box(&self) -> Box<dyn SubProtocol>;
-    fn separate_box(&self) -> Box<dyn SubProtocol>;
-    fn base_value(&self) -> terrane_int_support::Int;
+pub trait TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol: Send + Sync + TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365Protocol {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+    >;
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+    >;
     fn sub_value(&self) -> terrane_int_support::Int;
 }
-impl Clone for Box<dyn SubProtocol> {
+impl Clone
+for Box<
+    dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol::clone_box(
+            &**self,
+        )
     }
 }
-pub struct Sub(Box<dyn SubProtocol>);
-impl Clone for Sub {
+pub struct TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562(
+    Box<
+        dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+    >,
+);
+impl Clone
+for TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
-impl Sub {
+impl TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562 {
     pub fn base_value(&self) -> terrane_int_support::Int {
         self.0.base_value()
     }
@@ -4220,18 +4376,21 @@ impl TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E65
         return terrane_int_support::Int::from(13_i128);
     }
 }
-impl SubProtocol
+impl TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol
 for TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D {
-    fn clone_box(&self) -> Box<dyn SubProtocol> {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+    > {
         Box::new(self.clone())
     }
-    fn separate_box(&self) -> Box<dyn SubProtocol> {
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+    > {
         Box::new(self.clone())
-    }
-    fn base_value(&self) -> terrane_int_support::Int {
-        TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D::base_value(
-            &*self,
-        )
     }
     fn sub_value(&self) -> terrane_int_support::Int {
         TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D::sub_value(
@@ -4241,7 +4400,40 @@ for TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657
 }
 impl From<
     TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D,
-> for Sub {
+>
+for TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562 {
+    fn from(
+        value: TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D,
+    ) -> Self {
+        Self(Box::new(value))
+    }
+}
+impl TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365Protocol
+for TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365Protocol,
+    > {
+        Box::new(self.clone())
+    }
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365Protocol,
+    > {
+        Box::new(self.clone())
+    }
+    fn base_value(&self) -> terrane_int_support::Int {
+        TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D::base_value(
+            &*self,
+        )
+    }
+}
+impl From<
+    TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D,
+>
+for TerraneNsGenericConditionalCloneAndInheritedInterfaceBaseIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E746572666163650062617365 {
     fn from(
         value: TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D,
     ) -> Self {
@@ -4249,14 +4441,14 @@ impl From<
     }
 }
 fn target_terrane_generic_conditional_clone_and_inherited_interface<
-    TerraneType54: SubProtocol,
+    TerraneType54: TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
 >(value: TerraneType54) -> terrane_int_support::Int {
     let _ = &value;
     return terrane_int_support::Int::from(17_i128);
 }
-fn forward<TerraneType55: SubProtocol>(
-    value: TerraneType55,
-) -> terrane_int_support::Int {
+fn forward_terrane_generic_conditional_clone_and_inherited_interface<
+    TerraneType55: TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+>(value: TerraneType55) -> terrane_int_support::Int {
     let callback: std::sync::Arc<
         dyn Fn(TerraneType55) -> terrane_int_support::Int + Send + Sync,
     >;
@@ -4265,9 +4457,9 @@ fn forward<TerraneType55: SubProtocol>(
     );
     return callback(value);
 }
-fn constrained<TerraneType55: SubProtocol>(
-    value: TerraneType55,
-) -> terrane_int_support::Int {
+fn constrained<
+    TerraneType55: TerraneNsGenericConditionalCloneAndInheritedInterfaceSubIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E7465726661636500737562Protocol,
+>(value: TerraneType55) -> terrane_int_support::Int {
     return value.base_value();
 }
 fn test_scenario_terrane_generic_conditional_clone_and_inherited_interface() {
@@ -4348,7 +4540,7 @@ fn test_scenario_terrane_generic_conditional_clone_and_inherited_interface() {
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&forward(TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D::terrane_construct()))
+        terrane_scalar_support::scalar_text(&forward_terrane_generic_conditional_clone_and_inherited_interface(TerraneNsGenericConditionalCloneAndInheritedInterfaceItemIdentity2F67656E657269632D636F6E646974696F6E616C2D636C6F6E652D616E642D696E686572697465642D696E74657266616365004974656D::terrane_construct()))
     );
     println!("{}", terrane_scalar_support::scalar_text(&copied.fixed));
 }
@@ -4422,7 +4614,9 @@ for Box<
     dyn TerraneNsGenericIndexBorrowControlsNamedIdentity2F67656E657269632D696E6465782D626F72726F772D636F6E74726F6C73006E616D6564Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsGenericIndexBorrowControlsNamedIdentity2F67656E657269632D696E6465782D626F72726F772D636F6E74726F6C73006E616D6564Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsGenericIndexBorrowControlsNamedIdentity2F67656E657269632D696E6465782D626F72726F772D636F6E74726F6C73006E616D6564(
@@ -4662,10 +4856,16 @@ fn test_scenario_terrane_generic_method_nested_result() {
 // Source: tests/integration/generic-mutable-explicit-application/case.trn
 // Namespace: generic-mutable-explicit-application
 #[derive(Clone)]
-pub struct Bx<TerraneType54> {
+pub struct TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+    TerraneType54,
+> {
     pub value: Option<TerraneType54>,
 }
-impl<TerraneType54> Bx<TerraneType54> {
+impl<
+    TerraneType54,
+> TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+    TerraneType54,
+> {
     pub fn terrane_construct(value: TerraneType54) -> Self {
         let mut __terrane_constructed_value = Self { value: None };
         __terrane_constructed_value.construct(value);
@@ -4688,16 +4888,25 @@ impl P {
             n: terrane_int_support::Int::from(0_i128),
         }
     }
-    pub fn both<TerraneType54>(&mut self, value: TerraneType54) -> Bx<TerraneType54> {
+    pub fn both<TerraneType54>(
+        &mut self,
+        value: TerraneType54,
+    ) -> TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+        TerraneType54,
+    > {
         {
             let __terrane_value = self.n.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.n = __terrane_value;
         }
-        return Bx::<TerraneType54>::terrane_construct(value);
+        return TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278::<
+            TerraneType54,
+        >::terrane_construct(value);
     }
     pub fn again(&mut self) -> String {
-        let result: Bx<String>;
+        let result: TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+            String,
+        >;
         result = self.both::<String>(String::from("this"));
         return result.value.as_ref().expect("required field initialized").clone();
     }
@@ -4720,17 +4929,25 @@ impl Q {
     }
 }
 fn borrowed(p: &mut P) -> String {
-    let result: Bx<String>;
+    let result: TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+        String,
+    >;
     result = p.both::<String>(String::from("borrowed"));
     return result.value.as_ref().expect("required field initialized").clone();
 }
 fn test_scenario_terrane_generic_mutable_explicit_application() {
     let mut p: P;
-    let plain: Bx<String>;
+    let plain: TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+        String,
+    >;
     let mut q: Q;
-    let nested: Bx<String>;
+    let nested: TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+        String,
+    >;
     let mut later: Option<P> = None;
-    let hoisted: Bx<String>;
+    let hoisted: TerraneNsGenericMutableExplicitApplicationBxIdentity2F67656E657269632D6D757461626C652D6578706C696369742D6170706C69636174696F6E004278<
+        String,
+    >;
     p = P::terrane_construct();
     plain = p.both::<String>(String::from("plain"));
     println!(
@@ -4799,6 +5016,203 @@ fn test_scenario_terrane_generic_mutable_explicit_application() {
         "{}", terrane_scalar_support::scalar_text(&later.as_ref()
         .expect("flow-proven available binding").clone().n)
     );
+}
+// Source: tests/integration/generic-required-field-consuming/case.trn
+// Namespace: generic-required-field-consuming
+#[derive(Clone)]
+pub struct V<TerraneType54> {
+    pub value: Option<TerraneType54>,
+}
+impl<TerraneType54> V<TerraneType54> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+    pub fn done(self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(3_i128);
+    }
+}
+#[derive(Clone)]
+pub struct R {
+    pub f: Option<V<terrane_int_support::Int>>,
+}
+impl R {
+    pub fn terrane_construct() -> Self {
+        let mut __terrane_constructed_value = Self { f: None };
+        __terrane_constructed_value.construct();
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self) {
+        {
+            let __terrane_value = V::<
+                terrane_int_support::Int,
+            >::terrane_construct(terrane_int_support::Int::from(7_i128));
+            self.f = Some(__terrane_value);
+        }
+    }
+}
+pub trait TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol: Send + Sync {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+    >;
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+    >;
+    fn name(&self) -> terrane_int_support::Int;
+}
+impl Clone
+for Box<
+    dyn TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+> {
+    fn clone(&self) -> Self {
+        TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol::clone_box(
+            &**self,
+        )
+    }
+}
+pub struct TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564(
+    Box<
+        dyn TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+    >,
+);
+impl Clone
+for TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564 {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564 {
+    pub fn name(&self) -> terrane_int_support::Int {
+        self.0.name()
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D {}
+impl TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+    pub fn name(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(1_i128);
+    }
+}
+impl TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol
+for TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+    > {
+        Box::new(self.clone())
+    }
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+    > {
+        Box::new(self.clone())
+    }
+    fn name(&self) -> terrane_int_support::Int {
+        TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D::name(
+            &*self,
+        )
+    }
+}
+impl From<
+    TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D,
+>
+for TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564 {
+    fn from(
+        value: TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D,
+    ) -> Self {
+        Self(Box::new(value))
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsGenericRequiredFieldConsumingInnerIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E6700496E6E6572<
+    TerraneType54: TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+> {
+    pub value: Option<TerraneType54>,
+}
+impl<
+    TerraneType54: TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+> TerraneNsGenericRequiredFieldConsumingInnerIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E6700496E6E6572<
+    TerraneType54,
+> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+    pub fn done(self) -> terrane_int_support::Int {
+        return self.value.as_ref().expect("required field initialized").name();
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsGenericRequiredFieldConsumingOuterIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004F75746572<
+    TerraneType54: TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+> {
+    pub inner: Option<
+        TerraneNsGenericRequiredFieldConsumingInnerIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E6700496E6E6572<
+            TerraneType54,
+        >,
+    >,
+}
+impl<
+    TerraneType54: TerraneNsGenericRequiredFieldConsumingNamedIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67006E616D6564Protocol,
+> TerraneNsGenericRequiredFieldConsumingOuterIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004F75746572<
+    TerraneType54,
+> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self { inner: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = TerraneNsGenericRequiredFieldConsumingInnerIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E6700496E6E6572::<
+                TerraneType54,
+            >::terrane_construct(value);
+            self.inner = Some(__terrane_value);
+        }
+    }
+    pub fn done(mut self) -> terrane_int_support::Int {
+        return self.inner.take().expect("required field initialized").done();
+    }
+}
+fn test_scenario_terrane_generic_required_field_consuming() {
+    let mut r: R;
+    let generic: TerraneNsGenericRequiredFieldConsumingOuterIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004F75746572<
+        TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D,
+    >;
+    r = R::terrane_construct();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&r.f.take()
+        .expect("required field initialized").done())
+    );
+    generic = TerraneNsGenericRequiredFieldConsumingOuterIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004F75746572::<
+        TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D,
+    >::terrane_construct(
+        TerraneNsGenericRequiredFieldConsumingItemIdentity2F67656E657269632D72657175697265642D6669656C642D636F6E73756D696E67004974656D::terrane_construct(),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&generic.done()));
 }
 // Source: tests/integration/grouped-consuming-field-and-nested-generic/case.trn
 // Namespace: grouped-consuming-field-and-nested-generic
@@ -5194,6 +5608,31 @@ fn test_scenario_terrane_implicit_class_field_defaults() {
         24 /* terrane-site: tests/integration/implicit-class-field-defaults/case.trn:38:75-38:105 */) })
     );
 }
+// Source: tests/integration/indirect-recursive-class-type/case.trn
+// Namespace: indirect-recursive-class-type
+#[derive(Clone)]
+pub struct TerraneNsIndirectRecursiveClassTypeNodeIdentity2F696E6469726563742D7265637572736976652D636C6173732D74797065004E6F6465 {
+    pub children: terrane_collection_support::List<
+        TerraneNsIndirectRecursiveClassTypeNodeIdentity2F696E6469726563742D7265637572736976652D636C6173732D74797065004E6F6465,
+    >,
+}
+impl TerraneNsIndirectRecursiveClassTypeNodeIdentity2F696E6469726563742D7265637572736976652D636C6173732D74797065004E6F6465 {
+    pub fn terrane_construct() -> Self {
+        Self {
+            children: terrane_collection_support::List::<
+                TerraneNsIndirectRecursiveClassTypeNodeIdentity2F696E6469726563742D7265637572736976652D636C6173732D74797065004E6F6465,
+            >::new(Vec::new()),
+        }
+    }
+}
+fn test_scenario_terrane_indirect_recursive_class_type() {
+    let node: TerraneNsIndirectRecursiveClassTypeNodeIdentity2F696E6469726563742D7265637572736976652D636C6173732D74797065004E6F6465;
+    node = TerraneNsIndirectRecursiveClassTypeNodeIdentity2F696E6469726563742D7265637572736976652D636C6173732D74797065004E6F6465::terrane_construct();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(node
+        .children.length()))
+    );
+}
 // Source: tests/integration/inherited-base-fields/case.trn
 // Namespace: inherited-base-fields
 #[derive(Clone)]
@@ -5268,6 +5707,235 @@ fn test_scenario_terrane_inherited_base_fields() {
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
+    );
+}
+// Source: tests/integration/inherited-interface-bounded-dispatch/case.trn
+// Namespace: inherited-interface-bounded-dispatch
+pub trait TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365Protocol: Send + Sync {
+    fn read(&self) -> terrane_int_support::Int;
+    fn increment(&mut self) -> terrane_int_support::Int;
+    fn finish(self: Box<Self>) -> terrane_int_support::Int;
+}
+pub struct TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365(
+    Box<
+        dyn TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365Protocol,
+    >,
+);
+impl TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365 {
+    pub fn read(&self) -> terrane_int_support::Int {
+        self.0.read()
+    }
+    pub fn increment(&mut self) -> terrane_int_support::Int {
+        self.0.increment()
+    }
+    pub fn finish(self) -> terrane_int_support::Int {
+        self.0.finish()
+    }
+}
+pub trait TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol: Send + Sync + TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365Protocol {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+    >;
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+    >;
+    fn extra(&self) -> terrane_int_support::Int;
+}
+impl Clone
+for Box<
+    dyn TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+> {
+    fn clone(&self) -> Self {
+        TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol::clone_box(
+            &**self,
+        )
+    }
+}
+pub struct TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562(
+    Box<
+        dyn TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+    >,
+);
+impl Clone
+for TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562 {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562 {
+    pub fn read(&self) -> terrane_int_support::Int {
+        self.0.read()
+    }
+    pub fn increment(&mut self) -> terrane_int_support::Int {
+        self.0.increment()
+    }
+    pub fn finish(self) -> terrane_int_support::Int {
+        self.0.finish()
+    }
+    pub fn extra(&self) -> terrane_int_support::Int {
+        self.0.extra()
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D {
+    pub value: terrane_int_support::Int,
+}
+impl TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D {
+    pub fn terrane_construct() -> Self {
+        Self {
+            value: terrane_int_support::Int::from(1_i128),
+        }
+    }
+    pub fn read(&self) -> terrane_int_support::Int {
+        return self.value.clone();
+    }
+    pub fn increment(&mut self) -> terrane_int_support::Int {
+        {
+            let __terrane_value = self.value.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.value = __terrane_value;
+        }
+        return self.value.clone();
+    }
+    pub fn finish(self) -> terrane_int_support::Int {
+        return self.value.clone();
+    }
+    pub fn extra(&self) -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(9_i128);
+    }
+}
+impl TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol
+for TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+    > {
+        Box::new(self.clone())
+    }
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+    > {
+        Box::new(self.clone())
+    }
+    fn extra(&self) -> terrane_int_support::Int {
+        TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D::extra(
+            &*self,
+        )
+    }
+}
+impl From<
+    TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D,
+>
+for TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562 {
+    fn from(
+        value: TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D,
+    ) -> Self {
+        Self(Box::new(value))
+    }
+}
+impl TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365Protocol
+for TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D {
+    fn read(&self) -> terrane_int_support::Int {
+        TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D::read(
+            &*self,
+        )
+    }
+    fn increment(&mut self) -> terrane_int_support::Int {
+        TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D::increment(
+            &mut *self,
+        )
+    }
+    fn finish(self: Box<Self>) -> terrane_int_support::Int {
+        TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D::finish(
+            *self,
+        )
+    }
+}
+impl From<
+    TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D,
+>
+for TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365 {
+    fn from(
+        value: TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D,
+    ) -> Self {
+        Self(Box::new(value))
+    }
+}
+fn forward_terrane_inherited_interface_bounded_dispatch<
+    TerraneType54: TerraneNsInheritedInterfaceBoundedDispatchBaseIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D64697370617463680062617365Protocol,
+>(value: TerraneType54) -> terrane_int_support::Int {
+    return value.read();
+}
+fn inspect_terrane_inherited_interface_bounded_dispatch<
+    TerraneType54: TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+>(values: terrane_collection_support::List<TerraneType54>) -> terrane_int_support::Int {
+    return {
+        let __terrane_index_0 = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
+            ),
+
+                25 /* terrane-site: tests/integration/inherited-interface-bounded-dispatch/case.trn:23:12-23:21 */,
+        );
+        let __terrane_index_place_1 = __terrane_raised(
+            values
+                .get(__terrane_index_0)
+                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                    __terrane_index_0,
+                )),
+
+                25 /* terrane-site: tests/integration/inherited-interface-bounded-dispatch/case.trn:23:12-23:21 */,
+        );
+        __terrane_index_place_1.read()
+    };
+}
+fn mutate_terrane_inherited_interface_bounded_dispatch<
+    TerraneType54: TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+>(item: &mut TerraneType54) -> terrane_int_support::Int {
+    return item.increment();
+}
+fn consume_terrane_inherited_interface_bounded_dispatch<
+    TerraneType54: TerraneNsInheritedInterfaceBoundedDispatchSubIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D646973706174636800737562Protocol,
+>(item: TerraneType54) -> terrane_int_support::Int {
+    return Box::new(item).finish();
+}
+fn test_scenario_terrane_inherited_interface_bounded_dispatch() {
+    let values: terrane_collection_support::List<
+        TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D,
+    >;
+    let mut item: TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D;
+    values = terrane_collection_support::List::<
+        TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D,
+    >::new(
+        vec![
+            TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D::terrane_construct()
+        ],
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&inspect_terrane_inherited_interface_bounded_dispatch(values))
+    );
+    item = TerraneNsInheritedInterfaceBoundedDispatchItemIdentity2F696E686572697465642D696E746572666163652D626F756E6465642D6469737061746368004974656D::terrane_construct();
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&mutate_terrane_inherited_interface_bounded_dispatch(&mut
+        item))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&forward_terrane_inherited_interface_bounded_dispatch(item
+        .clone()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&consume_terrane_inherited_interface_bounded_dispatch(item))
     );
 }
 // Source: tests/integration/inherited-self-return/case.trn
@@ -5669,7 +6337,7 @@ fn test_scenario_terrane_inherited_shared_field_writes() {
                 &terrane_int_support::Int::from(0_i128),
             ),
 
-                25 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:39:5-39:32 */,
+                26 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:39:5-39:32 */,
         );
         let __terrane_value = {
             let __terrane_snapshot = {
@@ -5685,7 +6353,7 @@ fn test_scenario_terrane_inherited_shared_field_writes() {
                 .values
                 .set(__terrane_index, __terrane_value),
 
-                25 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:39:5-39:32 */,
+                26 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:39:5-39:32 */,
         );
     }
     println!(
@@ -5693,14 +6361,14 @@ fn test_scenario_terrane_inherited_shared_field_writes() {
         __terrane_raised(__terrane_owner_6.lock().expect("reference lock poisoned")
         .values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        26 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:12-40:27 */)),
-        26 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:12-40:27 */) }),
+        27 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:12-40:27 */)),
+        27 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:12-40:27 */) }),
         String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_owner_7 =
         &held; __terrane_raised(__terrane_owner_7.lock()
         .expect("shared reference lock poisoned").values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        27 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:34-40:48 */)),
-        27 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:34-40:48 */) })
+        28 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:34-40:48 */)),
+        28 /* terrane-site: tests/integration/inherited-shared-field-writes/case.trn:40:34-40:48 */) })
     );
     other = std::sync::Arc::new(
         TerraneSharedCell::new(
@@ -6048,7 +6716,7 @@ pub trait MutableCounterProtocol: Send + Sync {
 }
 impl Clone for Box<dyn MutableCounterProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        MutableCounterProtocol::clone_box(&**self)
     }
 }
 pub struct MutableCounter(Box<dyn MutableCounterProtocol>);
@@ -6193,7 +6861,9 @@ for Box<
     dyn TerraneNsInterfaceValueSeparationReadableIdentity2F696E746572666163652D76616C75652D73657061726174696F6E007265616461626C65Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsInterfaceValueSeparationReadableIdentity2F696E746572666163652D76616C75652D73657061726174696F6E007265616461626C65Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsInterfaceValueSeparationReadableIdentity2F696E746572666163652D76616C75652D73657061726174696F6E007265616461626C65(
@@ -6212,7 +6882,11 @@ impl TerraneNsInterfaceValueSeparationReadableIdentity2F696E746572666163652D7661
         self.0.read()
     }
     fn terrane_separate(&self) -> Self {
-        Self(self.0.separate_box())
+        Self(
+            TerraneNsInterfaceValueSeparationReadableIdentity2F696E746572666163652D76616C75652D73657061726174696F6E007265616461626C65Protocol::separate_box(
+                &*self.0,
+            ),
+        )
     }
 }
 #[derive(Clone)]
@@ -6317,7 +6991,7 @@ pub trait AdjustableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn AdjustableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        AdjustableProtocol::clone_box(&**self)
     }
 }
 pub struct Adjustable(Box<dyn AdjustableProtocol>);
@@ -6495,7 +7169,9 @@ for Box<
     dyn TerraneNsObjectContractsReuseDescribableIdentity2F6F626A6563742D636F6E7472616374732D7265757365006465736372696261626C65Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsObjectContractsReuseDescribableIdentity2F6F626A6563742D636F6E7472616374732D7265757365006465736372696261626C65Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsObjectContractsReuseDescribableIdentity2F6F626A6563742D636F6E7472616374732D7265757365006465736372696261626C65(
@@ -6949,26 +7625,26 @@ fn test_scenario_terrane_object_field_owned_snapshot() {
                 &terrane_int_support::Int::from(0_i128),
             ),
 
-                28 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:99:5-99:25 */,
+                29 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:99:5-99:25 */,
         );
         let __terrane_value = String::from("changed");
         let _ = __terrane_raised(
             words.set(__terrane_index, __terrane_value),
 
-                28 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:99:5-99:25 */,
+                29 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:99:5-99:25 */,
         );
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        29 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:100:12-100:20 */)),
-        29 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:100:12-100:20 */))
+        30 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:100:12-100:20 */)),
+        30 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:100:12-100:20 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(named.words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        30 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:101:12-101:26 */)),
-        30 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:101:12-101:26 */))
+        31 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:101:12-101:26 */)),
+        31 /* terrane-site: tests/integration/object-field-owned-snapshot/case.trn:101:12-101:26 */))
     );
     text = {
         let __terrane_snapshot = borrow_holder(&named).text.clone();
@@ -6998,7 +7674,9 @@ for Box<
     dyn TerraneNsObjectInheritanceLifecycleMatrixNamedIdentity2F6F626A6563742D696E6865726974616E63652D6C6966656379636C652D6D6174726978006E616D6564Protocol,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TerraneNsObjectInheritanceLifecycleMatrixNamedIdentity2F6F626A6563742D696E6865726974616E63652D6C6966656379636C652D6D6174726978006E616D6564Protocol::clone_box(
+            &**self,
+        )
     }
 }
 pub struct TerraneNsObjectInheritanceLifecycleMatrixNamedIdentity2F6F626A6563742D696E6865726974616E63652D6C6966656379636C652D6D6174726978006E616D6564(
@@ -7017,7 +7695,11 @@ impl TerraneNsObjectInheritanceLifecycleMatrixNamedIdentity2F6F626A6563742D696E6
         self.0.report()
     }
     fn terrane_separate(&self) -> Self {
-        Self(self.0.separate_box())
+        Self(
+            TerraneNsObjectInheritanceLifecycleMatrixNamedIdentity2F6F626A6563742D696E6865726974616E63652D6C6966656379636C652D6D6174726978006E616D6564Protocol::separate_box(
+                &*self.0,
+            ),
+        )
     }
 }
 #[derive(Clone)]
@@ -7467,6 +8149,130 @@ fn test_scenario_terrane_optional_field_presence() {
         &make_box(); (&__terrane_receiver_value_9.value).is_some() })
     );
 }
+// Source: tests/integration/optional-generic-field-default/case.trn
+// Namespace: optional-generic-field-default
+#[derive(Clone)]
+pub struct TerraneNsOptionalGenericFieldDefaultBxIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74004278<
+    TerraneType54,
+> {
+    pub value: Option<TerraneType54>,
+}
+impl<
+    TerraneType54,
+> TerraneNsOptionalGenericFieldDefaultBxIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74004278<
+    TerraneType54,
+> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsOptionalGenericFieldDefaultHolderIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C7400486F6C646572 {
+    pub value: Option<
+        TerraneNsOptionalGenericFieldDefaultBxIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74004278<
+            terrane_int_support::Int,
+        >,
+    >,
+}
+impl TerraneNsOptionalGenericFieldDefaultHolderIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C7400486F6C646572 {
+    pub fn terrane_construct() -> Self {
+        Self { value: None }
+    }
+}
+pub trait TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol: Send + Sync {
+    fn clone_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+    >;
+    fn separate_box(
+        &self,
+    ) -> Box<
+        dyn TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+    >;
+    fn name(&self) -> String;
+}
+impl Clone
+for Box<
+    dyn TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+> {
+    fn clone(&self) -> Self {
+        TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol::clone_box(
+            &**self,
+        )
+    }
+}
+pub struct TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564(
+    Box<
+        dyn TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+    >,
+);
+impl Clone
+for TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564 {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564 {
+    pub fn name(&self) -> String {
+        self.0.name()
+    }
+}
+#[derive(Clone)]
+pub struct Wrapped<
+    TerraneType54: TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+> {
+    pub value: Option<TerraneType54>,
+}
+impl<
+    TerraneType54: TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+> Wrapped<TerraneType54> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+}
+#[derive(Clone)]
+pub struct Forwarded<
+    TerraneType55: TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+> {
+    pub value: Option<Wrapped<TerraneType55>>,
+}
+impl<
+    TerraneType55: TerraneNsOptionalGenericFieldDefaultNamedIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C74006E616D6564Protocol,
+> Forwarded<TerraneType55> {
+    pub fn terrane_construct(value: Wrapped<TerraneType55>) -> Self {
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: Wrapped<TerraneType55>) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+}
+fn test_scenario_terrane_optional_generic_field_default() {
+    let holder: TerraneNsOptionalGenericFieldDefaultHolderIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C7400486F6C646572;
+    holder = TerraneNsOptionalGenericFieldDefaultHolderIdentity2F6F7074696F6E616C2D67656E657269632D6669656C642D64656661756C7400486F6C646572::terrane_construct();
+    println!("{}", terrane_scalar_support::scalar_text(&holder.value.is_none()));
+}
 // Source: tests/integration/required-field-reference/case.trn
 // Namespace: required-field-reference
 #[derive(Clone)]
@@ -7630,12 +8436,12 @@ impl TerraneNsSharedObjectFieldComparisonsHolderIdentity2F7368617265642D6F626A65
             a: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
 
-                    31 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
+                    32 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
             ),
             b: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(2_i128)),
 
-                    32 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
+                    33 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
             ),
         }
     }
@@ -7689,12 +8495,12 @@ impl InheritedHolder {
             a: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
 
-                    31 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
+                    32 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
             ),
             b: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(2_i128)),
 
-                    32 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
+                    33 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
             ),
         }
     }
@@ -7733,7 +8539,7 @@ fn replace(
         let __terrane_value = __terrane_traced_err(
             Duration::terrane_static_seconds(terrane_int_support::Int::from(2_i128)),
 
-                33 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:18:15-18:35 */,
+                34 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:18:15-18:35 */,
         )?;
         *__terrane_owner_0
             .lock()
@@ -7777,7 +8583,7 @@ fn test_scenario_terrane_shared_object_field_comparisons() -> Result<(), Terrane
     other = __terrane_traced_err(
         Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
 
-            34 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:23:13-23:33 */,
+            35 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:23:13-23:33 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left = &{
@@ -7836,7 +8642,7 @@ fn test_scenario_terrane_shared_object_field_comparisons() -> Result<(), Terrane
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left = &{
         let __terrane_snapshot = h.lock().expect("shared reference lock poisoned")
         .terrane_field_a().clone(); __terrane_snapshot }; let __terrane_comparison_right
-        = &__terrane_traced_err(replace(alias.clone()), 35 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:32:19-32:33 */) ?; <
+        = &__terrane_traced_err(replace(alias.clone()), 36 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:32:19-32:33 */) ?; <
         Duration as std::cmp::PartialOrd > ::lt(__terrane_comparison_left,
         __terrane_comparison_right) })
     );
@@ -7880,14 +8686,14 @@ fn test_scenario_terrane_shared_object_field_comparisons() -> Result<(), Terrane
                         terrane_int_support::Int::from(1_i128),
                     ),
 
-                        36 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:58-39:78 */,
+                        37 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:58-39:78 */,
                 )?,
                 __terrane_traced_err(
                     Duration::terrane_static_seconds(
                         terrane_int_support::Int::from(2_i128),
                     ),
 
-                        37 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:82-39:102 */,
+                        38 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:82-39:102 */,
                 )?,
             ),
         ),
@@ -7915,7 +8721,7 @@ pub trait RequestProtocol<TerraneType726573706F6E7365>: Send + Sync {
 impl<TerraneType726573706F6E7365> Clone
 for Box<dyn RequestProtocol<TerraneType726573706F6E7365>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        RequestProtocol::clone_box(&**self)
     }
 }
 pub struct Request<TerraneType726573706F6E7365>(
@@ -8727,15 +9533,15 @@ fn test_scenario_terrane_trait_field_defaults() {
         field.defaulted).collect:: < Vec < bool > > ());
         __terrane_raised(__terrane_receiver_value_0
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        38 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */)),
-        38 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */) }),
+        39 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */)),
+        39 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */) }),
         String::from(":"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_1 = &terrane_collection_support::List::new(descriptor
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ());
         __terrane_raised(__terrane_receiver_value_1
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        39 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */)),
-        39 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */) })
+        40 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */)),
+        40 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */) })
     );
 }
 // Source: <compiler-generated test registry>
@@ -8860,75 +9666,93 @@ fn main() {
             test_scenario_terrane_explicit_class_operations();
         }
         "27" => {
-            test_scenario_terrane_field_grouped_consuming_once();
+            test_scenario_terrane_explicit_generic_mutable_closure();
         }
         "28" => {
-            test_scenario_terrane_generic_conditional_clone_and_inherited_interface();
+            test_scenario_terrane_field_grouped_consuming_once();
         }
         "29" => {
-            test_scenario_terrane_generic_field_cloneable_control();
+            test_scenario_terrane_finite_generic_class_type();
         }
         "30" => {
-            test_scenario_terrane_generic_index_borrow_controls();
+            test_scenario_terrane_generic_conditional_clone_and_inherited_interface();
         }
         "31" => {
-            test_scenario_terrane_generic_method_nested_result();
+            test_scenario_terrane_generic_field_cloneable_control();
         }
         "32" => {
-            test_scenario_terrane_generic_mutable_explicit_application();
+            test_scenario_terrane_generic_index_borrow_controls();
         }
         "33" => {
-            test_scenario_terrane_grouped_consuming_field_and_nested_generic();
+            test_scenario_terrane_generic_method_nested_result();
         }
         "34" => {
-            test_scenario_terrane_implicit_class_field_defaults();
+            test_scenario_terrane_generic_mutable_explicit_application();
         }
         "35" => {
-            test_scenario_terrane_inherited_base_fields();
+            test_scenario_terrane_generic_required_field_consuming();
         }
         "36" => {
-            test_scenario_terrane_inherited_self_return();
+            test_scenario_terrane_grouped_consuming_field_and_nested_generic();
         }
         "37" => {
-            test_scenario_terrane_inherited_shared_field_writes();
+            test_scenario_terrane_implicit_class_field_defaults();
         }
         "38" => {
-            test_scenario_terrane_inherited_static_factory();
+            test_scenario_terrane_indirect_recursive_class_type();
         }
         "39" => {
-            test_scenario_terrane_inherited_static_state();
+            test_scenario_terrane_inherited_base_fields();
         }
         "40" => {
-            test_scenario_terrane_interface_invocation_mode_widening();
+            test_scenario_terrane_inherited_interface_bounded_dispatch();
         }
         "41" => {
-            test_scenario_terrane_interface_value_separation();
+            test_scenario_terrane_inherited_self_return();
         }
         "42" => {
-            test_scenario_terrane_method_without_receiver_use();
+            test_scenario_terrane_inherited_shared_field_writes();
         }
         "43" => {
-            test_scenario_terrane_mutating_interface_methods();
+            test_scenario_terrane_inherited_static_factory();
         }
         "44" => {
-            test_scenario_terrane_nested_object_mutation();
+            test_scenario_terrane_inherited_static_state();
         }
         "45" => {
-            test_scenario_terrane_object_contracts_reuse();
+            test_scenario_terrane_interface_invocation_mode_widening();
         }
         "46" => {
-            test_scenario_terrane_object_field_owned_snapshot();
+            test_scenario_terrane_interface_value_separation();
         }
         "47" => {
-            test_scenario_terrane_object_inheritance_lifecycle_matrix();
+            test_scenario_terrane_method_without_receiver_use();
         }
         "48" => {
-            test_scenario_terrane_optional_field_presence();
+            test_scenario_terrane_mutating_interface_methods();
         }
         "49" => {
-            test_scenario_terrane_required_field_reference();
+            test_scenario_terrane_nested_object_mutation();
         }
         "50" => {
+            test_scenario_terrane_object_contracts_reuse();
+        }
+        "51" => {
+            test_scenario_terrane_object_field_owned_snapshot();
+        }
+        "52" => {
+            test_scenario_terrane_object_inheritance_lifecycle_matrix();
+        }
+        "53" => {
+            test_scenario_terrane_optional_field_presence();
+        }
+        "54" => {
+            test_scenario_terrane_optional_generic_field_default();
+        }
+        "55" => {
+            test_scenario_terrane_required_field_reference();
+        }
+        "56" => {
             if let Err(error) = test_scenario_terrane_shared_object_field_comparisons() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -8938,25 +9762,25 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "51" => {
+        "57" => {
             test_scenario_terrane_source_associated_interface();
         }
-        "52" => {
+        "58" => {
             test_scenario_terrane_source_generic_field_read();
         }
-        "53" => {
+        "59" => {
             test_scenario_terrane_source_method_builtin_name_dispatch();
         }
-        "54" => {
+        "60" => {
             test_scenario_terrane_source_mutable_receiver_replace();
         }
-        "55" => {
+        "61" => {
             test_scenario_terrane_static_class_singleton();
         }
-        "56" => {
+        "62" => {
             test_scenario_terrane_static_field_member_assignment();
         }
-        "57" => {
+        "63" => {
             test_scenario_terrane_trait_field_defaults();
         }
         _ => {

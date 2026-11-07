@@ -79,22 +79,58 @@ pub(crate) fn effective_object_fields<'a>(
     collect(package, unit, object, &mut fields);
     fields
 }
-pub(crate) fn effective_object_interfaces<'a>(
-    package: &'a SemanticPackage,
-    object: &'a DescriptorContract,
-) -> Vec<&'a ObjectIdentity> {
-    let mut interfaces = object
-        .base
-        .as_ref()
-        .and_then(|identity| descriptor_declaration(package, identity))
-        .map_or_else(Vec::new, |(_, base)| {
-            effective_object_interfaces(package, base)
-        });
-    for interface in &object.interfaces {
-        if !interfaces.contains(&interface) {
-            interfaces.push(interface);
+pub(crate) fn effective_object_interfaces(
+    package: &SemanticPackage,
+    object: &DescriptorContract,
+) -> Vec<ObjectIdentity> {
+    fn collect(
+        package: &SemanticPackage,
+        object: &DescriptorContract,
+        identity: &ObjectIdentity,
+        interfaces: &mut Vec<ObjectIdentity>,
+        visited: &mut BTreeSet<ObjectIdentity>,
+    ) {
+        if !visited.insert(identity.clone()) {
+            return;
+        }
+        let substitutions = object
+            .generic_parameters
+            .iter()
+            .zip(&identity.type_arguments)
+            .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+            .collect();
+        for (relation, is_interface) in object
+            .base
+            .iter()
+            .map(|base| (base, false))
+            .chain(object.interfaces.iter().map(|interface| (interface, true)))
+        {
+            let ValueType::Object(applied) =
+                substitute_value_type(&ValueType::Object(relation.clone()), &substitutions)
+            else {
+                unreachable!("nominal substitution retains nominal identity")
+            };
+            if is_interface && !interfaces.contains(&applied) {
+                interfaces.push(applied.clone());
+            }
+            if let Some(parent) = package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.descriptors)
+                .find(|candidate| candidate.identity.base() == applied.base())
+            {
+                collect(package, parent, &applied, interfaces, visited);
+            }
         }
     }
+    let mut interfaces = Vec::new();
+    collect(
+        package,
+        object,
+        &object.identity,
+        &mut interfaces,
+        &mut BTreeSet::new(),
+    );
     interfaces
 }
 
@@ -949,6 +985,12 @@ fn cloneable_object(
     ) {
         return false;
     }
+    if visiting
+        .iter()
+        .any(|active| active.base() == identity.base())
+    {
+        return true;
+    }
     if !visiting.insert(identity.clone()) {
         return true;
     }
@@ -1498,7 +1540,7 @@ pub(super) fn validate_object_conformance(
                 .iter()
                 .find(|candidate| candidate.identity == object.identity)
                 .expect("object identity must resolve in its declaration unit");
-            for interface_identity in effective_object_interfaces(package, object) {
+            for interface_identity in &effective_object_interfaces(package, object) {
                 let lookup_name = if interface_identity.is_unsafe {
                     format!("unsafe::{}", interface_identity.name)
                 } else {
@@ -1890,21 +1932,41 @@ pub(super) fn validate_object_conformance(
                     .iter()
                     .find(|candidate| candidate.identity.base() == interface_identity.base())
                     .expect("resolved interface must have an object contract");
-                let substitutions = interface
-                    .generic_parameters
-                    .iter()
-                    .zip(&interface_identity.type_arguments)
-                    .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
-                    .collect();
-                let requirements = interface_unit
-                    .functions
-                    .iter()
-                    .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
-                    .map(|method| {
-                        let mut requirement = bind_projected_requirement(
-                            method,
-                            interface_identity.application.as_deref(),
-                        );
+                let mut pending = vec![interface_identity.clone()];
+                let mut visited = BTreeSet::new();
+                let mut requirements = Vec::new();
+                while let Some(identity) = pending.pop() {
+                    if !visited.insert(identity.clone()) {
+                        continue;
+                    }
+                    let Some(owner_unit) = package.units.iter().find(|candidate| {
+                        candidate.namespace == identity.namespace
+                            && candidate.descriptors.iter().any(|descriptor| {
+                                descriptor.kind == ObjectKind::Interface
+                                    && descriptor.identity.base() == identity.base()
+                            })
+                    }) else {
+                        continue;
+                    };
+                    let Some(owner) = owner_unit.descriptors.iter().find(|descriptor| {
+                        descriptor.kind == ObjectKind::Interface
+                            && descriptor.identity.base() == identity.base()
+                    }) else {
+                        continue;
+                    };
+                    let substitutions = owner
+                        .generic_parameters
+                        .iter()
+                        .zip(&identity.type_arguments)
+                        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                        .collect::<BTreeMap<_, _>>();
+                    for method in owner_unit
+                        .functions
+                        .iter()
+                        .filter(|method| method.owner_identity.as_ref() == Some(&owner.identity))
+                    {
+                        let mut requirement =
+                            bind_projected_requirement(method, identity.application.as_deref());
                         for parameter in &mut requirement.parameters {
                             parameter.value_type =
                                 parameter.value_type.as_ref().map(|value_type| {
@@ -1915,9 +1977,16 @@ pub(super) fn validate_object_conformance(
                             .return_type
                             .as_ref()
                             .map(|value_type| substitute_value_type(value_type, &substitutions));
-                        requirement
-                    })
-                    .collect::<Vec<_>>();
+                        requirements.push(requirement);
+                    }
+                    pending.extend(owner.interfaces.iter().map(|inherited| {
+                        let mut inherited = inherited.clone();
+                        for argument in &mut inherited.type_arguments {
+                            *argument = substitute_value_type(argument, &substitutions);
+                        }
+                        inherited
+                    }));
+                }
                 for required in &requirements {
                     let Some(actual) = effective_method(
                         declaration_unit,
@@ -2070,6 +2139,32 @@ pub(super) fn validate_object_conformance(
     Ok(())
 }
 
+fn validate_none_field_default(
+    unit: &SemanticUnit,
+    field: &ObjectField,
+    initializer: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let mut literal = initializer;
+    while literal.kind == SyntaxKind::GroupExpression
+        && let [inner] = literal.children.as_slice()
+    {
+        literal = inner;
+    }
+    if matches!(literal.kind, SyntaxKind::Name | SyntaxKind::Literal)
+        && infer_value_type(unit, literal, &unit.typed_bindings)?
+            == Some(ValueType::Scalar(ScalarType::None))
+        && !matches!(field.value_type, ValueType::Optional(_))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "a `none` default requires an optional field type",
+            initializer.span,
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn validate_class_field_initializers(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -2090,12 +2185,10 @@ pub(super) fn validate_class_field_initializers(
         for effective in effective_object_fields(package, object) {
             let field = effective.field;
             if let Some(initializer_span) = field.initializer_span {
-                if !matches!(
+                let function_field = matches!(
                     field.value_type,
                     ValueType::Function(..) | ValueType::AsyncFunction(..)
-                ) {
-                    continue;
-                }
+                );
                 let initializer = find_node_by_span(&effective.unit.tree.root, initializer_span)
                     .ok_or_else(|| {
                         failure(
@@ -2105,6 +2198,10 @@ pub(super) fn validate_class_field_initializers(
                             field.span,
                         )
                     })?;
+                if !function_field {
+                    validate_none_field_default(effective.unit, field, initializer)?;
+                    continue;
+                }
                 let actual =
                     infer_value_type(effective.unit, initializer, &effective.unit.typed_bindings)?
                         .ok_or_else(|| {
@@ -2421,7 +2518,9 @@ pub(super) fn infer_and_validate_invocation_modes(
         {
             return effects.modes.written;
         }
-        let [receiver, member] = callee.children.as_slice() else {
+        let Some((receiver, receiver_type, member_name)) =
+            super::diagnostics::typed_member_call(unit, callee)
+        else {
             return InvocationMode::Shared;
         };
         if !tracked_receiver(unit, contract, receiver) {
@@ -2435,17 +2534,12 @@ pub(super) fn infer_and_validate_invocation_modes(
         }) {
             return InvocationMode::Shared;
         }
-        let Ok(Some(receiver_type)) =
-            infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-        else {
-            return InvocationMode::Shared;
-        };
         super::diagnostics::member_invocation_mode_at(
             package,
             unit,
             receiver,
             &receiver_type,
-            node_text(&unit.source, member),
+            &member_name,
         )
     }
 
@@ -3125,6 +3219,8 @@ pub(super) fn prepare_type_declarations(
             }
         }
     }
+    super::generic_recursion::validate_class_applications(package)?;
+    super::finite_source_types::validate(package)?;
     for index in 0..package.units.len() {
         let unit = &package.units[index];
         let mut alias_history = descriptor_construct_alias_history(package, unit);
@@ -8959,6 +9055,10 @@ pub(super) fn substitute_projected_generic(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "closure capture syntax traversal and canonical binding publication form one pass"
+)]
 pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
     fn collect(
         unit: &SemanticUnit,
@@ -8966,6 +9066,7 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
         node: &SyntaxNode,
         captures: &mut BTreeSet<String>,
         declaration_name: bool,
+        package: &SemanticPackage,
     ) {
         if matches!(
             node.kind,
@@ -8977,6 +9078,9 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
                 if let Some((_, binding)) =
                     crate::lowering::rust_value_binding_at(unit, node.span.start, &identifier)
                     && !(closure.start <= binding.span.start && binding.span.end <= closure.end)
+                    && !package
+                        .resolve_name_at(unit, node.span.start, &identifier)
+                        .is_some_and(|symbol| symbol.global)
                 {
                     captures.insert(binding.name.clone());
                 }
@@ -8993,7 +9097,10 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
                     binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
                 })
                 .is_some_and(|binding| {
-                    !(closure.start <= binding.span.start && binding.span.end <= closure.end)
+                    !(closure.start <= binding.span.start && binding.span.end <= closure.end
+                        || package
+                            .resolve_name_at(unit, node.span.start, name)
+                            .is_some_and(|symbol| symbol.global))
                 })
             {
                 captures.insert(name.to_owned());
@@ -9010,23 +9117,23 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
                         skipped_name = true;
                         continue;
                     }
-                    collect(unit, closure, child, captures, false);
+                    collect(unit, closure, child, captures, false, package);
                 }
             }
             SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression => {
                 if let Some(receiver) = node.children.first() {
-                    collect(unit, closure, receiver, captures, false);
+                    collect(unit, closure, receiver, captures, false, package);
                 }
             }
             SyntaxKind::ConstructionExpression => {}
             SyntaxKind::Argument if node.children.len() > 1 => {
                 for child in node.children.iter().skip(1) {
-                    collect(unit, closure, child, captures, false);
+                    collect(unit, closure, child, captures, false, package);
                 }
             }
             _ => {
                 for child in &node.children {
-                    collect(unit, closure, child, captures, false);
+                    collect(unit, closure, child, captures, false, package);
                 }
             }
         }
@@ -9040,19 +9147,24 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
             .find_map(|child| closure_node(child, span))
     }
 
-    for unit in &mut package.units {
-        let captures = unit
-            .functions
-            .iter()
-            .filter(|contract| contract.is_anonymous)
-            .map(|contract| {
-                let mut captures = BTreeSet::new();
-                if let Some(node) = closure_node(&unit.tree.root, contract.span) {
-                    collect(unit, contract.span, node, &mut captures, false);
-                }
-                (contract.span, captures.into_iter().collect::<Vec<_>>())
-            })
-            .collect::<Vec<_>>();
+    let unit_captures = package
+        .units
+        .iter()
+        .map(|unit| {
+            unit.functions
+                .iter()
+                .filter(|contract| contract.is_anonymous)
+                .map(|contract| {
+                    let mut captures = BTreeSet::new();
+                    if let Some(node) = closure_node(&unit.tree.root, contract.span) {
+                        collect(unit, contract.span, node, &mut captures, false, package);
+                    }
+                    (contract.span, captures.into_iter().collect::<Vec<_>>())
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    for (unit, captures) in package.units.iter_mut().zip(unit_captures) {
         for contract in &mut unit.functions {
             if let Some((_, captures)) = captures.iter().find(|(span, _)| *span == contract.span) {
                 contract.captures.clone_from(captures);

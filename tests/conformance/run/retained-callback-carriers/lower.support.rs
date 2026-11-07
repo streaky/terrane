@@ -951,7 +951,7 @@ pub trait SinkProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SinkProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SinkProtocol::clone_box(&**self)
     }
 }
 pub struct Sink(Box<dyn SinkProtocol>);

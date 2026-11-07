@@ -1,0 +1,18 @@
+namespace explicit-generic-mutable-closure
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class Counter
+    value int = 0
+    mutable function touch of (T) Box of T; value T
+        this.value = this.value + 1
+        return instance (Box of T); (move value)
+function test-scenario;
+    c = instance Counter;
+    f = mutable function int;
+        b = (c.touch of int); 7
+        print; b.value
+        return c.value
+    print; (f;)
+    print; (f;)

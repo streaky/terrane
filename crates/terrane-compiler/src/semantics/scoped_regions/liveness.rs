@@ -32,12 +32,14 @@ pub(super) struct Flow {
     entry: usize,
     live_after: Vec<BTreeSet<Span>>,
     aliases: Vec<Option<StorageAliases>>,
+    clause_entries: BTreeMap<Span, Vec<usize>>,
 }
 
 struct Builder<'a> {
     package: &'a SemanticPackage,
     unit: &'a SemanticUnit,
     steps: Vec<Step>,
+    clause_entries: BTreeMap<Span, Vec<usize>>,
 }
 
 impl Builder<'_> {
@@ -415,10 +417,15 @@ impl Builder<'_> {
                     gate
                 };
             }
-            SyntaxKind::Block
-            | SyntaxKind::ElseClause
-            | SyntaxKind::FinallyClause
-            | SyntaxKind::CatchClause => {
+            SyntaxKind::CatchClause | SyntaxKind::FinallyClause => {
+                let entry = self.sequence(&node.children, exits);
+                self.clause_entries
+                    .entry(node.span)
+                    .or_default()
+                    .push(entry);
+                return entry;
+            }
+            SyntaxKind::Block | SyntaxKind::ElseClause => {
                 return self.sequence(&node.children, exits);
             }
             _ => {}
@@ -522,6 +529,7 @@ impl Flow {
             package,
             unit,
             steps: vec![Step::default()],
+            clause_entries: BTreeMap::new(),
         };
         let exits = Exits {
             normal: 0,
@@ -546,6 +554,7 @@ impl Flow {
             steps: builder.steps,
             entry,
             aliases: Vec::new(),
+            clause_entries: builder.clause_entries,
         };
         let mut live_before = vec![BTreeSet::new(); flow.steps.len()];
         loop {
@@ -651,6 +660,32 @@ impl Flow {
         false
     }
 
+    pub(super) fn reads_in_clause_without_rewrite(&self, clause: Span, binding: Span) -> bool {
+        let Some(entries) = self.clause_entries.get(&clause) else {
+            return false;
+        };
+        let mut pending = entries.clone();
+        let mut visited = vec![false; self.steps.len()];
+        while let Some(index) = pending.pop() {
+            if std::mem::replace(&mut visited[index], true) {
+                continue;
+            }
+            let step = &self.steps[index];
+            if step.span.is_some_and(|span| {
+                span.file != clause.file || span.start < clause.start || span.end > clause.end
+            }) {
+                continue;
+            }
+            if step.reads.contains(&binding) {
+                return true;
+            }
+            if step.definition != Some(binding) {
+                pending.extend(step.next.iter().copied());
+            }
+        }
+        false
+    }
+
     pub(super) fn live_origins(&self, origin: Span) -> BTreeSet<Span> {
         let mut reaching = vec![None::<BTreeSet<Span>>; self.steps.len()];
         loop {
@@ -677,22 +712,22 @@ impl Flow {
                     values.remove(&definition);
                     if carries {
                         values.insert(definition);
-                        // Existing aliases retain future lenders assigned to their
-                        // source storage, including through transitive/branch aliases.
-                        loop {
-                            let mut joined = false;
-                            for &previous in &step.previous {
-                                if let Some(aliases) = &self.aliases[previous] {
-                                    for (alias, sources) in aliases {
-                                        if !sources.is_disjoint(&values) {
-                                            joined |= values.insert(*alias);
-                                        }
-                                    }
-                                }
+                    }
+                }
+                // Rust storage regions join at control-flow merges even when an
+                // alias and a new lender were introduced on opposite branches.
+                // Use the current alias state so a dominating rewrite still
+                // kills dependencies of the replaced value.
+                if let Some(aliases) = &self.aliases[index] {
+                    loop {
+                        let mut joined = false;
+                        for (alias, sources) in aliases {
+                            if !sources.is_disjoint(&values) {
+                                joined |= values.insert(*alias);
                             }
-                            if !joined {
-                                break;
-                            }
+                        }
+                        if !joined {
+                            break;
                         }
                     }
                 }

@@ -3,12 +3,14 @@ pub use crate::invocation::InvocationMode;
 mod analysis;
 mod annotations;
 mod enums;
+mod finite_source_types;
 mod generic_recursion;
 mod generics;
 mod initialization;
 mod matching;
 mod model;
 mod projected_demand;
+mod written_types;
 
 // Namespace, import, bootstrap-surface, and lexical name resolution.
 mod bootstrap;

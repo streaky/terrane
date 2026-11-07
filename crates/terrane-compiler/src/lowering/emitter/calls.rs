@@ -2555,6 +2555,7 @@ impl Emitter<'_> {
                         || self.expression_throws_synchronously(receiver))
                 })));
         let mut native_input_setup = String::new();
+        let mut native_receiver_setup = String::new();
         let mut native_input_index = 0;
         let mut stage_native_input = |value: String| {
             let name = format!("__terrane_native_input_{native_input_index}");
@@ -2785,8 +2786,26 @@ impl Emitter<'_> {
                         format!("&*({receiver})")
                     } else if let Some(narrowed) =
                         self.narrowed_storage_name(receiver, false, false)
+                        && !stage_receiver
                     {
                         narrowed
+                    } else if stage_receiver
+                        && receiver.kind == SyntaxKind::MemberExpression
+                        && let [holder, member] = receiver.children.as_slice()
+                        && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
+                            receiver,
+                            holder,
+                            member,
+                            false,
+                            GuardScope::Place,
+                        )
+                    {
+                        native_receiver_setup.push_str(&setup);
+                        if borrowed {
+                            stage_native_input(place)
+                        } else {
+                            stage_native_input(format!("&({place})"))
+                        }
                     } else {
                         let receiver = self.native_receiver_expression(receiver, false);
                         if stage_receiver {
@@ -2802,8 +2821,26 @@ impl Emitter<'_> {
                     if let Some((_, receiver)) = &guarded_method_receiver {
                         format!("&mut *({receiver})")
                     } else if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true)
+                        && !stage_receiver
                     {
                         narrowed
+                    } else if stage_receiver
+                        && receiver.kind == SyntaxKind::MemberExpression
+                        && let [holder, member] = receiver.children.as_slice()
+                        && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
+                            receiver,
+                            holder,
+                            member,
+                            true,
+                            GuardScope::Place,
+                        )
+                    {
+                        native_receiver_setup.push_str(&setup);
+                        stage_native_input(if borrowed {
+                            place
+                        } else {
+                            format!("&mut ({place})")
+                        })
                     } else {
                         let receiver = self.native_receiver_expression(receiver, true);
                         if stage_receiver {
@@ -2955,7 +2992,13 @@ impl Emitter<'_> {
             {
                 let mutable = projected_receiver
                     == Some(crate::rust_interop::projection::Receiver::MutableBorrow);
-                if let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable) {
+                if stage_native_inputs {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, mutable, GuardScope::Place);
+                    native_receiver_setup.push_str(&setup);
+                    format!("&{}({place})", if mutable { "mut " } else { "" })
+                } else if let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable)
+                {
                     narrowed
                 } else {
                     let native = self.native_receiver_expression(receiver, mutable);
@@ -3849,14 +3892,16 @@ impl Emitter<'_> {
         };
         if let Some((setup, _)) = guarded_method_receiver {
             format!(
-                "{{ {setup}{shared_argument_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
+                "{{ {setup}{shared_argument_setup}{native_receiver_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
             )
         } else if shared_async_receiver.is_some() || !shared_argument_setup.is_empty() {
-            format!("{{ {shared_argument_setup}{native_input_setup}{result} }}")
-        } else if native_input_setup.is_empty() {
+            format!(
+                "{{ {shared_argument_setup}{native_receiver_setup}{native_input_setup}{result} }}"
+            )
+        } else if native_input_setup.is_empty() && native_receiver_setup.is_empty() {
             result
         } else {
-            format!("{{ {native_input_setup}{result} }}")
+            format!("{{ {native_receiver_setup}{native_input_setup}{result} }}")
         }
     }
 }

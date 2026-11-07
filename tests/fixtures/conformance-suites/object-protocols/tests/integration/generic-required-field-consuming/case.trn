@@ -1,0 +1,33 @@
+namespace generic-required-field-consuming
+class V of (T)
+    value T
+    function construct; value T
+        this.value = move value
+    consuming function done int;
+        return 3
+class R
+    f V of int
+    function construct;
+        this.f = instance (V of int); 7
+interface named
+    function name int;
+class Item implements named
+    function name int;
+        return 1
+class Inner of (T implements named)
+    value T
+    function construct; value T
+        this.value = move value
+    consuming function done int;
+        return (this.value.name;)
+class Outer of (T implements named)
+    inner Inner of T
+    function construct; value T
+        this.inner = instance (Inner of T); move value
+    consuming function done int;
+        return ((this.inner).done;)
+function test-scenario;
+    r = instance R;
+    print; ((r.f).done;)
+    generic = instance (Outer of Item); (instance Item;)
+    print; (generic.done;)

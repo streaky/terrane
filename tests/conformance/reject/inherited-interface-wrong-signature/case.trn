@@ -1,0 +1,12 @@
+namespace inherited-interface-wrong-signature
+interface base
+    function inherited int;
+interface child implements base
+    function local int;
+class Wrong implements child
+    function inherited string;
+        return 'wrong'
+    function local int;
+        return 1
+function main;
+    print; 1

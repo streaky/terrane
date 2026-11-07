@@ -1,0 +1,14 @@
+namespace inherited-interface-missing-method
+interface base
+    function inherited int;
+interface middle implements base
+    function middle int;
+interface leaf implements middle
+    function leaf int;
+class Missing implements leaf
+    function middle int;
+        return 2
+    function leaf int;
+        return 3
+function main;
+    print; 1

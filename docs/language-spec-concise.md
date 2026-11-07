@@ -138,6 +138,8 @@ retain_both: establish selective alias before namespace-wide import
 
 Top-level plain assignment is namespace-local, including root namespace. `global` explicitly creates or updates one program-global identity and does not erase lexical provenance/visibility; duplicate top-level declarations are rejected. A namespace variable is readable and writable only by other namespace-level declarations in that namespace, so `public` on one is meaningless and rejected rather than accepted as documentation.
 
+Closures read canonical global storage, including after function-body updates. Function-valued program-global storage is not supported (`T0012`); use a named function or a local callable.
+
 ```terrane
 namespace application/commands
 from /core/collections import map

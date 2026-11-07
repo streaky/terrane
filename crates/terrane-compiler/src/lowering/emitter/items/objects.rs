@@ -43,28 +43,52 @@ fn protocol_transfer_bounds(
     }
 }
 
-fn effective_source_interface_methods<'a>(
-    unit: &'a crate::semantics::SemanticUnit,
-    object: &'a DescriptorContract,
-) -> Vec<&'a FunctionContract> {
-    fn collect<'a>(
-        unit: &'a crate::semantics::SemanticUnit,
-        object: &'a DescriptorContract,
-        methods: &mut Vec<&'a FunctionContract>,
+fn effective_source_interface_methods(
+    unit: &crate::semantics::SemanticUnit,
+    object: &DescriptorContract,
+) -> Vec<FunctionContract> {
+    fn collect(
+        unit: &crate::semantics::SemanticUnit,
+        object: &DescriptorContract,
+        identity: &crate::semantics::ObjectIdentity,
+        methods: &mut Vec<FunctionContract>,
         visited: &mut BTreeSet<crate::semantics::ObjectIdentity>,
     ) {
-        if !visited.insert(object.identity.base()) {
+        if !visited.insert(identity.clone()) {
             return;
         }
+        let substitutions = object
+            .generic_parameters
+            .iter()
+            .zip(&identity.type_arguments)
+            .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+            .collect();
         for inherited in &object.interfaces {
             if let Some(parent) = unit.descriptors.iter().find(|candidate| {
                 candidate.kind == ObjectKind::Interface
                     && candidate.identity.base() == inherited.base()
             }) {
-                collect(unit, parent, methods, visited);
+                let ValueType::Object(applied) = crate::semantics::substitute_value_type(
+                    &ValueType::Object(inherited.clone()),
+                    &substitutions,
+                ) else {
+                    unreachable!("interface substitution retains nominal identity")
+                };
+                collect(unit, parent, &applied, methods, visited);
             }
         }
         for method in effective_object_methods(unit, object) {
+            let mut method = method.clone();
+            for parameter in &mut method.parameters {
+                parameter.value_type = parameter
+                    .value_type
+                    .as_ref()
+                    .map(|value| crate::semantics::substitute_value_type(value, &substitutions));
+            }
+            method.return_type = method
+                .return_type
+                .as_ref()
+                .map(|value| crate::semantics::substitute_value_type(value, &substitutions));
             if let Some(index) = methods.iter().position(|existing| {
                 existing.name == method.name
                     && existing.is_static == method.is_static
@@ -76,8 +100,15 @@ fn effective_source_interface_methods<'a>(
             }
         }
     }
+    let identity = object.identity.clone().with_type_arguments(
+        object
+            .generic_parameters
+            .iter()
+            .map(|parameter| ValueType::TypeParameter(parameter.name.clone()))
+            .collect(),
+    );
     let mut methods = Vec::new();
-    collect(unit, object, &mut methods, &mut BTreeSet::new());
+    collect(unit, object, &identity, &mut methods, &mut BTreeSet::new());
     methods
 }
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
@@ -415,12 +446,25 @@ impl<'a> Emitter<'a> {
                     projected_requirements.map(|item| (item.send, item.sync)),
                     methods.iter().any(|method| method.is_async),
                 );
-                let transfer_separator = if transfer_bounds.is_empty() {
-                    ""
-                } else {
-                    " : "
-                };
-                let trait_bounds = transfer_bounds;
+                let mut trait_bounds = transfer_bounds.to_owned();
+                if projected_requirements.is_none() {
+                    for inherited in &object.interfaces {
+                        let inherited_base = rust_object_type_name(self.package, &inherited.base());
+                        let inherited_use = rust_source_type_application(self.package, inherited);
+                        if !trait_bounds.is_empty() {
+                            trait_bounds.push_str(" + ");
+                        }
+                        write!(
+                            trait_bounds,
+                            "{inherited_base}Protocol{}",
+                            inherited_use
+                                .strip_prefix(&inherited_base)
+                                .expect("source type application retains its nominal head"),
+                        )
+                        .unwrap();
+                    }
+                }
+                let transfer_separator = if trait_bounds.is_empty() { "" } else { " : " };
                 let has_unsafe_methods = methods.iter().any(|method| method.is_unsafe);
                 if object.is_unsafe || has_unsafe_methods {
                     self.line("#[allow(unsafe_code)]");
@@ -445,7 +489,12 @@ impl<'a> Emitter<'a> {
                         "fn __terrane_callback_snapshot(&self) -> Box<dyn {protocol_use}>;"
                     ));
                 }
-                for method in &methods {
+                for method in methods.iter().filter(|method| {
+                    method
+                        .owner_identity
+                        .as_ref()
+                        .is_some_and(|owner| owner.base() == object.identity.base())
+                }) {
                     self.line_start();
                     let receiver = match method.written_invocation_mode {
                         InvocationMode::Consuming => "self: Box<Self>",
@@ -489,7 +538,7 @@ impl<'a> Emitter<'a> {
                 self.line("}");
                 if !object.resource_owning {
                     self.line(&format!(
-                    "impl{generic_declaration} Clone for Box<dyn {protocol_use}> {{ fn clone(&self) -> Self {{ self.clone_box() }} }}"
+                    "impl{generic_declaration} Clone for Box<dyn {protocol_use}> {{ fn clone(&self) -> Self {{ {protocol}::clone_box(&**self) }} }}"
                 ));
                 }
                 if methods.is_empty() {
@@ -509,7 +558,7 @@ impl<'a> Emitter<'a> {
                     && self.requires_projected_callback_snapshot(&object.identity)
                 {
                     self.line(&format!(
-                        "impl{generic_declaration} {name}{generic_use} {{ fn __terrane_callback_snapshot(&self) -> Self {{ Self(self.0.__terrane_callback_snapshot()) }} }}"
+                        "impl{generic_declaration} {name}{generic_use} {{ fn __terrane_callback_snapshot(&self) -> Self {{ Self({protocol}::__terrane_callback_snapshot(&*self.0)) }} }}"
                     ));
                 }
                 if projected_requirements.is_some_and(|item| item.requires_drop) {
@@ -570,7 +619,7 @@ impl<'a> Emitter<'a> {
                     self.line("}");
                 }
                 if self.object_requires_separation(&object.identity) {
-                    self.line("fn terrane_separate(&self) -> Self { Self(self.0.separate_box()) }");
+                    self.line(&format!("fn terrane_separate(&self) -> Self {{ Self({protocol}::separate_box(&*self.0)) }}"));
                 }
                 self.indent -= 1;
                 self.line("}");
@@ -1417,7 +1466,7 @@ impl<'a> Emitter<'a> {
                     self.line("}");
                 }
                 for interface_identity in
-                    crate::semantics::effective_object_interfaces(self.package, object)
+                    &crate::semantics::effective_object_interfaces(self.package, object)
                 {
                     if !advanced_streams
                         && interface_identity.namespace == "/core/streams"
@@ -1568,7 +1617,7 @@ impl<'a> Emitter<'a> {
                             .into_iter()
                             .map(|method| {
                                 let mut method = crate::semantics::bind_projected_requirement(
-                                    method,
+                                    &method,
                                     interface_identity.application.as_deref(),
                                 );
                                 for parameter in &mut method.parameters {
@@ -1590,7 +1639,12 @@ impl<'a> Emitter<'a> {
                                 method
                             })
                             .collect::<Vec<_>>();
-                    for method in &interface_methods {
+                    for method in interface_methods.iter().filter(|method| {
+                        method
+                            .owner_identity
+                            .as_ref()
+                            .is_some_and(|owner| owner.base() == interface.identity.base())
+                    }) {
                         let implementation = effective_object_methods(self.unit, object)
                             .into_iter()
                             .find(|candidate| {

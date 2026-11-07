@@ -1,0 +1,8 @@
+namespace global-callable-closure
+global v function from int to int = one
+function one int; value int
+    return value
+function main;
+    f = function int;
+        return (v; 1)
+    print; (f;)

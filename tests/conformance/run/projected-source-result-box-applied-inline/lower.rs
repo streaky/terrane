@@ -29,10 +29,11 @@ fn unbox<TerraneType54>(
 }
 fn main() {
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_0 =
         &unbox(TerraneNsAppBoxIdentity2F61707000426F78:: < Holder >
         ::terrane_construct(__terrane_raised(terrane_static_trn_486f6c646572_new(),
-        0 /* terrane-site: src/main.trn:16:47-16:59 */))); __terrane_raised(| | ->
+        0 /* terrane-site: src/main.trn:16:47-16:59 */))); let
+        __terrane_native_input_0 = &__terrane_receiver_value_0; __terrane_raised(| | ->
         Result < _, crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(__terrane_native_input_0.label_len()) })) {

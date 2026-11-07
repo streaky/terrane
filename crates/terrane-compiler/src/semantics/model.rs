@@ -2086,6 +2086,8 @@ pub struct SemanticUnit {
     pub(crate) flow_replacements: BTreeMap<Span, Span>,
     pub flow_availability: BTreeMap<(u32, usize, usize), FlowAvailability>,
     pub(crate) flow_read_bindings: BTreeMap<(u32, usize, usize), BTreeSet<Span>>,
+    /// Values rebound across completion closures need address-stable take/insert storage.
+    pub(crate) completion_capture_slots: BTreeSet<Span>,
     /// Owner bindings used by declaration-directed implicit source-reference arguments.
     pub reference_owner_spans: BTreeSet<(usize, usize)>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,

@@ -41,35 +41,24 @@ fn validate_moved_value(
         && !package.native_value_is_copyable(&ty)
         && (explicit
             || application_is_resource_owning(package, &ty)
+            || matches!(&ty, ValueType::Object(identity)
+                if package.projection.item(&identity.namespace, &identity.name).is_none())
             || super::field_has_native_loan(package, &ty))
         && let Some(binding) = super::binding_identity_at(unit, value)
         && binding.start < statement.span.start
         && rebinds(unit, statement, binding)
-        && (package
-            .binding_events
-            .get(&span_key(binding))
-            .is_some_and(|events| {
-                events.iter().any(|event| {
-                    matches!(event, BindingEvent::Read { span, .. }
-                    if span.file == value.span.file
-                        && value.span.end <= span.start
-                        && statement.children.iter().any(|clause| {
-                            let separate_handler = clause.kind == SyntaxKind::FinallyClause
-                                && !(clause.span.start <= value.span.start
-                                    && value.span.end <= clause.span.end);
-                            let catch_after_body = clause.kind == SyntaxKind::CatchClause
-                                && statement.children.iter().any(|body| {
-                                    body.kind == SyntaxKind::Block
-                                        && body.span.start <= value.span.start
-                                        && value.span.end <= body.span.end
-                                });
-                            (separate_handler || catch_after_body)
-                                && clause.span.start <= span.start
-                                && span.end <= clause.span.end
-                        }))
-                })
-            })
-            || flow.reads_after_without_rewrite(statement.span, binding))
+        && (statement.children.iter().any(|clause| {
+            let separate_handler = clause.kind == SyntaxKind::FinallyClause
+                && !(clause.span.start <= value.span.start && value.span.end <= clause.span.end);
+            let catch_after_body = clause.kind == SyntaxKind::CatchClause
+                && statement.children.iter().any(|body| {
+                    body.kind == SyntaxKind::Block
+                        && body.span.start <= value.span.start
+                        && value.span.end <= body.span.end
+                });
+            (separate_handler || catch_after_body)
+                && flow.reads_in_clause_without_rewrite(clause.span, binding)
+        }) || flow.reads_after_without_rewrite(statement.span, binding))
     {
         return Err(failure(
             &unit.source,
@@ -198,4 +187,76 @@ pub(super) fn validate(
         validate(package, unit, child)?;
     }
     Ok(())
+}
+
+pub(super) fn completion_capture_slots(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+) -> BTreeSet<Span> {
+    fn collect(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        writes_only: bool,
+        bindings: &mut BTreeSet<Span>,
+    ) {
+        if matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        ) {
+            return;
+        }
+        let target = if writes_only {
+            (node.kind == SyntaxKind::Assignment)
+                .then(|| node.children.first())
+                .flatten()
+        } else {
+            (node.kind == SyntaxKind::Name).then_some(node)
+        };
+        if let Some(binding) = target.and_then(|target| super::binding_identity_at(unit, target)) {
+            bindings.insert(binding);
+        }
+        for child in &node.children {
+            collect(unit, child, writes_only, bindings);
+        }
+    }
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        slots: &mut BTreeSet<Span>,
+    ) {
+        if node.kind == SyntaxKind::TryStatement
+            && let Some(body) = node.children.first()
+            && let Some(finally) = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::FinallyClause)
+        {
+            let mut writes = BTreeSet::new();
+            let mut uses = BTreeSet::new();
+            collect(unit, body, true, &mut writes);
+            collect(unit, finally, false, &mut uses);
+            for binding in unit.typed_bindings.iter().filter(|binding| {
+                binding.span.end <= node.span.start
+                    && writes.contains(&binding.span)
+                    && uses.contains(&binding.span)
+            }) {
+                if matches!(
+                    binding.value_type,
+                    ValueType::Object(_)
+                        | ValueType::InvocationScopedNative { .. }
+                        | ValueType::TypeParameter(_)
+                ) && !package.native_value_is_copyable(&binding.value_type)
+                {
+                    slots.insert(binding.span);
+                }
+            }
+        }
+        for child in &node.children {
+            visit(package, unit, child, slots);
+        }
+    }
+    let mut slots = BTreeSet::new();
+    visit(package, unit, &unit.tree.root, &mut slots);
+    slots
 }

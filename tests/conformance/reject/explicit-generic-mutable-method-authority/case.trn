@@ -1,0 +1,19 @@
+namespace explicit-generic-mutable-method-authority
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class Counter
+    value int = 0
+    mutable function touch of (T) Box of T; value T
+        this.value = this.value + 1
+        return instance Box of T; (move value)
+class Owner
+    counter Counter
+    function construct; counter Counter
+        this.counter = move counter
+    function invalid string;
+        result = (this.counter.touch of string); 'value'
+        return result.value
+function main;
+    print; (instance Owner; (instance Counter;)).invalid

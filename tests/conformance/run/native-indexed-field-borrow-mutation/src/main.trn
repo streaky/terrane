@@ -1,0 +1,12 @@
+namespace app
+from /deps/receiver-api import Record, record
+from /core/collections import list
+class R
+    r Record
+    function construct;
+        this.r = record; 7
+function main;
+    values list of R = list; (instance R;)
+    print; (values[0].r.value;)
+    values[0].r.set; 9
+    print; ((values[0]).r.value;)

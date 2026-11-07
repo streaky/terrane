@@ -43,6 +43,26 @@ pub(super) fn call_base_contract<'a>(
                         family: identity, ..
                     },
                 ) => Some(identity),
+                Some(ValueType::TypeParameter(parameter)) => {
+                    super::generics::type_parameter_bound_at(unit, receiver.span.start, &parameter)
+                        .cloned()
+                }
+                Some(
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item),
+                ) => match item.value_type_ref() {
+                    ValueType::Object(identity) => Some(identity.clone()),
+                    ValueType::TypeParameter(parameter) => {
+                        super::generics::type_parameter_bound_at(
+                            unit,
+                            receiver.span.start,
+                            parameter,
+                        )
+                        .cloned()
+                    }
+                    _ => None,
+                },
                 _ => None,
             }
         };

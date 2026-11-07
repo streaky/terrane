@@ -1491,7 +1491,7 @@ pub trait TestValueProtocol: Send + Sync {
 }
 impl Clone for Box<dyn TestValueProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TestValueProtocol::clone_box(&**self)
     }
 }
 pub struct TestValue(Box<dyn TestValueProtocol>);

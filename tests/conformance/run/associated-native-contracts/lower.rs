@@ -44,7 +44,7 @@ for Box<
     >,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        CommandProtocol::clone_box(&**self)
     }
 }
 pub struct Command<

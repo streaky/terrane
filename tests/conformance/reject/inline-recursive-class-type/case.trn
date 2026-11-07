@@ -1,0 +1,7 @@
+namespace inline-recursive-class-type
+class recursive
+  child recursive
+  function construct; child recursive
+    this.child = move child
+
+function main;
