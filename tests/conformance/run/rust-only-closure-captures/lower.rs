@@ -12,7 +12,6 @@ fn main() {
     let unsafe_read: std::sync::Arc<dyn Fn() -> i64 + Send + Sync>;
     text = String::from("outside");
     outer_read = {
-        let other = other.clone();
         let text = text.clone();
         std::sync::Arc::new(move |other: i64| -> i64 {
             return {

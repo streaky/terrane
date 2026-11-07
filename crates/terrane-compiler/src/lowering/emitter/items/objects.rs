@@ -77,7 +77,11 @@ fn effective_source_interface_methods(
                 collect(unit, parent, &applied, methods, visited);
             }
         }
-        for method in effective_object_methods(unit, object) {
+        for method in unit
+            .functions
+            .iter()
+            .filter(|method| method.owner_identity.as_ref() == Some(&object.identity))
+        {
             let mut method = method.clone();
             for parameter in &mut method.parameters {
                 parameter.value_type = parameter

@@ -17,6 +17,7 @@ unsafe fn choose_terrane_unsafe_declaration_contracts_unsafe(
 pub trait ReadableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn ReadableProtocol>;
     fn separate_box(&self) -> Box<dyn ReadableProtocol>;
+    fn value(&self) -> terrane_int_support::Int;
 }
 impl Clone for Box<dyn ReadableProtocol> {
     fn clone(&self) -> Self {
@@ -72,6 +73,9 @@ impl ReadableProtocol for SafeReader {
     }
     fn separate_box(&self) -> Box<dyn ReadableProtocol> {
         Box::new(self.clone())
+    }
+    fn value(&self) -> terrane_int_support::Int {
+        SafeReader::value(&*self)
     }
 }
 impl From<SafeReader> for Readable {
