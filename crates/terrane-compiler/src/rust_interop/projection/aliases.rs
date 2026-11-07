@@ -21,6 +21,36 @@ impl super::Projection {
         expanded.then_some(canonical)
     }
 
+    // Method lookup has already selected the advertised nominal owner. Expand its
+    // alias template only to recover the native constructor; value compatibility
+    // and concrete generic substitutions remain the semantic caller's job.
+    pub(super) fn native_alias_constructor_matches(&self, path: &str, native: &str) -> bool {
+        let Some(alias) = self
+            .dependencies
+            .iter()
+            .find_map(|dependency| dependency.native_alias_identities.get(path))
+        else {
+            return false;
+        };
+        let bindings = alias
+            .generic_parameters
+            .iter()
+            .map(|name| (name.clone(), ProjectedType::Generic(name.clone())))
+            .collect();
+        let Some(target) = self.resolve_native_alias(
+            alias.native_type.clone(),
+            &bindings,
+            &mut super::BTreeSet::from([self.canonical_native_type(path).into_owned()]),
+            &mut false,
+        ) else {
+            return false;
+        };
+        crate::rust_ir::rust_type_constructors_match(
+            &self.canonical_native_type(&target.rust_type()),
+            &self.canonical_native_type(native),
+        )
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "alias expansion walks the complete existing projected type graph"

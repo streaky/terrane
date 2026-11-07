@@ -995,6 +995,21 @@ fn method_contract_with_safety<'a>(
             object.identity == *object_identity
                 || (!object_identity.type_arguments.is_empty()
                     && object.identity.base() == object_identity.base())
+                || (object.identity.namespace == object_identity.namespace
+                    && object.identity.name == object_identity.name
+                    && object.identity.is_unsafe == object_identity.is_unsafe
+                    && object_identity.native_projection.is_some()
+                    && package
+                        .projection
+                        .method_for_native(
+                            &object_identity.namespace,
+                            &object_identity.name,
+                            object_identity.native_projection.as_deref(),
+                            method_name,
+                            is_static,
+                            is_unsafe,
+                        )
+                        .is_some())
         })?;
     package
         .units

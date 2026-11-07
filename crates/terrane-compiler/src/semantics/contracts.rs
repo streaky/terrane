@@ -1457,16 +1457,16 @@ pub(super) fn escaping_throwables(
             )
         {
             BTreeSet::from(["/core/errors::missing-key".to_owned()])
-        } else if let Some(ValueType::Object(object)) = receiver_type {
-            unit.functions
-                .iter()
-                .find(|contract| {
-                    contract.owner_identity.as_ref() == Some(&object)
-                        && contract.name == member_name
-                })
-                .and_then(|contract| inferred.get(&key(contract.span)))
+        } else if let Some(contract) = super::calls::selected_callable_contract(
+            package,
+            unit,
+            node,
+            crate::syntax::call_is_unsafe(node),
+        ) {
+            inferred
+                .get(&key(contract.span))
                 .cloned()
-                .unwrap_or_default()
+                .unwrap_or_else(|| contract.escaping_throwables.clone())
         } else if member_name == "decode" {
             BTreeSet::from(["/core/errors::decode-error".to_owned()])
         } else {
