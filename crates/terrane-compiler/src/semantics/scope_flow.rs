@@ -300,7 +300,24 @@ fn joined_flow_value_type(unit: &SemanticUnit, envs: &[FlowEnv], name: &str) -> 
     }) {
         return Some(value_type);
     }
-    let physical = identity.and_then(|identity| unit.flow_binding_types.get(identity));
+    let physical = identity.and_then(|identity| {
+        unit.flow_binding_types.get(identity).or_else(|| {
+            unit.typed_bindings
+                .iter()
+                .find(|binding| binding.span == *identity)
+                .map(|binding| &binding.value_type)
+        })
+    });
+    if let Some(physical @ ValueType::Optional(present)) = physical
+        && arms.iter().all(|arm| {
+            arm == physical
+                || arm == present.as_ref()
+                || *arm == ValueType::Scalar(ScalarType::None)
+        })
+    {
+        // Complementary presence refinements retain the original Option storage.
+        return Some(physical.clone());
+    }
     if let Some(physical @ ValueType::Reference(target)) = physical
         && let ValueType::Optional(present) = target.value_type_ref()
         && arms.iter().all(|arm| {
@@ -1368,6 +1385,25 @@ fn assignment_flow_value(
                     .iter()
                     .any(|child| child.kind == SyntaxKind::TypeExpression)));
     let value_type = value.and_then(|value| {
+        let declared_union = unit.typed_bindings.iter().find(|binding| {
+            binding.destination_arms.len() > 1
+                && binding
+                    .destination_arms
+                    .iter()
+                    .any(|arm| !super::types::is_numeric(*arm))
+                && (binding.span == statement.span
+                    || plain_assignment && state.binding_ids.get(&name) == Some(&binding.span))
+        });
+        if let Some(binding) = declared_union {
+            return Some(ValueType::Union(
+                binding
+                    .destination_arms
+                    .iter()
+                    .copied()
+                    .map(ValueType::Scalar)
+                    .collect(),
+            ));
+        }
         plain_assignment
             .then(|| assignment_destination_type(unit, state, &name))
             .flatten()
@@ -1449,6 +1485,21 @@ fn assignment_target_and_value(
     (target, value)
 }
 
+fn binding_carrier_type(binding: &TypedBinding, value_type: &ValueType) -> ValueType {
+    if binding.destination_arms.len() <= 1 {
+        value_type.clone()
+    } else {
+        ValueType::Union(
+            binding
+                .destination_arms
+                .iter()
+                .copied()
+                .map(ValueType::Scalar)
+                .collect(),
+        )
+    }
+}
+
 fn flow_assignment(
     unit: &mut SemanticUnit,
     statement: &SyntaxNode,
@@ -1505,8 +1556,8 @@ fn flow_assignment(
                 next.binding_ids.insert(name.clone(), binding.span);
                 next.origins
                     .insert(name.clone(), BTreeSet::from([binding.span]));
-                unit.flow_binding_types
-                    .insert(binding.span, value_type.clone());
+                let storage = binding_carrier_type(binding, &value_type);
+                unit.flow_binding_types.insert(binding.span, storage);
             }
             if !next.binding_ids.contains_key(&name)
                 && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {

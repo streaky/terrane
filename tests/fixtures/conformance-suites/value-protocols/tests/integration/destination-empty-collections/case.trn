@@ -6,6 +6,19 @@ function empty-list list of int;
 
 function generic-empty of (T) list of T;
     return list;
+function generic-count of (T) int; values list of T
+    return values.length
+
+class GenericHolder of (T)
+    values list of T
+    function construct; values list of T
+        this.values = move values
+    function count int;
+        return this.values.length
+
+function consume-generic of (T) int; values list of T
+    return values.length
+
 
 function consume; values list of int
     print; values.length
@@ -36,3 +49,8 @@ function test-scenario;
     print; holder.values == none
     required = instance RequiredHolder; (list;)
     print; required.values.length
+    print; (generic-count; (list; 1))
+    print; (generic-count of (string); (list; 'a', 'b'))
+    print; (consume-generic of int; (list;))
+    generic-holder = instance GenericHolder; (list; 1, 2)
+    print; (generic-holder.count;)

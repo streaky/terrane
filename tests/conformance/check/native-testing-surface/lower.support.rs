@@ -2116,8 +2116,8 @@ pub fn assert_throws(
 pub fn context_value(name: String) -> Option<String> {
     let mut entry: EnvironmentEntry;
     let __terrane_iterable_0 = environment();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         entry = match __terrane_iterator_0.next() {
@@ -2318,8 +2318,8 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
     let raw: TerranePlatformResult;
     encoded_arguments = terrane_collection_support::List::<String>::new(Vec::new());
     let __terrane_iterable_0 = fixture.arguments.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     {
         let __terrane_list_append_0 = encoded_arguments.make_unique();
@@ -2336,8 +2336,8 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
     }
     encoded_environment = terrane_collection_support::List::<String>::new(Vec::new());
     let __terrane_iterable_1 = fixture.environment.clone();
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_1,
+    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_1.as_slice(),
     );
     {
         let __terrane_list_append_1 = encoded_environment.make_unique();
@@ -2669,8 +2669,8 @@ impl CommandLine {
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
     let mut entry: String;
     let __terrane_iterable_0 = schema.entries.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         entry = match __terrane_iterator_0.next() {

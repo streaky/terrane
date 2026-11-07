@@ -1,0 +1,91 @@
+namespace completion-capture-boundaries
+from /core/collections import list
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'failure'
+    function render string;
+        return this.message
+
+function eat int; value list of int
+    return value.length
+
+function restored int; value list of int
+    try
+        print; (eat; value)
+    finally
+        value = list; 2
+    return value[0]
+
+function restored_and_read int; value list of int
+    try
+        print; (eat; value)
+    finally
+        value = list; 6
+        print; value[0]
+    return value[0]
+
+function fail int;
+    throw instance Err;
+
+function nested_restored int; value list of int
+    try
+        try
+            print; (eat; value)
+            print; (fail;)
+        finally
+            value = list; 8
+    catch
+        print; value[0]
+    return value[0]
+
+class Worker
+    function restored int; value list of int
+        try
+            print; (eat; value)
+        finally
+            value = list; 3
+        return value[0]
+
+    static function restored_static int; value list of int
+        try
+            print; (eat; value)
+        finally
+            value = list; 4
+        return value[0]
+
+
+function main;
+    print; (restored; (list; 1))
+    worker = instance Worker;
+    print; (worker.restored; (list; 1))
+    print; (Worker::restored_static; (list; 1))
+
+    callback = function int; value list of int
+        try
+            print; (eat; value)
+        finally
+            value = list; 5
+        return value[0]
+    print; (callback; (list; 1))
+
+    try
+        ignored = function int; value int
+            return value + 1
+        print; (ignored; 6)
+    catch
+        print; 0
+
+    outer = list; 1
+    try
+        try
+            print; (eat; outer)
+            throw instance Err;
+        finally
+            outer = list; 2
+    catch
+        print; outer[0]
+    print; outer[0]
+
+    print; (restored_and_read; (list; 1))
+    print; (nested_restored; (list; 1))

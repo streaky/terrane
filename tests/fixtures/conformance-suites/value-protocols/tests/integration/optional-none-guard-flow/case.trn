@@ -1,0 +1,18 @@
+namespace optional-none-guard-flow
+from /core/collections import list
+function size int; value (list of int)|none
+    if value is a none
+        return 0
+    return value.length
+function observe; value int|none
+    if value is a none
+        print; 'absent'
+    else
+        print; value + 1
+    print; (value is a none)
+function test-scenario;
+    print; (size; none)
+    print; (size; (list;))
+    print; (size; (list; 7, 8))
+    observe; none
+    observe; 3

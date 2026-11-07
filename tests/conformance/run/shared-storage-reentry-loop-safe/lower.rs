@@ -124,8 +124,8 @@ fn main() {
             terrane_int_support::Int::from(2_i128)
         ],
     );
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         item = match __terrane_iterator_0.next() {
@@ -165,8 +165,8 @@ fn main() {
     );
     empty = terrane_collection_support::List::<terrane_int_support::Int>::new(vec![]);
     let __terrane_iterable_2 = empty;
-    let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_2,
+    let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_2.as_slice(),
     );
     loop {
         item = match __terrane_iterator_2.next() {
@@ -183,8 +183,8 @@ fn main() {
     let __terrane_iterable_3 = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(1_i128)]);
-    let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_3,
+    let mut __terrane_iterator_3 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_3.as_slice(),
     );
     loop {
         item = match __terrane_iterator_3.next() {
@@ -203,8 +203,8 @@ fn main() {
     let __terrane_iterable_4 = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(1_i128)]);
-    let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_4,
+    let mut __terrane_iterator_4 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_4.as_slice(),
     );
     loop {
         item = match __terrane_iterator_4.next() {

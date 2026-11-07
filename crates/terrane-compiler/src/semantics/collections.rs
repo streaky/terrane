@@ -1,5 +1,61 @@
 use super::prelude::*;
 
+pub(super) fn retain_appended_native_origins(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    visible: &mut [TypedBinding],
+    bindings: &mut [TypedBinding],
+) -> Result<(), SemanticFailure> {
+    if node.kind != SyntaxKind::CallExpression {
+        return Ok(());
+    }
+    let [callee, arguments] = node.children.as_slice() else {
+        return Ok(());
+    };
+    if callee.kind != SyntaxKind::MemberExpression
+        || callee
+            .children
+            .last()
+            .is_none_or(|member| node_text(&unit.source, member) != "append")
+    {
+        return Ok(());
+    }
+    let Some((receiver, ValueType::List(_), operation)) =
+        collection_member_call(unit, callee, visible)?
+    else {
+        return Ok(());
+    };
+    if operation != "append" || receiver.kind != SyntaxKind::Name {
+        return Ok(());
+    }
+    let Some(argument) = arguments.children.first() else {
+        return Ok(());
+    };
+    let value = argument.children.last().unwrap_or(argument);
+    let Some(actual) = infer_value_type(unit, value, visible)? else {
+        return Ok(());
+    };
+    let name = node_text(&unit.source, receiver);
+    let Some(binding) = visible.iter_mut().rev().find(|binding| {
+        binding.name == name && binding.is_visible_at(unit.source.id(), receiver.span.start)
+    }) else {
+        return Ok(());
+    };
+    let ValueType::List(item) = &mut binding.value_type else {
+        return Ok(());
+    };
+    if value_types_compatible(&unit.descriptors, item.value_type_ref(), &actual) {
+        super::types::retain_native_origins(item.value_type_mut(), &actual);
+        if let Some(stored) = bindings
+            .iter_mut()
+            .find(|stored| stored.span == binding.span)
+        {
+            stored.value_type.clone_from(&binding.value_type);
+        }
+    }
+    Ok(())
+}
+
 fn validate_collection_mutator_value(
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
@@ -358,22 +414,52 @@ fn callable_argument_destination(
                 })
             };
             let value = parameter.and_then(ParameterContract::element_value_type)?;
-            if let Some(identity) = constructor_identity.as_ref()
-                && let Some(owner) = unit
+            let mut substitutions =
+                super::generics::explicit_callable_arguments(unit, callee, contract)
+                    .unwrap_or_default();
+            if let Some(owner) = &contract.owner_identity
+                && let Some(descriptor) = unit
                     .descriptors
                     .iter()
-                    .find(|owner| owner.identity.base() == identity.base())
+                    .find(|descriptor| descriptor.identity.base() == owner.base())
             {
-                let substitutions = owner
-                    .generic_parameters
-                    .iter()
-                    .zip(&identity.type_arguments)
-                    .map(|(parameter, value)| (parameter.name.clone(), value.clone()))
-                    .collect();
-                Some(substitute_value_type(&value, &substitutions))
-            } else {
-                Some(value)
+                let identity = constructor_identity
+                    .clone()
+                    .or_else(|| {
+                        callee.children.first().and_then(|receiver| {
+                            super::expressions::infer_value_type(unit, receiver, bindings)
+                                .ok()
+                                .flatten()
+                                .and_then(|value| match value {
+                                    ValueType::Object(identity) => Some(identity),
+                                    _ => None,
+                                })
+                        })
+                    })
+                    .unwrap_or_else(|| owner.clone());
+                substitutions.extend(
+                    descriptor
+                        .generic_parameters
+                        .iter()
+                        .zip(&identity.type_arguments)
+                        .map(|(parameter, value)| (parameter.name.clone(), value.clone())),
+                );
             }
+            let mut unresolved = false;
+            super::capabilities::walk_value_type(&value, &mut |value| {
+                unresolved |= match value {
+                    ValueType::TypeParameter(name) => !substitutions.contains_key(name),
+                    ValueType::ProjectedGeneric(_) => true,
+                    _ => false,
+                };
+            });
+            if unresolved {
+                return None;
+            }
+            Some(super::generics::substitute_value_type(
+                &value,
+                &substitutions,
+            ))
         })
     })
 }
@@ -495,14 +581,69 @@ pub(super) fn contextual_collection_destination(
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
     let expected = descend(unit, &unit.tree.root, target, bindings, None)?;
-    let expected = match expected {
-        Some(ValueType::Optional(inner)) => Some(*inner),
+    Ok(expected.filter(|expected| {
+        contextual_collection_constructor_matches(unit, target, expected, bindings)
+    }))
+}
+
+/// Select constructor storage from its destination without discarding native
+/// regions carried by its supplied items. Empty constructors need no item inference.
+pub(super) fn contextual_constructor_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    expected: ValueType,
+    bindings: &[TypedBinding],
+) -> Result<ValueType, SemanticFailure> {
+    let mut selected = match expected {
+        ValueType::Optional(inner) => *inner,
         expected => expected,
     };
-    Ok(
-        expected
-            .filter(|expected| collection_constructor_matches(unit, target, expected, bindings)),
-    )
+    let mut node = node;
+    while let [inner] = node.children.as_slice()
+        && node.kind == SyntaxKind::GroupExpression
+    {
+        node = inner;
+    }
+    let [_, arguments] = node.children.as_slice() else {
+        return Ok(selected);
+    };
+    if let ValueType::Tuple(_, length) = &mut selected {
+        *length = Some(arguments.children.len());
+    }
+    for (index, argument) in arguments.children.iter().enumerate() {
+        let value = argument.children.last().unwrap_or(argument);
+        let Some(actual) = infer_value_type(unit, value, bindings)? else {
+            continue;
+        };
+        match &mut selected {
+            ValueType::List(item)
+            | ValueType::Tuple(item, _)
+            | ValueType::Set(item)
+            | ValueType::UnorderedSet(item) => {
+                super::types::retain_native_origins(item.value_type_mut(), &actual);
+            }
+            ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
+                if argument.children.len() >= 2 {
+                    super::types::retain_native_origins(value.value_type_mut(), &actual);
+                } else if let ValueType::Entry(actual_key, actual_value) = actual {
+                    super::types::retain_native_origins(
+                        key.value_type_mut(),
+                        actual_key.value_type_ref(),
+                    );
+                    super::types::retain_native_origins(
+                        value.value_type_mut(),
+                        actual_value.value_type_ref(),
+                    );
+                }
+            }
+            ValueType::Entry(key, value) => {
+                let item = if index == 0 { key } else { value };
+                super::types::retain_native_origins(item.value_type_mut(), &actual);
+            }
+            _ => {}
+        }
+    }
+    Ok(selected)
 }
 
 pub(super) fn validate_collection_constructor_value(

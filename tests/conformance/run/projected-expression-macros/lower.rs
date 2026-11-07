@@ -315,8 +315,8 @@ fn main() {
         8 /* terrane-site: src/main.trn:29:28-29:43 */,
     );
     let __terrane_iterable_0 = sequence;
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         value = match __terrane_iterator_0.next() {
@@ -495,8 +495,8 @@ fn main() {
         16 /* terrane-site: src/main.trn:41:32-41:39 */,
     );
     let __terrane_iterable_1 = empty_values;
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_1,
+    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_1.as_slice(),
     );
     loop {
         value = match __terrane_iterator_1.next() {

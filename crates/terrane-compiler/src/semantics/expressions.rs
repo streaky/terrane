@@ -49,8 +49,7 @@ pub(super) fn validate_applied_collection_type_value(
     ))
 }
 
-/// Boundary type of a value, including an explicitly declared local carrier.
-/// Reading/printing and membership checks retain their ordinary flow type.
+/// Boundary checks use the reaching value type, not the binding's wider carrier.
 pub(super) fn infer_boundary_value_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -64,26 +63,7 @@ pub(super) fn infer_boundary_value_type(
     {
         value = inner;
     }
-    if value.kind == SyntaxKind::Name
-        && let Some(binding) = bindings
-            .iter()
-            .filter(|binding| {
-                binding.name == node_text(&unit.source, value)
-                    && binding.is_visible_at(unit.source.id(), value.span.start)
-            })
-            .max_by_key(|binding| binding.visible_from)
-        && !binding.destination_arms.is_empty()
-    {
-        return Ok(Some(ValueType::Union(
-            binding
-                .destination_arms
-                .iter()
-                .copied()
-                .map(ValueType::Scalar)
-                .collect(),
-        )));
-    }
-    infer_value_type(unit, node, bindings)
+    infer_value_type(unit, value, bindings)
 }
 
 pub(super) fn call_base_designator(mut callee: &SyntaxNode) -> Option<&SyntaxNode> {
@@ -94,6 +74,44 @@ pub(super) fn call_base_designator(mut callee: &SyntaxNode) -> Option<&SyntaxNod
         callee = callee.children.first()?;
     }
     Some(callee)
+}
+
+pub(super) fn validate_static_owner(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if node.kind != SyntaxKind::StaticMemberExpression {
+        return Ok(());
+    }
+    let Some(mut receiver) = node.children.first() else {
+        return Ok(());
+    };
+    while matches!(
+        receiver.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+    ) && let Some(inner) = receiver.children.first()
+    {
+        receiver = inner;
+    }
+    if receiver.kind == SyntaxKind::Name
+        && node_text(&unit.source, receiver) != "self"
+        && let Some(identity) = class_designator_identity(unit, receiver)
+        && identity.native_projection.is_none()
+        && !identity.namespace.starts_with("/deps/")
+        && unit.descriptors.iter().any(|object| {
+            object.identity.base() == identity.base()
+                && matches!(object.kind, ObjectKind::Class)
+                && !object.generic_parameters.is_empty()
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "static member on a generic class requires an applied owner type",
+            receiver.span,
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn call_base_contract<'a>(
@@ -288,7 +306,8 @@ pub(super) fn infer_value_type(
             super::collections::contextual_collection_destination(unit, node, bindings)?
     {
         validate_collection_constructor_value(unit, node, &expected, "collection value", bindings)?;
-        return Ok(Some(expected));
+        return super::collections::contextual_constructor_type(unit, node, expected, bindings)
+            .map(Some);
     }
     // Keep operator recursion outside the large non-operator inference frame.
     match node.kind {

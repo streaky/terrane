@@ -93,6 +93,7 @@ pub(super) fn validate_call_nodes<'a>(
     let function_bindings =
         entered_function.map(|contract| call_site_bindings(unit, Some(contract)));
     let scoped_bindings = function_bindings.as_deref().unwrap_or(scoped_bindings);
+    super::expressions::validate_static_owner(unit, node)?;
     if node.kind == SyntaxKind::Name && projected_macro_for_call(package, unit, node).is_some() {
         return Err(failure(
             &unit.source,
@@ -1021,7 +1022,20 @@ pub(super) fn validate_resolved_assignment(
                     binding.is_visible_at(unit.source.id(), node.span.start)
                 }
         })
-        .map(|binding| binding.value_type.clone())
+        .map(|binding| {
+            if binding.destination_arms.len() <= 1 {
+                binding.value_type.clone()
+            } else {
+                ValueType::Union(
+                    binding
+                        .destination_arms
+                        .iter()
+                        .copied()
+                        .map(ValueType::Scalar)
+                        .collect(),
+                )
+            }
+        })
     else {
         return Ok(());
     };

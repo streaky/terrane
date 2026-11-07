@@ -1,0 +1,11 @@
+namespace app
+from /deps/terrane-query-witness import Holder, View
+function identity View; value View
+    return move value
+function main;
+    h = Holder::new;
+    k = Holder::new;
+    v = h.view;
+    print; (v.size;)
+    v = identity; (k.view;)
+    print; (v.size;)

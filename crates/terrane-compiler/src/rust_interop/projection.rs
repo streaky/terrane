@@ -2516,7 +2516,14 @@ impl Projection {
                         || projected_owner_path_matches(
                             &self.canonical_native_type(&item.rust_path),
                             &self.canonical_native_type(base_rust_path),
-                        ))
+                        )
+                        || self
+                            .projected_type(namespace, type_name)
+                            .and_then(|ty| self.canonical_native_alias(&ty))
+                            .is_some_and(|alias| {
+                                self.canonical_native_type(&alias.rust_type())
+                                    == self.canonical_native_type(rust_path)
+                            }))
             })
             .and_then(|item| match &item.kind {
                 ProjectedKind::ForeignType {

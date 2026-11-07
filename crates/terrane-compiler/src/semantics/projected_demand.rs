@@ -134,6 +134,31 @@ fn projected_expression_owners(
         .collect()
 }
 
+fn collect_iteration_binding_owners(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    imported: &BTreeMap<String, ProjectedOwner>,
+    bindings: &mut BTreeMap<String, BTreeSet<ProjectedOwner>>,
+    source_results: &SourceResults<'_>,
+) {
+    if node.kind == SyntaxKind::ForStatement
+        && let [target, collection, _block] = node.children.as_slice()
+        && target.kind == SyntaxKind::ForTarget
+    {
+        let owners = source_results.iteration_owners(source, collection, imported);
+        for (name, owner) in target.children.iter().zip(owners) {
+            if name.kind == SyntaxKind::Name
+                && let Some(owner) = owner
+            {
+                bindings
+                    .entry(source.text()[name.span.start..name.span.end].to_owned())
+                    .or_default()
+                    .insert(owner);
+            }
+        }
+    }
+}
+
 pub(super) fn collect_projected_binding_owners(
     source: &SourceFile,
     node: &SyntaxNode,
@@ -142,6 +167,7 @@ pub(super) fn collect_projected_binding_owners(
     projection: &crate::rust_interop::projection::Projection,
     source_results: &SourceResults<'_>,
 ) {
+    collect_iteration_binding_owners(source, node, imported, bindings, source_results);
     if matches!(
         node.kind,
         SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter

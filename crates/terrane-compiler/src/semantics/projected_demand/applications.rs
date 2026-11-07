@@ -88,6 +88,32 @@ impl SourceResults<'_> {
         let unit = &self.units[*self.unit_indices.get(&source.id())?];
         self.index_result_owner(unit, node, imported)
     }
+    pub(super) fn iteration_owners(
+        &self,
+        source: &SourceFile,
+        collection: &SyntaxNode,
+        imported: &BTreeMap<String, ProjectedOwner>,
+    ) -> Vec<Option<ProjectedOwner>> {
+        let Some(unit) = self
+            .unit_indices
+            .get(&source.id())
+            .map(|index| &self.units[*index])
+        else {
+            return Vec::new();
+        };
+        let Some(header) = self.expression_header(unit, collection, imported, &mut BTreeSet::new())
+        else {
+            return Vec::new();
+        };
+        match header.name.as_str() {
+            "list" | "tuple" | "set" | "unordered-set" | "map" | "unordered-map" => header
+                .arguments
+                .into_iter()
+                .map(|item| item.owner)
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "header-only inference keeps binding, field and callable substitutions in one syntax dispatch"

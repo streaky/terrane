@@ -1,0 +1,7 @@
+namespace unapplied-static-generic-owner
+class Q of (T)
+    static function mk int;
+        return 3
+
+function main;
+    print; (Q::mk;)

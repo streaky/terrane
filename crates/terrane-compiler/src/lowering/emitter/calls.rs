@@ -60,12 +60,13 @@ impl Emitter<'_> {
                 ValueType::Object(identity) => Some(identity),
                 ValueType::Reference(item)
                 | ValueType::MutableReference(item)
-                | ValueType::SharedReference(item) => {
-                    let ValueType::Object(identity) = item.value_type() else {
-                        return None;
-                    };
-                    Some(identity.clone())
-                }
+                | ValueType::SharedReference(item) => match item.value_type() {
+                    ValueType::Object(identity)
+                    | ValueType::InvocationScopedNative {
+                        family: identity, ..
+                    } => Some(identity),
+                    _ => None,
+                },
                 ValueType::InvocationScopedNative { family, .. } => Some(family),
                 _ => None,
             })
@@ -1886,7 +1887,7 @@ impl Emitter<'_> {
                 let receiver = source_callee
                     .children
                     .first()
-                    .and_then(|receiver| self.value_type(receiver));
+                    .and_then(|receiver| self.receiver_value_type(receiver));
                 let Some(ValueType::InvocationScopedNative { rust_type, .. }) = receiver else {
                     return function.clone();
                 };
@@ -2593,7 +2594,9 @@ impl Emitter<'_> {
             && callee.kind == SyntaxKind::StaticMemberExpression
             && let Some(object) = self.class_designator(receiver)
         {
-            let rust_type = rust_object_type_name(self.package, &object.identity);
+            let applied_identity = crate::semantics::class_designator_identity(self.unit, receiver)
+                .unwrap_or_else(|| object.identity.clone());
+            let rust_type = rust_source_type_application(self.package, &applied_identity);
             if specialization.is_some_and(|specialization| specialization.direct_projected_call)
                 && let Some(item) = self
                     .package
@@ -2684,7 +2687,8 @@ impl Emitter<'_> {
                 })
             } else {
                 format!(
-                    "{rust_type}::terrane_static_{}",
+                    "{}::terrane_static_{}",
+                    rust_type.replacen('<', "::<", 1),
                     rust_name(self.text(member))
                 )
             }
@@ -3512,36 +3516,16 @@ impl Emitter<'_> {
             projected_function.as_ref()
         } else {
             contract.as_ref().and_then(|contract| {
-                let [receiver, _member] = callee.children.as_slice() else {
-                    return None;
-                };
-                let identity = self
-                    .class_designator(receiver)
-                    .map(|object| object.identity.clone())
-                    .or_else(|| match self.value_type(receiver)? {
-                        ValueType::Object(identity) => Some(identity),
-                        ValueType::Reference(item)
-                        | ValueType::MutableReference(item)
-                        | ValueType::SharedReference(item) => {
-                            let ValueType::Object(identity) = item.value_type() else {
-                                return None;
-                            };
-                            Some(identity.clone())
-                        }
-                        ValueType::InvocationScopedNative { family, .. } => Some(family),
-                        _ => None,
-                    })?;
-                if projected_interface_dispatch {
+                if projected_interface_dispatch
+                    || !matches!(
+                        callee.kind,
+                        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+                    )
+                {
                     return None;
                 }
-                self.package
-                    .projection
-                    .method(
-                        &identity.namespace,
-                        &identity.name,
-                        &contract.name,
-                        contract.is_static,
-                    )
+                projected_function
+                    .as_ref()
                     .filter(|method| !contract.is_static || method.enum_operation.is_some())
             })
         };

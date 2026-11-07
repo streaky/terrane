@@ -52,18 +52,7 @@ fn validate_moved_value(
         && let Some(binding) = super::binding_identity_at(unit, value)
         && binding.start < statement.span.start
         && rebinds(unit, statement, binding)
-        && (statement.children.iter().any(|clause| {
-            let separate_handler = clause.kind == SyntaxKind::FinallyClause
-                && !(clause.span.start <= value.span.start && value.span.end <= clause.span.end);
-            let catch_after_body = clause.kind == SyntaxKind::CatchClause
-                && statement.children.iter().any(|body| {
-                    body.kind == SyntaxKind::Block
-                        && body.span.start <= value.span.start
-                        && value.span.end <= body.span.end
-                });
-            (separate_handler || catch_after_body)
-                && flow.reads_in_clause_without_rewrite(clause.span, binding)
-        }) || flow.reads_after_without_rewrite(statement, binding))
+        && flow.completion_reads_without_rewrite(statement, value.span, binding)
     {
         return Err(failure(
             &unit.source,

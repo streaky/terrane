@@ -1,0 +1,8 @@
+namespace app
+from /core/collections import list
+
+function first of (T) T; values list of T
+    return move values[0]
+
+function main;
+    print; (first; (list; 1))

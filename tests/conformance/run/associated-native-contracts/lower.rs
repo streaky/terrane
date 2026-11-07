@@ -344,41 +344,51 @@ impl SharedCommand {
         service: &std::sync::Arc<witness::Executor>,
         input: Alpha,
     ) -> AlphaReply {
-        return __terrane_raised(
-            || -> Result<_, crate::TerraneForeignError> {
-                match match std::panic::catch_unwind(
-                    std::panic::AssertUnwindSafe(|| -> Result<
-                        _,
-                        crate::TerraneForeignError,
-                    > { Ok((&*service).call(input)) }),
-                ) {
-                    Ok(result) => result?,
-                    Err(payload) => {
-                        return Err(
-                            crate::__terrane_dependency_panic(
-                                payload,
-                                "witness",
-                                "witness::Executor::call",
-                            ),
-                        );
-                    }
-                } {
-                    Ok(value) => Ok(value),
-                    Err(error) => {
-                        Err(
-                            crate::TerraneForeignError(
-                                crate::TerraneError::custom_raised(
-                                    crate::DescriptorId(2),
-                                    error.to_string(),
-                                    crate::TERRANE_NO_SITE,
+        return {
+            let __terrane_conversion_input_0 = input;
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    match match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok(
+                                <witness::Executor>::call(
+                                    &*service,
+                                    __terrane_conversion_input_0,
                                 ),
-                            ),
-                        )
+                            )
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "witness",
+                                    "witness::Executor::call",
+                                ),
+                            );
+                        }
+                    } {
+                        Ok(value) => Ok(value),
+                        Err(error) => {
+                            Err(
+                                crate::TerraneForeignError(
+                                    crate::TerraneError::custom_raised(
+                                        crate::DescriptorId(2),
+                                        error.to_string(),
+                                        crate::TERRANE_NO_SITE,
+                                    ),
+                                ),
+                            )
+                        }
                     }
-                }
-            }(),
-            4 /* terrane-site: src/main.trn:42:16-42:40 */,
-        );
+                }(),
+                4 /* terrane-site: src/main.trn:42:16-42:40 */,
+            )
+        };
     }
 }
 impl CommandProtocol<

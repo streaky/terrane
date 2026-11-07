@@ -329,6 +329,16 @@ impl Emitter<'_> {
         {
             return self.consuming_native_receiver_expression(grouped);
         }
+        if let Some(ValueType::Reference(item) | ValueType::MutableReference(item)) =
+            self.value_type(receiver)
+            && matches!(
+                item.value_type_ref(),
+                ValueType::InvocationScopedNative { .. }
+            )
+            && self.package.native_value_is_copyable(item.value_type_ref())
+        {
+            return self.native_receiver_expression(receiver, false);
+        }
         if receiver.kind == SyntaxKind::Name
             && self.value_type(receiver).is_some_and(|value_type| {
                 self.value_type_owns_resource(&value_type)
@@ -979,9 +989,11 @@ impl Emitter<'_> {
                 "{{ let __terrane_value = {storage}.lock().expect(\"static field lock poisoned\").clone(); __terrane_value }}"
             );
         }
+        let owner = crate::semantics::class_designator_identity(self.unit, receiver)
+            .unwrap_or_else(|| object.identity.clone());
         format!(
             "{}::terrane_static_{}",
-            rust_object_type_name(self.package, &object.identity),
+            rust_source_type_application(self.package, &owner).replacen('<', "::<", 1),
             rust_name(member_name)
         )
     }

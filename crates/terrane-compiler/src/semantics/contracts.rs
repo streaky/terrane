@@ -438,6 +438,7 @@ pub(super) fn collect_typed_bindings(
         analyze_binding_node(unit, node, visible_bindings, scope)?;
         bindings.extend_from_slice(&visible_bindings[prior_len..]);
     }
+    super::collections::retain_appended_native_origins(unit, node, visible_bindings, bindings)?;
     for child in &node.children {
         collect_typed_bindings(unit, matches, child, visible_bindings, bindings, scope)?;
     }

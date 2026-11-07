@@ -967,7 +967,7 @@ fn finite_unions(choose_first: bool, choose_second: bool) {
         value = TerraneUnionF9S897::Arm2(String::from("two"));
     }
     if choose_second {
-        if matches!(&value, TerraneUnionF9S897::Arm1(_)) {
+        if matches!(&&value, TerraneUnionF9S897::Arm1(_)) {
             value = TerraneUnionF9S897::Arm0(true);
         } else {
             println!(
@@ -980,14 +980,14 @@ fn finite_unions(choose_first: bool, choose_second: bool) {
     } else {
         value = TerraneUnionF9S897::Arm1(terrane_int_support::Int::from(3_i128));
     }
-    if matches!(&value, TerraneUnionF9S897::Arm1(_)) {
+    if matches!(&&value, TerraneUnionF9S897::Arm1(_)) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&(match value {
             TerraneUnionF9S897::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } +
             terrane_int_support::Int::from(4_i128)))
         );
-    } else if matches!(&value, TerraneUnionF9S897::Arm2(_)) {
+    } else if matches!(&&value, TerraneUnionF9S897::Arm2(_)) {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&(terrane_string_support::length(&match
@@ -1016,14 +1016,14 @@ fn loop_union(mut count: terrane_int_support::Int) {
             break;
         }
     }
-    if matches!(&value, TerraneUnionF9S1273::Arm1(_)) {
+    if matches!(&&value, TerraneUnionF9S1273::Arm1(_)) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&(match value {
             TerraneUnionF9S1273::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } +
             terrane_int_support::Int::from(1_i128)))
         );
-    } else if matches!(&value, TerraneUnionF9S1273::Arm2(_)) {
+    } else if matches!(&&value, TerraneUnionF9S1273::Arm2(_)) {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&(terrane_string_support::length(&match
@@ -2294,8 +2294,8 @@ fn test_scenario_terrane_loop_shadowing_scope() {
         _ => unreachable!("flow-proven storage refinement"),
     }
         .clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         items = TerraneUnionF27S130::Arm1(
@@ -2311,7 +2311,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
             unreachable!("flow-proven storage refinement") })
         );
     }
-    if matches!(&items, TerraneUnionF27S130::Arm1(_)) {
+    if matches!(&&items, TerraneUnionF27S130::Arm1(_)) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &items {
             TerraneUnionF27S130::Arm1(value) => value, _ =>
@@ -2352,8 +2352,8 @@ fn test_scenario_terrane_loop_shadowing_scope() {
         }
             .value
             .clone();
-        let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_2,
+        let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_2.as_slice(),
         );
         loop {
             let _ = entry
@@ -2376,7 +2376,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
     }
     if matches!(
         &entry.as_ref().unwrap_or_else(|| __terrane_uninitialized_binding("entry",
-        "case.trn", 18, 6)).clone(), TerraneUnionF27S316::Arm1(_)
+        "case.trn", 18, 6)), TerraneUnionF27S316::Arm1(_)
     ) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match entry.as_ref()
@@ -2459,8 +2459,8 @@ fn test_scenario_terrane_nested_collection_for_binding() {
         ],
     );
     let __terrane_iterable_0 = nested;
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         row = match __terrane_iterator_0.next() {

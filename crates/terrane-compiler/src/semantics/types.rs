@@ -300,7 +300,13 @@ pub(super) fn analyze_binding_node(
                     &name,
                     bindings,
                 )?;
-                Ok(Some(declared_value))
+                super::collections::contextual_constructor_type(
+                    unit,
+                    value,
+                    declared_value,
+                    bindings,
+                )
+                .map(Some)
             } else if let (
                 Some(
                     expected
@@ -359,17 +365,21 @@ pub(super) fn analyze_binding_node(
             ValueType::Object(actual.clone())
         } else if matches!(declared_type, ValueType::Optional(_)) {
             declared_type
-        } else if let (Some(inferred), Some(initializer), Ok(_)) = (
+        } else if let (Some(inferred), Some(initializer), Ok(arms)) = (
             inferred.clone(),
             initializer,
             union_destination_candidates(unit, type_node),
         ) {
-            ValueType::Scalar(select_union_destination(
-                unit,
-                type_node,
-                initializer,
-                inferred,
-            )?)
+            if matches!(inferred, ValueType::Union(_)) {
+                ValueType::Union(arms.into_iter().map(ValueType::Scalar).collect())
+            } else {
+                ValueType::Scalar(select_union_destination(
+                    unit,
+                    type_node,
+                    initializer,
+                    inferred,
+                )?)
+            }
         } else {
             declared_type
         };
@@ -397,6 +407,7 @@ pub(super) fn analyze_binding_node(
                 initializer,
                 "T0002",
             )?;
+            retain_native_origins(&mut value_type, &inferred);
         }
         inferred.as_ref().map_or(value_type.clone(), |actual| {
             merge_callable_destination_effects(value_type, actual)
@@ -1393,6 +1404,50 @@ pub(super) fn diagnostic_value_type(
         _ => value_type.to_string(),
     }
 }
+/// Preserve inferred native lifetime metadata after destination compatibility
+/// succeeds; written native names alone may denote a static projection alias.
+pub(super) fn retain_native_origins(expected: &mut ValueType, actual: &ValueType) {
+    match (expected, actual) {
+        (
+            expected @ (ValueType::Object(_) | ValueType::InvocationScopedNative { .. }),
+            actual @ ValueType::InvocationScopedNative { .. },
+        ) => {
+            expected.clone_from(actual);
+        }
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            retain_native_origins(expected, actual);
+        }
+        (ValueType::Optional(expected), actual) => retain_native_origins(expected, actual),
+        (ValueType::List(expected), ValueType::List(actual))
+        | (ValueType::Tuple(expected, _), ValueType::Tuple(actual, _))
+        | (ValueType::Set(expected), ValueType::Set(actual))
+        | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
+        | (ValueType::Reference(expected), ValueType::Reference(actual))
+        | (ValueType::MutableReference(expected), ValueType::MutableReference(actual))
+        | (ValueType::SharedReference(expected), ValueType::SharedReference(actual)) => {
+            retain_native_origins(expected.value_type_mut(), actual.value_type_ref());
+        }
+        (
+            ValueType::Map(expected_key, expected_value),
+            ValueType::Map(actual_key, actual_value),
+        )
+        | (
+            ValueType::UnorderedMap(expected_key, expected_value),
+            ValueType::UnorderedMap(actual_key, actual_value),
+        )
+        | (
+            ValueType::Entry(expected_key, expected_value),
+            ValueType::Entry(actual_key, actual_value),
+        ) => {
+            retain_native_origins(expected_key.value_type_mut(), actual_key.value_type_ref());
+            retain_native_origins(
+                expected_value.value_type_mut(),
+                actual_value.value_type_ref(),
+            );
+        }
+        _ => {}
+    }
+}
 
 fn merge_callable_destination_effects(expected: ValueType, actual: &ValueType) -> ValueType {
     match (expected, actual) {
@@ -1846,34 +1901,13 @@ fn reference_storage_types_equal(expected: &ValueType, actual: &ValueType) -> bo
         return true;
     }
     match (expected, actual) {
-        (ValueType::Object(expected), ValueType::Object(actual)) => {
-            object_types_compatible(&[], expected, actual)
-        }
-        (ValueType::Object(expected), ValueType::InvocationScopedNative { family: actual, .. })
-        | (
-            ValueType::InvocationScopedNative {
+        (
+            ValueType::Object(expected)
+            | ValueType::InvocationScopedNative {
                 family: expected, ..
             },
-            ValueType::Object(actual),
-        ) if expected.is_unsafe == actual.is_unsafe
-            && expected.namespace == actual.namespace
-            && expected.name == actual.name
-            && expected.application == actual.application
-            && expected.type_arguments.len() == actual.type_arguments.len()
-            && expected
-                .type_arguments
-                .iter()
-                .zip(&actual.type_arguments)
-                .all(|(expected, actual)| reference_storage_types_equal(expected, actual))
-            && reconcile_projected_native_arguments(expected, actual)
-            && match (&expected.native_projection, &actual.native_projection) {
-                (Some(expected), Some(actual)) => expected == actual,
-                (None, None) => expected.native_arguments == actual.native_arguments,
-                (Some(_), None) | (None, Some(_)) => false,
-            } =>
-        {
-            true
-        }
+            ValueType::Object(actual) | ValueType::InvocationScopedNative { family: actual, .. },
+        ) => object_types_compatible(&[], expected, actual),
         (ValueType::Optional(expected), ValueType::Optional(actual)) => {
             reference_storage_types_equal(expected, actual)
         }
@@ -1975,10 +2009,12 @@ pub(super) fn value_types_compatible(
                 )
         }
         (ValueType::Object(expected), ValueType::InvocationScopedNative { family: actual, .. })
-            if expected.name == actual.name =>
-        {
-            true
-        }
+        | (
+            ValueType::InvocationScopedNative {
+                family: expected, ..
+            },
+            ValueType::Object(actual),
+        ) => object_types_compatible(&[], expected, actual),
         (
             ValueType::InvocationScopedNative {
                 concrete: false, ..

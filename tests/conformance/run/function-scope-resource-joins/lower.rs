@@ -129,7 +129,7 @@ fn union_resource(choose: bool) {
     } else {
         item = TerraneUnionF0S881::Arm1(terrane_int_support::Int::from(12_i128));
     }
-    if matches!(&item, TerraneUnionF0S881::Arm1(_)) {
+    if matches!(&&item, TerraneUnionF0S881::Arm1(_)) {
         item = TerraneUnionF0S881::Arm1(
             match item {
                 TerraneUnionF0S881::Arm1(value) => value,
@@ -158,7 +158,7 @@ fn move_union_resource(choose: bool) -> String {
     } else {
         item = TerraneUnionF0S1151::Arm1(String::from("plain"));
     }
-    if matches!(&item, TerraneUnionF0S1151::Arm1(_)) {
+    if matches!(&&item, TerraneUnionF0S1151::Arm1(_)) {
         return match item {
             TerraneUnionF0S1151::Arm1(value) => value,
             _ => unreachable!("flow-proven storage refinement"),

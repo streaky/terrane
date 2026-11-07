@@ -713,12 +713,13 @@ impl Emitter<'_> {
                 } => identity,
                 ValueType::Reference(item)
                 | ValueType::MutableReference(item)
-                | ValueType::SharedReference(item) => {
-                    let ValueType::Object(identity) = item.value_type() else {
-                        return None;
-                    };
-                    identity
-                }
+                | ValueType::SharedReference(item) => match item.value_type() {
+                    ValueType::Object(identity)
+                    | ValueType::InvocationScopedNative {
+                        family: identity, ..
+                    } => identity,
+                    _ => return None,
+                },
                 _ => return None,
             };
             (identity, false)

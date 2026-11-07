@@ -55,10 +55,45 @@ fn collect_native_view_origins(
             places.push(place);
         }
     }
+    if node.kind == SyntaxKind::Name
+        && let Some(identity) = binding_identity_at(unit, node)
+        && infer_value_type(unit, node, &unit.typed_bindings)
+            .ok()
+            .flatten()
+            .is_some_and(|ty| package.native_value_is_copyable(&ty))
+    {
+        let origins =
+            unit.flow_read_bindings
+                .get(&(node.span.file, node.span.start, node.span.end));
+        for origin in origins
+            .into_iter()
+            .flatten()
+            .copied()
+            .chain(origins.is_none().then_some(identity))
+        {
+            let Some(initializer) = super::find_binding_initializer(&unit.tree.root, origin) else {
+                continue;
+            };
+            if initializer.span.end <= node.span.start {
+                collect_noncopy_flow_lenders(package, unit, initializer.span, lenders);
+                collect_native_view_origins(package, unit, initializer, lenders, places);
+            }
+        }
+    }
     for child in &node.children {
         collect_native_view_origins(package, unit, child, lenders, places);
     }
 }
+fn has_exact_scoped_result(unit: &SemanticUnit, function: Span) -> bool {
+    unit.functions.iter().any(|contract| {
+        contract.span == function
+            && matches!(
+                contract.return_type,
+                Some(ValueType::InvocationScopedNative { .. })
+            )
+    })
+}
+
 pub(super) fn validate_function_native_lenders(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -87,13 +122,7 @@ pub(super) fn validate_function_native_lenders(
         // Exact invocation-scoped callback results already have a distinct
         // higher-ranked lender/escape contract. They are not new local-loan
         // return declarations.
-        if unit.functions.iter().any(|contract| {
-            contract.span == function_span
-                && matches!(
-                    contract.return_type,
-                    Some(ValueType::InvocationScopedNative { .. })
-                )
-        }) {
+        if has_exact_scoped_result(unit, function_span) {
             continue;
         }
         let Some(function) = find_function(&unit.tree.root, function_span) else {
@@ -163,6 +192,58 @@ pub(super) fn validate_function_native_lenders(
     Ok(())
 }
 
+fn collect_noncopy_flow_lenders(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    source: Span,
+    lenders: &mut BTreeSet<Span>,
+) {
+    let mut flow_lenders = BTreeSet::new();
+    super::collect_flow_lenders(unit, source, &mut flow_lenders);
+    lenders.extend(flow_lenders.into_iter().filter(|origin| {
+        unit.typed_bindings
+            .iter()
+            .find(|binding| binding.span == *origin)
+            .is_none_or(|binding| {
+                let ty = unit
+                    .flow_binding_types
+                    .get(origin)
+                    .unwrap_or(&binding.value_type);
+                !package.native_value_is_copyable(ty)
+            })
+    }));
+}
+
+fn collect_append_producers<'a>(
+    unit: &SemanticUnit,
+    node: &'a SyntaxNode,
+    binding: Span,
+    producers: &mut Vec<&'a SyntaxNode>,
+) {
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let Some(receiver) = callee.children.first()
+        && matches!(
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten(),
+            Some(ValueType::List(_))
+        )
+        && binding_identity_at(unit, receiver) == Some(binding)
+        && callee
+            .children
+            .last()
+            .is_some_and(|name| node_text(&unit.source, name) == "append")
+        && let Some(argument) = node.children.get(1).and_then(|args| args.children.first())
+    {
+        producers.push(argument);
+    }
+    for child in &node.children {
+        collect_append_producers(unit, child, binding, producers);
+    }
+}
+
 fn validate_collection_native_lenders(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -176,19 +257,38 @@ fn validate_collection_native_lenders(
                 | ValueType::UnorderedSet(_)
                 | ValueType::Map(_, _)
                 | ValueType::UnorderedMap(_, _)
-        );
-        let Some((file, start, end)) =
-            super::scoped_region(&binding.value_type).filter(|_| is_collection)
-        else {
+                | ValueType::Tuple(..)
+        ) && super::field_has_native_loan(package, &binding.value_type);
+        if !is_collection {
+            continue;
+        }
+        let function_span = super::scoped_region(&binding.value_type)
+            .map(|(file, start, end)| Span { file, start, end })
+            .or(binding.scope)
+            .filter(|scope| scope.file == binding.span.file);
+        let Some(function_span) = function_span else {
             continue;
         };
-        let function_span = Span { file, start, end };
+        // Exact callback results retain their higher-ranked lender contract.
+        if has_exact_scoped_result(unit, function_span) {
+            continue;
+        }
         let Some(function) = find_function(&unit.tree.root, function_span) else {
             continue;
         };
         let mut producers = Vec::new();
         collect_producers(unit, function, binding.span, &mut producers);
-        for initializer in producers {
+        let mut append_producers = Vec::new();
+        collect_append_producers(unit, function, binding.span, &mut append_producers);
+        for (initializer, appended) in producers
+            .into_iter()
+            .map(|producer| (producer, false))
+            .chain(
+                append_producers
+                    .into_iter()
+                    .map(|producer| (producer, true)),
+            )
+        {
             let mut transferred = initializer;
             while matches!(
                 transferred.kind,
@@ -197,13 +297,24 @@ fn validate_collection_native_lenders(
             {
                 transferred = value;
             }
-            if binding_identity_at(unit, transferred).is_some() {
+            if !appended && binding_identity_at(unit, transferred).is_some() {
                 continue;
             }
             let mut lender_set = BTreeSet::new();
             let mut places = Vec::new();
             collect_native_view_origins(package, unit, initializer, &mut lender_set, &mut places);
-            super::collect_flow_lenders(unit, initializer.span, &mut lender_set);
+            collect_noncopy_flow_lenders(package, unit, initializer.span, &mut lender_set);
+            if lender_set.is_empty() {
+                let empty_constructor = super::super::collections::empty_collection_identity(
+                    unit,
+                    initializer,
+                    &unit.typed_bindings,
+                )
+                .is_some();
+                if empty_constructor {
+                    continue;
+                }
+            }
             if lender_set.is_empty() {
                 return Err(failure(
                     &unit.source,
@@ -213,10 +324,11 @@ fn validate_collection_native_lenders(
                 ));
             }
             let mut lenders = lender_set.into_iter().collect::<Vec<_>>();
+            let origin = initializer.span;
             let live_after = flows
                 .entry(function_span)
                 .or_insert_with(|| liveness::Flow::new(package, unit, function))
-                .live_origins(initializer.span);
+                .live_origins(origin);
             validate_lender_stability(
                 package,
                 unit,

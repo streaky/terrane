@@ -76,6 +76,42 @@ fn test_scenario_terrane_applied_class_type_control() {
         terrane_scalar_support::scalar_text(&selected(terrane_int_support::Int::from(2_i128)))
     );
 }
+// Source: tests/integration/applied-static-generic-owner/case.trn
+// Namespace: applied-static-generic-owner
+#[derive(Clone)]
+pub struct TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051<
+    TerraneType54,
+> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
+}
+impl<
+    TerraneType54,
+> TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051<
+    TerraneType54,
+> {
+    pub fn terrane_construct() -> Self {
+        Self {
+            __terrane_phantom: std::marker::PhantomData,
+        }
+    }
+    pub fn terrane_static_mk() -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(3_i128);
+    }
+}
+fn test_scenario_terrane_applied_static_generic_owner() {
+    let maker: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
+    maker = std::sync::Arc::new(
+        TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::<
+            terrane_int_support::Int,
+        >::terrane_static_mk,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&maker()));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&TerraneNsAppliedStaticGenericOwnerQIdentity2F6170706C6965642D7374617469632D67656E657269632D6F776E65720051::
+        < terrane_int_support::Int > ::terrane_static_mk())
+    );
+}
 // Source: tests/integration/authored-enum-catch-all/case.trn
 // Namespace: authored-enum-catch-all
 #[derive(Clone)]
@@ -12256,66 +12292,69 @@ fn main() {
             test_scenario_terrane_applied_class_type_control();
         }
         "2" => {
-            test_scenario_terrane_authored_enum_catch_all();
+            test_scenario_terrane_applied_static_generic_owner();
         }
         "3" => {
-            test_scenario_terrane_authored_enum_resource_transfer();
+            test_scenario_terrane_authored_enum_catch_all();
         }
         "4" => {
-            test_scenario_terrane_authored_generic_class_phantom_parameter();
+            test_scenario_terrane_authored_enum_resource_transfer();
         }
         "5" => {
-            test_scenario_terrane_authored_generic_contracts();
+            test_scenario_terrane_authored_generic_class_phantom_parameter();
         }
         "6" => {
-            test_scenario_terrane_authored_generic_enum_states();
+            test_scenario_terrane_authored_generic_contracts();
         }
         "7" => {
-            test_scenario_terrane_authored_generic_finite_recursion();
+            test_scenario_terrane_authored_generic_enum_states();
         }
         "8" => {
-            test_scenario_terrane_authored_generic_interfaces();
+            test_scenario_terrane_authored_generic_finite_recursion();
         }
         "9" => {
-            test_scenario_terrane_authored_generic_partial_construction();
+            test_scenario_terrane_authored_generic_interfaces();
         }
         "10" => {
-            test_scenario_terrane_authored_generic_resource_choice();
+            test_scenario_terrane_authored_generic_partial_construction();
         }
         "11" => {
-            test_scenario_terrane_authored_generic_selection();
+            test_scenario_terrane_authored_generic_resource_choice();
         }
         "12" => {
-            test_scenario_terrane_authored_interface_transfer_composition();
+            test_scenario_terrane_authored_generic_selection();
         }
         "13" => {
-            test_scenario_terrane_borrowed_inherited_copy_fields();
+            test_scenario_terrane_authored_interface_transfer_composition();
         }
         "14" => {
-            test_scenario_terrane_bounded_borrowed_collections();
+            test_scenario_terrane_borrowed_inherited_copy_fields();
         }
         "15" => {
-            test_scenario_terrane_bounded_consuming_generic_field();
+            test_scenario_terrane_bounded_borrowed_collections();
         }
         "16" => {
-            test_scenario_terrane_bounded_generic_bound_forwarding();
+            test_scenario_terrane_bounded_consuming_generic_field();
         }
         "17" => {
-            test_scenario_terrane_bounded_interface_receiver_modes();
+            test_scenario_terrane_bounded_generic_bound_forwarding();
         }
         "18" => {
-            test_scenario_terrane_class_field_metadata();
+            test_scenario_terrane_bounded_interface_receiver_modes();
         }
         "19" => {
-            test_scenario_terrane_class_instance_independence();
+            test_scenario_terrane_class_field_metadata();
         }
         "20" => {
-            test_scenario_terrane_class_method_closures();
+            test_scenario_terrane_class_instance_independence();
         }
         "21" => {
-            test_scenario_terrane_class_state_methods();
+            test_scenario_terrane_class_method_closures();
         }
         "22" => {
+            test_scenario_terrane_class_state_methods();
+        }
+        "23" => {
             if let Err(error) = test_scenario_terrane_codec_class_methods() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -12325,166 +12364,166 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "23" => {
+        "24" => {
             test_scenario_terrane_collection_generic_keys_and_get();
         }
-        "24" => {
+        "25" => {
             test_scenario_terrane_completion_callable_rewrite();
         }
-        "25" => {
+        "26" => {
             test_scenario_terrane_completion_finally_generic_post_read();
         }
-        "26" => {
+        "27" => {
             test_scenario_terrane_completion_finally_loop_break();
         }
-        "27" => {
+        "28" => {
             test_scenario_terrane_completion_finally_loop_repeat();
         }
-        "28" => {
+        "29" => {
             test_scenario_terrane_completion_finally_nested_post_read();
         }
-        "29" => {
+        "30" => {
             test_scenario_terrane_completion_finally_post_read();
         }
-        "30" => {
+        "31" => {
             test_scenario_terrane_completion_finally_string_post_read();
         }
-        "31" => {
+        "32" => {
             test_scenario_terrane_constructor_if_initialization();
         }
-        "32" => {
+        "33" => {
             test_scenario_terrane_constructor_none_defaults();
         }
-        "33" => {
+        "34" => {
             test_scenario_terrane_deep_inheritance_field_forwarding();
         }
-        "34" => {
+        "35" => {
             test_scenario_terrane_explicit_class_operations();
         }
-        "35" => {
+        "36" => {
             test_scenario_terrane_explicit_generic_mutable_closure();
         }
-        "36" => {
+        "37" => {
             test_scenario_terrane_explicit_generic_unused();
         }
-        "37" => {
+        "38" => {
             test_scenario_terrane_field_default_assignability();
         }
-        "38" => {
+        "39" => {
             test_scenario_terrane_field_grouped_consuming_once();
         }
-        "39" => {
+        "40" => {
             test_scenario_terrane_finite_generic_class_type();
         }
-        "40" => {
+        "41" => {
             test_scenario_terrane_generic_conditional_clone_and_inherited_interface();
         }
-        "41" => {
+        "42" => {
             test_scenario_terrane_generic_field_cloneable_control();
         }
-        "42" => {
+        "43" => {
             test_scenario_terrane_generic_index_borrow_controls();
         }
-        "43" => {
+        "44" => {
             test_scenario_terrane_generic_interface_implementation_bound();
         }
-        "44" => {
+        "45" => {
             test_scenario_terrane_generic_method_nested_result();
         }
-        "45" => {
+        "46" => {
             test_scenario_terrane_generic_mutable_explicit_application();
         }
-        "46" => {
+        "47" => {
             test_scenario_terrane_generic_required_field_consuming();
         }
-        "47" => {
+        "48" => {
             test_scenario_terrane_grouped_consuming_field_and_nested_generic();
         }
-        "48" => {
+        "49" => {
             test_scenario_terrane_implicit_class_field_defaults();
         }
-        "49" => {
+        "50" => {
             test_scenario_terrane_indirect_recursive_class_type();
         }
-        "50" => {
+        "51" => {
             test_scenario_terrane_inherited_base_fields();
         }
-        "51" => {
+        "52" => {
             test_scenario_terrane_inherited_generic_bound_forwarding();
         }
-        "52" => {
+        "53" => {
             test_scenario_terrane_inherited_interface_bounded_dispatch();
         }
-        "53" => {
+        "54" => {
             test_scenario_terrane_inherited_interface_generic_ancestor();
         }
-        "54" => {
+        "55" => {
             test_scenario_terrane_inherited_interface_imported_bound();
         }
-        "55" => {
+        "56" => {
             test_scenario_terrane_inherited_interface_imported_value();
         }
-        "56" => {
+        "57" => {
             test_scenario_terrane_inherited_interface_mutable_receiver();
         }
-        "57" => {
+        "58" => {
             test_scenario_terrane_inherited_self_return();
         }
-        "58" => {
+        "59" => {
             test_scenario_terrane_inherited_shared_field_writes();
         }
-        "59" => {
+        "60" => {
             test_scenario_terrane_inherited_static_factory();
         }
-        "60" => {
+        "61" => {
             test_scenario_terrane_inherited_static_state();
         }
-        "61" => {
+        "62" => {
             test_scenario_terrane_interface_borrowed_wrapper();
         }
-        "62" => {
+        "63" => {
             test_scenario_terrane_interface_invocation_mode_widening();
         }
-        "63" => {
+        "64" => {
             test_scenario_terrane_interface_owned_inherited_mutation();
         }
-        "64" => {
+        "65" => {
             test_scenario_terrane_interface_owned_upcast();
         }
-        "65" => {
+        "66" => {
             test_scenario_terrane_interface_value_separation();
         }
-        "66" => {
+        "67" => {
             test_scenario_terrane_method_without_receiver_use();
         }
-        "67" => {
+        "68" => {
             test_scenario_terrane_mutating_interface_methods();
         }
-        "68" => {
+        "69" => {
             test_scenario_terrane_nested_object_mutation();
         }
-        "69" => {
+        "70" => {
             test_scenario_terrane_object_contracts_reuse();
         }
-        "70" => {
+        "71" => {
             test_scenario_terrane_object_field_owned_snapshot();
         }
-        "71" => {
+        "72" => {
             test_scenario_terrane_object_inheritance_lifecycle_matrix();
         }
-        "72" => {
+        "73" => {
             test_scenario_terrane_optional_field_presence();
         }
-        "73" => {
+        "74" => {
             test_scenario_terrane_optional_generic_field_default();
         }
-        "74" => {
+        "75" => {
             test_scenario_terrane_recursive_generic_phantom();
         }
-        "75" => {
+        "76" => {
             test_scenario_terrane_required_field_reference();
         }
-        "76" => {
+        "77" => {
             if let Err(error) = test_scenario_terrane_shared_object_field_comparisons() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -12494,31 +12533,31 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "77" => {
+        "78" => {
             test_scenario_terrane_source_associated_interface();
         }
-        "78" => {
+        "79" => {
             test_scenario_terrane_source_finally_only_rewrite();
         }
-        "79" => {
+        "80" => {
             test_scenario_terrane_source_generic_field_read();
         }
-        "80" => {
+        "81" => {
             test_scenario_terrane_source_method_builtin_name_dispatch();
         }
-        "81" => {
+        "82" => {
             test_scenario_terrane_source_mutable_receiver_replace();
         }
-        "82" => {
+        "83" => {
             test_scenario_terrane_static_class_singleton();
         }
-        "83" => {
+        "84" => {
             test_scenario_terrane_static_explicit_generic();
         }
-        "84" => {
+        "85" => {
             test_scenario_terrane_static_field_member_assignment();
         }
-        "85" => {
+        "86" => {
             test_scenario_terrane_trait_field_defaults();
         }
         _ => {

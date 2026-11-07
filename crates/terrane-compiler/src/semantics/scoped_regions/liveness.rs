@@ -32,14 +32,12 @@ pub(super) struct Flow {
     entry: usize,
     live_after: Vec<BTreeSet<Span>>,
     aliases: Vec<Option<StorageAliases>>,
-    clause_entries: BTreeMap<Span, Vec<usize>>,
 }
 
 struct Builder<'a> {
     package: &'a SemanticPackage,
     unit: &'a SemanticUnit,
     steps: Vec<Step>,
-    clause_entries: BTreeMap<Span, Vec<usize>>,
 }
 
 impl Builder<'_> {
@@ -422,15 +420,10 @@ impl Builder<'_> {
                     gate
                 };
             }
-            SyntaxKind::CatchClause | SyntaxKind::FinallyClause => {
-                let entry = self.sequence(&node.children, exits);
-                self.clause_entries
-                    .entry(node.span)
-                    .or_default()
-                    .push(entry);
-                return entry;
-            }
-            SyntaxKind::Block | SyntaxKind::ElseClause => {
+            SyntaxKind::CatchClause
+            | SyntaxKind::FinallyClause
+            | SyntaxKind::Block
+            | SyntaxKind::ElseClause => {
                 return self.sequence(&node.children, exits);
             }
             _ => {}
@@ -463,6 +456,27 @@ impl Builder<'_> {
             for argument in &arguments.children {
                 if self.carries_loan(argument) {
                     self.reads(argument, &mut event.reads);
+                }
+            }
+            if callee.kind == SyntaxKind::MemberExpression
+                && callee
+                    .children
+                    .last()
+                    .is_some_and(|member| node_text(&self.unit.source, member) == "append")
+                && let Some(receiver) = callee.children.first()
+                && matches!(
+                    infer_value_type(self.unit, receiver, &self.unit.typed_bindings)
+                        .ok()
+                        .flatten(),
+                    Some(ValueType::List(_))
+                )
+            {
+                event.definition = self.identity(receiver);
+                if let Some(definition) = event.definition {
+                    event.sources.insert(definition);
+                }
+                if let Some(argument) = arguments.children.first() {
+                    self.loan_sources(argument, &mut event.sources);
                 }
             }
         }
@@ -534,7 +548,6 @@ impl Flow {
             package,
             unit,
             steps: vec![Step::default()],
-            clause_entries: BTreeMap::new(),
         };
         let exits = Exits {
             normal: 0,
@@ -559,7 +572,6 @@ impl Flow {
             steps: builder.steps,
             entry,
             aliases: Vec::new(),
-            clause_entries: builder.clause_entries,
         };
         let mut live_before = vec![BTreeSet::new(); flow.steps.len()];
         loop {
@@ -650,18 +662,15 @@ impl Flow {
                 step.capture_region
                     .is_some_and(|region| region.start == statement.start)
             })
-            .flat_map(|step| step.next.iter().map(|next| (*next, false)))
+            .flat_map(|step| step.next.iter().map(|next| (*next, false, false)))
             .collect::<Vec<_>>();
-        let mut visited = vec![[false; 2]; self.steps.len()];
-        while let Some((index, mut outside)) = pending.pop() {
+        let mut visited = vec![[[false; 2]; 2]; self.steps.len()];
+        while let Some((index, mut outside, restored)) = pending.pop() {
             let step = &self.steps[index];
             outside |= step.span.is_some_and(|span| {
                 span.file == statement.file
                     && (span.start < statement.start || span.end > statement.end)
             });
-            if std::mem::replace(&mut visited[index][usize::from(outside)], true) {
-                continue;
-            }
             let finally_rewrite = step.definition == Some(binding)
                 && finally.is_some_and(|clause| {
                     step.span.is_some_and(|span| {
@@ -670,41 +679,118 @@ impl Flow {
                             && span.end <= clause.end
                     })
                 });
-            if outside || finally_rewrite {
-                if step.definition == Some(binding) {
-                    continue;
-                }
-                if step.reads.contains(&binding) {
-                    return true;
-                }
+            let restored = restored || finally_rewrite;
+            if std::mem::replace(
+                &mut visited[index][usize::from(outside)][usize::from(restored)],
+                true,
+            ) {
+                continue;
             }
-            pending.extend(step.next.iter().map(|next| (*next, outside)));
+            if outside && !restored && step.reads.contains(&binding) {
+                return true;
+            }
+            pending.extend(step.next.iter().map(|next| (*next, outside, restored)));
         }
         false
     }
 
-    pub(super) fn reads_in_clause_without_rewrite(&self, clause: Span, binding: Span) -> bool {
-        let Some(entries) = self.clause_entries.get(&clause) else {
-            return false;
+    pub(super) fn completion_reads_without_rewrite(
+        &self,
+        statement: &SyntaxNode,
+        value: Span,
+        binding: Span,
+    ) -> bool {
+        fn handlers(node: &SyntaxNode, spans: &mut Vec<Span>) {
+            if matches!(
+                node.kind,
+                SyntaxKind::FinallyClause | SyntaxKind::CatchClause
+            ) {
+                spans.push(node.span);
+            }
+            if !matches!(
+                node.kind,
+                SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+            ) {
+                for child in &node.children {
+                    handlers(child, spans);
+                }
+            }
+        }
+        let contains = |outer: Span, inner: Span| {
+            outer.file == inner.file && outer.start <= inner.start && inner.end <= outer.end
         };
-        let mut pending = entries.clone();
+        let mut handler_spans = Vec::new();
+        handlers(statement, &mut handler_spans);
+        let separate_handlers = statement
+            .children
+            .iter()
+            .filter(|clause| {
+                matches!(
+                    clause.kind,
+                    SyntaxKind::CatchClause | SyntaxKind::FinallyClause
+                ) && !contains(clause.span, value)
+            })
+            .map(|clause| clause.span)
+            .collect::<Vec<_>>();
+        // Start at the actual transfer, not the closure's synthetic capture
+        // edge: an exception before that transfer has not consumed the value.
+        // Nested finally continuations then prove restoration on the path to
+        // an enclosing catch, including the throwing continuation.
+        let mut pending = self
+            .steps
+            .iter()
+            .filter(|step| step.capture_region.is_none() && step.span == Some(value))
+            .flat_map(|step| step.next.iter().copied())
+            .collect::<Vec<_>>();
+        // Catch storage shares the closure even when its source operations do
+        // not throw. Retain that capture obligation at the innermost boundary,
+        // so enclosing handlers still pass through intervening finalizers.
+        let innermost = self
+            .steps
+            .iter()
+            .filter_map(|step| step.capture_region)
+            .filter(|region| contains(*region, value))
+            .min_by_key(|region| region.end - region.start);
+        if let Some(region) = innermost {
+            pending.extend(
+                self.steps
+                    .iter()
+                    .filter(|step| step.capture_region == Some(region))
+                    .filter_map(|step| step.next.get(1).copied()),
+            );
+        }
         let mut visited = vec![false; self.steps.len()];
         while let Some(index) = pending.pop() {
             if std::mem::replace(&mut visited[index], true) {
                 continue;
             }
             let step = &self.steps[index];
-            if step.span.is_some_and(|span| {
-                span.file != clause.file || span.start < clause.start || span.end > clause.end
-            }) {
-                continue;
-            }
-            if step.reads.contains(&binding) {
+            let outside = step
+                .span
+                .is_some_and(|span| !contains(statement.span, span));
+            let handler = step.span.is_some_and(|span| {
+                separate_handlers
+                    .iter()
+                    .any(|clause| contains(*clause, span))
+            });
+            if step.capture_region.is_none()
+                && (outside || handler)
+                && step.reads.contains(&binding)
+            {
                 return true;
             }
-            if step.definition != Some(binding) {
-                pending.extend(step.next.iter().copied());
+            // A body-only rewrite still cannot restore a separate completion
+            // capture. Handler rewrites and ordinary subsequent assignments
+            // can, but only on paths that actually execute the definition.
+            if step.definition == Some(binding)
+                && (outside
+                    || step.span.is_some_and(|span| {
+                        handler_spans.iter().any(|clause| contains(*clause, span))
+                    }))
+            {
+                continue;
             }
+            pending.extend(step.next.iter().copied());
         }
         false
     }

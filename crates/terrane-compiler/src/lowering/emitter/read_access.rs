@@ -333,9 +333,11 @@ impl Emitter<'_> {
             {
                 format!("{source}.terrane_borrowing_iterator()")
             }
+            Some(ValueType::List(_)) => {
+                format!("terrane_collection_support::slice_iterator({source}.as_slice())")
+            }
             Some(
-                ValueType::List(_)
-                | ValueType::Map(_, _)
+                ValueType::Map(_, _)
                 | ValueType::Set(_)
                 | ValueType::Tuple(_, _)
                 | ValueType::Range

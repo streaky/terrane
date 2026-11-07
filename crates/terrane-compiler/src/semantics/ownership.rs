@@ -379,6 +379,13 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         {
             validate_field_snapshot(package, unit, value)?;
         }
+        if node.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, node).as_deref() == Some("move")
+            && let Some(value) = node.children.last().map(ungroup)
+            && value.kind == SyntaxKind::IndexExpression
+        {
+            validate_field_snapshot(package, unit, value)?;
+        }
         if node.kind == SyntaxKind::BinaryExpression
             && let [left, right] = node.children.as_slice()
         {
@@ -930,6 +937,36 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 moved.insert(binding);
                 return Ok(());
             }
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && super::collections::collection_constructor_identity(unit, node, &unit.typed_bindings)
+                .is_some()
+            && let Some(arguments) = node.children.get(1)
+        {
+            let transferred = arguments
+                .children
+                .iter()
+                .filter_map(|argument| {
+                    let value = ungroup(argument.children.last().unwrap_or(argument));
+                    (value.kind == SyntaxKind::Name)
+                        .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
+                        .flatten()
+                        .filter(|binding| noncopyable_binding(package, unit, *binding))
+                })
+                .collect::<Vec<_>>();
+            for child in &node.children {
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
+            }
+            moved.extend(transferred);
+            return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()

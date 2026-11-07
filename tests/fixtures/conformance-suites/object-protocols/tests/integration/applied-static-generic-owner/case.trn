@@ -1,0 +1,9 @@
+namespace applied-static-generic-owner
+class Q of (T)
+    static function mk int;
+        return 3
+
+function test-scenario;
+    maker = (Q of int)::mk
+    print; (maker;)
+    print; ((Q of int)::mk;)

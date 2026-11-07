@@ -1,0 +1,18 @@
+namespace local-union-alias-carrier
+function observe; flag bool
+    original int|string = 'alpha'
+    if flag
+        original = 4
+    explicit int|string = original
+    inferred = original
+    if explicit is a string
+        print; explicit
+    else
+        print; explicit + 1
+    if inferred is a string
+        print; inferred
+    else
+        print; inferred + 2
+function test-scenario;
+    observe; false
+    observe; true

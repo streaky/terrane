@@ -416,9 +416,7 @@ impl Emitter<'_> {
         for parameter in &contract.parameters {
             let shared = self.parameter_needs_shared_storage(parameter);
             let flow_type = self.unit.flow_binding_types.get(&parameter.span);
-            if !shared && !matches!(flow_type, Some(ValueType::Union(_))) {
-                continue;
-            }
+            let slot = self.unit.completion_capture_slots.contains(&parameter.span);
             let Some(source_type) = parameter.binding_value_type() else {
                 continue;
             };
@@ -426,6 +424,49 @@ impl Emitter<'_> {
                 Some(ValueType::Union(arms)) => arms.iter().position(|arm| arm == &source_type),
                 _ => None,
             };
+            if slot {
+                let name = self.storage_name_at(&parameter.name, parameter.span);
+                let source = self.parameter_source_name(&parameter.name, parameter.span);
+                let carrier = if let Some(index) = union_arm {
+                    format!(
+                        "{}::Arm{index}({source})",
+                        union_type_name_for_span(parameter.span)
+                    )
+                } else {
+                    source
+                };
+                let binding = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == parameter.span);
+                let ty = binding.map_or_else(
+                    || rust_value_type(self.package, source_type.clone()),
+                    |binding| {
+                        self.binding_rust_type(
+                            binding,
+                            self.binding_scalar_storage_type(binding),
+                            false,
+                        )
+                    },
+                );
+                let ty = if union_arm.is_some() {
+                    union_type_name_for_span(parameter.span)
+                } else {
+                    ty
+                };
+                if shared {
+                    self.line(&format!(
+                        "let mut {name}: Option<std::sync::Arc<TerraneSharedCell<{ty}>>> = Some(std::sync::Arc::new(TerraneSharedCell::new({carrier})));"
+                    ));
+                } else {
+                    self.line(&format!("let mut {name}: Option<{ty}> = Some({carrier});"));
+                }
+                continue;
+            }
+            if !shared && !matches!(flow_type, Some(ValueType::Union(_))) {
+                continue;
+            }
             let name = self.storage_name_at(&parameter.name, parameter.span);
             let source = self.parameter_source_name(&parameter.name, parameter.span);
             if shared {
@@ -584,6 +625,7 @@ impl Emitter<'_> {
                 matches!(binding_type, Some(ValueType::MutableReference(_)));
             let mutable_storage = parameter.mutable
                 && !self.parameter_needs_shared_storage(parameter)
+                && !self.unit.completion_capture_slots.contains(&parameter.span)
                 && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
                     || binding_storage_is_replaced(
                         self.package,
@@ -730,7 +772,8 @@ impl Emitter<'_> {
             if matches!(
                 self.unit.flow_binding_types.get(&parameter.span),
                 Some(ValueType::Union(_))
-            ) {
+            ) || self.unit.completion_capture_slots.contains(&parameter.span)
+            {
                 self.active_function_bindings.insert(parameter.span);
             }
         }
@@ -879,6 +922,7 @@ impl Emitter<'_> {
                     matches!(binding_type, Some(ValueType::MutableReference(_)));
                 let mutable_storage = parameter.mutable
                     && !self.parameter_needs_shared_storage(parameter)
+                    && !self.unit.completion_capture_slots.contains(&parameter.span)
                     && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
                         || binding_storage_is_replaced(
                             self.package,
@@ -945,6 +989,11 @@ impl Emitter<'_> {
             rust_value_type(self.package, result.clone())
         };
         let outer_output = std::mem::take(&mut self.output);
+        let outer_completion = std::mem::replace(&mut self.try_completion, false);
+        let outer_loop = std::mem::replace(&mut self.in_loop, false);
+        let outer_continue = self.continue_label.take();
+        let outer_break = self.break_label.take();
+        let outer_error = self.current_error.take();
         let outer_indent = self.indent;
         let outer_return_type = self.return_type.replace(result.clone());
         let outer_function_errors = std::mem::replace(&mut self.function_errors, contract.throws);
@@ -995,7 +1044,8 @@ impl Emitter<'_> {
                 if matches!(
                     self.unit.flow_binding_types.get(&parameter.span),
                     Some(ValueType::Union(_))
-                ) {
+                ) || self.unit.completion_capture_slots.contains(&parameter.span)
+                {
                     self.active_function_bindings.insert(parameter.span);
                 }
             }
@@ -1017,6 +1067,11 @@ impl Emitter<'_> {
             }
         }
         self.closure_depth -= 1;
+        self.try_completion = outer_completion;
+        self.in_loop = outer_loop;
+        self.continue_label = outer_continue;
+        self.break_label = outer_break;
+        self.current_error = outer_error;
         let body = std::mem::replace(&mut self.output, outer_output);
         self.indent = outer_indent;
         self.return_type = outer_return_type;

@@ -696,13 +696,6 @@ impl Emitter<'_> {
                         }
                     })
                     .collect::<Vec<_>>();
-                if scoped_items {
-                    return format!(
-                        "terrane_collection_support::List::<{}>::new(vec![{}])",
-                        rust_element_type(self.package, item),
-                        values.join(", ")
-                    );
-                }
                 return format!(
                     "terrane_collection_support::{kind}::<{}>::new(vec![{}])",
                     rust_element_type(self.package, item),
@@ -1245,13 +1238,15 @@ impl Emitter<'_> {
                 self.expression(node)
             }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
-                if node.kind == SyntaxKind::Name
-                    || node.kind == SyntaxKind::MemberExpression
-                        && matches!(
-                            node.children.as_slice(),
-                            [receiver, member]
-                                if self.callable_object_field(receiver, self.text(member))
-                        ) =>
+                if matches!(
+                    node.kind,
+                    SyntaxKind::Name | SyntaxKind::StaticMemberExpression
+                ) || node.kind == SyntaxKind::MemberExpression
+                    && matches!(
+                        node.children.as_slice(),
+                        [receiver, member]
+                            if self.callable_object_field(receiver, self.text(member))
+                    ) =>
             {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
@@ -1283,9 +1278,13 @@ impl Emitter<'_> {
                     );
                 }
                 if let Some(contract) = self.contract_for_call(node, false) {
-                    let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    let function = if node.kind == SyntaxKind::StaticMemberExpression {
+                        self.static_member(node)
+                    } else {
+                        function_name(self.package, contract)
+                    };
                     let future = if expected_throws && !actual_throws {
                         format!("Box::pin(async move {{ Ok({function}({arguments}).await) }})")
                     } else {
@@ -1540,7 +1539,10 @@ impl Emitter<'_> {
                 )
             }
             ValueType::Function(parameters, _, expected_effects)
-                if node.kind == SyntaxKind::Name =>
+                if matches!(
+                    node.kind,
+                    SyntaxKind::Name | SyntaxKind::StaticMemberExpression
+                ) =>
             {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
@@ -1565,9 +1567,13 @@ impl Emitter<'_> {
                     return format!("{constructor}(move |{declarations}| {call})");
                 }
                 if let Some(contract) = self.contract_for_call(node, false) {
-                    let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    let function = if node.kind == SyntaxKind::StaticMemberExpression {
+                        self.static_member(node)
+                    } else {
+                        function_name(self.package, contract)
+                    };
                     if expected_mode == InvocationMode::Shared
                         && (!expected_throws || actual_throws)
                     {
@@ -2345,7 +2351,7 @@ impl Emitter<'_> {
             && let Some(category) = descriptor_category
         {
             let union_name = union_type_name(&binding);
-            let expression = self.expression(value);
+            let expression = self.available_storage_reference(&binding, value, false);
             let matching = self
                 .union_arms(&binding)
                 .iter()
@@ -2369,7 +2375,7 @@ impl Emitter<'_> {
                 .position(|arm| *arm == ValueType::Scalar(descriptor))
         {
             let union_name = union_type_name(&binding);
-            let expression = self.expression(value);
+            let expression = self.available_storage_reference(&binding, value, false);
             return format!("matches!(&{expression}, {union_name}::Arm{index}(_))");
         }
         let value_type = self.value_type(value);

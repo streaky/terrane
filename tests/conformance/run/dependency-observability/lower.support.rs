@@ -1322,8 +1322,8 @@ impl LogContext {
         let mut existing: LogField;
         updated = terrane_collection_support::List::new(Vec::new());
         let __terrane_iterable_0 = self.fields.clone();
-        let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_0,
+        let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_0.as_slice(),
         );
         {
             let __terrane_list_append_0 = updated.make_unique();
@@ -1352,8 +1352,8 @@ impl LogContext {
         let mut existing: String;
         updated = terrane_collection_support::List::<String>::new(Vec::new());
         let __terrane_iterable_1 = self.spans.clone();
-        let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_1,
+        let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_1.as_slice(),
         );
         {
             let __terrane_list_append_1 = updated.make_unique();
@@ -1382,8 +1382,8 @@ impl LogContext {
         let mut existing: TerraneUnionF2S5342;
         value = LogContext::terrane_construct();
         let __terrane_iterable_2 = self.fields.clone();
-        let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_2,
+        let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_2.as_slice(),
         );
         loop {
             existing = TerraneUnionF2S5342::Arm0(
@@ -1402,8 +1402,8 @@ impl LogContext {
         }
         value.append_field(addition);
         let __terrane_iterable_3 = self.spans.clone();
-        let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_3,
+        let mut __terrane_iterator_3 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_3.as_slice(),
         );
         loop {
             existing = TerraneUnionF2S5342::Arm1(
@@ -1429,8 +1429,8 @@ impl LogContext {
         let mut existing: TerraneUnionF2S5641;
         value = LogContext::terrane_construct();
         let __terrane_iterable_4 = self.fields.clone();
-        let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_4,
+        let mut __terrane_iterator_4 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_4.as_slice(),
         );
         loop {
             existing = TerraneUnionF2S5641::Arm0(
@@ -1448,8 +1448,8 @@ impl LogContext {
                 );
         }
         let __terrane_iterable_5 = self.spans.clone();
-        let mut __terrane_iterator_5 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_5,
+        let mut __terrane_iterator_5 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_5.as_slice(),
         );
         loop {
             existing = TerraneUnionF2S5641::Arm1(
@@ -1688,8 +1688,8 @@ pub fn emit_at(
     }
     combined = terrane_collection_support::List::new(Vec::new());
     let __terrane_iterable_6 = v.context.fields.clone();
-    let mut __terrane_iterator_6 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_6,
+    let mut __terrane_iterator_6 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_6.as_slice(),
     );
     {
         let __terrane_list_append_2 = combined.make_unique();
@@ -1705,8 +1705,8 @@ pub fn emit_at(
         }
     }
     let __terrane_iterable_7 = f;
-    let mut __terrane_iterator_7 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_7,
+    let mut __terrane_iterator_7 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_7.as_slice(),
     );
     {
         let __terrane_list_append_3 = combined.make_unique();

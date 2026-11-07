@@ -196,6 +196,17 @@ pub(super) fn first_owner_access_between(
             .then_some(node.span);
     }
     let children = match node.kind {
+        SyntaxKind::ForStatement
+            if node.children.first().is_some_and(|target| {
+                target.span.file == window.observer.file
+                    && target.span.start <= window.observer.start
+                    && window.observer.end <= target.span.end
+            }) =>
+        {
+            // The collection expression acquires the iterator loan; it is not
+            // an independent owner access after the element binding exists.
+            &node.children[2..]
+        }
         SyntaxKind::Argument => &node.children[node.children.len().saturating_sub(1)..],
         SyntaxKind::MemberExpression => &node.children[..node.children.len().min(1)],
         _ => &node.children,

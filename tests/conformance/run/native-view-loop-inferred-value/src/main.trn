@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+from /core/collections import list
+
+function main;
+    h = Holder::new;
+    values = list; (h.copy_view;)
+    for c in values
+        print; (c.size;)

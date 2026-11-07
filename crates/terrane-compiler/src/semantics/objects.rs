@@ -1156,12 +1156,12 @@ fn cloneable_value_type_assuming_parameters(
 ) -> bool {
     match value_type {
         ValueType::TypeParameter(name) => assumed_clone_parameters.contains(name),
+        ValueType::InvocationScopedNative { .. } => package.native_value_is_copyable(value_type),
         ValueType::MutableReference(_)
         | ValueType::Task(_, _)
         | ValueType::ScopedTask(_, _)
         | ValueType::TaskGroup(_)
         | ValueType::Iterator(_)
-        | ValueType::InvocationScopedNative { .. }
         | ValueType::PlatformStreamHandle
         | ValueType::PlatformResourceHandle
         | ValueType::ChannelPair(_)

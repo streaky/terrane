@@ -3,9 +3,9 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
-    let mut children: terrane_collection_support::List<_>;
+    let mut children: terrane_collection_support::List<witness::Element<'_, ()>>;
     let mut child: &State;
-    children = terrane_collection_support::List::<_>::new(vec![]);
+    children = terrane_collection_support::List::<witness::Element<'_, ()>>::new(vec![]);
     let __terrane_iterable_0 = &state.children;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iter();
     loop {

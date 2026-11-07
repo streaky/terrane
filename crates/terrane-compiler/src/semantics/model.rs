@@ -347,7 +347,10 @@ fn iterable_item_type_in_mode(
 ) -> Result<ValueType, (&'static str, &'static str, Option<Span>)> {
     if !matches!(
         value_type,
-        ValueType::Object(_) | ValueType::Reference(_) | ValueType::Union(_)
+        ValueType::Object(_)
+            | ValueType::Reference(_)
+            | ValueType::MutableReference(_)
+            | ValueType::Union(_)
     ) && !descriptor_has_member(unit, &value_type, "iterator")
     {
         return Err((
@@ -398,8 +401,10 @@ fn iterable_item_type_in_mode(
             Ok(ValueType::Entry(key, value))
         }
         ValueType::Range => Ok(ValueType::Scalar(ScalarType::Int)),
-        ValueType::Reference(item) => iterable_item_type_in_mode(unit, item.value_type(), true)
-            .map(|item| ValueType::Reference(ElementType::new(item))),
+        ValueType::Reference(item) | ValueType::MutableReference(item) => {
+            iterable_item_type_in_mode(unit, item.value_type(), true)
+                .map(|item| ValueType::Reference(ElementType::new(item)))
+        }
         ValueType::Object(identity) => {
             let iterator =
                 super::member_inference::descriptor_protocol_method(unit, &identity, "iterator")
