@@ -20,6 +20,7 @@ struct Step {
     reads: BTreeSet<Span>,
     definition: Option<Span>,
     sources: BTreeSet<Span>,
+    value_origins: BTreeSet<Span>,
     next: Vec<usize>,
     previous: Vec<usize>,
     capture_region: Option<Span>,
@@ -157,6 +158,32 @@ impl Builder<'_> {
             }
         }
     }
+    // Reaching source values also carry closure-storage joins that are not
+    // execution edges (notably a nonthrowing try body's catch aliases). Keep
+    // these producer identities alongside ordinary storage liveness rather
+    // than inventing a runtime path through the handler.
+    fn loan_value_origins(&self, node: &SyntaxNode, origins: &mut BTreeSet<Span>) {
+        if node.kind == SyntaxKind::Name
+            && self.carries_loan(node)
+            && let Some(reaching) =
+                self.unit
+                    .flow_read_bindings
+                    .get(&(node.span.file, node.span.start, node.span.end))
+        {
+            for binding in reaching {
+                if let Some(value) = super::find_binding_initializer(&self.unit.tree.root, *binding)
+                {
+                    origins.insert(value.span);
+                }
+            }
+        }
+        for (index, child) in node.children.iter().enumerate() {
+            if super::super::scope_flow::is_flow_value_child(node, index, child) {
+                self.loan_value_origins(child, origins);
+            }
+        }
+    }
+
     fn iteration_loan_entry(&mut self, node: &SyntaxNode, body_entry: usize) -> usize {
         if node.kind == SyntaxKind::ForStatement
             && let [target, collection, _body] = node.children.as_slice()
@@ -501,6 +528,7 @@ impl Builder<'_> {
                         .is_none_or(|member| node_text(&self.unit.source, member) != "append"),
                 )) {
                     self.loan_sources(argument, &mut event.sources);
+                    self.loan_value_origins(argument, &mut event.value_origins);
                 }
             }
         }
@@ -519,6 +547,7 @@ impl Builder<'_> {
                 && self.carries_loan(value)
             {
                 self.loan_sources(value, &mut event.sources);
+                self.loan_value_origins(value, &mut event.value_origins);
             }
         }
         if matches!(
@@ -855,7 +884,8 @@ impl Flow {
                         span.file == origin.file
                             && span.start <= origin.start
                             && origin.end <= span.end
-                    }) || step.sources.iter().any(|source| values.contains(source));
+                    }) || step.value_origins.contains(&origin)
+                        || step.sources.iter().any(|source| values.contains(source));
                     values.remove(&definition);
                     if carries {
                         values.insert(definition);

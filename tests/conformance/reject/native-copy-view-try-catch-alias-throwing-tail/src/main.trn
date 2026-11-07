@@ -1,0 +1,20 @@
+namespace app
+from /deps/terrane-query-witness import Holder
+from /core/errors import throwable
+class Err implements throwable
+    message string = 'failure'
+    function render string;
+        return this.message
+
+function main;
+    h = Holder::new;
+    k = Holder::new;
+    a = h.copy_view;
+    b = h.copy_view;
+    try
+        a = k.copy_view;
+        throw instance Err;
+    catch Err
+        b = a
+    k.bump;
+    print; (b.size;)

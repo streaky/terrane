@@ -137,6 +137,7 @@ fn test_boundaries() {
     mixed = TerraneUnionF1S639::Arm1(terrane_int_support::Int::from(7_i128));
     if item.extra.clone() == terrane_int_support::Int::from(3_i128) {
         mixed = TerraneUnionF1S639::Arm0(Label::terrane_construct());
+        let _ = &mixed;
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =

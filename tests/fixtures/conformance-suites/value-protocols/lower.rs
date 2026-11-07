@@ -1759,6 +1759,7 @@ fn test_scenario_terrane_collections_value_semantics() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &number;
         println!("{}", terrane_scalar_support::scalar_text(&number));
     }
     empty_count = terrane_int_support::Int::from(0_i128);
@@ -1886,6 +1887,7 @@ fn test_scenario_terrane_collections_value_semantics() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &value;
         println!("{}", terrane_scalar_support::scalar_text(&value));
     }
     empty_list = terrane_collection_support::List::<
@@ -3174,6 +3176,7 @@ fn test_values_terrane_explicit_numeric_coercions() -> Result<(), TerraneError> 
                         90 /* terrane-site: tests/integration/explicit-numeric-coercions/case.trn:50:26-50:42 */
                     ),
                 );
+            let _ = &impossible;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&impossible.as_ref()
                 .expect("flow-proven available binding"))
@@ -3856,6 +3859,242 @@ fn choose_present<TerraneType54>(
     }
     return fallback;
 }
+fn return_for<TerraneType54>(
+    value: Option<TerraneType54>,
+    fallback: TerraneType54,
+) -> TerraneType54 {
+    let items: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut item: terrane_int_support::Int;
+    items = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let __terrane_iterable_0 = items;
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
+    );
+    loop {
+        item = match __terrane_iterator_0.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let _ = &item;
+        if (&value).is_some() {
+            return match value {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            };
+        }
+    }
+    return fallback;
+}
+fn return_while<TerraneType54>(
+    value: Option<TerraneType54>,
+    fallback: TerraneType54,
+) -> TerraneType54 {
+    let mut index: terrane_int_support::Int;
+    index = terrane_int_support::Int::from(0_i128);
+    while index < terrane_int_support::Int::from(1_i128) {
+        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        if !value.is_none() {
+            return match value {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            };
+        }
+    }
+    return fallback;
+}
+fn return_for_membership<TerraneType54>(
+    value: Option<TerraneType54>,
+    fallback: TerraneType54,
+) -> TerraneType54 {
+    let items: terrane_collection_support::List<terrane_int_support::Int>;
+    let item: terrane_int_support::Int;
+    items = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let __terrane_iterable_1 = items;
+    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_1.as_slice(),
+    );
+    loop {
+        item = match __terrane_iterator_1.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let _ = &item;
+        if value.is_none() {
+            return fallback;
+        }
+        return match value {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        };
+    }
+    return fallback;
+}
+fn preserve_after_loop<TerraneType54>(
+    value: Option<TerraneType54>,
+    fallback: TerraneType54,
+) -> TerraneType54 {
+    let items: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut item: terrane_int_support::Int;
+    items = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let __terrane_iterable_2 = items;
+    let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_2.as_slice(),
+    );
+    loop {
+        item = match __terrane_iterator_2.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        if (&value).is_some() {
+            println!("{}", terrane_scalar_support::scalar_text(&item));
+        }
+    }
+    return choose_terrane_generic_optional_owned_return(value, fallback);
+}
+fn return_finally<TerraneType54>(
+    value: Option<TerraneType54>,
+    fallback: TerraneType54,
+) -> TerraneType54 {
+    let mut item: Option<terrane_int_support::Int> = None;
+    let mut __terrane_completion_0: TerraneCompletion<TerraneType54> = (|| {
+        let __terrane_try_0: TerraneCompletion<TerraneType54> = (|| {
+            let __terrane_iterable_3 = terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(
+                vec![
+                    terrane_int_support::Int::from(1_i128),
+                    terrane_int_support::Int::from(2_i128)
+                ],
+            );
+            let mut __terrane_iterator_3 = terrane_collection_support::slice_iterator(
+                __terrane_iterable_3.as_slice(),
+            );
+            loop {
+                let _ = item
+                    .insert(
+                        match __terrane_iterator_3.next() {
+                            terrane_collection_support::IterationStep::Item(item) => item,
+                            terrane_collection_support::IterationStep::End => break,
+                        },
+                    );
+                let _ = &item;
+                if (&value).is_some() {
+                    return TerraneCompletion::Return(
+                        match value {
+                            Some(value) => value,
+                            _ => unreachable!("flow-proven storage refinement"),
+                        },
+                    );
+                }
+            }
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_0: TerraneCompletion<TerraneType54> = (|| {
+        println!("{}", String::from("finished"));
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return fallback;
+}
+fn return_finally_clone(value: Option<String>, fallback: String) -> String {
+    let mut item: Option<terrane_int_support::Int> = None;
+    let mut __terrane_completion_1: TerraneCompletion<String> = (|| {
+        let __terrane_try_1: TerraneCompletion<String> = (|| {
+            let __terrane_iterable_4 = terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(
+                vec![
+                    terrane_int_support::Int::from(1_i128),
+                    terrane_int_support::Int::from(2_i128)
+                ],
+            );
+            let mut __terrane_iterator_4 = terrane_collection_support::slice_iterator(
+                __terrane_iterable_4.as_slice(),
+            );
+            loop {
+                let _ = item
+                    .insert(
+                        match __terrane_iterator_4.next() {
+                            terrane_collection_support::IterationStep::Item(item) => item,
+                            terrane_collection_support::IterationStep::End => break,
+                        },
+                    );
+                let _ = &item;
+                if (&value).is_some() {
+                    return TerraneCompletion::Return(
+                        match &value {
+                            Some(value) => value,
+                            _ => unreachable!("flow-proven storage refinement"),
+                        }
+                            .clone(),
+                    );
+                }
+            }
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_1 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_1) => {
+                let mut __terrane_handled_1 = false;
+                if !__terrane_handled_1 {
+                    return TerraneCompletion::Error(__terrane_error_1);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_1: TerraneCompletion<String> = (|| {
+        println!("{}", terrane_scalar_support::scalar_text(&value.is_none()));
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_1 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_1 = replacement,
+    }
+    match __terrane_completion_1 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return fallback;
+}
 fn test_scenario_terrane_generic_optional_owned_return() {
     println!(
         "{}",
@@ -3881,6 +4120,53 @@ fn test_scenario_terrane_generic_optional_owned_return() {
         terrane_scalar_support::scalar_text(&choose_terrane_generic_optional_owned_return::
         < terrane_int_support::Int > (Some(terrane_int_support::Int::from(11_i128)),
         terrane_int_support::Int::from(12_i128)))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(return_for(Some(terrane_collection_support::List::
+        < terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(2_i128),
+        terrane_int_support::Int::from(3_i128)])), terrane_collection_support::List:: <
+        terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(8_i128)]))
+        .length()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(return_while(Some(terrane_collection_support::List::
+        < terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(4_i128),
+        terrane_int_support::Int::from(5_i128)])), terrane_collection_support::List:: <
+        terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(9_i128)]))
+        .length()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(return_for_membership(Some(terrane_collection_support::List::
+        < terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(6_i128),
+        terrane_int_support::Int::from(7_i128)])), terrane_collection_support::List:: <
+        terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(9_i128)]))
+        .length()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&preserve_after_loop(Some(String::from("kept")),
+        String::from("fallback")))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&return_finally(Some(String::from("generic-present")),
+        String::from("generic-fallback")))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&return_finally:: < String > (None,
+        String::from("generic-fallback")))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&return_finally_clone(Some(String::from("clone-present")),
+        String::from("clone-fallback")))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&return_finally_clone(None,
+        String::from("clone-fallback")))
     );
 }
 // Source: tests/integration/integer-coercions/case.trn
@@ -4070,6 +4356,7 @@ fn choose_terrane_local_scalar_union(flag: bool) {
         value = TerraneUnionF32S76::Arm0(terrane_int_support::Int::from(1_i128));
     } else {
         value = TerraneUnionF32S76::Arm1(String::from("text"));
+        let _ = &value;
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &value {
@@ -4215,6 +4502,7 @@ fn observe_terrane_local_union_compatible_boundary(flag: bool) {
         value = TerraneUnionF34S91::Arm0(terrane_int_support::Int::from(1_i128));
     } else {
         value = TerraneUnionF34S91::Arm1(String::from("text"));
+        let _ = &value;
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&matches!(&&value,
@@ -4372,7 +4660,9 @@ fn test_scenario_terrane_map_entry_destructuring() {
             terrane_collection_support::IterationStep::End => break,
         };
         key = __terrane_item_1.key;
+        let _ = &key;
         value = __terrane_item_1.value;
+        let _ = &value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&value)
@@ -4639,6 +4929,7 @@ fn test_scenario_terrane_map_key_removal() -> Result<(), TerraneError> {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &pair;
         println!(
             "{}{}{}", String::from("reinserted-"),
             terrane_scalar_support::scalar_text(&pair.key.clone()),
@@ -5561,7 +5852,7 @@ fn test_scenario_terrane_stable_list_sorting() {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key), 175 /* terrane-site: tests/integration/stable-list-sorting/case.trn:69:17-69:29 */))
+            .get_or_error(&key.clone()), 175 /* terrane-site: tests/integration/stable-list-sorting/case.trn:69:17-69:29 */))
         );
     }
     descending = {
@@ -5581,10 +5872,11 @@ fn test_scenario_terrane_stable_list_sorting() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &key;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key), 176 /* terrane-site: tests/integration/stable-list-sorting/case.trn:72:17-72:29 */))
+            .get_or_error(&key.clone()), 176 /* terrane-site: tests/integration/stable-list-sorting/case.trn:72:17-72:29 */))
         );
     }
     empty = terrane_collection_support::List::<
@@ -6285,6 +6577,7 @@ fn test_scenario_terrane_string_result_list_iteration() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &part;
         println!("{}", terrane_scalar_support::scalar_text(&part));
     }
     matches = {
@@ -9317,6 +9610,7 @@ fn test_scenario_terrane_typed_json_boundaries() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &diagnostic;
         println!(
             "{}{}{}{}{}", terrane_scalar_support::scalar_text(&diagnostic.path.clone()),
             String::from("|"), terrane_scalar_support::scalar_text(&diagnostic

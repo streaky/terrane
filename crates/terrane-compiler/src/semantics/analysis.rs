@@ -1200,6 +1200,7 @@ fn analyze_parsed_with_projection(
     // Preserve source availability errors before checking backend storage support.
     super::bindings::validate_namespace_storage(&semantic)?;
     record_binding_events(&mut semantic);
+    super::ownership::validate_return_preservation(&semantic)?;
     infer_task_transferability(&mut semantic);
     validate_projected_callback_arguments(&semantic)?;
     validate_calls(&semantic)?;

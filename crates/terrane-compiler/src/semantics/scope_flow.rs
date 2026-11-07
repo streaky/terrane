@@ -658,6 +658,7 @@ fn flow_block(unit: &mut SemanticUnit, block: &SyntaxNode, initial: FlowEnv) -> 
             | SyntaxKind::ThrowStatement
             | SyntaxKind::BreakStatement
             | SyntaxKind::ContinueStatement => {
+                analyze_nested_function_flow(unit, statement, &state);
                 record_flow_reads(unit, statement, &state);
                 let exit = match statement.kind {
                     SyntaxKind::ReturnStatement => FlowExit::Return,
@@ -1002,10 +1003,7 @@ fn flow_try(
     let mut try_paths = flow_block(unit, try_block, state.clone());
     require_completion_storage(unit, statement, &state);
     let throw_state = try_paths.remove(&FlowExit::Throw);
-    let mut outcomes = try_paths
-        .into_iter()
-        .map(|(exit, env)| FlowStates::from([(exit, env)]))
-        .collect::<Vec<_>>();
+    let mut catch_outcomes = Vec::new();
     for clause in statement
         .children
         .iter()
@@ -1018,7 +1016,27 @@ fn flow_try(
         else {
             continue;
         };
+        let body_reaching = try_paths.get(&FlowExit::Normal);
         let mut caught = throw_state.clone().unwrap_or_else(|| state.clone());
+        if let Some(body_reaching) = body_reaching {
+            for (name, value_type) in &body_reaching.types {
+                let Some(identity) = body_reaching.binding_ids.get(name).copied() else {
+                    continue;
+                };
+                if !matches!(value_type, ValueType::InvocationScopedNative { .. }) {
+                    continue;
+                }
+                if let Some(origins) = body_reaching.origins.get(name) {
+                    caught
+                        .origins
+                        .entry(name.clone())
+                        .or_default()
+                        .extend(origins.iter().copied());
+                    caught.binding_ids.insert(name.clone(), identity);
+                    caught.types.insert(name.clone(), value_type.clone());
+                }
+            }
+        }
         if let Some(alias) = clause
             .children
             .iter()
@@ -1045,34 +1063,67 @@ fn flow_try(
                 .insert(binding.name.clone(), BTreeSet::from([binding.span]));
             caught.uncertain.remove(&binding.name);
         }
-        outcomes.push(flow_block(unit, body, caught));
+        catch_outcomes.push(flow_block(unit, body, caught));
     }
+    let mut outcomes = try_paths
+        .into_iter()
+        .map(|(exit, env)| FlowStates::from([(exit, env)]))
+        .chain(catch_outcomes)
+        .collect::<Vec<_>>();
     if let Some(finally) = statement
         .children
         .iter()
         .find(|child| child.kind == SyntaxKind::FinallyClause)
         .and_then(|clause| clause.children.first())
     {
-        let mut finalized = Vec::new();
-        for outcome in outcomes {
-            for (exit, env) in outcome {
-                for (final_exit, final_env) in flow_block(unit, finally, env) {
-                    let actual_exit = if final_exit == FlowExit::Normal {
-                        exit
-                    } else {
-                        final_exit
-                    };
-                    finalized.push(FlowStates::from([(actual_exit, final_env)]));
-                }
-            }
-        }
-        outcomes = finalized;
+        outcomes = flow_finally(unit, finally, outcomes);
     }
     let joined = merge_flow_states(unit, statement.span, outcomes);
     if let Some(env) = joined.get(&FlowExit::Normal) {
         record_join_for_env(unit, statement, env);
     }
     merge_into_paths(unit, statement.span, paths, joined);
+}
+
+fn flow_finally(
+    unit: &mut SemanticUnit,
+    finally: &SyntaxNode,
+    outcomes: Vec<FlowStates>,
+) -> Vec<FlowStates> {
+    let distinct_entries = {
+        let mut entries = outcomes.iter().flat_map(BTreeMap::values);
+        entries
+            .next()
+            .is_some_and(|first| entries.any(|entry| entry != first))
+    };
+    let shared_entries = distinct_entries.then(|| {
+        outcomes
+            .iter()
+            .flat_map(BTreeMap::values)
+            .cloned()
+            .collect()
+    });
+    let mut finalized = Vec::new();
+    for outcome in outcomes {
+        for (exit, env) in outcome {
+            for (final_exit, final_env) in flow_block(unit, finally, env) {
+                let actual_exit = if final_exit == FlowExit::Normal {
+                    exit
+                } else {
+                    final_exit
+                };
+                finalized.push(FlowStates::from([(actual_exit, final_env)]));
+            }
+        }
+    }
+    if let Some(entries) = shared_entries {
+        // Preserve each completion's outgoing facts above, but this one
+        // emitted finalizer executes on every incoming completion. Its
+        // source-point facts must not retain only the last path's narrowing.
+        let entry = merge_envs(unit, finally.span, entries);
+        let _ = flow_block(unit, finally, entry);
+    }
+    finalized
 }
 
 fn flow_if(
@@ -1842,22 +1893,14 @@ fn record_assignment_origin(
             identity,
         );
     }
-    let origins = if matches!(next.types.get(name), Some(ValueType::Task(_, _))) {
-        // A task's deferred errors and concrete future come from the current write,
-        // not the storage declaration that may have held an earlier task.
-        Some(BTreeSet::from([statement.span]))
-    } else {
-        unit.typed_bindings
-            .iter()
-            .find(|binding| binding.span == statement.span)
-            .map(|binding| BTreeSet::from([binding.span]))
-            .or_else(|| next.origins.get(name).cloned())
-    };
-    if let Some(origins) = origins {
-        unit.flow_read_bindings
-            .entry((target.span.file, target.span.start, target.span.end))
-            .or_default()
-            .extend(&origins);
-        next.origins.insert(name.to_owned(), origins);
-    }
+    // Value provenance belongs to every reaching write, not only writes that
+    // introduce a TypedBinding. Storage identity stays in flow_binding_ids;
+    // retaining the old declaration here loses replacement lenders when a
+    // later alias reads an ordinary assignment.
+    let origins = BTreeSet::from([statement.span]);
+    unit.flow_read_bindings
+        .entry((target.span.file, target.span.start, target.span.end))
+        .or_default()
+        .extend(&origins);
+    next.origins.insert(name.to_owned(), origins);
 }

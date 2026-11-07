@@ -924,6 +924,7 @@ fn move_match(item: Choice) {
         Choice::Label(__terrane_pattern_469_value) => {
             value_2 = __terrane_pattern_469_value;
             result = TerraneUnionF9S442::Arm1(value_2);
+            let _ = &result;
         }
     }
     println!(
@@ -951,6 +952,7 @@ fn closure_boundary() -> terrane_int_support::Int {
     nested = {
         std::sync::Arc::new(move || -> terrane_int_support::Int {
             let hidden: i64 = 7;
+            let _ = &hidden;
             return terrane_int_support::Int::from(hidden as i128);
         })
     };
@@ -965,10 +967,12 @@ fn finite_unions(choose_first: bool, choose_second: bool) {
         value = TerraneUnionF9S897::Arm1(terrane_int_support::Int::from(1_i128));
     } else {
         value = TerraneUnionF9S897::Arm2(String::from("two"));
+        let _ = &value;
     }
     if choose_second {
         if matches!(&&value, TerraneUnionF9S897::Arm1(_)) {
             value = TerraneUnionF9S897::Arm0(true);
+            let _ = &value;
         } else {
             println!(
                 "{}",
@@ -979,6 +983,7 @@ fn finite_unions(choose_first: bool, choose_second: bool) {
         }
     } else {
         value = TerraneUnionF9S897::Arm1(terrane_int_support::Int::from(3_i128));
+        let _ = &value;
     }
     if matches!(&&value, TerraneUnionF9S897::Arm1(_)) {
         println!(
@@ -1008,8 +1013,10 @@ fn loop_union(mut count: terrane_int_support::Int) {
     while count < terrane_int_support::Int::from(3_i128) {
         if count == terrane_int_support::Int::from(0_i128) {
             value = TerraneUnionF9S1273::Arm2(String::from("loop"));
+            let _ = &value;
         } else {
             value = TerraneUnionF9S1273::Arm0(true);
+            let _ = &value;
         }
         count = count.clone() + terrane_int_support::Int::from(1_i128);
         if count == terrane_int_support::Int::from(2_i128) {
@@ -1267,6 +1274,7 @@ fn branched_replacement(choose: bool) {
         x_2 = String::from("cat");
     } else {
         x_2 = String::from("cat");
+        let _ = &x_2;
     }
     println!("{}", terrane_scalar_support::scalar_text(&x_2));
 }
@@ -1276,6 +1284,7 @@ fn branched_single(choose: bool) {
         x = TerraneUnionF11S441::Arm0(terrane_int_support::Int::from(3_i128));
     } else {
         x = TerraneUnionF11S441::Arm1(String::from("cat"));
+        let _ = &x;
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &x {
@@ -1291,6 +1300,7 @@ fn loop_replacement(mut count: terrane_int_support::Int) {
     x = TerraneUnionF11S539::Arm0(terrane_int_support::Int::from(3_i128));
     while count < terrane_int_support::Int::from(1_i128) {
         x = TerraneUnionF11S539::Arm1(String::from("cat"));
+        let _ = &x;
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
     println!(
@@ -1307,6 +1317,7 @@ fn loop_int(mut count: terrane_int_support::Int) {
     x = 3;
     while count < terrane_int_support::Int::from(1_i128) {
         x = 3;
+        let _ = &x;
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
     println!("{}", terrane_scalar_support::scalar_text(&x));
@@ -1316,6 +1327,7 @@ fn loop_string(mut count: terrane_int_support::Int) {
     x = String::from("cat");
     while count < terrane_int_support::Int::from(1_i128) {
         x = String::from("cat");
+        let _ = &x;
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
     println!("{}", terrane_scalar_support::scalar_text(&x));
@@ -1324,8 +1336,10 @@ fn both_branches(choose: bool) -> terrane_int_support::Int {
     let x: terrane_int_support::Int;
     if choose {
         x = terrane_int_support::Int::from(3_i128);
+        let _ = &x;
     } else {
         x = terrane_int_support::Int::from(4_i128);
+        let _ = &x;
     }
     return x.clone();
 }
@@ -1344,6 +1358,7 @@ fn for_join(text: String) {
                     None => break,
                 },
             );
+            let _ = &last;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &last {
                 TerraneUnionF11S1017::Arm1(value) => value, _ =>
@@ -1378,6 +1393,7 @@ fn branch_type_use(choose: bool) -> terrane_int_support::Int {
         } + terrane_int_support::Int::from(1_i128);
     } else {
         x = TerraneUnionF11S1289::Arm1(String::from("cat"));
+        let _ = &x;
         result = terrane_int_support::Int::from(
             terrane_string_support::length(
                 &match &x {
@@ -1396,9 +1412,11 @@ fn nested_join(outer: bool, inner: bool) {
             x = TerraneUnionF11S1487::Arm1(terrane_int_support::Int::from(1_i128));
         } else {
             x = TerraneUnionF11S1487::Arm2(String::from("two"));
+            let _ = &x;
         }
     } else {
         x = TerraneUnionF11S1487::Arm0(false);
+        let _ = &x;
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &x {
@@ -1435,6 +1453,7 @@ fn loop_backedge() {
             __terrane_text); } } __terrane_text }
         );
         x = TerraneUnionF11S1725::Arm1(String::from("cat"));
+        let _ = &x;
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
     println!(
@@ -1474,6 +1493,7 @@ fn test_scenario_terrane_function_scope_control_equivalence() {
                 Some(item) => item,
                 None => break,
             };
+            let _ = &last;
             println!("{}", terrane_scalar_support::scalar_text(&last));
         }
     }
@@ -1595,6 +1615,7 @@ fn test_scenario_terrane_function_scope_release() {
         value = TerraneNsFunctionScopeReleaseMarkerIdentity2F66756E6374696F6E2D73636F70652D72656C65617365006D61726B6572::terrane_construct(
             String::from("loop"),
         );
+        let _ = &value;
         println!("{}", terrane_scalar_support::scalar_text(&value.name));
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -2302,6 +2323,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
                 terrane_collection_support::IterationStep::End => break,
             },
         );
+        let _ = &items;
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &items {
             TerraneUnionF27S130::Arm1(value) => value, _ =>
@@ -2362,6 +2384,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
                         },
                     ),
                 );
+            let _ = &entry;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match entry.as_ref()
                 .expect("flow-proven available binding") {
@@ -2411,22 +2434,86 @@ fn test_scenario_terrane_loop_shadowing_scope() {
 
             18 /* terrane-site: tests/integration/loop-shadowing-scope/case.trn:31:15-31:24 */,
     );
+    let _ = &value_2;
     println!("{}", terrane_scalar_support::scalar_text(&value_2));
+}
+// Source: tests/integration/mutable-loop-loan-boundaries/case.trn
+// Namespace: mutable-loop-loan-boundaries
+fn test_scenario_terrane_mutable_loop_loan_boundaries() {
+    let mut values: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut other: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut value: &terrane_int_support::Int;
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(1_i128),
+            terrane_int_support::Int::from(2_i128)
+        ],
+    );
+    other = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(3_i128)]);
+    let __terrane_iterable_0 = &mut values;
+    let mut __terrane_iterator_0 = __terrane_iterable_0.terrane_borrowing_iterator();
+    {
+        let __terrane_list_append_0 = other.make_unique();
+        loop {
+            value = match __terrane_iterator_0.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            println!("{}", terrane_scalar_support::scalar_text(&* value));
+            {
+                let __terrane_collection_argument_0 = terrane_int_support::Int::from(
+                    4_i128,
+                );
+                __terrane_list_append_0.push(__terrane_collection_argument_0);
+            };
+        }
+    }
+    {
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(5_i128);
+        values.append(__terrane_collection_argument_0);
+    };
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(other
+        .length()))
+    );
+    let __terrane_iterable_1 = &mut values;
+    let mut __terrane_iterator_1 = __terrane_iterable_1.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_1.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let _ = &value;
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+        break;
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
 }
 // Source: tests/integration/name-aliasing/case.trn
 // Namespace: name-aliasing
-static __TERRANE_F28_ORIGINAL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from(
+static __TERRANE_F29_ORIGINAL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from(
     "namespace",
 ));
-static __TERRANE_F28_ALIAS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-    (*__TERRANE_F28_ORIGINAL).clone()
+static __TERRANE_F29_ALIAS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    (*__TERRANE_F29_ORIGINAL).clone()
 });
 fn test_scenario_terrane_name_aliasing() {
     let local: String;
     let copy: String;
     local = String::from("function");
     copy = local;
-    println!("{}", terrane_scalar_support::scalar_text(&&* __TERRANE_F28_ALIAS));
+    println!("{}", terrane_scalar_support::scalar_text(&&* __TERRANE_F29_ALIAS));
     println!("{}", terrane_scalar_support::scalar_text(&copy));
 }
 // Source: tests/integration/nested-collection-for-binding/case.trn
@@ -2528,9 +2615,68 @@ fn test_scenario_terrane_return_tail_block_strings() -> Result<(), TerraneError>
     println!("{}", terrane_scalar_support::scalar_text(&render_lines()));
     Ok(())
 }
+// Source: tests/integration/returned-callable-local-loop/case.trn
+// Namespace: returned-callable-local-loop
+fn count(
+    values: terrane_collection_support::List<terrane_int_support::Int>,
+) -> terrane_int_support::Int {
+    return terrane_int_support::Int::from(values.length());
+}
+fn make_terrane_returned_callable_local_loop() -> std::sync::Arc<
+    dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+> {
+    return {
+        std::sync::Arc::new(move |
+            result: terrane_int_support::Int,
+        | -> terrane_int_support::Int {
+            let values: terrane_collection_support::List<terrane_int_support::Int>;
+            let mut i: terrane_int_support::Int;
+            values = terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(
+                vec![
+                    terrane_int_support::Int::from(1_i128),
+                    terrane_int_support::Int::from(2_i128)
+                ],
+            );
+            let __terrane_iterable_0 = terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(
+                vec![
+                    terrane_int_support::Int::from(1_i128),
+                    terrane_int_support::Int::from(2_i128)
+                ],
+            );
+            let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+                __terrane_iterable_0.as_slice(),
+            );
+            loop {
+                i = match __terrane_iterator_0.next() {
+                    terrane_collection_support::IterationStep::Item(item) => item,
+                    terrane_collection_support::IterationStep::End => break,
+                };
+                let _ = &i;
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&count(values.clone()))
+                );
+            }
+            return result.clone();
+        })
+    };
+}
+fn test_scenario_terrane_returned_callable_local_loop() {
+    let f: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    >;
+    f = make_terrane_returned_callable_local_loop();
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f(terrane_int_support::Int::from(7_i128)))
+    );
+}
 // Source: tests/integration/static-call-throw-inference/case.trn
 // Namespace: static-call-throw-inference
-fn make(
+fn make_terrane_static_call_throw_inference(
     value: terrane_int_support::Int,
 ) -> Result<terrane_int_support::Int, TerraneError> {
     let d: Duration;
@@ -2567,7 +2713,9 @@ impl Maker {
 fn argument() -> Result<terrane_int_support::Int, TerraneError> {
     return Ok(
         __terrane_traced_err(
-            make(terrane_int_support::Int::from(-1_i128)),
+            make_terrane_static_call_throw_inference(
+                terrane_int_support::Int::from(-1_i128),
+            ),
 
                 25 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:17:12-17:20 */,
         )?,
@@ -2589,7 +2737,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(make(terrane_int_support::Int::from(-
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(make_terrane_static_call_throw_inference(terrane_int_support::Int::from(-
                 1_i128)), 27 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:24:17-24:25 */))
             );
             TerraneCompletion::Normal
@@ -2997,12 +3145,15 @@ fn main() {
             test_scenario_terrane_loop_shadowing_scope();
         }
         "27" => {
-            test_scenario_terrane_name_aliasing();
+            test_scenario_terrane_mutable_loop_loan_boundaries();
         }
         "28" => {
-            test_scenario_terrane_nested_collection_for_binding();
+            test_scenario_terrane_name_aliasing();
         }
         "29" => {
+            test_scenario_terrane_nested_collection_for_binding();
+        }
+        "30" => {
             if let Err(error) = test_scenario_terrane_return_tail_block_strings() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -3012,7 +3163,10 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "30" => {
+        "31" => {
+            test_scenario_terrane_returned_callable_local_loop();
+        }
+        "32" => {
             if let Err(error) = test_scenario_terrane_static_call_throw_inference() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -3022,7 +3176,7 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "31" => {
+        "33" => {
             test_scenario_terrane_switch_boundaries();
         }
         _ => {

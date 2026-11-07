@@ -1,0 +1,15 @@
+namespace mutable-loop-loan-boundaries
+from /core/collections import list
+function test-scenario;
+    values = list; 1, 2
+    other = list; 3
+    for value in mutable ref values
+        print; value
+        other.append; 4
+    values.append; 5
+    print; values.length
+    print; other.length
+    for value in mutable ref values
+        print; value
+        break
+    print; values.length

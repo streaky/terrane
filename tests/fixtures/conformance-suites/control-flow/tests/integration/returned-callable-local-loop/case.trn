@@ -1,0 +1,14 @@
+namespace returned-callable-local-loop
+from /core/collections import list
+function count int; values list of int
+    return values.length
+function make function from int to int;
+    return function int; result int
+        values = list; 1, 2
+        for i in (list; 1, 2)
+            print; (count; values)
+        return result
+
+function test-scenario;
+    f = make;
+    print; (f; 7)

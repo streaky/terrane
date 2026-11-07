@@ -895,18 +895,10 @@ pub(super) fn collect_binding_events(
                     regions: regions.clone(),
                 });
         };
-        if let Some(identity) = unit.flow_binding_ids.get(&span_key(target.span))
-            && unit.typed_bindings.iter().any(|binding| {
-                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
-            })
-        {
-            // Task reaching origins track the current future's construction. The
-            // write event still mutates the canonical Rust storage, not that origin.
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(target.span)) {
+            // Writes mutate canonical storage. Reaching value origins identify
+            // producers and need not introduce a TypedBinding of their own.
             record(*identity);
-        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(target.span)) {
-            for origin in origins {
-                record(*origin);
-            }
         } else if let Some(declaration_span) = package
             .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
             .and_then(|symbol| symbol.declaration_span)
@@ -1136,6 +1128,84 @@ fn binding_read_crosses_completion_capture(
         .find(|unit| unit.source.id() == read.file)
         .is_some_and(|unit| visit(&unit.tree.root, declaration, read, later))
 }
+fn binding_read_is_return_operand(package: &SemanticPackage, read: Span) -> bool {
+    fn visit(node: &SyntaxNode, read: Span, inside_return: bool) -> bool {
+        if node.span.start > read.start || read.end > node.span.end {
+            return false;
+        }
+        let inside_return = if node.kind == SyntaxKind::AnonymousFunction {
+            false
+        } else {
+            inside_return || node.kind == SyntaxKind::ReturnStatement
+        };
+        if node.kind == SyntaxKind::Name && node.span == read {
+            return inside_return;
+        }
+        node.children
+            .iter()
+            .any(|child| visit(child, read, inside_return))
+    }
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .is_some_and(|unit| visit(&unit.tree.root, read, false))
+}
+
+fn binding_read_loops_again(
+    package: &SemanticPackage,
+    read: Span,
+    loops: &[Span],
+    declaration: Span,
+) -> bool {
+    loops.last().is_some_and(|loop_span| {
+        declaration.file != loop_span.file
+            || declaration.start < loop_span.start
+            || loop_span.end < declaration.end
+    }) && !binding_read_is_return_operand(package, read)
+}
+
+pub(crate) fn binding_return_requires_preservation(
+    package: &SemanticPackage,
+    declaration: Span,
+    read: Span,
+) -> bool {
+    fn visit(node: &SyntaxNode, read: Span, events: &[BindingEvent], mut preserve: bool) -> bool {
+        if node.span.start > read.start || read.end > node.span.end {
+            return false;
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        ) {
+            preserve = false;
+        }
+        if node.kind == SyntaxKind::TryStatement {
+            preserve |= node.children.iter().any(|clause| {
+                clause.kind == SyntaxKind::FinallyClause
+                    && !(clause.span.start <= read.start && read.end <= clause.span.end)
+                    && events.iter().any(|event| {
+                        matches!(event, BindingEvent::Read { span, .. }
+                            if clause.span.start <= span.start && span.end <= clause.span.end)
+                    })
+            });
+        }
+        if node.kind == SyntaxKind::Name && node.span == read {
+            return preserve;
+        }
+        node.children
+            .iter()
+            .any(|child| visit(child, read, events, preserve))
+    }
+    let Some(events) = package.binding_events.get(&span_key(declaration)) else {
+        return false;
+    };
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .is_some_and(|unit| visit(&unit.tree.root, read, events, false))
+}
 
 pub(crate) fn binding_read_value_is_reused(
     package: &SemanticPackage,
@@ -1185,11 +1255,7 @@ pub(crate) fn binding_read_value_is_reused(
             BindingEvent::Read { .. } => {}
         }
     }
-    read_loops.last().is_some_and(|loop_span| {
-        declaration_span.file != loop_span.file
-            || declaration_span.start < loop_span.start
-            || loop_span.end < declaration_span.end
-    })
+    binding_read_loops_again(package, read_span, read_loops, declaration_span)
 }
 
 /// Straight-line stores and unread nested stores of a Copy native view need
@@ -1365,18 +1431,10 @@ fn record_binding_reads(
                     regions: regions.to_vec(),
                 });
         };
-        if let Some(identity) = unit.flow_binding_ids.get(&span_key(node.span))
-            && unit.typed_bindings.iter().any(|binding| {
-                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
-            })
-        {
-            // Match task writes' storage identity. Reaching construction origins
-            // belong to effect analysis, not the storage's ordered liveness events.
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(node.span)) {
+            // Pair reads with writes on the same storage identity; value
+            // provenance is tracked independently by flow_read_bindings.
             record(*identity);
-        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(node.span)) {
-            for origin in origins {
-                record(*origin);
-            }
         } else if let Some(declaration_span) = declaration_span {
             record(declaration_span);
         }

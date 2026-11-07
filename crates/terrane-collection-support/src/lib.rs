@@ -196,7 +196,7 @@ impl<T: Clone> IndexedIteration for &[T] {
 }
 
 pub trait Iterable {
-    type Item: Clone + 'static;
+    type Item: Clone;
     type Iter;
     fn terrane_iterator(&self) -> Self::Iter;
 }
@@ -600,7 +600,7 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
         )
     }
 }
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for Map<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> IndexedIteration for Map<K, V> {
     type Item = Entry<K, V>;
     fn item_at(&self, index: usize) -> Option<Self::Item> {
         self.0
@@ -608,7 +608,7 @@ impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for Ma
             .map(|(key, value)| Entry::new(key.clone(), value.clone()))
     }
 }
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> Iterable for Map<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> Iterable for Map<K, V> {
     type Item = Entry<K, V>;
     type Iter = CollectionIterator<Self>;
     fn terrane_iterator(&self) -> Self::Iter {
@@ -827,7 +827,7 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     }
 }
 
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for UnorderedMap<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> IndexedIteration for UnorderedMap<K, V> {
     type Item = Entry<K, V>;
     fn item_at(&self, index: usize) -> Option<Self::Item> {
         let key = self.0.iteration_keys.get(index)?;
@@ -835,7 +835,7 @@ impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for Un
     }
 }
 
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> Iterable for UnorderedMap<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> Iterable for UnorderedMap<K, V> {
     type Item = Entry<K, V>;
     type Iter = CollectionIterator<Self>;
     fn terrane_iterator(&self) -> Self::Iter {

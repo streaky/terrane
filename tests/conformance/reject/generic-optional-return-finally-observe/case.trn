@@ -1,0 +1,10 @@
+namespace generic-optional-return-finally-observe
+from /core/collections import list
+function choose of (T) T; value T|none, fallback T
+    try
+        for item in (list; 1, 2)
+            if value != none
+                return value
+    finally
+        print; (value is a none)
+    return fallback

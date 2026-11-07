@@ -493,9 +493,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/native-view-list-rebind::Err",
     ];
 }
 mod __terrane_trace {
@@ -507,7 +508,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 51] = [
+    pub static FILES: [&str; 53] = [
         "tests/integration/completion-finally-view-post-read/case.trn",
         "tests/integration/completion-native-catch-post-read/case.trn",
         "tests/integration/completion-native-post-read/case.trn",
@@ -550,7 +551,9 @@ mod __terrane_trace {
         "tests/integration/native-try-finally-rewrite-control/case.trn",
         "tests/integration/native-try-local-consume/case.trn",
         "tests/integration/native-try-unconditional-rewrite-control/case.trn",
+        "tests/integration/native-view-list-rebind/case.trn",
         "tests/integration/native-view-loop-binders/case.trn",
+        "tests/integration/native-view-map-entry-iteration/case.trn",
         "tests/integration/native-view-tuple-iteration/case.trn",
         "tests/integration/native-view-value-iteration/case.trn",
         "tests/integration/nested-noncopy-view-loops/case.trn",
@@ -560,7 +563,7 @@ mod __terrane_trace {
         "tests/integration/nested-view-value-value-loop/case.trn",
         "tests/integration/shared-loop-read-control/case.trn",
     ];
-    pub static FUNCTIONS: [&str; 64] = [
+    pub static FUNCTIONS: [&str; 66] = [
         "/completion-finally-view-post-read::test-scenario",
         "/completion-native-catch-post-read::test-scenario",
         "/completion-native-post-read::test-scenario",
@@ -614,7 +617,9 @@ mod __terrane_trace {
         "/native-try-finally-rewrite-control::test-scenario",
         "/native-try-local-consume::test-scenario",
         "/native-try-unconditional-rewrite-control::test-scenario",
+        "/native-view-list-rebind::test-scenario",
         "/native-view-loop-binders::test-scenario",
+        "/native-view-map-entry-iteration::test-scenario",
         "/native-view-tuple-iteration::test-scenario",
         "/native-view-value-iteration::observe",
         "/native-view-value-iteration::observe-ref",
@@ -626,7 +631,7 @@ mod __terrane_trace {
         "/nested-view-value-value-loop::test-scenario",
         "/shared-loop-read-control::test-scenario",
     ];
-    pub static SITES: [Site; 315] = [
+    pub static SITES: [Site; 361] = [
         /* terrane-site-row: site 0: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:6:9-6:21) */
         { Site { function: 0, file: 0, line: 6, column: 9, end_line: 6, end_column: 21 } },
         /* terrane-site-row: site 1: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:7:9-7:21) */
@@ -1159,104 +1164,196 @@ mod __terrane_trace {
         { Site { function: 52, file: 41, line: 12, column: 9, end_line: 12, end_column: 16 } },
         /* terrane-site-row: site 265: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:13:13-13:20) */
         { Site { function: 52, file: 41, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 266: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:6:14-6:26) */
-        { Site { function: 53, file: 42, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 267: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:7:21-7:38) */
-        { Site { function: 53, file: 42, line: 7, column: 21, end_line: 7, end_column: 38 } },
-        /* terrane-site-row: site 268: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:9:17-9:28) */
-        { Site { function: 53, file: 42, line: 9, column: 17, end_line: 9, end_column: 28 } },
-        /* terrane-site-row: site 269: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:11:17-11:28) */
-        { Site { function: 53, file: 42, line: 11, column: 17, end_line: 11, end_column: 28 } },
-        /* terrane-site-row: site 270: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:13:17-13:28) */
-        { Site { function: 53, file: 42, line: 13, column: 17, end_line: 13, end_column: 28 } },
-        /* terrane-site-row: site 271: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:15:17-15:28) */
-        { Site { function: 53, file: 42, line: 15, column: 17, end_line: 15, end_column: 28 } },
-        /* terrane-site-row: site 272: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:18:21-18:32) */
-        { Site { function: 53, file: 42, line: 18, column: 21, end_line: 18, end_column: 32 } },
-        /* terrane-site-row: site 273: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:19:17-19:28) */
-        { Site { function: 53, file: 42, line: 19, column: 17, end_line: 19, end_column: 28 } },
-        /* terrane-site-row: site 274: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:6:14-6:26) */
+        /* terrane-site-row: site 266: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:12:9-12:21) */
+        { Site { function: 53, file: 42, line: 12, column: 9, end_line: 12, end_column: 21 } },
+        /* terrane-site-row: site 267: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:13:9-13:16) */
+        { Site { function: 53, file: 42, line: 13, column: 9, end_line: 13, end_column: 16 } },
+        /* terrane-site-row: site 268: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:14:21-14:28) */
+        { Site { function: 53, file: 42, line: 14, column: 21, end_line: 14, end_column: 28 } },
+        /* terrane-site-row: site 269: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:16:9-16:16) */
+        { Site { function: 53, file: 42, line: 16, column: 9, end_line: 16, end_column: 16 } },
+        /* terrane-site-row: site 270: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:17:13-17:20) */
+        { Site { function: 53, file: 42, line: 17, column: 13, end_line: 17, end_column: 20 } },
+        /* terrane-site-row: site 271: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:19:22-19:34) */
+        { Site { function: 53, file: 42, line: 19, column: 22, end_line: 19, end_column: 34 } },
+        /* terrane-site-row: site 272: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:20:15-20:35) */
+        { Site { function: 53, file: 42, line: 20, column: 15, end_line: 20, end_column: 35 } },
+        /* terrane-site-row: site 273: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:21:27-21:47) */
+        { Site { function: 53, file: 42, line: 21, column: 27, end_line: 21, end_column: 47 } },
+        /* terrane-site-row: site 274: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:23:15-23:35) */
+        { Site { function: 53, file: 42, line: 23, column: 15, end_line: 23, end_column: 35 } },
+        /* terrane-site-row: site 275: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:24:9-24:21) */
+        { Site { function: 53, file: 42, line: 24, column: 9, end_line: 24, end_column: 21 } },
+        /* terrane-site-row: site 276: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:25:11-25:18) */
+        { Site { function: 53, file: 42, line: 25, column: 11, end_line: 25, end_column: 18 } },
+        /* terrane-site-row: site 277: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:26:27-26:34) */
+        { Site { function: 53, file: 42, line: 26, column: 27, end_line: 26, end_column: 34 } },
+        /* terrane-site-row: site 278: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:28:13-28:25) */
+        { Site { function: 53, file: 42, line: 28, column: 13, end_line: 28, end_column: 25 } },
+        /* terrane-site-row: site 279: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:29:11-29:22) */
+        { Site { function: 53, file: 42, line: 29, column: 11, end_line: 29, end_column: 22 } },
+        /* terrane-site-row: site 280: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:31:13-31:20) */
+        { Site { function: 53, file: 42, line: 31, column: 13, end_line: 31, end_column: 20 } },
+        /* terrane-site-row: site 281: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:33:13-33:20) */
+        { Site { function: 53, file: 42, line: 33, column: 13, end_line: 33, end_column: 20 } },
+        /* terrane-site-row: site 282: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:35:19-35:26) */
+        { Site { function: 53, file: 42, line: 35, column: 19, end_line: 35, end_column: 26 } },
+        /* terrane-site-row: site 283: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:37:19-37:30) */
+        { Site { function: 53, file: 42, line: 37, column: 19, end_line: 37, end_column: 30 } },
+        /* terrane-site-row: site 284: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:39:20-39:32) */
+        { Site { function: 53, file: 42, line: 39, column: 20, end_line: 39, end_column: 32 } },
+        /* terrane-site-row: site 285: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:40:20-40:32) */
+        { Site { function: 53, file: 42, line: 40, column: 20, end_line: 40, end_column: 32 } },
+        /* terrane-site-row: site 286: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:41:17-41:29) */
+        { Site { function: 53, file: 42, line: 41, column: 17, end_line: 41, end_column: 29 } },
+        /* terrane-site-row: site 287: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:42:18-42:41) */
+        { Site { function: 53, file: 42, line: 42, column: 18, end_line: 42, end_column: 41 } },
+        /* terrane-site-row: site 288: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:43:19-43:42) */
+        { Site { function: 53, file: 42, line: 43, column: 19, end_line: 43, end_column: 42 } },
+        /* terrane-site-row: site 289: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:45:22-45:45) */
+        { Site { function: 53, file: 42, line: 45, column: 22, end_line: 45, end_column: 45 } },
+        /* terrane-site-row: site 290: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:46:9-46:28) */
+        { Site { function: 53, file: 42, line: 46, column: 9, end_line: 46, end_column: 28 } },
+        /* terrane-site-row: site 291: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:49:5-49:20) */
+        { Site { function: 53, file: 42, line: 49, column: 5, end_line: 49, end_column: 20 } },
+        /* terrane-site-row: site 292: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:50:13-50:30) */
+        { Site { function: 53, file: 42, line: 50, column: 13, end_line: 50, end_column: 30 } },
+        /* terrane-site-row: site 293: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:51:19-51:31) */
+        { Site { function: 53, file: 42, line: 51, column: 19, end_line: 51, end_column: 31 } },
+        /* terrane-site-row: site 294: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:52:14-52:26) */
+        { Site { function: 53, file: 42, line: 52, column: 14, end_line: 52, end_column: 26 } },
+        /* terrane-site-row: site 295: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:53:18-53:30) */
+        { Site { function: 53, file: 42, line: 53, column: 18, end_line: 53, end_column: 30 } },
+        /* terrane-site-row: site 296: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:54:17-54:39) */
+        { Site { function: 53, file: 42, line: 54, column: 17, end_line: 54, end_column: 39 } },
+        /* terrane-site-row: site 297: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:55:18-55:40) */
+        { Site { function: 53, file: 42, line: 55, column: 18, end_line: 55, end_column: 40 } },
+        /* terrane-site-row: site 298: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:57:21-57:38) */
+        { Site { function: 53, file: 42, line: 57, column: 21, end_line: 57, end_column: 38 } },
+        /* terrane-site-row: site 299: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:60:5-60:21) */
+        { Site { function: 53, file: 42, line: 60, column: 5, end_line: 60, end_column: 21 } },
+        /* terrane-site-row: site 300: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:61:13-61:29) */
+        { Site { function: 53, file: 42, line: 61, column: 13, end_line: 61, end_column: 29 } },
+        /* terrane-site-row: site 301: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:6:14-6:26) */
         { Site { function: 54, file: 43, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 275: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:7:40-7:57) */
-        { Site { function: 54, file: 43, line: 7, column: 40, end_line: 7, end_column: 57 } },
-        /* terrane-site-row: site 276: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:9:17-9:28) */
+        /* terrane-site-row: site 302: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:7:21-7:38) */
+        { Site { function: 54, file: 43, line: 7, column: 21, end_line: 7, end_column: 38 } },
+        /* terrane-site-row: site 303: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:9:17-9:28) */
         { Site { function: 54, file: 43, line: 9, column: 17, end_line: 9, end_column: 28 } },
-        /* terrane-site-row: site 277: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:12:17-12:28) */
-        { Site { function: 54, file: 43, line: 12, column: 17, end_line: 12, end_column: 28 } },
-        /* terrane-site-row: site 278: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:13:24-13:41) */
-        { Site { function: 54, file: 43, line: 13, column: 24, end_line: 13, end_column: 41 } },
-        /* terrane-site-row: site 279: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:15:17-15:28) */
+        /* terrane-site-row: site 304: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:11:17-11:28) */
+        { Site { function: 54, file: 43, line: 11, column: 17, end_line: 11, end_column: 28 } },
+        /* terrane-site-row: site 305: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:13:17-13:28) */
+        { Site { function: 54, file: 43, line: 13, column: 17, end_line: 13, end_column: 28 } },
+        /* terrane-site-row: site 306: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:15:17-15:28) */
         { Site { function: 54, file: 43, line: 15, column: 17, end_line: 15, end_column: 28 } },
-        /* terrane-site-row: site 280: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:17:17-17:28) */
-        { Site { function: 54, file: 43, line: 17, column: 17, end_line: 17, end_column: 28 } },
-        /* terrane-site-row: site 281: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:18:27-18:44) */
-        { Site { function: 54, file: 43, line: 18, column: 27, end_line: 18, end_column: 44 } },
-        /* terrane-site-row: site 282: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:19:17-19:28) */
+        /* terrane-site-row: site 307: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:18:21-18:32) */
+        { Site { function: 54, file: 43, line: 18, column: 21, end_line: 18, end_column: 32 } },
+        /* terrane-site-row: site 308: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:19:17-19:28) */
         { Site { function: 54, file: 43, line: 19, column: 17, end_line: 19, end_column: 28 } },
-        /* terrane-site-row: site 283: /native-view-value-iteration::observe (tests/integration/native-view-value-iteration/case.trn:7:17-7:28) */
-        { Site { function: 55, file: 44, line: 7, column: 17, end_line: 7, end_column: 28 } },
-        /* terrane-site-row: site 284: /native-view-value-iteration::observe-ref (tests/integration/native-view-value-iteration/case.trn:12:17-12:28) */
-        { Site { function: 56, file: 44, line: 12, column: 17, end_line: 12, end_column: 28 } },
-        /* terrane-site-row: site 285: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:16:14-16:26) */
-        { Site { function: 57, file: 44, line: 16, column: 14, end_line: 16, end_column: 26 } },
-        /* terrane-site-row: site 286: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:17:37-17:54) */
-        { Site { function: 57, file: 44, line: 17, column: 37, end_line: 17, end_column: 54 } },
-        /* terrane-site-row: site 287: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:19:17-19:28) */
-        { Site { function: 57, file: 44, line: 19, column: 17, end_line: 19, end_column: 28 } },
-        /* terrane-site-row: site 288: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:23:17-23:28) */
-        { Site { function: 57, file: 44, line: 23, column: 17, end_line: 23, end_column: 28 } },
-        /* terrane-site-row: site 289: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:24:23-24:40) */
-        { Site { function: 57, file: 44, line: 24, column: 23, end_line: 24, end_column: 40 } },
-        /* terrane-site-row: site 290: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:26:17-26:28) */
-        { Site { function: 57, file: 44, line: 26, column: 17, end_line: 26, end_column: 28 } },
-        /* terrane-site-row: site 291: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:30:27-30:44) */
-        { Site { function: 57, file: 44, line: 30, column: 27, end_line: 30, end_column: 44 } },
-        /* terrane-site-row: site 292: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:31:17-31:28) */
-        { Site { function: 57, file: 44, line: 31, column: 17, end_line: 31, end_column: 28 } },
-        /* terrane-site-row: site 293: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:36:24-36:41) */
-        { Site { function: 57, file: 44, line: 36, column: 24, end_line: 36, end_column: 41 } },
-        /* terrane-site-row: site 294: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:37:17-37:28) */
-        { Site { function: 57, file: 44, line: 37, column: 17, end_line: 37, end_column: 28 } },
-        /* terrane-site-row: site 295: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:6:14-6:26) */
-        { Site { function: 58, file: 45, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 296: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:7:28-7:40) */
-        { Site { function: 58, file: 45, line: 7, column: 28, end_line: 7, end_column: 40 } },
-        /* terrane-site-row: site 297: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:10:21-10:32) */
-        { Site { function: 58, file: 45, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 298: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:6:14-6:26) */
-        { Site { function: 59, file: 46, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 299: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:7:28-7:45) */
-        { Site { function: 59, file: 46, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 300: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:10:21-10:32) */
-        { Site { function: 59, file: 46, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 301: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:6:14-6:26) */
+        /* terrane-site-row: site 309: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:6:14-6:26) */
+        { Site { function: 55, file: 44, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 310: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:8:30-8:47) */
+        { Site { function: 55, file: 44, line: 8, column: 30, end_line: 8, end_column: 47 } },
+        /* terrane-site-row: site 311: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:10:17-10:28) */
+        { Site { function: 55, file: 44, line: 10, column: 17, end_line: 10, end_column: 28 } },
+        /* terrane-site-row: site 312: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:13:34-13:51) */
+        { Site { function: 55, file: 44, line: 13, column: 34, end_line: 13, end_column: 51 } },
+        /* terrane-site-row: site 313: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:15:17-15:28) */
+        { Site { function: 55, file: 44, line: 15, column: 17, end_line: 15, end_column: 28 } },
+        /* terrane-site-row: site 314: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:18:35-18:52) */
+        { Site { function: 55, file: 44, line: 18, column: 35, end_line: 18, end_column: 52 } },
+        /* terrane-site-row: site 315: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:23:21-23:32) */
+        { Site { function: 55, file: 44, line: 23, column: 21, end_line: 23, end_column: 32 } },
+        /* terrane-site-row: site 316: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:26:37-26:54) */
+        { Site { function: 55, file: 44, line: 26, column: 37, end_line: 26, end_column: 54 } },
+        /* terrane-site-row: site 317: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:31:21-31:32) */
+        { Site { function: 55, file: 44, line: 31, column: 21, end_line: 31, end_column: 32 } },
+        /* terrane-site-row: site 318: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:34:17-34:28) */
+        { Site { function: 55, file: 44, line: 34, column: 17, end_line: 34, end_column: 28 } },
+        /* terrane-site-row: site 319: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:35:32-35:49) */
+        { Site { function: 55, file: 44, line: 35, column: 32, end_line: 35, end_column: 49 } },
+        /* terrane-site-row: site 320: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:6:14-6:26) */
+        { Site { function: 56, file: 45, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 321: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:7:40-7:57) */
+        { Site { function: 56, file: 45, line: 7, column: 40, end_line: 7, end_column: 57 } },
+        /* terrane-site-row: site 322: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:9:17-9:28) */
+        { Site { function: 56, file: 45, line: 9, column: 17, end_line: 9, end_column: 28 } },
+        /* terrane-site-row: site 323: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:12:17-12:28) */
+        { Site { function: 56, file: 45, line: 12, column: 17, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 324: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:13:24-13:41) */
+        { Site { function: 56, file: 45, line: 13, column: 24, end_line: 13, end_column: 41 } },
+        /* terrane-site-row: site 325: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:15:17-15:28) */
+        { Site { function: 56, file: 45, line: 15, column: 17, end_line: 15, end_column: 28 } },
+        /* terrane-site-row: site 326: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:17:17-17:28) */
+        { Site { function: 56, file: 45, line: 17, column: 17, end_line: 17, end_column: 28 } },
+        /* terrane-site-row: site 327: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:18:27-18:44) */
+        { Site { function: 56, file: 45, line: 18, column: 27, end_line: 18, end_column: 44 } },
+        /* terrane-site-row: site 328: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:19:17-19:28) */
+        { Site { function: 56, file: 45, line: 19, column: 17, end_line: 19, end_column: 28 } },
+        /* terrane-site-row: site 329: /native-view-value-iteration::observe (tests/integration/native-view-value-iteration/case.trn:7:17-7:28) */
+        { Site { function: 57, file: 46, line: 7, column: 17, end_line: 7, end_column: 28 } },
+        /* terrane-site-row: site 330: /native-view-value-iteration::observe-ref (tests/integration/native-view-value-iteration/case.trn:12:17-12:28) */
+        { Site { function: 58, file: 46, line: 12, column: 17, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 331: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:16:14-16:26) */
+        { Site { function: 59, file: 46, line: 16, column: 14, end_line: 16, end_column: 26 } },
+        /* terrane-site-row: site 332: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:17:37-17:54) */
+        { Site { function: 59, file: 46, line: 17, column: 37, end_line: 17, end_column: 54 } },
+        /* terrane-site-row: site 333: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:19:17-19:28) */
+        { Site { function: 59, file: 46, line: 19, column: 17, end_line: 19, end_column: 28 } },
+        /* terrane-site-row: site 334: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:23:17-23:28) */
+        { Site { function: 59, file: 46, line: 23, column: 17, end_line: 23, end_column: 28 } },
+        /* terrane-site-row: site 335: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:24:23-24:40) */
+        { Site { function: 59, file: 46, line: 24, column: 23, end_line: 24, end_column: 40 } },
+        /* terrane-site-row: site 336: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:26:17-26:28) */
+        { Site { function: 59, file: 46, line: 26, column: 17, end_line: 26, end_column: 28 } },
+        /* terrane-site-row: site 337: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:30:27-30:44) */
+        { Site { function: 59, file: 46, line: 30, column: 27, end_line: 30, end_column: 44 } },
+        /* terrane-site-row: site 338: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:31:17-31:28) */
+        { Site { function: 59, file: 46, line: 31, column: 17, end_line: 31, end_column: 28 } },
+        /* terrane-site-row: site 339: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:36:24-36:41) */
+        { Site { function: 59, file: 46, line: 36, column: 24, end_line: 36, end_column: 41 } },
+        /* terrane-site-row: site 340: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:37:17-37:28) */
+        { Site { function: 59, file: 46, line: 37, column: 17, end_line: 37, end_column: 28 } },
+        /* terrane-site-row: site 341: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:6:14-6:26) */
         { Site { function: 60, file: 47, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 302: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:7:28-7:45) */
-        { Site { function: 60, file: 47, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 303: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:10:21-10:32) */
+        /* terrane-site-row: site 342: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:7:28-7:40) */
+        { Site { function: 60, file: 47, line: 7, column: 28, end_line: 7, end_column: 40 } },
+        /* terrane-site-row: site 343: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:10:21-10:32) */
         { Site { function: 60, file: 47, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 304: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:6:14-6:26) */
+        /* terrane-site-row: site 344: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:6:14-6:26) */
         { Site { function: 61, file: 48, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 305: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:7:28-7:45) */
+        /* terrane-site-row: site 345: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:7:28-7:45) */
         { Site { function: 61, file: 48, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 306: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:10:21-10:32) */
+        /* terrane-site-row: site 346: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:10:21-10:32) */
         { Site { function: 61, file: 48, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 307: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:6:14-6:26) */
+        /* terrane-site-row: site 347: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:6:14-6:26) */
         { Site { function: 62, file: 49, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 308: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:7:28-7:45) */
+        /* terrane-site-row: site 348: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:7:28-7:45) */
         { Site { function: 62, file: 49, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 309: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:10:21-10:32) */
+        /* terrane-site-row: site 349: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:10:21-10:32) */
         { Site { function: 62, file: 49, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 310: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
-        { Site { function: 63, file: 50, line: 18, column: 14, end_line: 18, end_column: 26 } },
-        /* terrane-site-row: site 311: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
-        { Site { function: 63, file: 50, line: 19, column: 20, end_line: 19, end_column: 37 } },
-        /* terrane-site-row: site 312: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
-        { Site { function: 63, file: 50, line: 21, column: 17, end_line: 21, end_column: 27 } },
-        /* terrane-site-row: site 313: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
-        { Site { function: 63, file: 50, line: 24, column: 21, end_line: 24, end_column: 33 } },
-        /* terrane-site-row: site 314: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
-        { Site { function: 63, file: 50, line: 25, column: 20, end_line: 25, end_column: 37 } },
+        /* terrane-site-row: site 350: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:6:14-6:26) */
+        { Site { function: 63, file: 50, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 351: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:7:28-7:45) */
+        { Site { function: 63, file: 50, line: 7, column: 28, end_line: 7, end_column: 45 } },
+        /* terrane-site-row: site 352: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:10:21-10:32) */
+        { Site { function: 63, file: 50, line: 10, column: 21, end_line: 10, end_column: 32 } },
+        /* terrane-site-row: site 353: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:6:14-6:26) */
+        { Site { function: 64, file: 51, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 354: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:7:28-7:45) */
+        { Site { function: 64, file: 51, line: 7, column: 28, end_line: 7, end_column: 45 } },
+        /* terrane-site-row: site 355: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:10:21-10:32) */
+        { Site { function: 64, file: 51, line: 10, column: 21, end_line: 10, end_column: 32 } },
+        /* terrane-site-row: site 356: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
+        { Site { function: 65, file: 52, line: 18, column: 14, end_line: 18, end_column: 26 } },
+        /* terrane-site-row: site 357: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
+        { Site { function: 65, file: 52, line: 19, column: 20, end_line: 19, end_column: 37 } },
+        /* terrane-site-row: site 358: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
+        { Site { function: 65, file: 52, line: 21, column: 17, end_line: 21, end_column: 27 } },
+        /* terrane-site-row: site 359: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
+        { Site { function: 65, file: 52, line: 24, column: 21, end_line: 24, end_column: 33 } },
+        /* terrane-site-row: site 360: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
+        { Site { function: 65, file: 52, line: 25, column: 20, end_line: 25, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]

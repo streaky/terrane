@@ -1753,6 +1753,48 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     Ok(())
 }
 
+pub(super) fn validate_return_preservation(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::ReturnStatement
+            && let Some(value) = node.children.first().map(ungroup)
+            && let Some(binding) = binding_at(unit, value)
+            && !value_type_is_cloneable(
+                package,
+                unit,
+                unit.flow_binding_types
+                    .get(&binding.span)
+                    .unwrap_or(&binding.value_type),
+            )
+            && super::bindings::binding_return_requires_preservation(
+                package,
+                binding.span,
+                value.span,
+            )
+        {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "return cannot preserve a non-Clone or unconstrained value for another read; transfer it only after its final observation",
+                value.span,
+            ));
+        }
+        for child in &node.children {
+            visit(package, unit, child)?;
+        }
+        Ok(())
+    }
+    for unit in &package.units {
+        visit(package, unit, &unit.tree.root)?;
+    }
+    Ok(())
+}
+
 fn binding_at<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a TypedBinding> {
     (node.kind == SyntaxKind::Name).then_some(())?;
     let identity = unit
@@ -3529,13 +3571,19 @@ pub(super) fn validate_referenced_replacements(
             if !matches!(observer.value_type, ValueType::SharedReference(_))
                 && has_exclusive_lineage(provenance, &unit.reference_provenance)
                 && provenance.owner != observer.span
-                && let Some(last_use) = last_reference_dependent_use(
-                    package,
-                    unit,
-                    observer,
-                    &unit.reference_provenance,
-                    &mut BTreeSet::new(),
-                )
+                && let Some(loan_end) =
+                    exclusive_loans::iteration_loan_end(&unit.tree.root, observer.span).or_else(
+                        || {
+                            last_reference_dependent_use(
+                                package,
+                                unit,
+                                observer,
+                                &unit.reference_provenance,
+                                &mut BTreeSet::new(),
+                            )
+                            .map(|last_use| last_use.end)
+                        },
+                    )
                 && let Some(conflict) = first_owner_access_between(
                     package,
                     unit,
@@ -3547,7 +3595,7 @@ pub(super) fn validate_referenced_replacements(
                         provenances: &unit.reference_provenance,
                         writes_only: provenance.authority == ReferenceAuthority::ReadOnly,
                         start: observer.span.end,
-                        end: last_use.end,
+                        end: loan_end,
                     },
                 )
             {

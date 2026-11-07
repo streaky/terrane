@@ -1,0 +1,6 @@
+namespace mutable-loop-append-unused-element
+from /core/collections import list
+function main;
+    values = list; 1
+    for value in mutable ref values
+        values.append; 2

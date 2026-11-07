@@ -83,7 +83,13 @@ pub(super) fn collect_native_view_origins(
         collect_append_producers(unit, &unit.tree.root, identity, &mut appended);
         for producer in appended {
             if producer.span.end <= node.span.start {
-                collect_noncopy_flow_lenders(package, unit, producer.span, lenders);
+                collect_noncopy_flow_lenders_except(
+                    package,
+                    unit,
+                    producer.span,
+                    identity,
+                    lenders,
+                );
                 collect_native_view_origins(package, unit, producer, lenders, places);
             }
         }
@@ -200,6 +206,34 @@ pub(super) fn validate_function_native_lenders(
     Ok(())
 }
 
+fn collect_noncopy_flow_lenders_except(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    source: Span,
+    excluded: Span,
+    lenders: &mut BTreeSet<Span>,
+) {
+    let mut flow_lenders = BTreeSet::new();
+    super::collect_flow_lenders(unit, source, &mut flow_lenders);
+    lenders.extend(
+        flow_lenders
+            .into_iter()
+            .filter(|origin| *origin != excluded)
+            .filter(|origin| {
+                unit.typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == *origin)
+                    .is_none_or(|binding| {
+                        let ty = unit
+                            .flow_binding_types
+                            .get(origin)
+                            .unwrap_or(&binding.value_type);
+                        !package.native_value_is_copyable(ty)
+                    })
+            }),
+    );
+}
+
 fn collect_noncopy_flow_lenders(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -220,6 +254,76 @@ fn collect_noncopy_flow_lenders(
                 !package.native_value_is_copyable(ty)
             })
     }));
+}
+fn remove_transferred_noncopy_view(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    item: &SyntaxNode,
+    lenders: &mut BTreeSet<Span>,
+) {
+    let mut value = item;
+    while matches!(
+        value.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::Argument
+    ) && let Some(child) = value.children.last()
+    {
+        value = child;
+    }
+    if value.kind == SyntaxKind::Name
+        && let Some(identity) = binding_identity_at(unit, value)
+        && let Some(binding) = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == identity)
+    {
+        let ty = unit
+            .flow_binding_types
+            .get(&identity)
+            .unwrap_or(&binding.value_type);
+        if super::field_has_native_loan(package, ty) && !package.native_value_is_copyable(ty) {
+            lenders.remove(&identity);
+            if let Some(origins) =
+                unit.flow_read_bindings
+                    .get(&(value.span.file, value.span.start, value.span.end))
+            {
+                for origin in origins {
+                    lenders.remove(origin);
+                }
+            }
+        }
+    }
+}
+fn remove_transferred_noncopy_views(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    lenders: &mut BTreeSet<Span>,
+) {
+    let mut node = node;
+    while matches!(
+        node.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::Argument
+    ) && let Some(value) = node.children.last()
+    {
+        node = value;
+    }
+    if node.kind == SyntaxKind::Name {
+        remove_transferred_noncopy_view(package, unit, node, lenders);
+    } else if node.kind == SyntaxKind::CallExpression
+        && matches!(
+            super::super::collections::collection_constructor_identity(
+                unit,
+                node,
+                &unit.typed_bindings
+            ),
+            Some("list" | "/core/collections::list")
+        )
+        && let Some(arguments) = node.children.get(1)
+    {
+        for argument in &arguments.children {
+            remove_transferred_noncopy_view(package, unit, argument, lenders);
+        }
+    }
 }
 
 fn collect_append_producers<'a>(
@@ -302,6 +406,7 @@ fn validate_collection_native_lenders(
             let mut places = Vec::new();
             collect_native_view_origins(package, unit, initializer, &mut lender_set, &mut places);
             collect_noncopy_flow_lenders(package, unit, initializer.span, &mut lender_set);
+            remove_transferred_noncopy_views(package, unit, initializer, &mut lender_set);
             if lender_set.is_empty() {
                 let empty_constructor = super::super::collections::empty_collection_identity(
                     unit,

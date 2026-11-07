@@ -13,9 +13,7 @@ pub(super) fn owner_place_path(
 ) -> Option<Vec<ReferenceProjection>> {
     match node.kind {
         SyntaxKind::Name => {
-            let declaration = package
-                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))?
-                .declaration_span?;
+            let declaration = root_place_binding(package, unit, node)?;
             if declaration == owner {
                 return Some(Vec::new());
             }
@@ -87,9 +85,25 @@ fn root_place_binding(
             | SyntaxKind::IndexExpression
             | SyntaxKind::GroupExpression => node = node.children.first()?,
             SyntaxKind::Name => {
-                return package
-                    .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-                    .and_then(|symbol| symbol.declaration_span);
+                if let Some(origins) =
+                    unit.flow_read_bindings
+                        .get(&(node.span.file, node.span.start, node.span.end))
+                    && origins.len() == 1
+                    && let Some(origin) = origins.first()
+                    && unit
+                        .typed_bindings
+                        .iter()
+                        .any(|binding| binding.span == *origin)
+                {
+                    return Some(*origin);
+                }
+                return super::binding_at(unit, node)
+                    .map(|binding| binding.span)
+                    .or_else(|| {
+                        package
+                            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+                            .and_then(|symbol| symbol.declaration_span)
+                    });
             }
             _ => return None,
         }
@@ -224,6 +238,27 @@ pub(super) fn first_owner_access_between(
     children.iter().find_map(|child| {
         first_owner_access_between(package, unit, child, OwnerAccessWindow { end, ..window })
     })
+}
+
+pub(super) fn iteration_loan_end(node: &SyntaxNode, observer: Span) -> Option<usize> {
+    if node.span.file != observer.file
+        || node.span.start > observer.start
+        || node.span.end < observer.end
+    {
+        return None;
+    }
+    if node.kind == SyntaxKind::ForStatement
+        && node.children.first().is_some_and(|target| {
+            target.span.start <= observer.start && observer.end <= target.span.end
+        })
+    {
+        // The iterator retains its collection borrow even if the element is
+        // unused or its final read occurs before the end of the body.
+        return Some(node.span.end);
+    }
+    node.children
+        .iter()
+        .find_map(|child| iteration_loan_end(child, observer))
 }
 
 pub(super) fn has_exclusive_lineage(
