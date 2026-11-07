@@ -692,18 +692,10 @@ impl<'a> Emitter<'a> {
                     .copied()
                     .filter(|field| field.field.is_static)
                     .collect::<Vec<_>>();
-                let phantom_parameters = object
-                    .generic_parameters
-                    .iter()
-                    .filter(|parameter| {
-                        !instance_fields.iter().any(|field| {
-                            super::super::enums::value_type_uses_parameter(
-                                &field.field.value_type,
-                                &parameter.name,
-                            )
-                        })
-                    })
-                    .collect::<Vec<_>>();
+                // Rust requires a non-recursive use even when a parameter occurs
+                // through mutually recursive fields. A zero-sized marker keeps
+                // every declared parameter represented without a second layout walk.
+                let phantom_parameters = object.generic_parameters.iter().collect::<Vec<_>>();
                 let phantom_type = (!phantom_parameters.is_empty()).then(|| {
                     format!(
                         "std::marker::PhantomData<fn({})>",

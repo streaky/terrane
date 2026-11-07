@@ -390,8 +390,8 @@ fn main() {
                                 >::new(
                                     vec![
                                         field_at(String::from("failure"), terrane_log_error(caught
-                                        .as_ref().expect("flow-proven available binding").clone()),
-                                        false, "case.trn:62:31".to_owned())
+                                        .take().expect("flow-proven availability")), false,
+                                        "case.trn:62:31".to_owned())
                                     ],
                                 ),
                             );

@@ -377,11 +377,31 @@ impl Emitter<'_> {
 
     pub(super) fn source_applied_function(&self, node: &SyntaxNode) -> Option<String> {
         let (contract, arguments) = self.source_applied_function_parts(node)?;
-        Some(format!(
-            "{}::<{}>",
-            function_name(self.package, contract),
-            arguments.join(", ")
-        ))
+        let name = if contract.is_static {
+            let mut callee = node;
+            while matches!(
+                callee.kind,
+                SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+            ) {
+                callee = callee.children.first()?;
+            }
+            let owner = callee
+                .children
+                .first()
+                .filter(|_| callee.kind == SyntaxKind::StaticMemberExpression)
+                .and_then(|receiver| {
+                    crate::semantics::class_designator_identity(self.unit, receiver)
+                })
+                .or_else(|| contract.owner_identity.clone())?;
+            format!(
+                "{}::terrane_static_{}",
+                rust_source_type_application(self.package, &owner).replacen('<', "::<", 1),
+                rust_name(&contract.name)
+            )
+        } else {
+            function_name(self.package, contract)
+        };
+        Some(format!("{}::<{}>", name, arguments.join(", ")))
     }
 
     fn initialization_expression(&mut self, node: &SyntaxNode) -> String {
@@ -511,6 +531,28 @@ impl Emitter<'_> {
             return value;
         }
         if node.kind == SyntaxKind::Name
+            && !matches!(
+                value_type,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
+            && let Some(binding) = self.local_typed_binding(node)
+            && self.binding_may_be_unassigned(binding)
+            && (matches!(binding.value_type, ValueType::InvocationScopedNative { .. })
+                || matches!(&binding.value_type, ValueType::Object(identity)
+                    if self.package.projection.item(&identity.namespace, &identity.name).is_some()))
+            && !matches!(value_type, ValueType::Optional(_))
+            && !self.package.native_value_is_copyable(&binding.value_type)
+            && !crate::semantics::value_type_is_cloneable(
+                self.package,
+                self.unit,
+                &binding.value_type,
+            )
+        {
+            return self.owned_storage_value(node);
+        }
+        if node.kind == SyntaxKind::Name
             && self.value_type(node).as_ref() == Some(&value_type)
             && !matches!(
                 value_type,
@@ -523,6 +565,9 @@ impl Emitter<'_> {
                 .is_some_and(|binding| self.binding_may_be_unassigned(binding))
             && !matches!(&value_type, ValueType::Object(identity) if self.object_requires_separation(identity))
         {
+            if self.value_type_owns_resource(&value_type) {
+                return self.moved_name(node);
+            }
             return self.expression(node);
         }
         if node.kind == SyntaxKind::GroupExpression

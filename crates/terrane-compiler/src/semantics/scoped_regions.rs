@@ -327,7 +327,7 @@ fn validate_region(
         },
     )?;
     validate_local_lender_destinations(unit, region.span, body, &lenders)?;
-    validate_region_escape_node(unit, region.span, body, &mut lenders)?;
+    validate_region_escape_node(package, unit, region.span, body, &mut lenders)?;
     Ok(())
 }
 fn validate_local_lender_destinations(
@@ -1167,6 +1167,7 @@ fn infer_lender_related_value_type(
 }
 
 fn collection_stores_lender(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     region: Span,
     call: &SyntaxNode,
@@ -1212,7 +1213,8 @@ fn collection_stores_lender(
         if scoped_region(&value_type) == Some((region.file, region.start, region.end))
             || directly_uses_lender(unit, value, lenders)
             || (references_lender(unit, value, lenders)
-                && (scoped_region(&value_type).is_some()
+                && (field_has_native_loan(package, &value_type)
+                    || scoped_region(&value_type).is_some()
                     || expression_has_lender_provenance(unit, value, lenders)
                     || acquired_type
                         .is_some_and(|lender| contains_nested_type(&value_type, lender))))
@@ -1282,6 +1284,7 @@ fn validate_lender_binding_destination(
 }
 
 fn validate_region_escape_node(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     region: Span,
     node: &SyntaxNode,
@@ -1295,7 +1298,7 @@ fn validate_region_escape_node(
             .map(|binding| &binding.value_type)
     });
     if node.kind == SyntaxKind::CallExpression
-        && collection_stores_lender(unit, region, node, lenders, acquired_type)?
+        && collection_stores_lender(package, unit, region, node, lenders, acquired_type)?
     {
         return Err(failure(
             &unit.source,
@@ -1310,7 +1313,8 @@ fn validate_region_escape_node(
         && (scoped_region(&value_type) == Some(region_id)
             || directly_uses_lender(unit, value, lenders)
             || (references_lender(unit, value, lenders)
-                && (scoped_region(&value_type).is_some()
+                && (field_has_native_loan(package, &value_type)
+                    || scoped_region(&value_type).is_some()
                     || expression_has_lender_provenance(unit, value, lenders)
                     || acquired_type
                         .is_some_and(|lender| contains_nested_type(&value_type, lender)))))
@@ -1375,7 +1379,7 @@ fn validate_region_escape_node(
         )?;
     }
     for child in &node.children {
-        validate_region_escape_node(unit, region, child, lenders)?;
+        validate_region_escape_node(package, unit, region, child, lenders)?;
     }
     Ok(())
 }

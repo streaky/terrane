@@ -1,0 +1,5 @@
+namespace global-scalar-union
+
+global value int|string = 'text'
+function main;
+    print; value

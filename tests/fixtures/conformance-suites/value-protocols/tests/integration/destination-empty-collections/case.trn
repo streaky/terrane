@@ -1,0 +1,38 @@
+namespace destination-empty-collections
+from /core/collections import list
+
+function empty-list list of int;
+    return list;
+
+function generic-empty of (T) list of T;
+    return list;
+
+function consume; values list of int
+    print; values.length
+
+function consume-optional; values (list of int)|none
+    print; values == none
+
+class RequiredHolder
+    values list of int
+    function construct; values list of int
+        this.values = move values
+
+class Holder
+    values (list of int)|none = list;
+
+function test-scenario;
+    returned = empty-list;
+    print; returned.length
+    generic-returned = generic-empty of int;
+    print; generic-returned.length
+    generic-returned = list;
+    print; generic-returned.length
+    consume; (list;)
+    consume; values = (list;)
+    consume-optional; (list;)
+    consume-optional; none
+    holder = instance Holder;
+    print; holder.values == none
+    required = instance RequiredHolder; (list;)
+    print; required.values.length

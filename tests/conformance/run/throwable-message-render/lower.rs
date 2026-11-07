@@ -246,9 +246,8 @@ fn main() {
                             let _ = caught_3.insert(__terrane_error_3.clone());
                             return TerraneCompletion::Error(
                                 caught_3
-                                    .as_ref()
-                                    .expect("flow-proven available binding")
-                                    .clone()
+                                    .take()
+                                    .expect("flow-proven availability")
                                     .at(4 /* terrane-site: case.trn:40:7-40:19 */),
                             );
                         }

@@ -182,6 +182,7 @@ pub(super) fn validate_global_writes(package: &SemanticPackage) -> Result<(), Se
                         unit.source.id(),
                         annotation.span.start,
                     );
+                    super::types::validate_scalar_union_declaration(unit, annotation, &aliases)?;
                     let declared = declared_value_type(unit, annotation, &aliases)?;
                     if &declared != expected {
                         return Err(failure(
@@ -908,7 +909,7 @@ pub(super) fn is_implicit_object_receiver(unit: &SemanticUnit, offset: usize, na
     })
 }
 
-pub(super) fn class_designator_identity(
+pub(crate) fn class_designator_identity(
     unit: &SemanticUnit,
     designator: &SyntaxNode,
 ) -> Option<ObjectIdentity> {

@@ -861,6 +861,16 @@ fn test_scenario_terrane_bytes_views_encoding() -> Result<(), TerraneError> {
     println!("{}", terrane_scalar_support::scalar_text(&utf32be_text));
     Ok(())
 }
+// Source: tests/integration/callable-exact-result-control/case.trn
+// Namespace: callable-exact-result-control
+fn source() -> terrane_int_support::Int {
+    return terrane_int_support::Int::from(7_i128);
+}
+fn test_scenario_terrane_callable_exact_result_control() {
+    let exact: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
+    exact = std::sync::Arc::new(source);
+    println!("{}", terrane_scalar_support::scalar_text(&exact()));
+}
 // Source: tests/integration/canonical-union-alias/case.trn
 // Namespace: canonical-union-alias
 fn accept(value: terrane_int_support::Int) -> terrane_int_support::Int {
@@ -877,7 +887,7 @@ fn test_scenario_terrane_canonical_union_alias() {
 }
 // Source: tests/integration/checked-coercion/case.trn
 // Namespace: checked-coercion
-static __TERRANE_F9_SHARED: std::sync::LazyLock<terrane_int_support::Int> = std::sync::LazyLock::new(||
+static __TERRANE_F10_SHARED: std::sync::LazyLock<terrane_int_support::Int> = std::sync::LazyLock::new(||
 terrane_int_support::Int::from(100_i128));
 fn convert(item: terrane_int_support::Int) -> Result<i8, TerraneError> {
     let mut result: i8;
@@ -914,7 +924,7 @@ fn test_values_terrane_checked_coercion() -> Result<(), TerraneError> {
     )?;
     renamed_checked = terrane_int_support::checked_coerce::<i8>(&within);
     shared_coerced = __terrane_raised_err(
-        terrane_int_support::coerce::<i8>(&*__TERRANE_F9_SHARED),
+        terrane_int_support::coerce::<i8>(&*__TERRANE_F10_SHARED),
         50 /* terrane-site: tests/integration/checked-coercion/case.trn:21:20-21:33 */,
     )?;
     parameter_coerced = __terrane_traced_err(
@@ -1568,7 +1578,7 @@ fn test_scenario_terrane_collection_property_method_calls() {
 // Namespace: collections-value-semantics
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF14S455 {
+enum TerraneUnionF15S455 {
     Arm0(terrane_collection_support::Entry<String, terrane_int_support::Int>),
     Arm1(terrane_collection_support::Tuple<String>),
 }
@@ -1576,7 +1586,7 @@ fn test_scenario_terrane_collections_value_semantics() {
     let original: terrane_collection_support::List<terrane_int_support::Int>;
     let mut independent: terrane_collection_support::List<terrane_int_support::Int>;
     let mut ordered: terrane_collection_support::Map<String, terrane_int_support::Int>;
-    let mut pair: Option<TerraneUnionF14S455> = None;
+    let mut pair: Option<TerraneUnionF15S455> = None;
     let mut unique: terrane_collection_support::Set<String>;
     let mut value: String;
     let pair_2: terrane_collection_support::Tuple<String>;
@@ -1668,7 +1678,7 @@ fn test_scenario_terrane_collections_value_semantics() {
     loop {
         let _ = pair
             .insert(
-                TerraneUnionF14S455::Arm0(
+                TerraneUnionF15S455::Arm0(
                     match __terrane_iterator_0.next() {
                         terrane_collection_support::IterationStep::Item(item) => item,
                         terrane_collection_support::IterationStep::End => break,
@@ -1677,10 +1687,10 @@ fn test_scenario_terrane_collections_value_semantics() {
             );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&match pair.as_ref()
-            .expect("flow-proven available binding") { TerraneUnionF14S455::Arm0(value)
+            .expect("flow-proven available binding") { TerraneUnionF15S455::Arm0(value)
             => value, _ => unreachable!("flow-proven storage refinement") } .key
             .clone()), terrane_scalar_support::scalar_text(&match pair.as_ref()
-            .expect("flow-proven available binding") { TerraneUnionF14S455::Arm0(value)
+            .expect("flow-proven available binding") { TerraneUnionF15S455::Arm0(value)
             => value, _ => unreachable!("flow-proven storage refinement") } .value
             .clone())
         );
@@ -1857,7 +1867,7 @@ fn test_scenario_terrane_collections_value_semantics() {
     loop {
         let _ = pair
             .insert(
-                TerraneUnionF14S455::Arm0(
+                TerraneUnionF15S455::Arm0(
                     match __terrane_iterator_5.next() {
                         terrane_collection_support::IterationStep::Item(item) => item,
                         terrane_collection_support::IterationStep::End => break,
@@ -1867,7 +1877,7 @@ fn test_scenario_terrane_collections_value_semantics() {
         let _ = &pair;
         println!(
             "{}", terrane_scalar_support::scalar_text(&match pair.as_ref()
-            .expect("flow-proven available binding") { TerraneUnionF14S455::Arm0(value)
+            .expect("flow-proven available binding") { TerraneUnionF15S455::Arm0(value)
             => value, _ => unreachable!("flow-proven storage refinement") } .key.clone())
         );
     }
@@ -2778,6 +2788,112 @@ fn test_scenario_terrane_contextual_floating_literals() {
     println!("{}", terrane_scalar_support::scalar_text(&hexadecimal));
     println!("{}", terrane_scalar_support::scalar_text(&hexadecimal64));
     println!("{}", terrane_scalar_support::scalar_text(&whole));
+}
+// Source: tests/integration/destination-empty-collections/case.trn
+// Namespace: destination-empty-collections
+fn empty_list() -> terrane_collection_support::List<terrane_int_support::Int> {
+    return terrane_collection_support::List::<terrane_int_support::Int>::new(vec![]);
+}
+fn generic_empty<TerraneType54>() -> terrane_collection_support::List<TerraneType54> {
+    return terrane_collection_support::List::<TerraneType54>::new(vec![]);
+}
+fn consume_terrane_destination_empty_collections(
+    values: terrane_collection_support::List<terrane_int_support::Int>,
+) {
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
+}
+fn consume_optional(
+    values: Option<terrane_collection_support::List<terrane_int_support::Int>>,
+) {
+    println!("{}", terrane_scalar_support::scalar_text(&(&values).is_none()));
+}
+#[derive(Clone)]
+pub struct RequiredHolder {
+    pub values: terrane_collection_support::List<terrane_int_support::Int>,
+}
+impl RequiredHolder {
+    pub fn terrane_construct(
+        values: terrane_collection_support::List<terrane_int_support::Int>,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            values: terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(Vec::new()),
+        };
+        __terrane_constructed_value.construct(values);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        values: terrane_collection_support::List<terrane_int_support::Int>,
+    ) {
+        {
+            let __terrane_value = values;
+            self.values = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct TerraneNsDestinationEmptyCollectionsHolderIdentity2F64657374696E6174696F6E2D656D7074792D636F6C6C656374696F6E7300486F6C646572 {
+    pub values: Option<terrane_collection_support::List<terrane_int_support::Int>>,
+}
+impl TerraneNsDestinationEmptyCollectionsHolderIdentity2F64657374696E6174696F6E2D656D7074792D636F6C6C656374696F6E7300486F6C646572 {
+    pub fn terrane_construct() -> Self {
+        Self {
+            values: Some(
+                terrane_collection_support::List::<terrane_int_support::Int>::new(vec![]),
+            ),
+        }
+    }
+}
+fn test_scenario_terrane_destination_empty_collections() {
+    let returned: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut generic_returned: terrane_collection_support::List<terrane_int_support::Int>;
+    let holder: TerraneNsDestinationEmptyCollectionsHolderIdentity2F64657374696E6174696F6E2D656D7074792D636F6C6C656374696F6E7300486F6C646572;
+    let required: RequiredHolder;
+    returned = empty_list();
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(returned
+        .length()))
+    );
+    generic_returned = generic_empty::<terrane_int_support::Int>();
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(generic_returned
+        .length()))
+    );
+    generic_returned = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![]);
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(generic_returned
+        .length()))
+    );
+    consume_terrane_destination_empty_collections(
+        terrane_collection_support::List::<terrane_int_support::Int>::new(vec![]),
+    );
+    consume_terrane_destination_empty_collections(
+        terrane_collection_support::List::<terrane_int_support::Int>::new(vec![]),
+    );
+    consume_optional(
+        Some(terrane_collection_support::List::<terrane_int_support::Int>::new(vec![])),
+    );
+    consume_optional(None);
+    holder = TerraneNsDestinationEmptyCollectionsHolderIdentity2F64657374696E6174696F6E2D656D7074792D636F6C6C656374696F6E7300486F6C646572::terrane_construct();
+    println!("{}", terrane_scalar_support::scalar_text(&(&holder.values).is_none()));
+    required = RequiredHolder::terrane_construct(
+        terrane_collection_support::List::<terrane_int_support::Int>::new(vec![]),
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(required
+        .values.length()))
+    );
 }
 // Source: tests/integration/exact-constant-membership/case.trn
 // Namespace: exact-constant-membership
@@ -3760,11 +3876,11 @@ fn test_scenario_terrane_iterator_protocol() {
 // Namespace: local-scalar-union
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF28S76 {
+enum TerraneUnionF30S76 {
     Arm0(terrane_int_support::Int),
     Arm1(String),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF28S76 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF30S76 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(value) => {
@@ -3777,17 +3893,17 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF28S76 {
     }
 }
 fn choose(flag: bool) {
-    let value: TerraneUnionF28S76;
+    let value: TerraneUnionF30S76;
     if flag {
-        value = TerraneUnionF28S76::Arm0(terrane_int_support::Int::from(1_i128));
+        value = TerraneUnionF30S76::Arm0(terrane_int_support::Int::from(1_i128));
     } else {
-        value = TerraneUnionF28S76::Arm1(String::from("text"));
+        value = TerraneUnionF30S76::Arm1(String::from("text"));
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &value {
-        TerraneUnionF28S76::Arm0(__terrane_arm) => {
+        TerraneUnionF30S76::Arm0(__terrane_arm) => {
         terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
-        __terrane_text); }, TerraneUnionF28S76::Arm1(__terrane_arm) => {
+        __terrane_text); }, TerraneUnionF30S76::Arm1(__terrane_arm) => {
         terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
         __terrane_text); } } __terrane_text }
     );
@@ -3795,6 +3911,55 @@ fn choose(flag: bool) {
 fn test_scenario_terrane_local_scalar_union() {
     choose(true);
     choose(false);
+}
+// Source: tests/integration/local-union-compatible-boundary/case.trn
+// Namespace: local-union-compatible-boundary
+#[allow(dead_code)]
+#[derive(Clone)]
+enum TerraneUnionF31S91 {
+    Arm0(terrane_int_support::Int),
+    Arm1(String),
+}
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF31S91 {
+    fn write_scalar(&self, output: &mut String) {
+        match self {
+            Self::Arm0(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+            Self::Arm1(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+        }
+    }
+}
+fn observe(flag: bool) {
+    let value: TerraneUnionF31S91;
+    if flag {
+        value = TerraneUnionF31S91::Arm0(terrane_int_support::Int::from(1_i128));
+    } else {
+        value = TerraneUnionF31S91::Arm1(String::from("text"));
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&matches!(&value,
+        TerraneUnionF31S91::Arm1(_)))
+    );
+    if matches!(&value, TerraneUnionF31S91::Arm1(_)) {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&match &value {
+            TerraneUnionF31S91::Arm1(value) => value, _ =>
+            unreachable!("flow-proven storage refinement") })
+        );
+    } else {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&match &value {
+            TerraneUnionF31S91::Arm0(value) => value, _ =>
+            unreachable!("flow-proven storage refinement") })
+        );
+    }
+}
+fn test_scenario_terrane_local_union_compatible_boundary() {
+    observe(true);
+    observe(false);
 }
 // Source: tests/integration/logical-comparisons/case.trn
 // Namespace: logical-comparisons
@@ -4400,11 +4565,11 @@ fn test_scenario_terrane_null_byte_literal() -> Result<(), TerraneError> {
 // Namespace: numeric-destination-conversion
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF38S128 {
+enum TerraneUnionF41S128 {
     Arm0(i8),
     Arm1(i32),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF38S128 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF41S128 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(value) => {
@@ -4420,7 +4585,7 @@ fn test_values_terrane_numeric_destination_conversion() -> Result<(), TerraneErr
     let small: i8;
     let adaptive: i64;
     let wide: i32;
-    let mut selected: TerraneUnionF38S128;
+    let mut selected: TerraneUnionF41S128;
     let count: i32;
     let total: f64;
     let exact: i64;
@@ -4433,7 +4598,7 @@ fn test_values_terrane_numeric_destination_conversion() -> Result<(), TerraneErr
     small = 12;
     adaptive = small as i64;
     wide = small as i32;
-    selected = TerraneUnionF38S128::Arm0(small);
+    selected = TerraneUnionF41S128::Arm0(small);
     count = 16777216;
     total = count as f64;
     exact = 18014398509481984;
@@ -4452,15 +4617,15 @@ fn test_values_terrane_numeric_destination_conversion() -> Result<(), TerraneErr
     println!("{}", terrane_scalar_support::scalar_text(&wide));
     println!("{}", terrane_scalar_support::scalar_text(&selected));
     other = 13;
-    selected = TerraneUnionF38S128::Arm1(other);
+    selected = TerraneUnionF41S128::Arm1(other);
     println!(
         "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
-        TerraneUnionF38S128::Arm1(_)))
+        TerraneUnionF41S128::Arm1(_)))
     );
-    selected = TerraneUnionF38S128::Arm0(small);
+    selected = TerraneUnionF41S128::Arm0(small);
     println!(
         "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
-        TerraneUnionF38S128::Arm0(_)))
+        TerraneUnionF41S128::Arm0(_)))
     );
     println!("{}", terrane_scalar_support::scalar_text(&total));
     println!("{}", terrane_scalar_support::scalar_text(&exact_float));
@@ -4514,6 +4679,54 @@ fn test_values_terrane_numeric_literals() {
     println!("{}", terrane_scalar_support::scalar_text(&unsigned_value));
     println!("{}", terrane_scalar_support::scalar_text(&minimum));
     println!("{}", terrane_scalar_support::scalar_text(&negative_hex));
+}
+// Source: tests/integration/optional-enum-payload/case.trn
+// Namespace: optional-enum-payload
+#[derive(Clone)]
+pub enum TerraneNsOptionalEnumPayloadItemIdentity2F6F7074696F6E616C2D656E756D2D7061796C6F6164006974656D {
+    Value(Option<terrane_int_support::Int>),
+}
+fn test_scenario_terrane_optional_enum_payload() {
+    let present: TerraneNsOptionalEnumPayloadItemIdentity2F6F7074696F6E616C2D656E756D2D7061796C6F6164006974656D;
+    let payload: Option<terrane_int_support::Int>;
+    let absent: TerraneNsOptionalEnumPayloadItemIdentity2F6F7074696F6E616C2D656E756D2D7061796C6F6164006974656D;
+    let payload_2: Option<terrane_int_support::Int>;
+    present = {
+        let __terrane_enum_payload_0 = Some(terrane_int_support::Int::from(7_i128));
+        TerraneNsOptionalEnumPayloadItemIdentity2F6F7074696F6E616C2D656E756D2D7061796C6F6164006974656D::Value(
+            __terrane_enum_payload_0,
+        )
+    };
+    let __terrane_match_value_148 = present.clone();
+    match __terrane_match_value_148 {
+        TerraneNsOptionalEnumPayloadItemIdentity2F6F7074696F6E616C2D656E756D2D7061796C6F6164006974656D::Value(
+            __terrane_pattern_170_payload,
+        ) => {
+            payload = __terrane_pattern_170_payload;
+            println!(
+                "{}", { let mut __terrane_text = String::new(); match &payload {
+                Some(__terrane_present) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_present,
+                &mut __terrane_text); }, None => __terrane_text.push_str("none"), }
+                __terrane_text }
+            );
+        }
+    }
+    absent = {
+        let __terrane_enum_payload_0 = None;
+        TerraneNsOptionalEnumPayloadItemIdentity2F6F7074696F6E616C2D656E756D2D7061796C6F6164006974656D::Value(
+            __terrane_enum_payload_0,
+        )
+    };
+    let __terrane_match_value_277 = absent.clone();
+    match __terrane_match_value_277 {
+        TerraneNsOptionalEnumPayloadItemIdentity2F6F7074696F6E616C2D656E756D2D7061796C6F6164006974656D::Value(
+            __terrane_pattern_298_payload,
+        ) => {
+            payload_2 = __terrane_pattern_298_payload;
+            println!("{}", terrane_scalar_support::scalar_text(&payload_2.is_none()));
+        }
+    }
 }
 // Source: tests/integration/optional-scalar-union/case.trn
 // Namespace: optional-scalar-union
@@ -5774,7 +5987,7 @@ fn test_scenario_terrane_string_result_list_iteration() {
 }
 // Source: tests/integration/string-value-parameter-reuse/case.trn
 // Namespace: string-value-parameter-reuse
-fn consume(value: String) {
+fn consume_terrane_string_value_parameter_reuse(value: String) {
     println!(
         "{}{}", String::from("consume:"), terrane_scalar_support::scalar_text(&value)
     );
@@ -5825,7 +6038,7 @@ fn test_scenario_terrane_string_value_parameter_reuse() {
         };
         key = __terrane_item_0.key;
         value = __terrane_item_0.value;
-        consume(key.clone());
+        consume_terrane_string_value_parameter_reuse(key.clone());
         println!(
             "{}{}{}{}", String::from("key:"), terrane_scalar_support::scalar_text(&key),
             String::from("="), terrane_scalar_support::scalar_text(&value)
@@ -6340,9 +6553,8 @@ fn test_scenario_terrane_typed_catch_bindings() -> Result<(), TerraneError> {
                             let _ = caught_2.insert(__terrane_error_3.clone());
                             return TerraneCompletion::Error(
                                 caught_2
-                                    .as_ref()
-                                    .expect("flow-proven available binding")
-                                    .clone()
+                                    .take()
+                                    .expect("flow-proven availability")
                                     .at(
 
                                             202 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:19:7-19:19 */,
@@ -9946,11 +10158,17 @@ fn test_destinations() {
 // Source: tests/integration/typed-serialization-generic/case.trn
 // Namespace: typed-serialization-generic
 #[derive(Clone)]
-pub struct Holder<TerraneType54> {
+pub struct TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+    TerraneType54,
+> {
     __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
     pub count: terrane_int_support::Int,
 }
-impl<TerraneType54> Holder<TerraneType54> {
+impl<
+    TerraneType54,
+> TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+    TerraneType54,
+> {
     pub fn terrane_construct() -> Self {
         Self {
             __terrane_phantom: std::marker::PhantomData,
@@ -9958,7 +10176,10 @@ impl<TerraneType54> Holder<TerraneType54> {
         }
     }
 }
-impl<TerraneType54> TerraneDocumentDecode for Holder<TerraneType54> {
+impl<TerraneType54> TerraneDocumentDecode
+for TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+    TerraneType54,
+> {
     fn terrane_decode_document(
         input: &mut terrane_document_support::Document,
         path: &TerraneDocumentPath<'_>,
@@ -10023,7 +10244,10 @@ impl<TerraneType54> TerraneDocumentDecode for Holder<TerraneType54> {
         if diagnostics.is_empty() { Ok(value) } else { Err(diagnostics) }
     }
 }
-impl<TerraneType54> TerraneDocumentEncode for Holder<TerraneType54> {
+impl<TerraneType54> TerraneDocumentEncode
+for TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+    TerraneType54,
+> {
     fn terrane_encode_document(
         &self,
         writer: &mut terrane_document_support::JsonWriter,
@@ -10034,9 +10258,14 @@ impl<TerraneType54> TerraneDocumentEncode for Holder<TerraneType54> {
         writer.end_object()
     }
 }
-impl<TerraneType54> DocumentEncodableProtocol for Holder<TerraneType54>
+impl<TerraneType54> DocumentEncodableProtocol
+for TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+    TerraneType54,
+>
 where
-    Holder<TerraneType54>: Clone + Send + Sync + 'static,
+    TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+        TerraneType54,
+    >: Clone + Send + Sync + 'static,
 {
     fn clone_box(&self) -> Box<dyn DocumentEncodableProtocol> {
         Box::new(self.clone())
@@ -10045,17 +10274,34 @@ where
         Box::new(self.clone())
     }
 }
-impl<TerraneType54> From<Holder<TerraneType54>> for DocumentEncodable
+impl<
+    TerraneType54,
+> From<
+    TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+        TerraneType54,
+    >,
+> for DocumentEncodable
 where
-    Holder<TerraneType54>: Clone + Send + Sync + 'static,
+    TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+        TerraneType54,
+    >: Clone + Send + Sync + 'static,
 {
-    fn from(value: Holder<TerraneType54>) -> Self {
+    fn from(
+        value: TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+            TerraneType54,
+        >,
+    ) -> Self {
         Self(Box::new(value))
     }
 }
-impl<TerraneType54> DocumentDecodableProtocol for Holder<TerraneType54>
+impl<TerraneType54> DocumentDecodableProtocol
+for TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+    TerraneType54,
+>
 where
-    Holder<TerraneType54>: Clone + Send + Sync + 'static,
+    TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+        TerraneType54,
+    >: Clone + Send + Sync + 'static,
 {
     fn clone_box(&self) -> Box<dyn DocumentDecodableProtocol> {
         Box::new(self.clone())
@@ -10064,19 +10310,37 @@ where
         Box::new(self.clone())
     }
 }
-impl<TerraneType54> From<Holder<TerraneType54>> for DocumentDecodable
+impl<
+    TerraneType54,
+> From<
+    TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+        TerraneType54,
+    >,
+> for DocumentDecodable
 where
-    Holder<TerraneType54>: Clone + Send + Sync + 'static,
+    TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+        TerraneType54,
+    >: Clone + Send + Sync + 'static,
 {
-    fn from(value: Holder<TerraneType54>) -> Self {
+    fn from(
+        value: TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+            TerraneType54,
+        >,
+    ) -> Self {
         Self(Box::new(value))
     }
 }
 fn test_generic_terrane_typed_serialization_generic() {
     let encoded: TerraneDocumentDecodeOutcome<String>;
-    let decoded: TerraneDocumentDecodeOutcome<Holder<String>>;
+    let decoded: TerraneDocumentDecodeOutcome<
+        TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+            String,
+        >,
+    >;
     encoded = {
-        let __terrane_document_source = &Holder::<String>::terrane_construct();
+        let __terrane_document_source = &TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572::<
+            String,
+        >::terrane_construct();
         let __terrane_document_options = &default_json_options();
         __terrane_encode_document(
             __terrane_document_source,
@@ -10089,11 +10353,15 @@ fn test_generic_terrane_typed_serialization_generic() {
     println!("{}", terrane_scalar_support::scalar_text(&encoded.value.clone()));
     decoded = {
         let __terrane_document_source = &String::from("{\"count\":9}");
-        let __terrane_document_fallback = &Holder::<String>::terrane_construct();
+        let __terrane_document_fallback = &TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572::<
+            String,
+        >::terrane_construct();
         let __terrane_document_options = &default_json_options();
         let __terrane_document_allow_unknown = false;
         __terrane_decode_document::<
-            Holder<String>,
+            TerraneNsTypedSerializationGenericHolderIdentity2F74797065642D73657269616C697A6174696F6E2D67656E6572696300686F6C646572<
+                String,
+            >,
         >(
             terrane_document_support::parse_json_document(
                 __terrane_document_source,
@@ -11534,9 +11802,12 @@ fn main() {
             }
         }
         "7" => {
-            test_scenario_terrane_canonical_union_alias();
+            test_scenario_terrane_callable_exact_result_control();
         }
         "8" => {
+            test_scenario_terrane_canonical_union_alias();
+        }
+        "9" => {
             if let Err(error) = test_values_terrane_checked_coercion() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11546,25 +11817,25 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "9" => {
+        "10" => {
             test_scenario_terrane_collection_identity_lifetime();
         }
-        "10" => {
+        "11" => {
             test_scenario_terrane_collection_lookup_errors();
         }
-        "11" => {
+        "12" => {
             test_scenario_terrane_collection_property_get_call();
         }
-        "12" => {
+        "13" => {
             test_scenario_terrane_collection_property_method_calls();
         }
-        "13" => {
+        "14" => {
             test_scenario_terrane_collections_value_semantics();
         }
-        "14" => {
+        "15" => {
             test_scenario_terrane_complete_float_surface();
         }
-        "15" => {
+        "16" => {
             if let Err(error) = test_scenario_terrane_contextual_constant_arithmetic() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11574,16 +11845,19 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "16" => {
+        "17" => {
             test_scenario_terrane_contextual_floating_literals();
         }
-        "17" => {
-            test_scenario_terrane_exact_constant_membership();
-        }
         "18" => {
-            test_scenario_terrane_exact_float_narrowing();
+            test_scenario_terrane_destination_empty_collections();
         }
         "19" => {
+            test_scenario_terrane_exact_constant_membership();
+        }
+        "20" => {
+            test_scenario_terrane_exact_float_narrowing();
+        }
+        "21" => {
             if let Err(error) = test_values_terrane_explicit_numeric_coercions() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11593,16 +11867,16 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "20" => {
+        "22" => {
             test_scenario_terrane_fixed_integer_float_destination();
         }
-        "21" => {
+        "23" => {
             test_scenario_terrane_float_narrowing_special_values();
         }
-        "22" => {
+        "24" => {
             test_scenario_terrane_foundational_float_math();
         }
-        "23" => {
+        "25" => {
             if let Err(error) = test_values_terrane_integer_coercions() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11612,7 +11886,7 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "24" => {
+        "26" => {
             if let Err(error) = test_scenario_terrane_integer_euclidean() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11622,25 +11896,28 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "25" => {
+        "27" => {
             test_scenario_terrane_integer_move();
         }
-        "26" => {
+        "28" => {
             test_scenario_terrane_iterator_protocol();
         }
-        "27" => {
+        "29" => {
             test_scenario_terrane_local_scalar_union();
         }
-        "28" => {
-            test_scenario_terrane_logical_comparisons();
-        }
-        "29" => {
-            test_scenario_terrane_lossy_float_narrowing();
-        }
         "30" => {
-            test_scenario_terrane_map_entry_destructuring();
+            test_scenario_terrane_local_union_compatible_boundary();
         }
         "31" => {
+            test_scenario_terrane_logical_comparisons();
+        }
+        "32" => {
+            test_scenario_terrane_lossy_float_narrowing();
+        }
+        "33" => {
+            test_scenario_terrane_map_entry_destructuring();
+        }
+        "34" => {
             if let Err(error) = test_scenario_terrane_map_key_removal() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11650,19 +11927,19 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "32" => {
+        "35" => {
             test_values_terrane_mixed_width_arithmetic();
         }
-        "33" => {
+        "36" => {
             test_values_terrane_mixed_width_comparisons();
         }
-        "34" => {
+        "37" => {
             test_scenario_terrane_negative_wrapped_shift();
         }
-        "35" => {
+        "38" => {
             test_scenario_terrane_none_value_display();
         }
-        "36" => {
+        "39" => {
             if let Err(error) = test_scenario_terrane_null_byte_literal() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11672,7 +11949,7 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "37" => {
+        "40" => {
             if let Err(error) = test_values_terrane_numeric_destination_conversion() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11682,16 +11959,19 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "38" => {
+        "41" => {
             test_values_terrane_numeric_literals();
         }
-        "39" => {
+        "42" => {
+            test_scenario_terrane_optional_enum_payload();
+        }
+        "43" => {
             test_scenario_terrane_optional_scalar_union();
         }
-        "40" => {
+        "44" => {
             test_scenario_terrane_parse_radix_families();
         }
-        "41" => {
+        "45" => {
             if let Err(error) = test_scenario_terrane_scalar_reference_transparency() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11701,10 +11981,10 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "42" => {
+        "46" => {
             test_scenario_terrane_stable_list_sorting();
         }
-        "43" => {
+        "47" => {
             if let Err(error) = test_composition() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11714,16 +11994,16 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "44" => {
+        "48" => {
             test_generic_terrane_string_display_generic();
         }
-        "45" => {
+        "49" => {
             test_scenario_terrane_string_result_list_iteration();
         }
-        "46" => {
+        "50" => {
             test_scenario_terrane_string_value_parameter_reuse();
         }
-        "47" => {
+        "51" => {
             if let Err(error) = test_scenario_terrane_text_families() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11733,13 +12013,13 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "48" => {
+        "52" => {
             test_scenario_terrane_truth_protocol();
         }
-        "49" => {
+        "53" => {
             test_scenario_terrane_tuple_type_boundaries();
         }
-        "50" => {
+        "54" => {
             if let Err(error) = test_scenario_terrane_typed_catch_bindings() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -11749,43 +12029,43 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "51" => {
+        "55" => {
             test_scenario_terrane_typed_destinations();
         }
-        "52" => {
+        "56" => {
             test_scenario_terrane_typed_document_decoding();
         }
-        "53" => {
+        "57" => {
             test_scenario_terrane_typed_document_encoding();
         }
-        "54" => {
+        "58" => {
             test_scenario_terrane_typed_float_output();
         }
-        "55" => {
+        "59" => {
             test_scenario_terrane_typed_json_boundaries();
         }
-        "56" => {
+        "60" => {
             test_boundaries();
         }
-        "57" => {
+        "61" => {
             test_custom();
         }
-        "58" => {
+        "62" => {
             test_destinations();
         }
-        "59" => {
+        "63" => {
             test_generic_terrane_typed_serialization_generic();
         }
-        "60" => {
+        "64" => {
             test_matrix();
         }
-        "61" => {
+        "65" => {
             test_scenario_terrane_typed_tuple_decode_shapes();
         }
-        "62" => {
+        "66" => {
             test_scenario_terrane_conformance_url_values();
         }
-        "63" => {
+        "67" => {
             test_scenario_terrane_value_reassignment();
         }
         _ => {

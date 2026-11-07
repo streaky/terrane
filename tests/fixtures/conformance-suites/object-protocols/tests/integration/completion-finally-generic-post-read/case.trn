@@ -1,0 +1,16 @@
+namespace completion-finally-generic-post-read
+from /core/collections import list
+
+function eat of (T) int; k T
+    return 1
+
+function g of (T) T; v T, w T
+    o = v
+    try
+        print; (eat; o)
+    finally
+        o = w
+    return o
+
+function test-scenario;
+    print; (g; 1, 2)

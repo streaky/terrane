@@ -4,11 +4,15 @@ include!("lower.support.rs");
 // Namespace: helpers
 #[derive(Clone)]
 pub struct TerraneNsHelpersBoxIdentity2F68656C7065727300426F78<TerraneType54> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
     pub value: Option<TerraneType54>,
 }
 impl<TerraneType54> TerraneNsHelpersBoxIdentity2F68656C7065727300426F78<TerraneType54> {
     pub fn terrane_construct(value: TerraneType54) -> Self {
-        let mut __terrane_constructed_value = Self { value: None };
+        let mut __terrane_constructed_value = Self {
+            __terrane_phantom: std::marker::PhantomData,
+            value: None,
+        };
         __terrane_constructed_value.construct(value);
         __terrane_constructed_value
     }

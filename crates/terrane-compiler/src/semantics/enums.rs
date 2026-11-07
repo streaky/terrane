@@ -834,21 +834,15 @@ pub(crate) fn validate_enum_constructions(
                             )
                         })?;
                     let expected = substitute_value_type(&field.value_type, &substitutions);
-                    if !super::types::value_types_compatible(
+                    super::types::validate_value_destination(
+                        &unit.source,
                         &unit.descriptors,
+                        &format!("enum payload `{}`", field.name),
                         &expected,
                         &actual_type,
-                    ) {
-                        return Err(failure(
-                            &unit.source,
-                            "T0218",
-                            format!(
-                                "enum payload `{}` expects `{expected}`, found `{actual_type}`",
-                                field.name
-                            ),
-                            value.span,
-                        ));
-                    }
+                        value,
+                        "T0218",
+                    )?;
                 }
                 if let Some(call) = find_call_containing(&unit.tree.root, construction.span) {
                     let arguments = generic_parameters
@@ -1070,15 +1064,15 @@ pub(crate) fn validate_enum_constructions(
                         construction.span,
                     ));
                 }
-                if !super::types::value_types_compatible(&unit.descriptors, &expected, &actual_type)
-                {
-                    return Err(failure(
-                        &unit.source,
-                        "T0218",
-                        format!("native enum payload expects `{expected}`, found `{actual_type}`"),
-                        value.span,
-                    ));
-                }
+                super::types::validate_value_destination(
+                    &unit.source,
+                    &unit.descriptors,
+                    "native enum payload",
+                    &expected,
+                    &actual_type,
+                    value,
+                    "T0218",
+                )?;
             }
             if let Some(call) = find_call_containing(&unit.tree.root, construction.span) {
                 let descriptor = unit.descriptors.iter().find(|descriptor| {

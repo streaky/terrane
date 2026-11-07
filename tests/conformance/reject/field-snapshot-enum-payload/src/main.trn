@@ -1,0 +1,16 @@
+namespace app
+from /core/collections import list
+from /deps/terrane-query-witness import Holder
+
+class F of (T)
+    n int = 1
+    s string = 'a'
+    b bool = true
+
+enum E
+    a; v int
+
+function main;
+    l list of F of Holder = list; (instance F of Holder;)
+    x = instance E::a; v = l[0].n
+    print; 1

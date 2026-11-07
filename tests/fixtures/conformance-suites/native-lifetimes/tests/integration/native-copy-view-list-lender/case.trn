@@ -1,0 +1,14 @@
+namespace native-copy-view-list-lender
+from /deps/terrane-query-witness import Holder
+from /core/collections import list
+
+function test-scenario;
+    holder = Holder::new;
+    views = list; (holder.copy_view;)
+    alias = views
+    print; (alias[0].size;)
+    nested = list; (list; (holder.copy_view;))
+    nested_alias = nested
+    print; (nested_alias[0][0].size;)
+    holder.bump;
+    print; (holder.label_len;)

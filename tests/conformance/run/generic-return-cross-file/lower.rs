@@ -3,11 +3,15 @@
 // Namespace: generic-return-cross-file
 #[derive(Clone)]
 pub struct Slot<TerraneType54> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
     pub value: Option<TerraneType54>,
 }
 impl<TerraneType54> Slot<TerraneType54> {
     pub fn terrane_construct() -> Self {
-        Self { value: None }
+        Self {
+            __terrane_phantom: std::marker::PhantomData,
+            value: None,
+        }
     }
 }
 fn make() -> Slot<String> {

@@ -1,0 +1,14 @@
+namespace optional-enum-payload
+
+enum item
+    value; payload int|none
+
+function test-scenario;
+    present = instance item::value; payload = 7
+    match present
+        case item::value; payload
+            print; payload
+    absent = instance item::value; payload = none
+    match absent
+        case item::value; payload
+            print; payload is a none

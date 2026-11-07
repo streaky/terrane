@@ -4,11 +4,15 @@ include!("lower.support.rs");
 // Namespace: app
 #[derive(Clone)]
 pub struct TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
     pub value: Option<TerraneType54>,
 }
 impl<TerraneType54> TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54> {
     pub fn terrane_construct(value: TerraneType54) -> Self {
-        let mut __terrane_constructed_value = Self { value: None };
+        let mut __terrane_constructed_value = Self {
+            __terrane_phantom: std::marker::PhantomData,
+            value: None,
+        };
         __terrane_constructed_value.construct(value);
         __terrane_constructed_value
     }
@@ -29,13 +33,17 @@ fn unbox<TerraneType54>(
 }
 #[derive(Clone)]
 pub struct Factory<TerraneType54> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
     pub __trn_626f78: Option<TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54>>,
 }
 impl<TerraneType54> Factory<TerraneType54> {
     pub fn terrane_construct(
         __trn_626f78: TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54>,
     ) -> Self {
-        let mut __terrane_constructed_value = Self { __trn_626f78: None };
+        let mut __terrane_constructed_value = Self {
+            __terrane_phantom: std::marker::PhantomData,
+            __trn_626f78: None,
+        };
         __terrane_constructed_value.construct(__trn_626f78);
         __terrane_constructed_value
     }

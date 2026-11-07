@@ -147,6 +147,11 @@ impl Builder<'_> {
     fn loan_sources(&self, node: &SyntaxNode, sources: &mut BTreeSet<Span>) {
         if node.kind == SyntaxKind::Name && self.carries_loan(node) {
             sources.extend(self.identity(node));
+        } else if self.carries_loan(node)
+            && let Some((owner, _)) =
+                super::super::calls::call_reference_origin(self.package, self.unit, node)
+        {
+            sources.insert(owner);
         }
         for (index, child) in node.children.iter().enumerate() {
             if super::super::scope_flow::is_flow_value_child(node, index, child) {
@@ -627,7 +632,17 @@ impl Flow {
         }
     }
 
-    pub(super) fn reads_after_without_rewrite(&self, statement: Span, binding: Span) -> bool {
+    pub(super) fn reads_after_without_rewrite(
+        &self,
+        statement: &SyntaxNode,
+        binding: Span,
+    ) -> bool {
+        let finally = statement
+            .children
+            .iter()
+            .find(|clause| clause.kind == SyntaxKind::FinallyClause)
+            .map(|clause| clause.span);
+        let statement = statement.span;
         let mut pending = self
             .steps
             .iter()
@@ -647,7 +662,15 @@ impl Flow {
             if std::mem::replace(&mut visited[index][usize::from(outside)], true) {
                 continue;
             }
-            if outside {
+            let finally_rewrite = step.definition == Some(binding)
+                && finally.is_some_and(|clause| {
+                    step.span.is_some_and(|span| {
+                        clause.file == span.file
+                            && clause.start <= span.start
+                            && span.end <= clause.end
+                    })
+                });
+            if outside || finally_rewrite {
                 if step.definition == Some(binding) {
                     continue;
                 }

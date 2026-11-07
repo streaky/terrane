@@ -401,6 +401,24 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         {
             validate_field_snapshot(package, unit, condition)?;
         }
+        if node.kind == SyntaxKind::IndexExpression
+            && let Some(index) = node.children.get(1)
+        {
+            validate_field_snapshot(package, unit, index)?;
+        }
+        if node.kind == SyntaxKind::ForStatement
+            && let Some(collection) = node.children.get(1)
+        {
+            validate_field_snapshot(package, unit, collection)?;
+        }
+        if node.kind == SyntaxKind::TypeMembershipExpression
+            && let Some(value) = node.children.first()
+        {
+            validate_field_snapshot(package, unit, value)?;
+        }
+        if let Some(selector) = node.switch_selector() {
+            validate_field_snapshot(package, unit, selector)?;
+        }
         if node.kind == SyntaxKind::UnaryExpression
             && !matches!(
                 unary_operator_text(unit, node).as_deref(),
@@ -413,26 +431,34 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
         {
-            if ungroup(callee).kind == SyntaxKind::Name
-                && package
-                    .resolve_name_at(
-                        unit,
-                        callee.span.start,
-                        node_text(&unit.source, ungroup(callee)),
-                    )
-                    .is_some_and(|symbol| {
-                        symbol.identity == "/core/output::print"
-                            || symbol.identity.starts_with("/core/collections::")
-                                && matches!(
-                                    symbol.name.as_str(),
-                                    "list"
-                                        | "tuple"
-                                        | "map"
-                                        | "set"
-                                        | "unordered-map"
-                                        | "unordered-set"
-                                )
-                    })
+            let enum_payload = ungroup(callee).kind == SyntaxKind::ConstructionExpression
+                && infer_value_type(unit, node, &unit.typed_bindings)?.is_some_and(|ty| {
+                    matches!(ty, ValueType::Object(identity)
+                        if unit.descriptors.iter().any(|descriptor|
+                            descriptor.kind == ObjectKind::Enum
+                                && descriptor.identity.base() == identity.base()))
+                });
+            if enum_payload
+                || ungroup(callee).kind == SyntaxKind::Name
+                    && package
+                        .resolve_name_at(
+                            unit,
+                            callee.span.start,
+                            node_text(&unit.source, ungroup(callee)),
+                        )
+                        .is_some_and(|symbol| {
+                            symbol.identity == "/core/output::print"
+                                || symbol.identity.starts_with("/core/collections::")
+                                    && matches!(
+                                        symbol.name.as_str(),
+                                        "list"
+                                            | "tuple"
+                                            | "map"
+                                            | "set"
+                                            | "unordered-map"
+                                            | "unordered-set"
+                                    )
+                        })
             {
                 for argument in &arguments.children {
                     if let Some(value) = argument.children.last() {

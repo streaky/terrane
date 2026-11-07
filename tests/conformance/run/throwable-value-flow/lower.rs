@@ -41,16 +41,11 @@ fn main() {
                             let _ = caught.insert(__terrane_error_1.clone());
                             let _ = again
                                 .insert(
-                                    relay(
-                                        caught
-                                            .as_ref()
-                                            .expect("flow-proven available binding")
-                                            .clone(),
-                                    ),
+                                    relay(caught.take().expect("flow-proven availability")),
                                 );
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&describe(again
-                                .as_ref().expect("flow-proven available binding").clone()))
+                                .take().expect("flow-proven availability")))
                             );
                             return TerraneCompletion::Error(
                                 TerraneError::raised(
@@ -114,7 +109,7 @@ fn main() {
                             );
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&describe(returned
-                            .as_ref().expect("flow-proven available binding").clone()))
+                            .take().expect("flow-proven availability")))
                         );
                     }
                 }

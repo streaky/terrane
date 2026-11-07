@@ -278,7 +278,11 @@ pub(super) fn select_unit_callable_contract_result(
             continue;
         };
         let value = argument.children.last().unwrap_or(argument);
-        if let Some(mut actual) = infer_value_type(unit, value, bindings).ok().flatten() {
+        if let Some(mut actual) =
+            super::expressions::infer_boundary_value_type(unit, value, bindings)
+                .ok()
+                .flatten()
+        {
             if value.kind == SyntaxKind::Name {
                 let callback = package
                     .and_then(|package| function_contract_for_call(package, unit, value))
@@ -710,6 +714,13 @@ fn bind_generic_type_inner(
     explicit_substitutions: Option<&BTreeMap<String, ValueType>>,
 ) -> Result<(), String> {
     if let ValueType::TypeParameter(name) | ValueType::ProjectedGeneric(name) = expected {
+        let mut contains_union = false;
+        super::capabilities::walk_value_type(actual, &mut |value_type| {
+            contains_union |= matches!(value_type, ValueType::Union(_));
+        });
+        if contains_union {
+            return Err("a local union cannot select a generic argument representation".to_owned());
+        }
         return match bindings.get(name) {
             Some(previous) if previous != actual => {
                 if let Some(selected) = explicit_substitutions.and_then(|map| map.get(name)) {
@@ -759,6 +770,7 @@ fn bind_generic_type_inner(
             }
             bind_generic_native_arguments(left, right, bindings, explicit_substitutions)
         }
+        (ValueType::Optional(_), ValueType::Scalar(ScalarType::None)) => Ok(()),
         (ValueType::Optional(l), ValueType::Optional(r)) => {
             bind_generic_type_inner(l, r, bindings, explicit_substitutions)
         }

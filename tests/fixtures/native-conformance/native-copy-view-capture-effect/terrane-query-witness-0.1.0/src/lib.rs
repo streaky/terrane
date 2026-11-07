@@ -114,3 +114,17 @@ impl CloneEnum {
         }
     }
 }
+
+#[derive(Clone)]
+pub struct Cl;
+impl Cl {
+    pub fn new() -> Self {
+        Self
+    }
+    pub fn value(&self) -> i64 {
+        3
+    }
+    pub fn into_value(self) -> i64 {
+        3
+    }
+}

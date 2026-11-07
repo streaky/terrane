@@ -30,12 +30,14 @@ impl<TerraneType54> ImportedBoxedError<TerraneType54> {
 // Namespace: generic-throwable
 #[derive(Clone)]
 pub struct BoxedError<TerraneType54> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
     pub message: String,
     pub payload: Option<TerraneType54>,
 }
 impl<TerraneType54> BoxedError<TerraneType54> {
     pub fn terrane_construct(message: String, payload: TerraneType54) -> Self {
         let mut __terrane_constructed_value = Self {
+            __terrane_phantom: std::marker::PhantomData,
             message: String::from(""),
             payload: None,
         };

@@ -89,7 +89,8 @@ pub(super) fn analyze_binding_node(
                 member.span,
             ));
         };
-        if let Some(actual) = infer_value_type(unit, value, bindings)? {
+        if let Some(actual) = super::expressions::infer_boundary_value_type(unit, value, bindings)?
+        {
             validate_value_destination(
                 &unit.source,
                 &unit.descriptors,
@@ -130,7 +131,7 @@ pub(super) fn analyze_binding_node(
                 ));
             }
         };
-        let actual = infer_value_type(unit, value, bindings)?;
+        let actual = super::expressions::infer_boundary_value_type(unit, value, bindings)?;
         if let (Some(expected), Some(actual)) = (expected, actual) {
             validate_value_destination(
                 &unit.source,
@@ -156,6 +157,14 @@ pub(super) fn analyze_binding_node(
         .children
         .iter()
         .find(|child| child.kind == SyntaxKind::TypeExpression);
+    if let Some(type_node) = declared {
+        let aliases = visible_descriptor_aliases(
+            &unit.descriptor_aliases,
+            unit.source.id(),
+            type_node.span.start,
+        );
+        validate_nested_scalar_union_storage(unit, type_node, &aliases)?;
+    }
     let initializer = node.children.iter().rev().find(|child| {
         child.span != name_node.span
             && !matches!(
@@ -180,7 +189,8 @@ pub(super) fn analyze_binding_node(
             })
             .max_by_key(|binding| binding.visible_from)
         && let Some(initializer) = initializer
-        && let Some(actual) = infer_value_type(unit, initializer, bindings)?
+        && let Some(actual) =
+            super::expressions::infer_boundary_value_type(unit, initializer, bindings)?
     {
         if previous.destination_arms.is_empty() {
             if let ValueType::Scalar(expected) = previous.value_type.clone() {
@@ -281,9 +291,9 @@ pub(super) fn analyze_binding_node(
     let inferred = initializer
         .map(|value| {
             if let Some(declared_value) = declared_value.clone()
-                && collection_constructor_matches(unit, value, &declared_value, bindings)
+                && contextual_collection_constructor_matches(unit, value, &declared_value, bindings)
             {
-                validate_collection_constructor_items(
+                validate_collection_constructor_value(
                     unit,
                     value,
                     &declared_value,
@@ -374,6 +384,10 @@ pub(super) fn analyze_binding_node(
             _ => {}
         }
         if let (Some(inferred), Some(initializer)) = (inferred.clone(), initializer) {
+            let inferred =
+                super::expressions::infer_boundary_value_type(unit, initializer, bindings)?
+                    .filter(|value| matches!(value, ValueType::Union(_)))
+                    .unwrap_or(inferred);
             validate_value_destination(
                 &unit.source,
                 &unit.descriptors,
@@ -1102,6 +1116,32 @@ pub(super) fn validate_scalar_union_declaration(
 
     visit(unit, type_node, aliases)
 }
+pub(super) fn validate_nested_scalar_union_storage(
+    unit: &SemanticUnit,
+    type_node: &SyntaxNode,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Result<(), SemanticFailure> {
+    fn visit(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        top_level_union: Option<crate::Span>,
+        aliases: &BTreeMap<String, ScalarType>,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::UnionType && Some(node.span) != top_level_union {
+            validate_scalar_union_declaration(unit, node, aliases)?;
+        }
+        for child in &node.children {
+            visit(unit, child, top_level_union, aliases)?;
+        }
+        Ok(())
+    }
+    let top_level_union = type_node
+        .children
+        .first()
+        .filter(|child| child.kind == SyntaxKind::UnionType)
+        .map(|union| union.span);
+    visit(unit, type_node, top_level_union, aliases)
+}
 
 pub(super) fn union_destination_candidates(
     unit: &SemanticUnit,
@@ -1640,7 +1680,7 @@ fn callable_types_compatible(
                     )
             })
         && value_types_compatible(
-            objects,
+            &[],
             expected_result.value_type_ref(),
             actual_result.value_type_ref(),
         )
@@ -1731,6 +1771,57 @@ pub(super) fn object_types_compatible(
     false
 }
 
+fn canonicalize_scoped_native_families(package: &SemanticPackage, value_type: &mut ValueType) {
+    match value_type {
+        ValueType::InvocationScopedNative { family, .. } => {
+            let mut canonical = ValueType::Object(family.clone());
+            super::objects::canonicalize_native_value_type(package, &mut canonical);
+            if let ValueType::Object(canonical) = canonical {
+                *family = canonical;
+            }
+        }
+        ValueType::Optional(inner) => {
+            canonicalize_scoped_native_families(package, inner);
+        }
+        ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
+        | ValueType::SharedReference(inner)
+        | ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::AsyncIterationStep(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::Task(inner, _)
+        | ValueType::ScopedTask(inner, _)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
+        | ValueType::ChannelPair(inner)
+        | ValueType::ChannelSender(inner)
+        | ValueType::ChannelReceiver(inner)
+        | ValueType::ChannelSendOutcome(inner)
+        | ValueType::ChannelReceiveOutcome(inner)
+        | ValueType::DocumentDecodeOutcome(inner) => {
+            canonicalize_scoped_native_families(package, inner.value_type_mut());
+        }
+        ValueType::Map(key, value)
+        | ValueType::UnorderedMap(key, value)
+        | ValueType::Entry(key, value) => {
+            canonicalize_scoped_native_families(package, key.value_type_mut());
+            canonicalize_scoped_native_families(package, value.value_type_mut());
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            for parameter in parameters {
+                canonicalize_scoped_native_families(package, parameter.value_type_mut());
+            }
+            canonicalize_scoped_native_families(package, result.value_type_mut());
+        }
+        _ => {}
+    }
+}
+
 /// Loan classification permits native aliases/provenance of the same storage,
 /// not the owned-value inheritance or container conversions used at assignments.
 pub(crate) fn reference_target_types_equal(
@@ -1745,6 +1836,8 @@ pub(crate) fn reference_target_types_equal(
     let mut actual = actual.clone();
     super::objects::canonicalize_native_value_type(package, &mut expected);
     super::objects::canonicalize_native_value_type(package, &mut actual);
+    canonicalize_scoped_native_families(package, &mut expected);
+    canonicalize_scoped_native_families(package, &mut actual);
     reference_storage_types_equal(&expected, &actual)
 }
 
@@ -1755,6 +1848,31 @@ fn reference_storage_types_equal(expected: &ValueType, actual: &ValueType) -> bo
     match (expected, actual) {
         (ValueType::Object(expected), ValueType::Object(actual)) => {
             object_types_compatible(&[], expected, actual)
+        }
+        (ValueType::Object(expected), ValueType::InvocationScopedNative { family: actual, .. })
+        | (
+            ValueType::InvocationScopedNative {
+                family: expected, ..
+            },
+            ValueType::Object(actual),
+        ) if expected.is_unsafe == actual.is_unsafe
+            && expected.namespace == actual.namespace
+            && expected.name == actual.name
+            && expected.application == actual.application
+            && expected.type_arguments.len() == actual.type_arguments.len()
+            && expected
+                .type_arguments
+                .iter()
+                .zip(&actual.type_arguments)
+                .all(|(expected, actual)| reference_storage_types_equal(expected, actual))
+            && reconcile_projected_native_arguments(expected, actual)
+            && match (&expected.native_projection, &actual.native_projection) {
+                (Some(expected), Some(actual)) => expected == actual,
+                (None, None) => expected.native_arguments == actual.native_arguments,
+                (Some(_), None) | (None, Some(_)) => false,
+            } =>
+        {
+            true
         }
         (ValueType::Optional(expected), ValueType::Optional(actual)) => {
             reference_storage_types_equal(expected, actual)

@@ -140,6 +140,7 @@ pub(crate) use model::{
     FloatMemberOperation, SourceEnumContract, StringFamily, canonical_default,
     float_member_contract, value_type_contains_nonclone_foreign,
 };
+pub(crate) use namespaces::class_designator_identity;
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::application_is_resource_owning;
 pub(crate) use objects::projected_type_is_cloneable;

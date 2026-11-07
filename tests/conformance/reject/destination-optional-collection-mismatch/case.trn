@@ -1,0 +1,9 @@
+namespace destination-optional-collection-mismatch
+from /core/collections import list
+
+function consume; values (list of int)|none
+    print; values == none
+
+function main;
+    values (list of string)|none = list; 'wrong'
+    consume; values

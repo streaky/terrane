@@ -41,6 +41,9 @@ fn validate_moved_value(
                 | ValueType::MutableReference(_)
                 | ValueType::SharedReference(_)
         )
+        // Ordinary callable arguments clone their Arc-backed handle; they do
+        // not move the outer binding as an explicit `move` would.
+        && (explicit || !matches!(&ty, ValueType::Function(..) | ValueType::AsyncFunction(..)))
         && (explicit
             || !matches!(&ty, ValueType::Object(identity)
                 if package.projection.item(&identity.namespace, &identity.name).is_some()
@@ -60,7 +63,7 @@ fn validate_moved_value(
                 });
             (separate_handler || catch_after_body)
                 && flow.reads_in_clause_without_rewrite(clause.span, binding)
-        }) || flow.reads_after_without_rewrite(statement.span, binding))
+        }) || flow.reads_after_without_rewrite(statement, binding))
     {
         return Err(failure(
             &unit.source,
@@ -72,12 +75,11 @@ fn validate_moved_value(
     Ok(())
 }
 
-fn validate_consumption(
+fn visit_consumption(
     package: &SemanticPackage,
     unit: &SemanticUnit,
-    statement: &SyntaxNode,
     node: &SyntaxNode,
-    flow: &Flow,
+    consume: &mut impl FnMut(&SyntaxNode, bool) -> Result<(), SemanticFailure>,
 ) -> Result<(), SemanticFailure> {
     let receiver = if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
@@ -96,14 +98,7 @@ fn validate_consumption(
         None
     };
     if let Some(receiver) = receiver {
-        validate_moved_value(
-            package,
-            unit,
-            statement,
-            receiver,
-            flow,
-            node.kind == SyntaxKind::UnaryExpression,
-        )?;
+        consume(receiver, node.kind == SyntaxKind::UnaryExpression)?;
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -130,7 +125,7 @@ fn validate_consumption(
             if !borrowed
                 && let Some(value) = argument_for_parameter(unit, arguments, contract, index)
             {
-                validate_moved_value(package, unit, statement, value, flow, false)?;
+                consume(value, false)?;
             }
         }
     }
@@ -139,7 +134,7 @@ fn validate_consumption(
             child.kind,
             SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
         ) {
-            validate_consumption(package, unit, statement, child, flow)?;
+            visit_consumption(package, unit, child, consume)?;
         }
     }
     Ok(())
@@ -168,7 +163,9 @@ fn validate_in_function(
         return validate(package, unit, node);
     }
     if node.kind == SyntaxKind::TryStatement {
-        validate_consumption(package, unit, node, node, flow)?;
+        visit_consumption(package, unit, node, &mut |value, explicit| {
+            validate_moved_value(package, unit, node, value, flow, explicit)
+        })?;
     }
     for child in &node.children {
         validate_in_function(package, unit, child, flow)?;
@@ -198,60 +195,90 @@ pub(super) fn validate(
     Ok(())
 }
 
+fn collect(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    writes_only: bool,
+    bindings: &mut BTreeSet<Span>,
+) {
+    if matches!(
+        node.kind,
+        SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+    ) {
+        return;
+    }
+    let target = if writes_only {
+        (node.kind == SyntaxKind::Assignment)
+            .then(|| node.children.first())
+            .flatten()
+    } else {
+        (node.kind == SyntaxKind::Name).then_some(node)
+    };
+    if let Some(binding) = target.and_then(|target| super::binding_identity_at(unit, target)) {
+        bindings.insert(binding);
+    }
+    for child in &node.children {
+        collect(unit, child, writes_only, bindings);
+    }
+}
 pub(super) fn completion_capture_slots(
     package: &SemanticPackage,
     unit: &SemanticUnit,
 ) -> BTreeSet<Span> {
-    fn collect(
+    fn visit(
+        package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
-        writes_only: bool,
-        bindings: &mut BTreeSet<Span>,
+        flow: Option<&Flow>,
+        slots: &mut BTreeSet<Span>,
     ) {
         if matches!(
             node.kind,
             SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
         ) {
+            let flow = contains_try(node).then(|| Flow::new(package, unit, node));
+            for child in &node.children {
+                visit(package, unit, child, flow.as_ref(), slots);
+            }
             return;
         }
-        let target = if writes_only {
-            (node.kind == SyntaxKind::Assignment)
-                .then(|| node.children.first())
-                .flatten()
-        } else {
-            (node.kind == SyntaxKind::Name).then_some(node)
-        };
-        if let Some(binding) = target.and_then(|target| super::binding_identity_at(unit, target)) {
-            bindings.insert(binding);
-        }
-        for child in &node.children {
-            collect(unit, child, writes_only, bindings);
-        }
-    }
-    fn visit(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-        slots: &mut BTreeSet<Span>,
-    ) {
         if node.kind == SyntaxKind::TryStatement
-            && let Some(body) = node.children.first()
-            && let Some(finally) = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::FinallyClause)
+            && let Some(flow) = flow
         {
             let mut writes = BTreeSet::new();
             let mut body_uses = BTreeSet::new();
             let mut uses = BTreeSet::new();
             collect(unit, node, true, &mut writes);
-            collect(unit, body, false, &mut body_uses);
-            collect(unit, finally, false, &mut uses);
+            for clause in &node.children {
+                visit_consumption(package, unit, clause, &mut |value, explicit| {
+                    let value = named_value(value);
+                    if !explicit
+                        && unit.inferred_value_type(value).is_some_and(|ty| {
+                            matches!(ty, ValueType::Function(..) | ValueType::AsyncFunction(..))
+                        })
+                    {
+                        return Ok(());
+                    }
+                    if let Some(binding) = super::binding_identity_at(unit, value) {
+                        body_uses.insert(binding);
+                    }
+                    Ok(())
+                })
+                .expect("collecting completion transfers is infallible");
+            }
+            if let Some(finally) = node
+                .children
+                .iter()
+                .find(|clause| clause.kind == SyntaxKind::FinallyClause)
+            {
+                collect(unit, finally, false, &mut uses);
+            }
             for binding in unit.typed_bindings.iter().filter(|binding| {
                 binding.span.end <= node.span.start
                     && writes.contains(&binding.span)
                     && body_uses.contains(&binding.span)
-                    && uses.contains(&binding.span)
+                    && (uses.contains(&binding.span)
+                        || flow.reads_after_without_rewrite(node, binding.span))
             }) {
                 if !rust_value_is_copy(&binding.value_type)
                     && !package.native_value_is_copyable(&binding.value_type)
@@ -267,10 +294,10 @@ pub(super) fn completion_capture_slots(
             }
         }
         for child in &node.children {
-            visit(package, unit, child, slots);
+            visit(package, unit, child, flow, slots);
         }
     }
     let mut slots = BTreeSet::new();
-    visit(package, unit, &unit.tree.root, &mut slots);
+    visit(package, unit, &unit.tree.root, None, &mut slots);
     slots
 }

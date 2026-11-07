@@ -6,24 +6,84 @@ pub(super) fn validate_applied_collection_type_value(
     let mut value = value;
     while matches!(
         value.kind,
-        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::CallExpression
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
     ) && let Some(inner) = value.children.first()
     {
         value = inner;
     }
-    if value.kind != SyntaxKind::AppliedType
-        || !value.children.first().is_some_and(|constructor| {
-            collection_constructor_identity(unit, constructor, &unit.typed_bindings).is_some()
-        })
+    if value.kind == SyntaxKind::CallExpression
+        && let Some(mut callee) = value.children.first()
     {
+        while matches!(
+            callee.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+        ) && let Some(inner) = callee.children.first()
+        {
+            callee = inner;
+        }
+        if callee.kind == SyntaxKind::AppliedType
+            && callee.children.first().is_some_and(|constructor| {
+                class_designator_identity(unit, constructor).is_some()
+                    || collection_constructor_identity(unit, constructor, &unit.typed_bindings)
+                        .is_some()
+            })
+        {
+            value = callee;
+        }
+    }
+    if value.kind != SyntaxKind::AppliedType {
+        return Ok(());
+    }
+    let constructor = value.children.first().unwrap_or(value);
+    let is_applied_collection =
+        collection_constructor_identity(unit, constructor, &unit.typed_bindings).is_some();
+    let is_applied_class = class_designator_identity(unit, constructor).is_some();
+    if !is_applied_collection && !is_applied_class {
         return Ok(());
     }
     Err(failure(
         &unit.source,
         "T0012",
-        "an applied collection type is not a value; use a destination-typed empty collection",
+        "an applied type is not a value; use its constructor or an explicit generic callable application",
         value.span,
     ))
+}
+
+/// Boundary type of a value, including an explicitly declared local carrier.
+/// Reading/printing and membership checks retain their ordinary flow type.
+pub(super) fn infer_boundary_value_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let mut value = node;
+    while (value.kind == SyntaxKind::GroupExpression
+        || value.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, value).as_deref() == Some("move"))
+        && let Some(inner) = value.children.last()
+    {
+        value = inner;
+    }
+    if value.kind == SyntaxKind::Name
+        && let Some(binding) = bindings
+            .iter()
+            .filter(|binding| {
+                binding.name == node_text(&unit.source, value)
+                    && binding.is_visible_at(unit.source.id(), value.span.start)
+            })
+            .max_by_key(|binding| binding.visible_from)
+        && !binding.destination_arms.is_empty()
+    {
+        return Ok(Some(ValueType::Union(
+            binding
+                .destination_arms
+                .iter()
+                .copied()
+                .map(ValueType::Scalar)
+                .collect(),
+        )));
+    }
+    infer_value_type(unit, node, bindings)
 }
 
 pub(super) fn call_base_designator(mut callee: &SyntaxNode) -> Option<&SyntaxNode> {
@@ -222,6 +282,14 @@ pub(super) fn infer_value_type(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
+    if matches!(node.kind, SyntaxKind::Name | SyntaxKind::CallExpression)
+        && collection_constructor_identity(unit, node, bindings).is_some()
+        && let Some(expected) =
+            super::collections::contextual_collection_destination(unit, node, bindings)?
+    {
+        validate_collection_constructor_value(unit, node, &expected, "collection value", bindings)?;
+        return Ok(Some(expected));
+    }
     // Keep operator recursion outside the large non-operator inference frame.
     match node.kind {
         SyntaxKind::BinaryExpression => infer_binary_type(unit, node, bindings),
@@ -843,7 +911,8 @@ fn infer_nonbinary_value_type(
                             let Some(value) = argument.children.last() else {
                                 continue;
                             };
-                            if let Some(actual) = infer_value_type(unit, value, bindings)? {
+                            if let Some(actual) = infer_boundary_value_type(unit, value, bindings)?
+                            {
                                 bind_generic_type(&field.value_type, &actual, &mut substitutions)
                                     .map_err(|message| {
                                     failure(&unit.source, "T0218", message, argument.span)
@@ -979,7 +1048,7 @@ fn infer_nonbinary_value_type(
                             continue;
                         };
                         let value = argument.children.last().unwrap_or(argument);
-                        let Some(actual) = infer_value_type(unit, value, bindings)? else {
+                        let Some(actual) = infer_boundary_value_type(unit, value, bindings)? else {
                             continue;
                         };
                         bind_generic_type(&expected, &actual, &mut substitutions).map_err(

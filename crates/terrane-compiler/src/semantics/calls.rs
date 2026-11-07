@@ -55,7 +55,6 @@ fn assigned_value_expression(node: &SyntaxNode) -> Option<&SyntaxNode> {
             })
         }
         SyntaxKind::ReturnStatement => node.children.first(),
-        SyntaxKind::GroupExpression => Some(node),
         _ => None,
     }
 }
@@ -347,7 +346,9 @@ pub(super) fn validate_call_nodes<'a>(
                 "callable argument",
                 false,
             )?;
-            if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
+            if let Some(actual) =
+                super::expressions::infer_boundary_value_type(unit, value, scoped_bindings)?
+            {
                 if matches!(expected.value_type(), ValueType::MutableReference(_)) {
                     validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }
@@ -984,6 +985,17 @@ pub(super) fn validate_resolved_assignment(
     let mut actual = if let Some(actual) = resolved_call_type(package, unit, initializer, contracts)
     {
         actual
+    } else if let Some(expected) =
+        contextual_collection_destination(unit, initializer, &unit.typed_bindings)?
+    {
+        validate_collection_constructor_value(
+            unit,
+            initializer,
+            &expected,
+            node_text(&unit.source, name_node),
+            &unit.typed_bindings,
+        )?;
+        expected
     } else if let Some(actual) =
         infer_collection_call_type(unit, initializer, &unit.typed_bindings)?
     {
@@ -1723,6 +1735,34 @@ fn validate_call_borrow_aliases(
     Ok(())
 }
 
+fn validate_union_generic_argument(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    expected: &ValueType,
+    actual: &ValueType,
+) -> Result<(), SemanticFailure> {
+    let mut has_union_argument = false;
+    super::capabilities::walk_value_type(actual, &mut |value_type| {
+        has_union_argument |= matches!(value_type, ValueType::Union(_));
+    });
+    let mut selects_generic = false;
+    super::capabilities::walk_value_type(expected, &mut |value_type| {
+        selects_generic |= matches!(
+            value_type,
+            ValueType::TypeParameter(_) | ValueType::ProjectedGeneric(_)
+        );
+    });
+    if has_union_argument && selects_generic {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "a local union cannot select a generic argument representation",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 fn validate_argument_destination(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1740,6 +1780,7 @@ fn validate_argument_destination(
             value.span,
         )
     };
+    validate_union_generic_argument(unit, value, expected, actual)?;
     if bind_destination_selected_callback(expected, actual, generic_bindings)
         .map_err(generic_failure)?
     {
@@ -1907,7 +1948,9 @@ pub(super) fn validate_call_arguments(
                     &parameter.name,
                     bindings,
                 )?;
-            } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            } else if let Some(actual) =
+                super::expressions::infer_boundary_value_type(unit, value, bindings)?
+            {
                 if matches!(expected, ValueType::MutableReference(_)) {
                     validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }

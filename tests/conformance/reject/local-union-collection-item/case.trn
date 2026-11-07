@@ -1,0 +1,6 @@
+namespace local-union-collection-item
+
+function main;
+    value int|string = 'text'
+    values = list; value
+    print; (values[0] is a string)

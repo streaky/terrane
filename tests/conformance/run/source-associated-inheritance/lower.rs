@@ -128,11 +128,15 @@ impl From<Base> for Operation<terrane_int_support::Int> {
 }
 #[derive(Clone)]
 pub struct Generic<TerraneType54> {
+    __terrane_phantom: std::marker::PhantomData<fn(TerraneType54)>,
     pub evidence: Option<TerraneType54>,
 }
 impl<TerraneType54> Generic<TerraneType54> {
     pub fn terrane_construct(evidence: TerraneType54) -> Self {
-        let mut __terrane_constructed_value = Self { evidence: None };
+        let mut __terrane_constructed_value = Self {
+            __terrane_phantom: std::marker::PhantomData,
+            evidence: None,
+        };
         __terrane_constructed_value.construct(evidence);
         __terrane_constructed_value
     }

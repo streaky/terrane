@@ -1,0 +1,15 @@
+namespace local-union-generic-argument
+
+function identity of (T) T; value T
+    return value
+
+function observe; flag bool
+    if flag
+        value int = 1
+    else
+        value string = 'text'
+    selected = identity; value
+    print; selected
+
+function main;
+    observe; true

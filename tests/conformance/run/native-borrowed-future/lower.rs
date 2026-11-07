@@ -572,7 +572,7 @@ fn main() {
                                 println!("{}", String::from("caught method error"));
                                 println!(
                                     "{}", terrane_scalar_support::scalar_text(&describe(error
-                                    .as_ref().expect("flow-proven available binding").clone()))
+                                    .take().expect("flow-proven availability")))
                                 );
                             }
                             if !__terrane_handled_0 {
