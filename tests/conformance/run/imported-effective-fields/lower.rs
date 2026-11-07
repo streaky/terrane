@@ -18,15 +18,6 @@ pub enum Parent {
     TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
         TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069,
     ),
-    TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-        TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069,
-    ),
-    TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-        TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069,
-    ),
-    TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-        TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069,
-    ),
 }
 impl Parent {
     pub fn terrane_construct() -> Self {
@@ -38,29 +29,11 @@ impl Parent {
             Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
                 value,
             ) => &value.origin,
-            Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-                value,
-            ) => &value.origin,
-            Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-                value,
-            ) => &value.origin,
-            Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-                value,
-            ) => &value.origin,
         }
     }
     pub fn terrane_field_origin_mut(&mut self) -> &mut String {
         match self {
             Self::Own(value) => &mut value.origin,
-            Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-                value,
-            ) => &mut value.origin,
-            Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-                value,
-            ) => &mut value.origin,
-            Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
-                value,
-            ) => &mut value.origin,
             Self::TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069(
                 value,
             ) => &mut value.origin,

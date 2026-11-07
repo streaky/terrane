@@ -307,7 +307,8 @@ pub(super) fn object_descendants<'a>(
     unit: &'a SemanticUnit,
     object: &DescriptorContract,
 ) -> Vec<&'a DescriptorContract> {
-    unit.descriptors
+    let mut descendants = unit
+        .descriptors
         .iter()
         .filter(|candidate| {
             let mut base = candidate.base.as_ref();
@@ -323,7 +324,12 @@ pub(super) fn object_descendants<'a>(
             }
             false
         })
-        .collect()
+        .collect::<Vec<_>>();
+    // Imports may expose the same class under several names. Runtime variants
+    // represent canonical classes, not those lexical aliases.
+    descendants.sort_unstable_by(|left, right| left.identity.cmp(&right.identity));
+    descendants.dedup_by(|left, right| left.identity == right.identity);
+    descendants
 }
 
 pub(super) fn object_destructor_chain<'a>(
