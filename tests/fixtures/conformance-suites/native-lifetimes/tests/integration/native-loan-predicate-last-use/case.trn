@@ -1,0 +1,17 @@
+namespace native-loan-predicate-last-use
+from /deps/terrane-query-witness import Holder, View, query
+from /core/collections import list
+class W
+    inner Holder
+    other Holder
+    function construct; inner Holder, other Holder
+        this.inner = move inner
+        this.other = move other
+function test-scenario;
+    w = instance W; (Holder::new;), (Holder::new;)
+    v = w.inner.view;
+    switch
+        case (v.size;) > 100
+            w.inner = Holder::new;
+        case else
+            print; 8

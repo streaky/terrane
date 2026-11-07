@@ -1,0 +1,11 @@
+namespace native-try-body-rewrite-control
+from /deps/terrane-query-witness import Holder
+function test-scenario;
+    h = Holder::new;
+    v = h.view;
+    try
+        print; (v.into_size;)
+        v = h.view;
+        print; (v.size;)
+    finally
+        print; 1

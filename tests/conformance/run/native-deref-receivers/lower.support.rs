@@ -1211,7 +1211,6 @@ pub type MutexGuardOfReceiverApiRecord<'__terrane_view_0> = std::sync::MutexGuar
     receiver_api::Record,
 >;
 pub type RcOfReceiverApiRecord = std::rc::Rc<receiver_api::Record>;
-pub use receiver_api::Record;
 pub use receiver_api::RecordHandle;
 pub type RecordView<'a> = receiver_api::RecordView<'a>;
 pub type RwLockReadGuardOfReceiverApiRecord<'__terrane_view_0> = std::sync::RwLockReadGuard<

@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+function convert Holder; value int
+    return Holder::new;
+
+function apply of (T, U) U; value T, transform function from T to U
+    return transform; value
+
+function main;
+    value = apply; 1, convert
+    print; (value.label_len;)

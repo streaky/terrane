@@ -1,0 +1,19 @@
+namespace field-grouped-consuming-once
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+class Holder
+    item Item
+    function construct; item Item
+        this.item = move item
+    consuming function finish int;
+        return (this.item).finish;
+function test-scenario;
+    holder = instance Holder; (instance Item;)
+    print; (holder.finish;)

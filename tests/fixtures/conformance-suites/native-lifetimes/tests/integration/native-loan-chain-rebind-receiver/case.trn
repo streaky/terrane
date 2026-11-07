@@ -1,0 +1,16 @@
+namespace native-loan-chain-rebind-receiver
+from /deps/terrane-query-witness import Holder, View, query
+from /core/collections import list
+class W
+    inner Holder
+    other Holder
+    function construct; inner Holder, other Holder
+        this.inner = move inner
+        this.other = move other
+function test-scenario;
+    h = Holder::new;
+    k = Holder::new;
+    v = h.view;
+    a = (move v).chain;
+    v = k.view;
+    print; (a.size;), (v.size;)

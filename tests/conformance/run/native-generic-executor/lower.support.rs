@@ -856,7 +856,7 @@ pub trait AdvanceProtocol {
 }
 impl Clone for Box<dyn AdvanceProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        AdvanceProtocol::clone_box(&**self)
     }
 }
 pub struct Advance(Box<dyn AdvanceProtocol>);

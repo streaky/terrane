@@ -3,11 +3,14 @@ pub use crate::invocation::InvocationMode;
 mod analysis;
 mod annotations;
 mod enums;
+mod finite_source_types;
 mod generic_recursion;
 mod generics;
 mod initialization;
 mod matching;
 mod model;
+mod projected_demand;
+mod written_types;
 
 // Namespace, import, bootstrap-surface, and lexical name resolution.
 mod bootstrap;
@@ -113,7 +116,8 @@ pub(crate) use descriptors::{
     descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,
 };
 pub(crate) use diagnostics::{
-    ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in, warnings,
+    ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in, member_invocation_mode_at,
+    warnings,
 };
 pub(crate) use display::display_method;
 pub(crate) use enums::projected_enum_payload_type;
@@ -137,11 +141,12 @@ pub(crate) use model::{
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::application_is_resource_owning;
 pub(crate) use objects::projected_type_is_cloneable;
-pub(crate) use objects::value_type_is_cloneable;
 pub(crate) use objects::{
     EffectiveObjectField, bind_projected_requirement, canonicalize_native_value_type,
     destination_projected_type, effective_object_fields, effective_object_interfaces,
     projected_owned_field_type,
 };
+pub(crate) use objects::{value_type_is_cloneable, value_type_is_cloneable_assuming_parameters};
+pub(crate) use scope_validation::statement_may_continue;
 pub(crate) use types::reference_target_types_equal;
 pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

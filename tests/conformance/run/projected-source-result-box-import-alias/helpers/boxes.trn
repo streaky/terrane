@@ -1,0 +1,11 @@
+namespace helpers
+
+public class Box of (T)
+    value T
+    public function construct; value T
+        this.value = move value
+    public consuming function take T;
+        return move this.value
+
+public function unbox of (T) T; box Box of T
+    return box.take;

@@ -1,0 +1,20 @@
+namespace app
+
+from /deps/witness import Holder
+
+function main;
+  holder = Holder::new;
+  view = holder.copy_view;
+  print; (view.size;)
+  print; (view.size;)
+  print; (((view)).size;)
+  if true
+    print; (view.size;)
+  else
+    print; (view.size;)
+  counter int = 0
+  while counter < 2
+    print; (view.size;)
+    counter++
+  view = view.bind;
+  print; (view.size;)

@@ -1,0 +1,16 @@
+namespace class-instance-independence
+
+class counter
+    value int = 0
+
+    mutable function increase int;
+        this.value = this.value + 1
+        return this.value
+
+function test-scenario;
+    first = instance counter;
+    second = instance counter;
+    first-value int = first.increase;
+    second-value int = second.increase;
+    next-first int = first.increase;
+    print; first-value, second-value, next-first

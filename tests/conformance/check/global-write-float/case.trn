@@ -1,0 +1,6 @@
+namespace global-write-float
+
+global calls int = 0
+
+function main;
+    global calls = 1.5

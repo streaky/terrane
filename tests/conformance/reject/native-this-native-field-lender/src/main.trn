@@ -1,0 +1,15 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+class Wrapped
+  inner Holder
+  function construct; inner Holder
+    this.inner = move inner
+  function observe;
+    view = this.inner.view;
+    print; (view.size;)
+
+function main;
+  wrapped = instance Wrapped; (Holder::new;)
+  wrapped.observe;

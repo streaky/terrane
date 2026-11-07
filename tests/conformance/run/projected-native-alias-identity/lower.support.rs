@@ -508,8 +508,14 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 15] = [
+    pub static FUNCTIONS: [&str; 5] = [
+        "/app::main",
+        "/app::consume_borrowed",
+        "/app::consume_borrowed_string",
+        "/app::consume_aliased_ref",
+        "/app::consume_holder_field",
+    ];
+    pub static SITES: [Site; 22] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:8:23-8:36) */
         { Site { function: 0, file: 0, line: 8, column: 23, end_line: 8, end_column: 36 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:12:13-12:34) */
@@ -540,6 +546,20 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 32, column: 13, end_line: 32, end_column: 39 } },
         /* terrane-site-row: site 14: /app::main (src/main.trn:33:13-33:37) */
         { Site { function: 0, file: 0, line: 33, column: 13, end_line: 33, end_column: 37 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:34:37-34:48) */
+        { Site { function: 0, file: 0, line: 34, column: 37, end_line: 34, end_column: 48 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:36:39-36:51) */
+        { Site { function: 0, file: 0, line: 36, column: 39, end_line: 36, end_column: 51 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:39:38-39:50) */
+        { Site { function: 0, file: 0, line: 39, column: 38, end_line: 39, end_column: 50 } },
+        /* terrane-site-row: site 18: /app::consume_borrowed (src/main.trn:43:12-43:29) */
+        { Site { function: 1, file: 0, line: 43, column: 12, end_line: 43, end_column: 29 } },
+        /* terrane-site-row: site 19: /app::consume_borrowed_string (src/main.trn:45:12-45:29) */
+        { Site { function: 2, file: 0, line: 45, column: 12, end_line: 45, end_column: 29 } },
+        /* terrane-site-row: site 20: /app::consume_aliased_ref (src/main.trn:48:12-48:29) */
+        { Site { function: 3, file: 0, line: 48, column: 12, end_line: 48, end_column: 29 } },
+        /* terrane-site-row: site 21: /app::consume_holder_field (src/main.trn:54:12-54:35) */
+        { Site { function: 4, file: 0, line: 54, column: 12, end_line: 54, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]

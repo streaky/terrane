@@ -9,6 +9,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, mpsc};
+#[path = "conformance/native_fixtures.rs"]
+mod native_fixtures;
+#[path = "conformance/shared_suites.rs"]
+mod shared_suites;
 
 const MAX_CONFORMANCE_JOBS: usize = 8;
 static TIMING_WRITE_LOCK: Mutex<()> = Mutex::new(());
@@ -416,15 +420,8 @@ fn case_source_path(
         fs::copy(fixture, destination).unwrap();
     }
     stage_native_tools(case, &staged);
-    let fixture_registry = staged.join("fixture-registry");
-    if fixture_registry.is_dir() {
-        let dependency_workspace = staged.join(".trn/dependencies");
-        copy_package_fixture(
-            &fixture_registry,
-            &dependency_workspace.join("fixture-registry"),
-        );
-        copy_package_fixture(&staged.join(".cargo"), &dependency_workspace.join(".cargo"));
-    }
+    native_fixtures::stage(case, &staged, &build.target);
+    native_fixtures::stage(case, &staged.join(".trn/dependencies"), &build.target);
     staged.join(entrypoint)
 }
 
@@ -810,9 +807,16 @@ fn assert_diagnostic_location(
 fn every_manifest_drives_a_conformance_case() {
     let manifests = selected_manifests();
     let build = ConformanceBuild::new();
+    shared_suites::run(&manifests, &build);
+    let individual_manifests = manifests
+        .into_iter()
+        .filter(|manifest_path| {
+            field(&fs::read_to_string(manifest_path).unwrap(), "suite").is_none()
+        })
+        .collect::<Vec<_>>();
     let prepared = parallel_map_indexed(
-        &manifests,
-        conformance_jobs(manifests.len()),
+        &individual_manifests,
+        conformance_jobs(individual_manifests.len()),
         |case_index, manifest_path| prepare_conformance_case(case_index, manifest_path, &build),
     );
     let mut deferred_generated_cases = Vec::new();
@@ -866,11 +870,7 @@ fn stage_generated_binary(
     requires_unsafe_code: bool,
     build: &ConformanceBuild,
 ) {
-    let fixture_registry = case.join("fixture-registry");
-    if fixture_registry.is_dir() {
-        copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
-        copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
-    }
+    native_fixtures::stage(case, &build.root, &build.target);
     for file in rust_files {
         let path = Path::new(&file.path);
         let name = path.file_name().expect("rendered artifact has a file name");
@@ -1151,7 +1151,43 @@ fn assert_bounded_runtime(
 }
 
 fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
+    run_case_with_selector(binary_path, build_dir, case, manifest, None, None, None);
+}
+
+fn configure_suite_runtime(command: &mut Command, build_dir: &Path, identity: &str, tier: &str) {
+    let directory = build_dir
+        .join("suite-runtime")
+        .join(identity.replace(['/', ':'], "_"));
+    fs::create_dir_all(&directory).unwrap();
+    let result_path = directory.join(".terrane-result");
+    let _ = fs::remove_file(&result_path);
+    let seed = Sha256::digest(identity.as_bytes());
+    let seed = u64::from_le_bytes(seed[..8].try_into().expect("SHA-256 prefix width"));
+    command
+        .env("TERRANE_TEST_ID", identity)
+        .env("TERRANE_TEST_TIER", tier)
+        .env("TERRANE_TEST_SEED", seed.to_string())
+        .env("TERRANE_TEST_RESULT", result_path)
+        .env("TMPDIR", &directory)
+        .env("TERRANE_TEST_DEADLINE_NANOSECONDS", "30000000000");
+}
+
+fn case_command(
+    binary_path: &Path,
+    build_dir: &Path,
+    case: &Path,
+    manifest: &str,
+    selector: Option<usize>,
+    identity: Option<&str>,
+    tier: Option<&str>,
+) -> Command {
     let mut command = Command::new(binary_path);
+    if let Some(selector) = selector {
+        command.arg(selector.to_string());
+    }
+    if let (Some(identity), Some(tier)) = (identity, tier) {
+        configure_suite_runtime(&mut command, build_dir, identity, tier);
+    }
     if let Some(arguments) = optional_text(case.join("arguments.txt")) {
         command.args(arguments.lines());
     }
@@ -1174,6 +1210,27 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
         command.current_dir(working_directory);
     }
     coverage_test_environment(&mut command);
+    command
+}
+
+fn run_case_with_selector(
+    binary_path: &Path,
+    build_dir: &Path,
+    case: &Path,
+    manifest: &str,
+    selector: Option<usize>,
+    identity: Option<&str>,
+    tier: Option<&str>,
+) {
+    let mut command = case_command(
+        binary_path,
+        build_dir,
+        case,
+        manifest,
+        selector,
+        identity,
+        tier,
+    );
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1551,7 +1608,11 @@ fn assert_fixture_manifests(root: &Path) {
         .split('\0')
         .filter(|path| !path.is_empty())
         .map(PathBuf::from)
-        .filter(|path| root.join(path).is_file())
+        .filter(|path| {
+            root.join(path)
+                .symlink_metadata()
+                .is_ok_and(|metadata| metadata.is_file() || metadata.file_type().is_symlink())
+        })
         .collect::<Vec<_>>();
     let missing = missing_fixture_manifests(&files);
     assert!(
@@ -1677,6 +1738,30 @@ fn fixture_inventory_rejects_untracked_root_locks_only() {
             .unwrap()
             .success()
     );
+    assert_fixture_manifests(&root);
+}
+
+#[cfg(unix)]
+#[test]
+fn fixture_inventory_rejects_dangling_links_without_manifests() {
+    let build = ConformanceBuild::new();
+    let root = build.root.join("symlink-inventory");
+    let registry = root.join("run/orphan/fixture-registry");
+    fs::create_dir_all(&registry).unwrap();
+    assert!(
+        Command::new("git")
+            .current_dir(&root)
+            .args(["init", "-q"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    std::os::unix::fs::symlink("missing-witness", registry.join("witness")).unwrap();
+    let error = std::panic::catch_unwind(|| assert_fixture_manifests(&root))
+        .expect_err("dangling link must participate in fixture inventory");
+    let message = error.downcast_ref::<String>().unwrap();
+    assert!(message.contains("run/orphan"), "{message}");
+    fs::write(root.join("run/orphan/case.toml"), "phase = \"run\"\n").unwrap();
     assert_fixture_manifests(&root);
 }
 

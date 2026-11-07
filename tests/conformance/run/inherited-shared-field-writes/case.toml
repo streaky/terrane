@@ -1,3 +1,4 @@
 phase = "run"
 status = "accept"
-canonical-rust = true
+suite = "object-protocols"
+test = "/inherited-shared-field-writes::test-scenario"

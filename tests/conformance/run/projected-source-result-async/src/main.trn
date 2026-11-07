@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+async function make Holder;
+  return Holder::new;
+
+async function main;
+  y = await make;
+  print; (y.label_len;)

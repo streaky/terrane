@@ -226,9 +226,6 @@ fn terrane_test_deadline_nanoseconds() -> terrane_int_support::Int {
     terrane_int_support::Int::from_u128(value)
 }
 
-static TERRANE_TEST_TIME_NANOS: std::sync::atomic::AtomicU64 =
-    std::sync::atomic::AtomicU64::new(0);
-
 fn terrane_test_time_advance(nanoseconds: terrane_int_support::Int) -> bool {
     let Some(nanoseconds) = terrane_int_support::checked_coerce::<u64>(&nanoseconds) else {
         return false;

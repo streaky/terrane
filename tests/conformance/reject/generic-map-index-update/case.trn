@@ -1,0 +1,7 @@
+namespace app
+from /core/collections import map
+function put of (T); value T
+    values map of string, T = map;
+    values['k'] = move value
+function main;
+    put; 1

@@ -10,8 +10,44 @@ impl SemanticPackage {
         identity: &ObjectIdentity,
     ) -> Option<&NativeTypeCapabilities> {
         self.native_capabilities
-            .get(identity.native_projection.as_deref()?)
+            .get(native_rust_type(&self.projection, identity)?)
     }
+
+    pub(crate) fn native_value_is_copyable(&self, value_type: &ValueType) -> bool {
+        match value_type {
+            ValueType::Object(identity) => self.native_capability(identity).map_or_else(
+                || {
+                    self.projection
+                        .native_type_copyable(&identity.namespace, &identity.name)
+                },
+                |capability| capability.copyable,
+            ),
+            ValueType::InvocationScopedNative {
+                rust_type, family, ..
+            } => self.native_capabilities.get(rust_type).map_or_else(
+                || {
+                    self.projection
+                        .native_type_copyable(&family.namespace, &family.name)
+                },
+                |capability| capability.copyable,
+            ),
+            _ => false,
+        }
+    }
+}
+
+fn native_rust_type<'a>(
+    projection: &'a crate::rust_interop::projection::Projection,
+    identity: &'a ObjectIdentity,
+) -> Option<&'a str> {
+    identity.native_projection.as_deref().or_else(|| {
+        let item = projection.item(&identity.namespace, &identity.name)?;
+        matches!(&item.kind,
+            crate::rust_interop::projection::ProjectedKind::Enum { generic_parameters, .. }
+                if generic_parameters.is_empty()
+        )
+        .then_some(item.rust_path.as_str())
+    })
 }
 
 pub(super) fn populate_native_capabilities(
@@ -21,6 +57,17 @@ pub(super) fn populate_native_capabilities(
     let mut scoped_native_types = BTreeSet::new();
     for (unit_index, unit) in package.units.iter().enumerate() {
         visit_unit_types(unit, &mut |value_type, span| {
+            if let ValueType::Object(identity) = value_type
+                && identity.native_projection.is_none()
+                && let Some(item) = package.projection.item(&identity.namespace, &identity.name)
+                && matches!(&item.kind,
+                    crate::rust_interop::projection::ProjectedKind::Enum { generic_parameters, .. }
+                        if generic_parameters.is_empty()
+                )
+                && !native_types.contains_key(&item.rust_path)
+            {
+                native_types.insert(item.rust_path.clone(), (unit_index, span));
+            }
             if let ValueType::InvocationScopedNative {
                 rust_type,
                 concrete: true,
@@ -47,10 +94,8 @@ pub(super) fn populate_native_capabilities(
         });
         for identity in objects {
             // An exact concrete proof supersedes the nominal declaration's Clone fact.
-            let cloneable = identity
-                .native_projection
-                .as_deref()
-                .and_then(|rust_type| package.native_capabilities.get(rust_type))
+            let cloneable = native_rust_type(&package.projection, identity)
+                .and_then(|rust| package.native_capabilities.get(rust))
                 .map_or_else(
                     || {
                         package
@@ -202,6 +247,7 @@ fn prove_native_capabilities(
         let (proof_type, lifetime_parameters) = quantified_native_type(rust_type);
         for rust_bound in [
             "core::clone::Clone",
+            "core::marker::Copy",
             "core::marker::Send",
             "core::marker::Sync",
         ] {
@@ -280,6 +326,7 @@ fn prove_native_capabilities(
                 .or_default();
             match evidence.question.rust_bound.as_str() {
                 "core::clone::Clone" => capability.cloneable = satisfied,
+                "core::marker::Copy" => capability.copyable = satisfied,
                 "core::marker::Send" => capability.send = satisfied,
                 "core::marker::Sync" => capability.sync = satisfied,
                 _ => {}
@@ -324,7 +371,10 @@ fn collect_objects<'a>(value_type: &'a ValueType, objects: &mut Vec<&'a ObjectId
     });
 }
 
-fn walk_value_type<'a>(value_type: &'a ValueType, visit: &mut impl FnMut(&'a ValueType)) {
+pub(super) fn walk_value_type<'a>(
+    value_type: &'a ValueType,
+    visit: &mut impl FnMut(&'a ValueType),
+) {
     visit(value_type);
     match value_type {
         ValueType::Object(identity) => {
@@ -336,6 +386,11 @@ fn walk_value_type<'a>(value_type: &'a ValueType, visit: &mut impl FnMut(&'a Val
             }
             for argument in identity.native_arguments.values() {
                 walk_value_type(argument, visit);
+            }
+        }
+        ValueType::Union(items) => {
+            for item in items {
+                walk_value_type(item, visit);
             }
         }
         ValueType::Optional(inner) => walk_value_type(inner, visit),

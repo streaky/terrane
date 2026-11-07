@@ -1,0 +1,6 @@
+namespace app
+
+function first of (T) T; values map of string, T
+    return values['item']
+
+function main;

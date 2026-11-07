@@ -1,0 +1,7 @@
+namespace integer-euclidean
+
+function test-scenario;
+  print; -7 / 3
+  print; 7 / -3
+  print; -7 % 3
+  print; 7 % -3

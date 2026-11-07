@@ -1,0 +1,5 @@
+namespace exact-float-narrowing
+function test-scenario;
+  source float64 = 1.5
+  target float32 = source
+  print; target

@@ -1,0 +1,11 @@
+namespace conformance/loop-body-backedge-inferred-rhs
+
+
+function test-scenario;
+    first = true
+    for current in 'abc'
+        if not first
+            observed = item
+            print; observed
+        item = current
+        first = false

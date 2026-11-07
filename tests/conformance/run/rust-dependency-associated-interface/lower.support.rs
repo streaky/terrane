@@ -558,7 +558,7 @@ impl<
         + core::marker::Sync + 'static,
 > Clone for Box<dyn NamedSequenceProtocol<TerraneAssociated>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        NamedSequenceProtocol::clone_box(&**self)
     }
 }
 pub struct NamedSequence<
@@ -652,7 +652,7 @@ impl<
         + core::marker::Sync + 'static,
 > Clone for Box<dyn SequenceProtocol<TerraneAssociated>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SequenceProtocol::clone_box(&**self)
     }
 }
 pub struct Sequence<

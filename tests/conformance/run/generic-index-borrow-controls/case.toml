@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "object-protocols"
+test = "/generic-index-borrow-controls::test-scenario"

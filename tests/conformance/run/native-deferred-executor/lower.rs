@@ -5,6 +5,16 @@ include!("lower.support.rs");
 fn query_text() -> SqlStr {
     return ::sqlx::SqlSafeStr::into_sql_str(::sqlx::AssertSqlSafe("SELECT 77"));
 }
+fn create_text() -> SqlStr {
+    return ::sqlx::SqlSafeStr::into_sql_str(
+        ::sqlx::AssertSqlSafe("CREATE TABLE regression_probe (id INTEGER)"),
+    );
+}
+fn insert_text() -> SqlStr {
+    return ::sqlx::SqlSafeStr::into_sql_str(
+        ::sqlx::AssertSqlSafe("INSERT INTO regression_probe VALUES (1)"),
+    );
+}
 fn row_value(record: &SqliteRow) -> i64 {
     return ::sqlx::Row::try_get::<i64, _>(record, 0_usize)
         .expect("SELECT 77 has one integer column");
@@ -15,7 +25,7 @@ async fn read_borrowed(native: &mut SqliteConnection) -> Result<i64, TerraneErro
     let record: SqliteRow;
     arguments = __terrane_raised_err(
         terrane_static_trn_53716c697465417267756d656e7473_default(),
-        0 /* terrane-site: src/main.trn:16:17-16:43 */,
+        0 /* terrane-site: src/main.trn:24:17-24:43 */,
     )?;
     sql = query_text();
     record = __terrane_traced_err(
@@ -50,12 +60,12 @@ async fn read_borrowed(native: &mut SqliteConnection) -> Result<i64, TerraneErro
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        1 /* terrane-site: src/main.trn:18:31-18:84 */,
+                        1 /* terrane-site: src/main.trn:26:31-26:84 */,
                     )
                 }
             })
             .await,
-        1 /* terrane-site: src/main.trn:18:31-18:84 */,
+        1 /* terrane-site: src/main.trn:26:31-26:84 */,
     )?;
     return Ok(row_value(&record));
 }
@@ -65,10 +75,11 @@ fn main() {
         let mut native: Option<SqliteConnection> = None;
         let mut arguments: Option<SqliteArguments> = None;
         let mut sql: Option<SqlStr> = None;
+        let mut result: Option<SqliteQueryResult> = None;
         let mut record: Option<SqliteRow> = None;
         options = __terrane_raised(
             terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
-            2 /* terrane-site: src/main.trn:22:15-22:35 */,
+            2 /* terrane-site: src/main.trn:30:15-30:35 */,
         );
         options = __terrane_raised(
             || -> Result<_, crate::TerraneForeignError> {
@@ -93,7 +104,7 @@ fn main() {
                     Ok::<_, crate::TerraneForeignError>(value)
                 }
             }(),
-            3 /* terrane-site: src/main.trn:23:15-23:43 */,
+            3 /* terrane-site: src/main.trn:31:15-31:43 */,
         );
         let mut __terrane_finally_guard_0 = __terrane_finally_guard();
         let __terrane_maybe_completion_0: Option<TerraneCompletion<()>> = __terrane_cancel_operation(
@@ -116,8 +127,8 @@ fn main() {
                                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                                     .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
                                     { __terrane_raised_err(__terrane_future. await,
-                                    4 /* terrane-site: src/main.trn:25:42-25:58 */) } }).
-                                    await, 4 /* terrane-site: src/main.trn:25:42-25:58 */
+                                    4 /* terrane-site: src/main.trn:33:42-33:58 */) } }).
+                                    await, 4 /* terrane-site: src/main.trn:33:42-33:58 */
                                 ),
                             );
                         let mut __terrane_finally_guard_1 = __terrane_finally_guard();
@@ -131,7 +142,108 @@ fn main() {
                                             .insert(
                                                 __terrane_raised_completion!(
                                                     terrane_static_trn_53716c697465417267756d656e7473_default(),
-                                                    5 /* terrane-site: src/main.trn:27:25-27:51 */
+                                                    5 /* terrane-site: src/main.trn:35:25-35:51 */
+                                                ),
+                                            );
+                                        let _ = sql.insert(create_text());
+                                        __terrane_traced_completion!(
+                                            __terrane_await({ let __terrane_future = { let
+                                            __terrane_call = { let __terrane_native_input_0 =
+                                            sqlx_core::query::query_with(sql.as_ref()
+                                            .expect("flow-proven available binding").clone(), arguments
+                                            .take().expect("flow-proven availability")); let
+                                            __terrane_conversion_input_0 = false;
+                                            __terrane_raised_completion!(| | -> Result < _, crate
+                                            ::TerraneForeignError > { { let value = match
+                                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                            Result < _, crate ::TerraneForeignError > {
+                                            Ok(__terrane_native_input_0
+                                            .persistent(__terrane_conversion_input_0)) })) { Ok(result)
+                                            => result ?, Err(payload) => return Err(crate
+                                            ::__terrane_dependency_panic(payload, "sqlx_core",
+                                            "sqlx_core::query::Query::persistent")) }; Ok:: < _, crate
+                                            ::TerraneForeignError > (value) } } (),
+                                            6 /* terrane-site: src/main.trn:37:20-37:73 */) }
+                                            .execute(native.as_mut()
+                                            .expect("flow-proven available binding")); Box::pin(async
+                                            move { match crate
+                                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                                            .map_err(| payload | crate
+                                            ::__terrane_dependency_panic(payload, "sqlx_core",
+                                            "sqlx_core::query::Query::execute")) ? { Ok(value) =>
+                                            Ok(value), Err(error) => Err(crate
+                                            ::TerraneForeignError(crate
+                                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
+                                            { __terrane_raised_err(__terrane_future. await,
+                                            7 /* terrane-site: src/main.trn:37:19-37:90 */) } }).
+                                            await, 7 /* terrane-site: src/main.trn:37:19-37:90 */
+                                        );
+                                        let _ = arguments
+                                            .insert(
+                                                __terrane_raised_completion!(
+                                                    terrane_static_trn_53716c697465417267756d656e7473_default(),
+                                                    8 /* terrane-site: src/main.trn:38:25-38:51 */
+                                                ),
+                                            );
+                                        let _ = sql.insert(insert_text());
+                                        let _ = result
+                                            .insert(
+                                                __terrane_traced_completion!(
+                                                    __terrane_await({ let __terrane_future = { let
+                                                    __terrane_call = { let __terrane_native_input_0 =
+                                                    sqlx_core::query::query_with(sql.as_ref()
+                                                    .expect("flow-proven available binding").clone(), arguments
+                                                    .take().expect("flow-proven availability")); let
+                                                    __terrane_conversion_input_0 = false;
+                                                    __terrane_raised_completion!(| | -> Result < _, crate
+                                                    ::TerraneForeignError > { { let value = match
+                                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                                    Result < _, crate ::TerraneForeignError > {
+                                                    Ok(__terrane_native_input_0
+                                                    .persistent(__terrane_conversion_input_0)) })) { Ok(result)
+                                                    => result ?, Err(payload) => return Err(crate
+                                                    ::__terrane_dependency_panic(payload, "sqlx_core",
+                                                    "sqlx_core::query::Query::persistent")) }; Ok:: < _, crate
+                                                    ::TerraneForeignError > (value) } } (),
+                                                    9 /* terrane-site: src/main.trn:40:49-40:102 */) }
+                                                    .execute(native.as_mut()
+                                                    .expect("flow-proven available binding")); Box::pin(async
+                                                    move { match crate
+                                                    ::__terrane_dependency_await_unwind(__terrane_call). await
+                                                    .map_err(| payload | crate
+                                                    ::__terrane_dependency_panic(payload, "sqlx_core",
+                                                    "sqlx_core::query::Query::execute")) ? { Ok(value) =>
+                                                    Ok(value), Err(error) => Err(crate
+                                                    ::TerraneForeignError(crate
+                                                    ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                                                    .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
+                                                    { __terrane_raised_err(__terrane_future. await,
+                                                    10 /* terrane-site: src/main.trn:40:48-40:119 */) } }).
+                                                    await, 10 /* terrane-site: src/main.trn:40:48-40:119 */
+                                                ),
+                                            );
+                                        println!(
+                                            "{}",
+                                            terrane_scalar_support::scalar_text(&__terrane_raised_completion!(|
+                                            | -> Result < _, crate ::TerraneForeignError > { { let value
+                                            = match
+                                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                            Result < _, crate ::TerraneForeignError > { Ok((&result
+                                            .as_ref().expect("flow-proven available binding"))
+                                            .rows_affected()) })) { Ok(result) => result ?, Err(payload)
+                                            => return Err(crate ::__terrane_dependency_panic(payload,
+                                            "sqlx_sqlite",
+                                            "sqlx_sqlite::SqliteQueryResult::rows_affected")) }; Ok:: <
+                                            _, crate ::TerraneForeignError >
+                                            (terrane_int_support::Int::from_u128(value as u128)) } } (),
+                                            11 /* terrane-site: src/main.trn:41:21-41:42 */))
+                                        );
+                                        let _ = arguments
+                                            .insert(
+                                                __terrane_raised_completion!(
+                                                    terrane_static_trn_53716c697465417267756d656e7473_default(),
+                                                    12 /* terrane-site: src/main.trn:42:25-42:51 */
                                                 ),
                                             );
                                         let _ = sql.insert(query_text());
@@ -153,8 +265,8 @@ fn main() {
                                                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                                                     .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
                                                     { __terrane_raised_err(__terrane_future. await,
-                                                    6 /* terrane-site: src/main.trn:29:39-29:92 */) } }).
-                                                    await, 6 /* terrane-site: src/main.trn:29:39-29:92 */
+                                                    13 /* terrane-site: src/main.trn:44:39-44:92 */) } }).
+                                                    await, 13 /* terrane-site: src/main.trn:44:39-44:92 */
                                                 ),
                                             );
                                         println!(
@@ -165,7 +277,7 @@ fn main() {
                                             "{}",
                                             terrane_scalar_support::scalar_text(&__terrane_traced_completion!(__terrane_await(read_borrowed(native
                                             .as_mut().expect("flow-proven available binding"))). await,
-                                            7 /* terrane-site: src/main.trn:31:26-31:47 */))
+                                            14 /* terrane-site: src/main.trn:46:26-46:47 */))
                                         );
                                         TerraneCompletion::Normal
                                     }
@@ -210,8 +322,8 @@ fn main() {
                                 ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                                 .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
                                 { __terrane_raised_err(__terrane_future. await,
-                                8 /* terrane-site: src/main.trn:33:19-33:32 */) } }).
-                                await, 8 /* terrane-site: src/main.trn:33:19-33:32 */
+                                15 /* terrane-site: src/main.trn:48:19-48:32 */) } }).
+                                await, 15 /* terrane-site: src/main.trn:48:19-48:32 */
                             );
                             TerraneCompletion::Normal
                         }

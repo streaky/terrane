@@ -1,0 +1,7 @@
+namespace global-write-variable
+
+global calls int = 0
+
+function main;
+    value = 'text'
+    global calls = value

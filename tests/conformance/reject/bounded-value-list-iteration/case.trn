@@ -1,0 +1,17 @@
+namespace app
+from /core/collections import list
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+function observe of (T implements named); values list of T
+    for value in values
+        print; (value.name;)
+function main;
+    values list of Item = list; (instance Item;)
+    observe; values

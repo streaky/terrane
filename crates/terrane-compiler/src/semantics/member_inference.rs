@@ -667,6 +667,21 @@ fn infer_member_type(
         }));
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
+        if unit
+            .projected_member_inventory
+            .get(&object_name.namespace)
+            .and_then(|owners| owners.get(&object_name.name))
+            .is_some_and(|members| members.contains(member_name))
+        {
+            return Err(failure(
+                &unit.source,
+                "T0055",
+                format!(
+                    "projected member `{member_name}` exists but was not demanded for this receiver; add an explicit result type annotation or use a typed adapter"
+                ),
+                member.span,
+            ));
+        }
         return Err(failure(
             &unit.source,
             "T0055",

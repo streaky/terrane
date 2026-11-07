@@ -304,10 +304,23 @@ pub(super) fn analyze_binding_node(
                     value.span.start,
                 )
                 && let Some(actual) = infer_value_type(unit, value, bindings)?
-                && let Some(closed) =
-                    super::generics::close_generic_callable_value(unit, contract, &actual, expected)
             {
-                Ok(Some(closed))
+                match super::generics::close_generic_callable_value(
+                    unit,
+                    contract,
+                    &actual,
+                    expected,
+                    value.span.start,
+                ) {
+                    Ok(Some(closed)) => Ok(Some(closed)),
+                    Err(()) => Err(failure(
+                        &unit.source,
+                        "T0012",
+                        "generic callable type arguments do not satisfy their bounds",
+                        value.span,
+                    )),
+                    Ok(None) => infer_value_type(unit, value, bindings),
+                }
             } else {
                 infer_value_type(unit, value, bindings)
             }
@@ -764,51 +777,46 @@ pub(super) fn declared_value_type_with_visible_objects(
                     })
                 })
                 .unwrap_or(0);
+            let resolved_arguments = || {
+                arguments
+                    .iter()
+                    .map(resolve_argument)
+                    .collect::<Result<Vec<_>, _>>()
+            };
+            if expected != 0 && arguments.len() != expected {
+                return Err(failure(
+                    &unit.source,
+                    if identity.namespace.starts_with("/deps/") {
+                        "T0117"
+                    } else {
+                        "T0001"
+                    },
+                    format!(
+                        "`{base_name}` requires {expected} type arguments, found {}",
+                        arguments.len()
+                    ),
+                    shape.span,
+                ));
+            }
             if unit
                 .projected_interfaces_requiring_application
                 .contains(&identity.base())
                 && let [argument] = arguments
             {
-                return Ok(ValueType::Object(
-                    identity.with_application(resolve_argument(argument)?),
-                ));
+                let argument = resolve_argument(argument)?;
+                return Ok(ValueType::Object(identity.with_application(argument)));
             }
-            if identity.namespace.starts_with("/deps/") && !arguments.is_empty() {
-                return Ok(ValueType::Object(
-                    identity.with_type_arguments(
-                        arguments
-                            .iter()
-                            .map(resolve_argument)
-                            .collect::<Result<Vec<_>, _>>()?,
-                    ),
-                ));
-            }
-            if expected != 0 {
-                if arguments.len() != expected {
-                    return Err(failure(
-                        &unit.source,
-                        "T0001",
-                        format!(
-                            "`{base_name}` requires {expected} type arguments, found {}",
-                            arguments.len()
-                        ),
-                        shape.span,
-                    ));
-                }
-                return Ok(ValueType::Object(
-                    identity.with_type_arguments(
-                        arguments
-                            .iter()
-                            .map(resolve_argument)
-                            .collect::<Result<Vec<_>, _>>()?,
-                    ),
-                ));
+            if !arguments.is_empty() && (expected != 0 || identity.namespace.starts_with("/deps/"))
+            {
+                let resolved = resolved_arguments()?;
+                return Ok(ValueType::Object(identity.with_type_arguments(resolved)));
             }
             if let [argument] = arguments {
                 return Ok(ValueType::Object(
                     identity.with_application(resolve_argument(argument)?),
                 ));
             }
+            return Ok(ValueType::Object(identity));
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -1365,6 +1373,10 @@ fn callable_effects_compatible(
         .all(|identity| throwable_identity_type(identity).is_some_and(|actual| accepts(&actual)))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "destination compatibility and native lifetime mismatch diagnostics share one ordered validation path"
+)]
 pub(super) fn validate_value_destination(
     source: &SourceFile,
     objects: &[DescriptorContract],
@@ -1416,6 +1428,59 @@ pub(super) fn validate_value_destination(
     }
     if value_types_compatible(objects, destination, supplied) {
         return Ok(());
+    }
+    if let (
+        ValueType::InvocationScopedNative {
+            family: expected_family,
+            rust_type: expected_rust,
+            lifetimes: expected_lifetimes,
+            region: expected_region,
+            ..
+        },
+        ValueType::InvocationScopedNative {
+            family: actual_family,
+            rust_type: actual_rust,
+            lifetimes: actual_lifetimes,
+            region: actual_region,
+            ..
+        },
+    ) = (destination, supplied)
+        && expected_family == actual_family
+        && (expected_rust != actual_rust
+            || expected_lifetimes != actual_lifetimes
+            || expected_region != actual_region)
+    {
+        return Err(failure(
+            source,
+            "T0119",
+            format!(
+                "cannot replace `{name}` with a native value using an incompatible lifetime or region representation: existing `{expected_rust}` ({expected_lifetimes:?}, region {expected_region:?}), supplied `{actual_rust}` ({actual_lifetimes:?}, region {actual_region:?}); bind the helper result to a new local instead"
+            ),
+            value.span,
+        ));
+    }
+    if let (
+        ValueType::InvocationScopedNative {
+            family,
+            rust_type,
+            lifetimes,
+            region,
+            ..
+        },
+        ValueType::Object(actual),
+    ) = (destination, supplied)
+        && family.namespace == actual.namespace
+        && family.name == actual.name
+    {
+        return Err(failure(
+            source,
+            "T0119",
+            format!(
+                "cannot replace `{name}`: existing native `{rust_type}` (lifetimes {lifetimes:?}, region {region:?}) and helper result `{}` have incompatible scoped lifetime representations; bind the helper result to a new local instead",
+                actual.name
+            ),
+            value.span,
+        ));
     }
     Err(failure(
         source,
@@ -1546,7 +1611,12 @@ pub(super) fn object_types_compatible(
                     left.namespace == right.namespace
                         && left.name == right.name
                         && left.application == right.application
-                        && left.type_arguments == right.type_arguments
+                        && left.type_arguments.len() == right.type_arguments.len()
+                        && left
+                            .type_arguments
+                            .iter()
+                            .zip(&right.type_arguments)
+                            .all(|(left, right)| reference_storage_types_equal(left, right))
                         && left.native_arguments == right.native_arguments
                 }
                 (Some(_), None) | (None, Some(_)) => {
@@ -1582,31 +1652,34 @@ pub(super) fn object_types_compatible(
         }
         declaration
     };
-    descriptor_for(actual).is_some_and(|object| {
-        if object
-            .interfaces
-            .iter()
-            .any(|interface| same_applied_nominal(expected, interface))
-        {
-            return true;
+    let mut pending = vec![actual.clone()];
+    let mut visited = BTreeSet::new();
+    while let Some(identity) = pending.pop() {
+        if !visited.insert(identity.clone()) {
+            continue;
         }
-        let mut base = object.base.as_ref();
-        while let Some(identity) = base {
-            let Some(base_object) = descriptor_for(identity) else {
-                break;
+        let Some(object) = descriptor_for(&identity) else {
+            continue;
+        };
+        let substitutions = object
+            .generic_parameters
+            .iter()
+            .zip(&identity.type_arguments)
+            .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+            .collect();
+        for relation in object.interfaces.iter().chain(object.base.iter()) {
+            let ValueType::Object(applied) =
+                substitute_value_type(&ValueType::Object(relation.clone()), &substitutions)
+            else {
+                unreachable!("nominal substitution retains nominal identity")
             };
-            if same_applied_nominal(expected, &base_object.identity)
-                || base_object
-                    .interfaces
-                    .iter()
-                    .any(|interface| same_applied_nominal(expected, interface))
-            {
+            if same_applied_nominal(expected, &applied) {
                 return true;
             }
-            base = base_object.base.as_ref();
+            pending.push(applied);
         }
-        false
-    })
+    }
+    false
 }
 
 /// Loan classification permits native aliases/provenance of the same storage,

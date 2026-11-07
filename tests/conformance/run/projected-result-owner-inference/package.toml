@@ -1,0 +1,17 @@
+package = "projected-result-owner-inference"
+executor = "threaded"
+
+[profile]
+name = "projected-result-owner-inference"
+capabilities = ["build", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-query-witness]
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.terrane-query-contract]
+version = "=0.1.0"
+effects = ["build"]

@@ -544,6 +544,7 @@ fn apply_receiver_methods(
                         enum_payload: None,
                         displayable: false,
                         cloneable: capabilities.contains(Access::CloneOwner),
+                        copyable: false,
                         send: false,
                         sync: false,
                         generic_parameters: Vec::new(),

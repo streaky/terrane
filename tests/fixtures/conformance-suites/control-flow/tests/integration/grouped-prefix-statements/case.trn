@@ -1,0 +1,12 @@
+namespace grouped-prefix-statements
+class holder
+    value int = 1
+function test-scenario;
+    x = instance holder;
+    ref (x)
+    print; x.value
+    flag = true
+    not (flag)
+    print; flag
+    move (x)
+    print; 'after'

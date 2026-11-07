@@ -578,6 +578,19 @@ pub fn terrane_static_trn_4261736b6574_new() -> Result<
         }
     }
 }
+pub fn terrane_static_trn_546f6b656e_create() -> Result<
+    Response,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| <witness::Token as witness::Factory>::create()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Token"))
+        }
+    }
+}
 pub fn terrane_static_trn_546f6b656e_from_str(
     value: &str,
 ) -> Result<Token, crate::TerraneForeignError> {
@@ -601,19 +614,6 @@ pub fn terrane_static_trn_546f6b656e_from_str(
                 ),
             )
         }
-        Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Token"))
-        }
-    }
-}
-pub fn terrane_static_trn_546f6b656e_create() -> Result<
-    Response,
-    crate::TerraneForeignError,
-> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| <witness::Token as witness::Factory>::create()),
-    ) {
-        Ok(value) => Ok(value),
         Err(payload) => {
             Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Token"))
         }

@@ -9,7 +9,7 @@ pub trait NumberViewProtocol<TerraneType726573706F6E7365>: Send + Sync {
 impl<TerraneType726573706F6E7365> Clone
 for Box<dyn NumberViewProtocol<TerraneType726573706F6E7365>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        NumberViewProtocol::clone_box(&**self)
     }
 }
 pub struct NumberView<TerraneType726573706F6E7365>(
@@ -33,7 +33,7 @@ pub trait TextViewProtocol<TerraneType726573706F6E7365>: Send + Sync {
 impl<TerraneType726573706F6E7365> Clone
 for Box<dyn TextViewProtocol<TerraneType726573706F6E7365>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TextViewProtocol::clone_box(&**self)
     }
 }
 pub struct TextView<TerraneType726573706F6E7365>(

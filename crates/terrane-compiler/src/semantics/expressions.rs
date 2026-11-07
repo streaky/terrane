@@ -43,6 +43,26 @@ pub(super) fn call_base_contract<'a>(
                         family: identity, ..
                     },
                 ) => Some(identity),
+                Some(ValueType::TypeParameter(parameter)) => {
+                    super::generics::type_parameter_bound_at(unit, receiver.span.start, &parameter)
+                        .cloned()
+                }
+                Some(
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item),
+                ) => match item.value_type_ref() {
+                    ValueType::Object(identity) => Some(identity.clone()),
+                    ValueType::TypeParameter(parameter) => {
+                        super::generics::type_parameter_bound_at(
+                            unit,
+                            receiver.span.start,
+                            parameter,
+                        )
+                        .cloned()
+                    }
+                    _ => None,
+                },
                 _ => None,
             }
         };
@@ -351,6 +371,7 @@ fn infer_nonbinary_value_type(
             unit,
             &contract.generic_parameters,
             &substitutions,
+            node.span.start,
         ) {
             return Err(failure(
                 &unit.source,
@@ -420,9 +441,16 @@ fn infer_nonbinary_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if let Some(value_type) =
-            unit.flow_types
-                .get(&(node.span.file, node.span.start, node.span.end))
+        if let Some(value_type) = unit
+            .flow_types
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .or_else(|| {
+                unit.selected_expression_types.get(&(
+                    node.span.file,
+                    node.span.start,
+                    node.span.end,
+                ))
+            })
         {
             return Ok(Some(
                 narrowed_value_type(unit, node, bindings).unwrap_or_else(|| value_type.clone()),
@@ -856,7 +884,37 @@ fn infer_nonbinary_value_type(
                     }
                     return Ok(Some(ValueType::Object(identity)));
                 }
-                if descriptor.generic_parameters.is_empty() || !identity.type_arguments.is_empty() {
+                let selected_arguments = identity
+                    .type_arguments
+                    .iter()
+                    .chain(identity.application.iter().map(Box::as_ref))
+                    .collect::<Vec<_>>();
+                let has_application = !selected_arguments.is_empty();
+                if has_application {
+                    let substitutions = descriptor
+                        .generic_parameters
+                        .iter()
+                        .zip(selected_arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                        .collect::<BTreeMap<_, _>>();
+                    if !super::generics::generic_bounds_satisfied(
+                        unit,
+                        &descriptor.generic_parameters,
+                        &substitutions,
+                        class.span.start,
+                    ) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0012",
+                            format!(
+                                "application of class `{}` does not satisfy its type parameter bounds",
+                                descriptor.name
+                            ),
+                            class.span,
+                        ));
+                    }
+                }
+                if descriptor.generic_parameters.is_empty() || has_application {
                     return Ok(Some(ValueType::Object(identity)));
                 }
                 let mut substitutions = BTreeMap::new();
@@ -921,6 +979,22 @@ fn infer_nonbinary_value_type(
                                 .map(|name| format!("`{name}`"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
+                        ),
+                        class.span,
+                    ));
+                }
+                if !super::generics::generic_bounds_satisfied(
+                    unit,
+                    &descriptor.generic_parameters,
+                    &substitutions,
+                    class.span.start,
+                ) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0012",
+                        format!(
+                            "application of class `{}` does not satisfy its type parameter bounds",
+                            descriptor.name
                         ),
                         class.span,
                     ));
@@ -1798,6 +1872,25 @@ fn infer_nonbinary_value_type(
                 ),
                 receiver.span,
             ));
+        }
+        if let Some(contract) = call_base_contract(unit, node, bindings)?
+            && !contract.generic_parameters.is_empty()
+        {
+            return Ok(super::generics::select_unit_callable_contract(
+                None, unit, node, contract, bindings,
+            )
+            .map(|(selected, _)| {
+                let result = ElementType::new(
+                    selected
+                        .return_type
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                if selected.is_async {
+                    ValueType::Task(result, selected.task_transferability)
+                } else {
+                    result.value_type()
+                }
+            }));
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression

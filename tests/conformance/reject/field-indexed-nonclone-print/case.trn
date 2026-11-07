@@ -1,0 +1,11 @@
+namespace app
+from /core/collections import list
+class Item of (T)
+    value T
+    n int = 7
+    function construct; value T
+        this.value = move value
+function read of (T); items list of Item of T
+    print; items[0].n
+function main;
+    print; 1

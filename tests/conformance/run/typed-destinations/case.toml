@@ -1,3 +1,4 @@
 phase = "run"
 status = "accept"
-canonical-rust = true
+suite = "value-protocols"
+test = "/typed-destinations::test-scenario"

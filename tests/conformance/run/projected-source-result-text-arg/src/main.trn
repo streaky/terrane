@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+function make Holder; text string
+  return Holder::new;
+
+function main;
+  y = make; 'abc'
+  print; (y.label_len;)

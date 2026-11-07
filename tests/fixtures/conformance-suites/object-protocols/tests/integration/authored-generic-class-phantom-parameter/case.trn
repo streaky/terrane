@@ -1,0 +1,16 @@
+namespace authored-generic-class-phantom-parameter
+
+class holder of (T)
+    count int = 0
+
+class pair of (T, U)
+    count int
+
+function test-scenario;
+    text-holder = instance holder of string;
+    number-holder = instance holder of int;
+    text-holder.count = 7
+    print; text-holder.count
+    print; number-holder.count
+    value = instance pair of (string, int);
+    print; value.count

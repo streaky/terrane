@@ -247,12 +247,56 @@ fn collect_intentionally_unused_read_warning(
     }
 }
 
+fn collect_global_stores(unit: &SemanticUnit, node: &SyntaxNode, stores: &mut BTreeSet<Span>) {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && node.children.iter().any(|child| {
+            child.kind == SyntaxKind::DeclarationQualifier
+                && node_text(&unit.source, child) == "global"
+        })
+    {
+        stores.insert(node.span);
+    }
+    for child in &node.children {
+        collect_global_stores(unit, child, stores);
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Warning selection combines program-global reads with per-binding events and lint policy"
+)]
 pub(crate) fn warnings(
     package: &SemanticPackage,
     lint_name_style: bool,
     lint_unused_functions: bool,
 ) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
+    let mut global_stores = BTreeSet::new();
+    for unit in &package.units {
+        collect_global_stores(unit, &unit.tree.root, &mut global_stores);
+    }
+    let globally_read = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.typed_bindings)
+        .filter(|binding| global_stores.contains(&binding.span))
+        .filter(|binding| {
+            package
+                .binding_events
+                .get(&span_key(binding.span))
+                .is_some_and(|events| {
+                    events
+                        .iter()
+                        .any(|event| matches!(event, BindingEvent::Read { .. }))
+                })
+        })
+        .filter_map(|binding| {
+            package
+                .globals
+                .get(&binding.name)
+                .and_then(|symbol| symbol.binding_span)
+        })
+        .collect::<BTreeSet<_>>();
     warnings.extend(package.import_warnings.iter().cloned());
 
     for unit in &package.units {
@@ -266,13 +310,6 @@ pub(crate) fn warnings(
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {
-            if package
-                .globals
-                .values()
-                .any(|symbol| symbol.declaration_span == Some(binding.span))
-            {
-                continue;
-            }
             let parameter = unit.functions.iter().any(|contract| {
                 contract
                     .parameters
@@ -306,6 +343,17 @@ pub(crate) fn warnings(
                     .iter()
                     .any(|event| matches!(event, BindingEvent::Write { .. }));
                 let initial_store = *store_span == binding.span;
+                if initial_store
+                    && !later_store
+                    && global_stores.contains(&binding.span)
+                    && package
+                        .globals
+                        .get(&binding.name)
+                        .and_then(|symbol| symbol.binding_span)
+                        .is_some_and(|span| globally_read.contains(&span))
+                {
+                    continue;
+                }
                 let (code, message) = if initial_store && !later_store {
                     if parameter || loop_target || binding.name.starts_with('_') {
                         continue;
@@ -420,7 +468,7 @@ pub(super) fn validate_discarded_temporary_mutations(
                     let family = member
                         .split_once('.')
                         .map_or(member.as_str(), |(family, _)| family);
-                    if member_invocation_mode(package, unit, &receiver_type, family)
+                    if member_invocation_mode_at(package, unit, receiver, &receiver_type, family)
                         == InvocationMode::Mutable
                     {
                         return Err(SemanticFailure {
@@ -458,6 +506,13 @@ pub(crate) fn typed_member_call<'a>(
     unit: &SemanticUnit,
     callee: &'a SyntaxNode,
 ) -> Option<(&'a SyntaxNode, ValueType, String)> {
+    let mut callee = callee;
+    while matches!(
+        callee.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+    ) {
+        callee = callee.children.first()?;
+    }
     if let Ok(Some(call)) = collection_member_call(unit, callee, &unit.typed_bindings) {
         return Some(call);
     }
@@ -485,6 +540,12 @@ pub(crate) fn member_invocation_mode(
     receiver_type: &ValueType,
     member_name: &str,
 ) -> InvocationMode {
+    if let ValueType::Reference(item)
+    | ValueType::MutableReference(item)
+    | ValueType::SharedReference(item) = receiver_type
+    {
+        return member_invocation_mode(package, unit, item.value_type_ref(), member_name);
+    }
     if let ValueType::Object(identity)
     | ValueType::InvocationScopedNative {
         family: identity, ..
@@ -507,7 +568,11 @@ pub(crate) fn member_invocation_mode(
                         .is_some_and(crate::rust_interop::projection::Receiver::consumes)
                 })
         {
-            return InvocationMode::Consuming;
+            return if package.native_value_is_copyable(receiver_type) {
+                InvocationMode::Shared
+            } else {
+                InvocationMode::Consuming
+            };
         }
         if object_method_mutates(package, identity, member_name) {
             return InvocationMode::Mutable;
@@ -522,6 +587,34 @@ pub(crate) fn member_invocation_mode(
         ) => InvocationMode::Mutable,
         _ => InvocationMode::Shared,
     }
+}
+pub(crate) fn member_invocation_mode_at(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    receiver: &SyntaxNode,
+    receiver_type: &ValueType,
+    member_name: &str,
+) -> InvocationMode {
+    let parameter = match receiver_type {
+        ValueType::TypeParameter(parameter) => Some(parameter.as_str()),
+        ValueType::Reference(item)
+        | ValueType::MutableReference(item)
+        | ValueType::SharedReference(item) => match item.value_type_ref() {
+            ValueType::TypeParameter(parameter) => Some(parameter.as_str()),
+            _ => None,
+        },
+        _ => None,
+    };
+    if let Some(parameter) = parameter
+        && let Some(bound) =
+            super::generics::type_parameter_bound_at(unit, receiver.span.start, parameter)
+    {
+        return method_contract(package, bound, member_name, false)
+            .map_or(InvocationMode::Shared, |method| {
+                method.written_invocation_mode
+            });
+    }
+    member_invocation_mode(package, unit, receiver_type, member_name)
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -832,9 +925,10 @@ fn binding_mutation_count(
                 ),
                 _ => false,
             };
-            member_invocation_mode(package, unit, &receiver_type, family) == InvocationMode::Mutable
+            resolves_to_binding(receiver)
+                && member_invocation_mode_at(package, unit, receiver, &receiver_type, family)
+                    == InvocationMode::Mutable
                 && (closure_writes == ClosureWrites::Include || !callable_field)
-                && resolves_to_binding(receiver)
         });
     let iterator_advance = iterator_binding
         && node.kind == SyntaxKind::ForStatement
@@ -865,7 +959,10 @@ fn binding_mutation_count(
                 ) || infer_value_type(unit, target, &unit.typed_bindings)
                     .ok()
                     .flatten()
-                    .is_some_and(|ty| application_is_resource_owning(package, &ty))
+                    .is_some_and(|ty| {
+                        application_is_resource_owning(package, &ty)
+                            || !super::objects::value_type_is_cloneable(package, unit, &ty)
+                    })
                     && target.children.first().is_some_and(|receiver| {
                         let Ok(Some(ValueType::Object(object))) =
                             infer_value_type(unit, receiver, &unit.typed_bindings)
@@ -890,6 +987,54 @@ fn binding_mutation_count(
                             })
                     }))
         });
+    let consuming_field_extraction = node.kind == SyntaxKind::CallExpression
+        && node.children.first().is_some_and(|callee| {
+            let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee) else {
+                return false;
+            };
+            if member_invocation_mode_at(package, unit, receiver, &receiver_type, &member)
+                != InvocationMode::Consuming
+            {
+                return false;
+            }
+            let mut receiver = receiver;
+            while receiver.kind == SyntaxKind::GroupExpression {
+                let Some(inner) = receiver.children.first() else {
+                    return false;
+                };
+                receiver = inner;
+            }
+            let [owner, field] = receiver.children.as_slice() else {
+                return false;
+            };
+            if receiver.kind != SyntaxKind::MemberExpression || !resolves_to_binding(owner) {
+                return false;
+            }
+            let source_value = matches!(&receiver_type, ValueType::TypeParameter(_))
+                || matches!(&receiver_type, ValueType::Object(identity)
+                    if package.projection.item(&identity.namespace, &identity.name).is_none());
+            if !source_value && !application_is_resource_owning(package, &receiver_type) {
+                return false;
+            }
+            let Ok(Some(ValueType::Object(identity))) =
+                infer_value_type(unit, owner, &unit.typed_bindings)
+            else {
+                return false;
+            };
+            package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.descriptors)
+                .find(|descriptor| descriptor.identity.base() == identity.base())
+                .is_some_and(|descriptor| {
+                    effective_object_fields(package, descriptor)
+                        .iter()
+                        .any(|candidate| {
+                            candidate.field.name == node_text(&unit.source, field)
+                                && candidate.field.required
+                        })
+                })
+        });
     let writes_here = usize::from(
         direct_write
             || mutator_call
@@ -898,6 +1043,7 @@ fn binding_mutation_count(
             || source_argument_write
             || exclusive_address
             || borrowed_callable_call
+            || consuming_field_extraction
             || field_extraction,
     );
     let mut child_counts = node.children.iter().map(|child| {

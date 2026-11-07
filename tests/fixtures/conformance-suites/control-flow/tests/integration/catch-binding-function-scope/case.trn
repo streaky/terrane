@@ -1,0 +1,9 @@
+namespace catch-binding-function-scope
+from /core/errors import arithmetic-overflow
+
+function test-scenario;
+  try
+    throw arithmetic-overflow
+  catch arithmetic-overflow as failure
+    print; failure.message
+  print; failure.message

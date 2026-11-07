@@ -1,0 +1,12 @@
+namespace app
+from /core/collections import list
+interface named
+    consuming function finish int;
+class value implements named
+    consuming function finish int;
+        return 1
+function consume of (T implements named) int; items list of T
+    return items[0].finish;
+function main;
+    values list of value = list; (instance value;)
+    consume; values

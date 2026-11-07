@@ -1,0 +1,9 @@
+namespace reserved-self-object
+
+class Maker
+    function make int;
+        return 7
+
+function main;
+    self = instance Maker;
+    print; (self.make;)

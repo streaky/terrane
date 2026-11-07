@@ -12,7 +12,7 @@ pub trait SummerProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SummerProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SummerProtocol::clone_box(&**self)
     }
 }
 pub struct Summer(Box<dyn SummerProtocol>);

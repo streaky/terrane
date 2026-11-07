@@ -1,0 +1,14 @@
+namespace app
+from /deps/terrane-query-witness import Holder
+function exercise; flag bool
+    h = Holder::new;
+    k = Holder::new;
+    a = h.copy_view;
+    b = a
+    if flag
+        next = k.copy_view;
+        a = next
+    k.bump;
+    print; (b.size;)
+function main;
+    exercise; true

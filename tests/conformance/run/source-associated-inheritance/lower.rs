@@ -78,7 +78,7 @@ pub trait OperationProtocol<TerraneType726573706F6E7365>: Send + Sync {
 impl<TerraneType726573706F6E7365> Clone
 for Box<dyn OperationProtocol<TerraneType726573706F6E7365>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        OperationProtocol::clone_box(&**self)
     }
 }
 pub struct Operation<TerraneType726573706F6E7365>(

@@ -1237,6 +1237,7 @@ mod tests {
                 generic_parameters: Vec::new(),
                 displayable: false,
                 cloneable: false,
+                copyable: false,
                 send: false,
                 sync: false,
             },

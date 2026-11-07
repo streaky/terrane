@@ -1,8 +1,7 @@
 use super::{
     BTreeMap, BTreeSet, InvocationMode, ReferenceAuthority, ReferenceProjection,
     ReferenceProvenance, SemanticPackage, SemanticUnit, Span, SyntaxKind, SyntaxNode, ValueType,
-    argument_for_parameter, function_contract_for_call, member_invocation_mode, node_text,
-    typed_member_call,
+    argument_for_parameter, function_contract_for_call, node_text, typed_member_call,
 };
 
 pub(super) fn owner_place_path(
@@ -144,7 +143,9 @@ pub(super) fn first_owner_access_between(
         if let Some((receiver, ty, member)) = typed_member_call(unit, callee) {
             if through_reference(receiver) {
                 end = end.max(node.span.end);
-            } else if member_invocation_mode(package, unit, &ty, &member) == InvocationMode::Mutable
+            } else if super::super::diagnostics::member_invocation_mode_at(
+                package, unit, receiver, &ty, &member,
+            ) == InvocationMode::Mutable
                 && overlaps_owner(receiver)
             {
                 return Some(receiver.span);

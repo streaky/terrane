@@ -517,19 +517,6 @@ type FixedState = BuildHasherDefault<StableHasher>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Map<K: Eq + Hash, V>(Arc<indexmap::IndexMap<K, V, FixedState>>);
 impl<K: Eq + Hash, V> Map<K, V> {
-    /// Borrows a value without cloning or detaching shared storage.
-    #[inline]
-    pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
-        Arc::get_mut(&mut self.0)?.get_mut(key)
-    }
-}
-impl<K: Eq + Hash, V> Map<K, V> {
-    /// Borrows the existing entries without cloning keys or values.
-    pub fn as_entries(&self) -> impl std::iter::Iterator<Item = (&K, &V)> {
-        self.0.iter()
-    }
-}
-impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     #[must_use]
     pub fn new(entries: Vec<Entry<K, V>>) -> Self {
         let mut map = indexmap::IndexMap::with_hasher(FixedState::default());
@@ -546,6 +533,23 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     pub fn get(&self, key: &K) -> Option<&V> {
         self.0.get(key)
     }
+    /// Borrows a value without cloning or detaching shared storage.
+    #[inline]
+    pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
+        Arc::get_mut(&mut self.0)?.get_mut(key)
+    }
+    /// Borrows the existing entries without cloning keys or values.
+    pub fn as_entries(&self) -> impl std::iter::Iterator<Item = (&K, &V)> {
+        self.0.iter()
+    }
+}
+impl<K: Eq + Hash + Clone, V> Map<K, V> {
+    #[must_use]
+    pub fn keys(&self) -> List<K> {
+        List::new(self.0.keys().cloned().collect())
+    }
+}
+impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     /// Borrows a value, separating value-semantic shared storage when required.
     #[inline]
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
@@ -576,10 +580,6 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
             return None;
         }
         Arc::make_mut(&mut self.0).shift_remove(key)
-    }
-    #[must_use]
-    pub fn keys(&self) -> List<K> {
-        List::new(self.0.keys().cloned().collect())
     }
     #[must_use]
     pub fn values(&self) -> List<V> {
@@ -700,6 +700,14 @@ impl<K: Eq + Hash, V: Eq> Eq for UnorderedMapData<K, V> {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnorderedMap<K: Eq + Hash, V>(Arc<UnorderedMapData<K, V>>);
 impl<K: Eq + Hash, V> UnorderedMap<K, V> {
+    #[must_use]
+    pub fn length(&self) -> i128 {
+        self.0.values.len() as i128
+    }
+    #[must_use]
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.0.values.get(key).map(|(_, value)| value)
+    }
     /// Borrows a value without cloning or detaching shared storage.
     #[inline]
     pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
@@ -718,7 +726,7 @@ impl<K: Eq + Hash, V> UnorderedMap<K, V> {
     }
 }
 
-impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
+impl<K: Eq + Hash + Clone, V> UnorderedMap<K, V> {
     #[must_use]
     pub fn new(entries: Vec<Entry<K, V>>) -> Self {
         let mut values = HashMap::with_hasher(FixedState::default());
@@ -737,14 +745,15 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
             iteration_keys,
         }))
     }
+}
+
+impl<K: Eq + Hash + Clone, V> UnorderedMap<K, V> {
     #[must_use]
-    pub fn length(&self) -> i128 {
-        self.0.values.len() as i128
+    pub fn keys(&self) -> List<K> {
+        List::new(self.0.iteration_keys.clone())
     }
-    #[must_use]
-    pub fn get(&self, key: &K) -> Option<&V> {
-        self.0.values.get(key).map(|(_, value)| value)
-    }
+}
+impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     /// Borrows a value, separating value-semantic shared storage when required.
     #[inline]
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
@@ -790,10 +799,6 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
             *position = index;
         }
         Some(value)
-    }
-    #[must_use]
-    pub fn keys(&self) -> List<K> {
-        List::new(self.0.iteration_keys.clone())
     }
     #[must_use]
     pub fn values(&self) -> List<V> {

@@ -1,0 +1,7 @@
+package = "native-indexed-field-borrow-mutation"
+executor = "threaded"
+[namespaces]
+app = "src"
+[rust-dependencies.receiver-api]
+version = "=0.1.0"
+effects = ["build"]

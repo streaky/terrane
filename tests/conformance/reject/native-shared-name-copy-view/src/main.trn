@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+function main;
+    h = Holder::new;
+    go; shared ref h
+
+function go; h shared ref Holder
+    v = h.copy_view;
+    print; (v.size;)

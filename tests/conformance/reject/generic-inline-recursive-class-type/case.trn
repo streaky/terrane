@@ -1,0 +1,9 @@
+namespace generic-inline-recursive-class-type
+class node of (T)
+    value T
+    next node of T
+    function construct; value T, next node of T
+        this.value = move value
+        this.next = move next
+
+function main;

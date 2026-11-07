@@ -109,6 +109,115 @@ pub(super) fn is_reserved_namespace_segment(component: &str) -> bool {
             .is_some_and(|suffix| suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
 }
 
+pub(super) fn collect_top_level_globals(
+    units: &[SemanticUnit],
+    globals: &mut BTreeMap<String, Symbol>,
+) -> Result<(), SemanticFailure> {
+    let mut namespaces = BTreeMap::new();
+    for unit in units {
+        for node in &unit.tree.root.children {
+            if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+                && declaration_from_syntax(unit, node).is_some_and(|declaration| declaration.global)
+            {
+                collect_declaration(unit, node, &mut namespaces, globals)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn validate_global_writes(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    for unit in &package.units {
+        fn visit(
+            package: &SemanticPackage,
+            unit: &SemanticUnit,
+            node: &SyntaxNode,
+        ) -> Result<(), SemanticFailure> {
+            if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+                && let Some(declaration) = declaration_from_syntax(unit, node)
+                && declaration.global
+                && let Some(symbol) = package.globals.get(&declaration.name)
+                && let Some(span) = symbol.declaration_span
+                && let Some(declaration_unit) = package
+                    .units
+                    .iter()
+                    .find(|candidate| candidate.source.id() == span.file)
+                && let Some(expected) = declaration_unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| {
+                        binding.name == declaration.name
+                            && span.start <= binding.span.start
+                            && binding.span.end <= span.end
+                    })
+                    .map(|binding| &binding.value_type)
+                && let Some(value) = node.children.last().filter(|child| {
+                    !matches!(
+                        child.kind,
+                        SyntaxKind::Visibility
+                            | SyntaxKind::DeclarationQualifier
+                            | SyntaxKind::TypeExpression
+                    )
+                })
+                && let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)?
+            {
+                if matches!(
+                    expected,
+                    ValueType::Function(..) | ValueType::AsyncFunction(..)
+                ) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0012",
+                        "function-valued program-global storage is not supported; use a named function or a local callable",
+                        node.span,
+                    ));
+                }
+                if let Some(annotation) = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::TypeExpression)
+                {
+                    let aliases = visible_descriptor_aliases(
+                        &unit.descriptor_aliases,
+                        unit.source.id(),
+                        annotation.span.start,
+                    );
+                    let declared = declared_value_type(unit, annotation, &aliases)?;
+                    if &declared != expected {
+                        return Err(failure(
+                            &unit.source,
+                            "T0002",
+                            format!(
+                                "global update `{}` declares `{declared}`, but its canonical type is `{expected}`",
+                                declaration.name
+                            ),
+                            annotation.span,
+                        ));
+                    }
+                }
+                validate_value_destination(
+                    &unit.source,
+                    &unit.descriptors,
+                    &declaration.name,
+                    expected,
+                    &actual,
+                    value,
+                    "T0002",
+                )?;
+            }
+            for child in &node.children {
+                visit(package, unit, child)?;
+            }
+            Ok(())
+        }
+
+        for node in &unit.tree.root.children {
+            visit(package, unit, node)?;
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn collect_unit(
     unit: &SemanticUnit,
     namespaces: &mut BTreeMap<String, Namespace>,
@@ -212,6 +321,34 @@ pub(super) fn declaration_from_syntax(
     })
 }
 
+fn validate_global_declaration(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    declaration: &Declaration,
+    globals: &BTreeMap<String, Symbol>,
+    top_level: bool,
+) -> Result<(), SemanticFailure> {
+    if declaration.global
+        && top_level
+        && let Some(existing) = globals.get(&declaration.name)
+        && existing.declaration_span != Some(node.span)
+    {
+        let first = existing
+            .declaration_span
+            .expect("global declarations retain their source span");
+        return Err(failure(
+            &unit.source,
+            "S2005",
+            format!(
+                "duplicate program-global declaration `{}`; first declared in {} at source {} offset {}",
+                existing.name, existing.namespace, first.file, first.start
+            ),
+            node.span,
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn collect_declaration(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -226,7 +363,19 @@ pub(super) fn collect_declaration(
             node.span,
         )
     })?;
-    if node.kind == SyntaxKind::Assignment && globals.contains_key(&declaration.name) {
+    let top_level = unit
+        .tree
+        .root
+        .children
+        .iter()
+        .any(|child| child.span == node.span);
+    validate_global_declaration(unit, node, &declaration, globals, top_level)?;
+    if !top_level && declaration.global && globals.contains_key(&declaration.name) {
+        return Ok(());
+    }
+    if (node.kind == SyntaxKind::Assignment || (node.kind == SyntaxKind::Binding && !top_level))
+        && globals.contains_key(&declaration.name)
+    {
         return Ok(());
     }
     if declaration.kind == SymbolKind::Binding
@@ -837,36 +986,6 @@ fn method_contract_with_safety<'a>(
     is_static: bool,
     is_unsafe: bool,
 ) -> Option<&'a FunctionContract> {
-    fn contract<'a>(
-        unit: &'a SemanticUnit,
-        object_identity: &ObjectIdentity,
-        method_name: &str,
-        is_static: bool,
-        is_unsafe: bool,
-    ) -> Option<&'a FunctionContract> {
-        unit.functions
-            .iter()
-            .find(|method| {
-                method.owner_identity.as_ref().is_some_and(|owner| {
-                    owner == object_identity
-                        || (!object_identity.type_arguments.is_empty()
-                            && owner.base() == object_identity.base())
-                }) && method.name == method_name
-                    && method.is_static == is_static
-                    && method.is_unsafe == is_unsafe
-            })
-            .or_else(|| {
-                unit.descriptors
-                    .iter()
-                    .find(|object| {
-                        object.identity == *object_identity
-                            || (!object_identity.type_arguments.is_empty()
-                                && object.identity.base() == object_identity.base())
-                    })
-                    .and_then(|object| object.base.as_ref())
-                    .and_then(|base| contract(unit, base, method_name, is_static, is_unsafe))
-            })
-    }
     let object = package
         .units
         .iter()
@@ -881,7 +1000,7 @@ fn method_contract_with_safety<'a>(
         .iter()
         .find(|candidate| candidate.source.id() == object.span.file)
         .and_then(|candidate| {
-            contract(
+            object_method_contract_with_safety(
                 candidate,
                 &object.identity,
                 method_name,
@@ -945,19 +1064,30 @@ pub(super) fn function_contract_for_call_with_safety<'a>(
         } else {
             // Native callable applications are prepared before every receiver has
             // an expression-cache entry; use the shared current binding inference.
-            match unit.inferred_value_type(receiver).or_else(|| {
+            let receiver_type = unit.inferred_value_type(receiver).or_else(|| {
                 infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
                     .ok()
                     .flatten()
-            })? {
+            })?;
+            match receiver_type {
                 ValueType::Object(identity) => identity,
                 ValueType::Reference(item)
                 | ValueType::MutableReference(item)
-                | ValueType::SharedReference(item) => {
-                    let ValueType::Object(identity) = item.value_type() else {
-                        return None;
-                    };
-                    identity
+                | ValueType::SharedReference(item) => match item.value_type() {
+                    ValueType::Object(identity) => identity,
+                    ValueType::TypeParameter(parameter) => {
+                        super::generics::type_parameter_bound_at(
+                            unit,
+                            receiver.span.start,
+                            &parameter,
+                        )?
+                        .clone()
+                    }
+                    _ => return None,
+                },
+                ValueType::TypeParameter(parameter) => {
+                    super::generics::type_parameter_bound_at(unit, receiver.span.start, &parameter)?
+                        .clone()
                 }
                 ValueType::InvocationScopedNative { mut family, .. } => {
                     family.native_projection = None;

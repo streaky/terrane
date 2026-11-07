@@ -1,4 +1,5 @@
 use super::super::prelude::*;
+use super::members::GuardScope;
 use super::native_arguments::{NativeArgumentContext, NativeArgumentLifetime};
 
 pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'static str {
@@ -266,7 +267,24 @@ impl Emitter<'_> {
             .projected_function_for_call(source_callee, is_unsafe)
             .is_some();
         let mut callee = source_callee;
-        if projected_application {
+        let mut application = source_callee;
+        while matches!(
+            application.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+        ) {
+            let Some(inner) = application.children.first() else {
+                break;
+            };
+            application = inner;
+        }
+        let source_method_application = (!projected_application
+            && application.kind == SyntaxKind::AppliedType
+            && application
+                .children
+                .first()
+                .is_some_and(|base| base.kind == SyntaxKind::MemberExpression))
+        .then_some(application);
+        if projected_application || source_method_application.is_some() {
             while matches!(
                 callee.kind,
                 SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
@@ -564,12 +582,13 @@ impl Emitter<'_> {
 
         if let Ok(Some((receiver, receiver_type, member))) =
             collection_member_call(self.unit, callee, &self.unit.typed_bindings)
-            && member.contains('.')
+            && (member.contains('.') || member == "get")
         {
-            if matches!(member.as_str(), "get.checked" | "remove.checked")
+            if matches!(member.as_str(), "get" | "get.checked" | "remove.checked")
                 && let Some(argument) = arguments.children.first()
             {
                 let remove = member == "remove.checked";
+                let checked = member != "get";
                 let argument = argument.children.last().unwrap_or(argument);
                 let (setup, receiver_value) = if remove && self.receiver_needs_live_guard(receiver)
                 {
@@ -581,9 +600,16 @@ impl Emitter<'_> {
                     ValueType::List(_) | ValueType::Tuple(_, _) => {
                         let index =
                             self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
-                        format!(
-                            "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
-                        )
+                        if checked {
+                            format!(
+                                "terrane_collection_support::index_from_int(&({index})).ok().and_then(|index| ({receiver_value}).get(index).cloned())"
+                            )
+                        } else {
+                            self.fallible(
+                                format!("terrane_collection_support::index_from_int(&({index})).and_then(|index| ({receiver_value}).get_or_error(index))"),
+                                node,
+                            )
+                        }
                     }
                     ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
                         let key = self.expression_as(argument, key.value_type());
@@ -591,8 +617,13 @@ impl Emitter<'_> {
                             format!(
                                 "{{ let __terrane_key = {key}; ({receiver_value}).remove_checked(&__terrane_key) }}"
                             )
-                        } else {
+                        } else if checked {
                             format!("({receiver_value}).get(&({key})).cloned()")
+                        } else {
+                            self.fallible(
+                                format!("({receiver_value}).get_or_error(&({key}))"),
+                                node,
+                            )
                         }
                     }
                     _ => String::new(),
@@ -760,7 +791,7 @@ impl Emitter<'_> {
             && !matches!(
                 find_node_by_span(&self.unit.tree.root, method.receiver)
                     .and_then(|receiver| self.receiver_value_type(receiver)),
-                Some(ValueType::Object(_))
+                Some(ValueType::Object(_) | ValueType::TypeParameter(_))
             )
         {
             let receiver_node = find_node_by_span(&self.unit.tree.root, method.receiver)
@@ -2524,6 +2555,7 @@ impl Emitter<'_> {
                         || self.expression_throws_synchronously(receiver))
                 })));
         let mut native_input_setup = String::new();
+        let mut native_receiver_setup = String::new();
         let mut native_input_index = 0;
         let mut stage_native_input = |value: String| {
             let name = format!("__terrane_native_input_{native_input_index}");
@@ -2681,6 +2713,9 @@ impl Emitter<'_> {
                     |item| item.rust_path.clone(),
                 )
         } else if let [receiver, member] = callee.children.as_slice()
+            && contract
+                .as_ref()
+                .is_none_or(|contract| contract.owner.is_none())
             && self.callable_object_field(receiver, self.text(member))
         {
             format!(
@@ -2751,8 +2786,26 @@ impl Emitter<'_> {
                         format!("&*({receiver})")
                     } else if let Some(narrowed) =
                         self.narrowed_storage_name(receiver, false, false)
+                        && !stage_receiver
                     {
                         narrowed
+                    } else if stage_receiver
+                        && receiver.kind == SyntaxKind::MemberExpression
+                        && let [holder, member] = receiver.children.as_slice()
+                        && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
+                            receiver,
+                            holder,
+                            member,
+                            false,
+                            GuardScope::Place,
+                        )
+                    {
+                        native_receiver_setup.push_str(&setup);
+                        if borrowed {
+                            stage_native_input(place)
+                        } else {
+                            stage_native_input(format!("&({place})"))
+                        }
                     } else {
                         let receiver = self.native_receiver_expression(receiver, false);
                         if stage_receiver {
@@ -2768,8 +2821,26 @@ impl Emitter<'_> {
                     if let Some((_, receiver)) = &guarded_method_receiver {
                         format!("&mut *({receiver})")
                     } else if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true)
+                        && !stage_receiver
                     {
                         narrowed
+                    } else if stage_receiver
+                        && receiver.kind == SyntaxKind::MemberExpression
+                        && let [holder, member] = receiver.children.as_slice()
+                        && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
+                            receiver,
+                            holder,
+                            member,
+                            true,
+                            GuardScope::Place,
+                        )
+                    {
+                        native_receiver_setup.push_str(&setup);
+                        stage_native_input(if borrowed {
+                            place
+                        } else {
+                            format!("&mut ({place})")
+                        })
                     } else {
                         let receiver = self.native_receiver_expression(receiver, true);
                         if stage_receiver {
@@ -2780,20 +2851,35 @@ impl Emitter<'_> {
                     }
                 }
                 Some(crate::rust_interop::projection::Receiver::Move) => {
-                    self.consuming_native_receiver_expression(receiver)
+                    let value = self.consuming_native_receiver_expression(receiver);
+                    if stage_receiver {
+                        stage_native_input(value)
+                    } else {
+                        value
+                    }
                 }
                 Some(crate::rust_interop::projection::Receiver::DerefMove(depth)) => {
-                    format!(
+                    let value = format!(
                         "{}({})",
                         "*".repeat(depth),
                         self.consuming_native_receiver_expression(receiver)
-                    )
+                    );
+                    if stage_receiver {
+                        stage_native_input(value)
+                    } else {
+                        value
+                    }
                 }
                 Some(crate::rust_interop::projection::Receiver::BoxedMove) => {
-                    format!(
+                    let value = format!(
                         "Box::new({})",
                         self.consuming_native_receiver_expression(receiver)
-                    )
+                    );
+                    if stage_receiver {
+                        stage_native_input(value)
+                    } else {
+                        value
+                    }
                 }
                 _ => self.receiver_expression(receiver),
             };
@@ -2855,6 +2941,17 @@ impl Emitter<'_> {
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
             && let [receiver, _member] = callee.children.as_slice()
+            && !self
+                .value_type(receiver)
+                .is_some_and(|receiver_type| match receiver_type {
+                    ValueType::TypeParameter(_) => true,
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item) => {
+                        matches!(item.value_type(), ValueType::TypeParameter(_))
+                    }
+                    _ => false,
+                })
         {
             let contract = contract.as_ref().expect("method contract exists");
             let projected_receiver = self
@@ -2876,6 +2973,11 @@ impl Emitter<'_> {
                         .projection
                         .method(&identity.namespace, &identity.name, &contract.name, false)
                         .and_then(|method| method.receiver)
+                })
+                .or_else(|| {
+                    projected_function
+                        .as_ref()
+                        .and_then(|method| method.receiver)
                 });
             let receiver_expression = if let Some((_, receiver)) = &guarded_method_receiver {
                 receiver.clone()
@@ -2890,7 +2992,13 @@ impl Emitter<'_> {
             {
                 let mutable = projected_receiver
                     == Some(crate::rust_interop::projection::Receiver::MutableBorrow);
-                if let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable) {
+                if stage_native_inputs {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, mutable, GuardScope::Place);
+                    native_receiver_setup.push_str(&setup);
+                    format!("&{}({place})", if mutable { "mut " } else { "" })
+                } else if let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable)
+                {
                     narrowed
                 } else {
                     let native = self.native_receiver_expression(receiver, mutable);
@@ -2915,8 +3023,21 @@ impl Emitter<'_> {
                 } else {
                     owned
                 }
+            } else if contract.written_invocation_mode == InvocationMode::Shared
+                && receiver.kind == SyntaxKind::IndexExpression
+                && let Some((setup, place)) = self.borrowed_index_place_parts(receiver)
+            {
+                shared_argument_setup.push_str(&setup);
+                place
             } else if contract.written_invocation_mode == InvocationMode::Mutable {
-                self.native_receiver_expression(receiver, true)
+                if projected_function.is_none() && contract.owner.is_some() {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, true, GuardScope::Expression);
+                    shared_argument_setup.push_str(&setup);
+                    place
+                } else {
+                    self.native_receiver_expression(receiver, true)
+                }
             } else {
                 self.receiver_expression(receiver)
             };
@@ -2969,6 +3090,43 @@ impl Emitter<'_> {
                 function_name(self.package, contract)
             };
             format!("({receiver}).{method_name}")
+        } else if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && self
+                .value_type(receiver)
+                .is_some_and(|receiver_type| match receiver_type {
+                    ValueType::TypeParameter(_) => true,
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item) => {
+                        matches!(item.value_type_ref(), ValueType::TypeParameter(_))
+                    }
+                    _ => false,
+                })
+            && contract
+                .as_ref()
+                .is_some_and(|contract| contract.owner.is_some())
+        {
+            let contract = contract.as_ref().expect("bounded method contract exists");
+            let receiver_expression = match contract.written_invocation_mode {
+                InvocationMode::Consuming => format!(
+                    "Box::new({})",
+                    self.consuming_native_receiver_expression(receiver)
+                ),
+                InvocationMode::Mutable => {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, true, GuardScope::Expression);
+                    shared_argument_setup.push_str(&setup);
+                    place
+                }
+                InvocationMode::Shared => {
+                    let (setup, place) =
+                        self.receiver_place_parts(receiver, false, GuardScope::Expression);
+                    shared_argument_setup.push_str(&setup);
+                    place
+                }
+            };
+            format!("({receiver_expression}).{}", rust_name(self.text(member)))
         } else {
             self.expression(callee)
         };
@@ -3128,6 +3286,10 @@ impl Emitter<'_> {
             } else {
                 format!("{name}::<{}>", generic_arguments.join(", "))
             }
+        } else if let Some((_, arguments)) = source_method_application
+            .and_then(|application| self.source_applied_function_parts(application))
+        {
+            format!("{name}::<{}>", arguments.join(", "))
         } else {
             name
         };
@@ -3730,14 +3892,16 @@ impl Emitter<'_> {
         };
         if let Some((setup, _)) = guarded_method_receiver {
             format!(
-                "{{ {setup}{shared_argument_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
+                "{{ {setup}{shared_argument_setup}{native_receiver_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
             )
         } else if shared_async_receiver.is_some() || !shared_argument_setup.is_empty() {
-            format!("{{ {shared_argument_setup}{native_input_setup}{result} }}")
-        } else if native_input_setup.is_empty() {
+            format!(
+                "{{ {shared_argument_setup}{native_receiver_setup}{native_input_setup}{result} }}"
+            )
+        } else if native_input_setup.is_empty() && native_receiver_setup.is_empty() {
             result
         } else {
-            format!("{{ {native_input_setup}{result} }}")
+            format!("{{ {native_receiver_setup}{native_input_setup}{result} }}")
         }
     }
 }

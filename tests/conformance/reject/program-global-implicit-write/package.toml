@@ -1,0 +1,4 @@
+package = "program-global-implicit-write"
+[namespaces]
+a = "a"
+b = "b"

@@ -543,7 +543,7 @@ pub(super) fn analyze_function_contract(
                     parameter.span,
                 ));
             }
-            if let (Some(expected), Some(default)) = (value_type.clone(), default) {
+            if let (Some(expected), Some(default)) = (value_type.as_ref(), default) {
                 let actual =
                     infer_value_type(unit, default, &unit.typed_bindings)?.ok_or_else(|| {
                         failure(
@@ -557,7 +557,7 @@ pub(super) fn analyze_function_contract(
                     &unit.source,
                     &unit.descriptors,
                     node_text(&unit.source, parameter_name),
-                    &expected,
+                    expected,
                     &actual,
                     default,
                     "T0006",

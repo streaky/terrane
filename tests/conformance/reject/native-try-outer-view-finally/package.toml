@@ -1,0 +1,6 @@
+package = "native-try-outer-view-finally"
+executor = "threaded"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-query-witness]
+version = "0.1.0"

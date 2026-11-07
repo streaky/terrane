@@ -1,0 +1,10 @@
+namespace z
+
+from /a import bump, bump-typed
+
+global calls int = 0
+
+function main;
+    bump;
+    bump-typed;
+    print; calls

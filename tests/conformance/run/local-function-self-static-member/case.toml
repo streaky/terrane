@@ -1,3 +1,4 @@
 phase = "run"
 status = "accept"
-canonical-rust = true
+suite = "control-flow"
+test = "/local-function-self-static-member::test-scenario"

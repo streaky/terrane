@@ -1,0 +1,20 @@
+namespace field-concrete-grouped-consuming-reuse
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+class Holder
+    item Item
+    function construct; item Item
+        this.item = move item
+    consuming function get int;
+        (this.item).finish;
+        return this.item.name;
+function main;
+    holder = instance Holder; (instance Item;)
+    print; (holder.get;)

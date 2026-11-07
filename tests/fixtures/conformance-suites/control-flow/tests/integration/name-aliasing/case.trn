@@ -1,0 +1,8 @@
+namespace name-aliasing
+constant original = 'namespace'
+constant alias = original
+function test-scenario;
+  local = 'function'
+  copy = local
+  print; alias
+  print; copy

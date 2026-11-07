@@ -1,0 +1,7 @@
+namespace app
+class A
+    next B|none = none
+class B
+    next A|none = none
+function main;
+    print; 1

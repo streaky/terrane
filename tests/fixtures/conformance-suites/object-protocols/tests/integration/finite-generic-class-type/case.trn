@@ -1,0 +1,11 @@
+namespace finite-generic-class-type
+from /core/collections import list
+class node of (T)
+    value T
+    next list of node of T
+    function construct; value T
+        this.value = move value
+
+function test-scenario;
+    n node of int = instance node of int; 1
+    print; n.value

@@ -1,0 +1,11 @@
+namespace field-indexed-nonclone-snapshot
+from /core/collections import list
+class Item of (T)
+    value T
+    n int = 7
+    function construct; value T
+        this.value = move value
+function read of (T) int; items list of Item of T
+    return items[0].n
+function main;
+    print; 1

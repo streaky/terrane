@@ -1,6 +1,21 @@
 use super::modifiers::ModifierOperation;
 use super::prelude::*;
 
+#[path = "scoped_regions/liveness.rs"]
+mod liveness;
+#[path = "scoped_regions/native_loans.rs"]
+mod native_loans;
+#[path = "scoped_regions/try_captures.rs"]
+mod try_captures;
+
+type NativeLenderPlace = (Span, Vec<ReferenceProjection>);
+
+#[derive(Clone, Copy)]
+struct NativePlaceLoan<'a> {
+    places: &'a [NativeLenderPlace],
+    live_after: Option<&'a BTreeSet<Span>>,
+}
+
 /// Validates the lexical and storage contract for compiler-resolved scoped-access regions.
 pub(super) fn record_native_lender_owners(package: &mut SemanticPackage) {
     fn visit(unit: &SemanticUnit, node: &SyntaxNode, owners: &mut BTreeSet<Span>) {
@@ -88,100 +103,74 @@ pub(super) fn record_native_lender_owners(package: &mut SemanticPackage) {
 
 pub(super) fn validate_scoped_regions(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     for unit in &package.units {
+        for object in unit
+            .descriptors
+            .iter()
+            .filter(|object| object.span.file == unit.source.id())
+        {
+            for field in &object.fields {
+                if field_has_native_loan(package, &field.value_type) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0101",
+                        "lifetime-bearing native values cannot be stored in class fields",
+                        field.span,
+                    ));
+                }
+            }
+        }
         validate_node(package, unit, &unit.tree.root)?;
-        validate_function_native_lenders(package, unit)?;
+        try_captures::validate(package, unit, &unit.tree.root)?;
+        native_loans::validate_function_native_lenders(package, unit)?;
     }
     Ok(())
 }
 
-fn validate_function_native_lenders(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
-) -> Result<(), SemanticFailure> {
-    fn find_binding_initializer<'a>(
-        unit: &SemanticUnit,
-        node: &'a SyntaxNode,
-        binding: Span,
-    ) -> Option<&'a SyntaxNode> {
-        if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
-            && declared_bindings_at_node(unit, node).any(|declared| declared.span == binding)
-        {
-            return node.children.last();
-        }
-        node.children
-            .iter()
-            .find_map(|child| find_binding_initializer(unit, child, binding))
+pub(super) fn record_completion_capture_slots(package: &mut SemanticPackage) {
+    let slots = package
+        .units
+        .iter()
+        .map(|unit| try_captures::completion_capture_slots(package, unit))
+        .collect::<Vec<_>>();
+    for (unit, slots) in package.units.iter_mut().zip(slots) {
+        unit.completion_capture_slots = slots;
     }
-    fn find_function(node: &SyntaxNode, function: Span) -> Option<&SyntaxNode> {
-        if node.kind == SyntaxKind::FunctionDeclaration && node.span == function {
-            return Some(node);
-        }
-        node.children
-            .iter()
-            .find_map(|child| find_function(child, function))
-    }
-    for binding in &unit.typed_bindings {
-        let ValueType::InvocationScopedNative {
-            concrete: true,
-            expression_scoped: false,
-            region: Some((file, start, end)),
-            lifetimes,
-            ..
-        } = &binding.value_type
-        else {
-            continue;
-        };
-        if !lifetimes.iter().any(|lifetime| lifetime != "'static") {
-            continue;
-        }
-        let function_span = Span {
-            file: *file,
-            start: *start,
-            end: *end,
-        };
-        // Exact invocation-scoped callback results already have a distinct
-        // higher-ranked lender/escape contract. They are not new local-loan
-        // return declarations.
-        if unit.functions.iter().any(|contract| {
-            contract.span == function_span
-                && matches!(
-                    contract.return_type,
-                    Some(ValueType::InvocationScopedNative { .. })
+}
+
+fn field_has_native_loan(package: &SemanticPackage, value_type: &ValueType) -> bool {
+    let mut borrowed = false;
+    super::capabilities::walk_value_type(value_type, &mut |value_type| match value_type {
+        ValueType::InvocationScopedNative { .. } => borrowed = true,
+        ValueType::Object(identity) => {
+            let item = package.projection.item(&identity.namespace, &identity.name);
+            if item.is_some_and(|item| {
+                matches!(
+                    item.kind,
+                    crate::rust_interop::projection::ProjectedKind::ForeignType {
+                        borrowed_view: true,
+                        ..
+                    }
                 )
-        }) {
-            continue;
+            }) {
+                return;
+            }
+            if let Some(rust) = identity.native_projection.as_deref().or_else(|| {
+                item.map(|item| match &item.kind {
+                    crate::rust_interop::projection::ProjectedKind::ForeignType {
+                        native_view_type: Some(native),
+                        ..
+                    } => native.as_str(),
+                    _ => item.rust_path.as_str(),
+                })
+            }) {
+                borrowed |= crate::rust_ir::rust_lifetimes(rust)
+                    .iter()
+                    .any(|lifetime| lifetime != "'static");
+            }
         }
-        let Some(function) = find_function(&unit.tree.root, function_span) else {
-            continue;
-        };
-        let Some(initializer) = find_binding_initializer(unit, &unit.tree.root, binding.span)
-        else {
-            continue;
-        };
-        let Some(mut lenders) = scoped_native_lender_spans(unit, initializer, binding) else {
-            return Err(failure(
-                &unit.source,
-                "T0119",
-                "cannot establish a local native value's source lifetime",
-                initializer.span,
-            ));
-        };
-        lenders.sort_unstable();
-        lenders.dedup();
-        // The producer activates this loan; earlier initialization and mutation
-        // of its owners are not invalidations of a not-yet-existing value.
-        let active = Span {
-            start: initializer.span.end,
-            ..function_span
-        };
-        validate_lender_stability(package, unit, active, function, None, &lenders)?;
-        // Escape traversal expands the set with dependent locals. Those are
-        // not additional owners that every sibling destination must outlive.
-        validate_local_lender_destinations(unit, function_span, function, &lenders)?;
-        validate_region_escape_node(unit, function_span, function, &mut lenders)?;
-    }
-    validate_native_return_escapes(unit, &unit.tree.root, None)?;
-    Ok(())
+        _ => {}
+    });
+    borrowed
 }
 
 fn validate_native_return_escapes(
@@ -286,13 +275,15 @@ fn validate_region(
                 "scoped-access acquisition must introduce a region-local binding",
             )
         })?;
+    let mut places = Vec::new();
     let mut owner_lenders =
-        scoped_native_lender_spans(unit, acquisition, binding).ok_or_else(|| {
-            invalid(
-                acquisition.span,
-                "cannot establish the scoped-access guard's source lifetime",
-            )
-        })?;
+        scoped_native_lender_spans(package, unit, acquisition, binding, &mut places, true)
+            .ok_or_else(|| {
+                invalid(
+                    acquisition.span,
+                    "cannot establish the scoped-access guard's source lifetime",
+                )
+            })?;
     owner_lenders.sort_unstable();
     owner_lenders.dedup();
     let mut lenders = vec![binding.span];
@@ -330,6 +321,10 @@ fn validate_region(
         body,
         Some(binding.span),
         &owner_lenders,
+        NativePlaceLoan {
+            places: &places,
+            live_after: None,
+        },
     )?;
     validate_local_lender_destinations(unit, region.span, body, &lenders)?;
     validate_region_escape_node(unit, region.span, body, &mut lenders)?;
@@ -448,20 +443,25 @@ fn fixed_call_uses_lender_incompatibly(
     node: &SyntaxNode,
     guard: Option<Span>,
     owners: &[Span],
+    places: &[NativeLenderPlace],
 ) -> bool {
     let is_lender = |expression: &SyntaxNode| {
         direct_name_identity(unit, expression)
             .is_some_and(|identity| Some(identity) == guard || owners.contains(&identity))
+            || place_conflicts_with_lender(package, unit, expression, places)
     };
     let is_owner = |expression: &SyntaxNode| {
         direct_name_identity(unit, expression).is_some_and(|identity| owners.contains(&identity))
+            || place_conflicts_with_lender(package, unit, expression, places)
     };
     if node
         .children
         .first()
         .and_then(|callee| super::diagnostics::typed_member_call(unit, callee))
         .is_some_and(|(receiver, ty, member)| {
-            let mode = super::diagnostics::member_invocation_mode(package, unit, &ty, &member);
+            let mode = super::diagnostics::member_invocation_mode_at(
+                package, unit, receiver, &ty, &member,
+            );
             (mode == InvocationMode::Mutable && is_owner(receiver))
                 || (mode == InvocationMode::Consuming && is_lender(receiver))
         })
@@ -527,6 +527,7 @@ fn call_uses_lender_incompatibly(
     node: &SyntaxNode,
     guard: Option<Span>,
     owners: &[Span],
+    places: &[NativeLenderPlace],
 ) -> bool {
     use crate::rust_interop::projection::Receiver;
     if node.kind != SyntaxKind::CallExpression {
@@ -535,15 +536,17 @@ fn call_uses_lender_incompatibly(
     let is_lender = |expression: &SyntaxNode| {
         direct_name_identity(unit, expression)
             .is_some_and(|identity| Some(identity) == guard || owners.contains(&identity))
+            || place_conflicts_with_lender(package, unit, expression, places)
     };
     // The acquired value may be reborrowed according to its contract. Its
     // backing owners, in contrast, cannot be mutably accessed under the loan.
     let is_owner = |expression: &SyntaxNode| {
         direct_name_identity(unit, expression).is_some_and(|identity| owners.contains(&identity))
+            || place_conflicts_with_lender(package, unit, expression, places)
     };
     let key = (node.span.file, node.span.start, node.span.end);
     let Some(specialization) = unit.projected_call_specializations.get(&key) else {
-        return fixed_call_uses_lender_incompatibly(package, unit, node, guard, owners);
+        return fixed_call_uses_lender_incompatibly(package, unit, node, guard, owners, places);
     };
     let callee = node.children.first();
     let receiver = callee.and_then(|callee| callee.children.first());
@@ -602,24 +605,40 @@ fn validate_lender_stability(
     node: &SyntaxNode,
     guard: Option<Span>,
     owners: &[Span],
+    loan: NativePlaceLoan<'_>,
 ) -> Result<(), SemanticFailure> {
     if node.span.end <= region.start || node.span.start >= region.end {
         return Ok(());
     }
+    let live = loan
+        .live_after
+        .is_none_or(|live_after| live_after.contains(&node.span));
+    let active_places = if live { loan.places } else { &[] };
+    let active_owners = if live { owners } else { &[] };
+    let active_guard = if live { guard } else { None };
     let owner_transfer = matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
         && node.children.last().is_some_and(|value| {
-            direct_name_identity(unit, value)
-                .is_some_and(|identity| Some(identity) == guard || owners.contains(&identity))
+            direct_name_identity(unit, value).is_some_and(|identity| {
+                Some(identity) == active_guard || active_owners.contains(&identity)
+            })
         });
     let destructive_move = owner_transfer
         || (node.kind == SyntaxKind::UnaryExpression
             && unary_operator_text(unit, node).as_deref() == Some("move")
             && node.children.last().is_some_and(|operand| {
-                directly_uses_owner(unit, operand, owners)
+                directly_uses_owner(unit, operand, active_owners)
                     || direct_name_identity(unit, operand)
-                        .is_some_and(|identity| Some(identity) == guard)
+                        .is_some_and(|identity| Some(identity) == active_guard)
+                    || place_conflicts_with_lender(package, unit, operand, active_places)
             }))
-        || call_uses_lender_incompatibly(package, unit, node, guard, owners);
+        || call_uses_lender_incompatibly(
+            package,
+            unit,
+            node,
+            active_guard,
+            active_owners,
+            active_places,
+        );
     let owner_replacement = node.kind == SyntaxKind::Assignment
         && node.children.first().is_some_and(|target| {
             target.kind == SyntaxKind::Name
@@ -632,8 +651,15 @@ fn validate_lender_stability(
             .children
             .first()
             .and_then(|target| binding_identity_at(unit, target))
-            .is_some_and(|span| Some(span) == guard || owners.contains(&span));
-    if destructive_move || owner_replacement {
+            .is_some_and(|span| Some(span) == active_guard || active_owners.contains(&span));
+    let place_replacement = node.kind == SyntaxKind::Assignment
+        && node.children.first().is_some_and(|target| {
+            matches!(
+                target.kind,
+                SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+            ) && place_conflicts_with_lender(package, unit, target, active_places)
+        });
+    if destructive_move || owner_replacement || place_replacement {
         return Err(failure(
             &unit.source,
             "T0240",
@@ -642,9 +668,25 @@ fn validate_lender_stability(
         ));
     }
     for child in &node.children {
-        validate_lender_stability(package, unit, region, child, guard, owners)?;
+        validate_lender_stability(package, unit, region, child, guard, owners, loan)?;
     }
     Ok(())
+}
+
+fn place_conflicts_with_lender(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    expression: &SyntaxNode,
+    places: &[NativeLenderPlace],
+) -> bool {
+    if places.is_empty() {
+        return false;
+    }
+    super::calls::call_reference_origin(package, unit, expression).is_some_and(|(owner, path)| {
+        places.iter().any(|(lender, borrowed)| {
+            owner == *lender && super::calls::reference_paths_overlap(&path, borrowed)
+        })
+    })
 }
 
 fn direct_name_identity(unit: &SemanticUnit, node: &SyntaxNode) -> Option<Span> {
@@ -836,52 +878,44 @@ fn call_returning_scoped_native<'a>(
         .find_map(|child| call_returning_scoped_native(unit, child, rust_type))
 }
 
-fn scoped_native_lender_spans(
+fn ordinary_acquisition_lenders(
     unit: &SemanticUnit,
-    acquisition: &SyntaxNode,
     binding: &TypedBinding,
+    places: &mut Vec<NativeLenderPlace>,
 ) -> Option<Vec<Span>> {
-    let ValueType::InvocationScopedNative {
-        rust_type,
-        concrete: true,
-        family,
-        lifetimes: output_lifetimes,
-        expression_scoped: false,
-        ..
-    } = &binding.value_type
-    else {
-        return match &binding.value_type {
-            ValueType::Reference(_) | ValueType::MutableReference(_) => unit
-                .reference_provenance
-                .get(&(binding.span.start, binding.span.end))
-                .map(|provenance| vec![provenance.owner]),
-            // Owned source values use ordinary destruction at the region
-            // boundary. They do not acquire native lifetime parameters merely
-            // by appearing in a scoped-access acquisition.
-            _ => Some(Vec::new()),
-        };
-    };
-    family.native_projection.as_ref()?;
-    if !output_lifetimes
-        .iter()
-        .any(|lifetime| lifetime != "'static")
-    {
-        return Some(Vec::new());
+    match &binding.value_type {
+        ValueType::Reference(_) | ValueType::MutableReference(_) => unit
+            .reference_provenance
+            .get(&(binding.span.start, binding.span.end))
+            .map(|provenance| {
+                places.push((provenance.owner, provenance.path.clone()));
+                vec![provenance.owner]
+            }),
+        // Owned source values use ordinary destruction at the region
+        // boundary. They do not acquire native lifetime parameters merely
+        // by appearing in a scoped-access acquisition.
+        _ => Some(Vec::new()),
     }
-    let call = call_returning_scoped_native(unit, acquisition, rust_type)?;
-    let specialization = unit.projected_call_specializations.get(&(
-        call.span.file,
-        call.span.start,
-        call.span.end,
-    ))?;
-    let crate::rust_interop::projection::ProjectedType::InvocationScoped { lifetimes, .. } =
-        &specialization.projected_result
-    else {
-        return None;
-    };
-    let callee = call.children.first()?;
+}
+
+struct LenderOrigins {
+    lenders: BTreeSet<Span>,
+    matched: BTreeSet<String>,
+    forwarded: bool,
+}
+
+fn argument_lender_origins(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    specialization: &super::model::ProjectedCallSpecialization,
+    lifetimes: &[String],
+    places: &mut Vec<NativeLenderPlace>,
+    expand_initializers: bool,
+) -> LenderOrigins {
     let mut lenders = BTreeSet::new();
     let mut matched = BTreeSet::new();
+    let mut forwarded = false;
     if let Some(arguments) = call.children.get(1) {
         for (index, parameter) in specialization.projected_parameters.iter().enumerate() {
             let Some(argument) = super::bindings::projected_argument_for_parameter(
@@ -904,10 +938,87 @@ fn scoped_native_lender_spans(
                         && specialization.projected_receiver_lifetime.as_deref() == Some("'_"))
             }) {
                 matched.insert(lifetime.clone());
-                collect_flow_lenders(unit, argument.span, &mut lenders);
+                if !expand_initializers
+                    && parameter.borrow_lifetime.as_ref() != Some(lifetime)
+                    && matches!(
+                        infer_value_type(unit, argument, &unit.typed_bindings)
+                            .ok()
+                            .flatten(),
+                        Some(ValueType::InvocationScopedNative { .. })
+                    )
+                {
+                    forwarded = true;
+                } else {
+                    collect_native_lender_place(
+                        package,
+                        unit,
+                        argument,
+                        &mut lenders,
+                        places,
+                        expand_initializers,
+                    );
+                }
             }
         }
     }
+    LenderOrigins {
+        lenders,
+        matched,
+        forwarded,
+    }
+}
+
+fn scoped_native_lender_spans(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    acquisition: &SyntaxNode,
+    binding: &TypedBinding,
+    places: &mut Vec<NativeLenderPlace>,
+    expand_initializers: bool,
+) -> Option<Vec<Span>> {
+    let ValueType::InvocationScopedNative {
+        rust_type,
+        concrete: true,
+        family,
+        lifetimes: output_lifetimes,
+        expression_scoped: false,
+        ..
+    } = &binding.value_type
+    else {
+        return ordinary_acquisition_lenders(unit, binding, places);
+    };
+    family.native_projection.as_ref()?;
+    if !output_lifetimes
+        .iter()
+        .any(|lifetime| lifetime != "'static")
+    {
+        return Some(Vec::new());
+    }
+    let call = call_returning_scoped_native(unit, acquisition, rust_type)?;
+    let specialization = unit.projected_call_specializations.get(&(
+        call.span.file,
+        call.span.start,
+        call.span.end,
+    ))?;
+    let crate::rust_interop::projection::ProjectedType::InvocationScoped { lifetimes, .. } =
+        &specialization.projected_result
+    else {
+        return None;
+    };
+    let callee = call.children.first()?;
+    let LenderOrigins {
+        mut lenders,
+        mut matched,
+        mut forwarded,
+    } = argument_lender_origins(
+        package,
+        unit,
+        call,
+        specialization,
+        lifetimes,
+        places,
+        expand_initializers,
+    );
     if let Some(receiver_lifetime) = &specialization.projected_receiver_lifetime {
         for lifetime in lifetimes
             .iter()
@@ -915,7 +1026,14 @@ fn scoped_native_lender_spans(
         {
             matched.insert(lifetime.clone());
             if let Some(receiver) = callee.children.first() {
-                collect_flow_lenders(unit, receiver.span, &mut lenders);
+                collect_native_lender_place(
+                    package,
+                    unit,
+                    receiver,
+                    &mut lenders,
+                    places,
+                    expand_initializers,
+                );
             }
         }
     }
@@ -931,17 +1049,68 @@ fn scoped_native_lender_spans(
             lifetime.as_str() != "'static" && receiver_lifetimes.contains(lifetime)
         }) {
             matched.insert(lifetime.clone());
-            collect_flow_lenders(unit, receiver.span, &mut lenders);
+            if expand_initializers {
+                collect_native_lender_place(package, unit, receiver, &mut lenders, places, true);
+            } else {
+                // Reaching values retain the current producer, including after
+                // reassignment. The binding's first initializer is not its loan.
+                forwarded = true;
+            }
         }
     }
     if lifetimes
         .iter()
         .any(|lifetime| lifetime != "'static" && !matched.contains(lifetime))
-        || lenders.is_empty()
+        || (lenders.is_empty() && !forwarded)
     {
         None
     } else {
         Some(lenders.into_iter().collect())
+    }
+}
+
+fn collect_native_lender_place(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    lenders: &mut BTreeSet<Span>,
+    places: &mut Vec<NativeLenderPlace>,
+    expand_initializers: bool,
+) {
+    // A declaration identity alone is not a local lender. Implicit receivers
+    // have synthesized zero-width identities, not ordinary storage provenance.
+    if let Some(place) =
+        super::calls::call_reference_origin(package, unit, value).filter(|(owner, _)| {
+            owner.start < owner.end
+                && unit
+                    .typed_bindings
+                    .iter()
+                    .any(|binding| binding.span == *owner)
+        })
+    {
+        lenders.insert(place.0);
+        if expand_initializers && place.1.is_empty()
+            && let Some(binding) = unit.typed_bindings.iter().find(|binding| {
+                binding.span == place.0
+                    && matches!(
+                        binding.value_type,
+                        ValueType::InvocationScopedNative { .. }
+                    )
+            })
+            && let Some(initializer) =
+                find_binding_initializer(&unit.tree.root, binding.span)
+            // Only follow an earlier producer, never a self-reference or backedge.
+            && initializer.span.end <= value.span.start
+            && let Some(origins) =
+                scoped_native_lender_spans(package, unit, initializer, binding, places, true)
+        {
+            lenders.extend(origins);
+        }
+        if !places.contains(&place) {
+            places.push(place);
+        }
+    } else {
+        collect_flow_lenders(unit, value.span, lenders);
     }
 }
 

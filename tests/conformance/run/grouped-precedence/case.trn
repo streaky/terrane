@@ -1,3 +1,0 @@
-namespace grouped-precedence
-function main;
-  print; (1 + 2) * 3

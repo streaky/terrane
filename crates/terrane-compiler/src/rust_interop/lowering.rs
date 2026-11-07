@@ -1368,8 +1368,19 @@ pub(super) fn emit_dependency_unit(
         if projected.chain_role == Some(crate::rust_interop::projection::ChainRole::Root) {
             continue;
         }
-        for parameter in &contract.parameters {
-            if let Some(value_type) = &parameter.value_type {
+        for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
+            // Native generic callback parameters retain their Rust ABI; only
+            // erased parameters require runtime callable carriers.
+            if projected.generic_parameter.is_none()
+                && !matches!(
+                    projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Callback {
+                        native_bound: Some(_),
+                        ..
+                    }
+                )
+                && let Some(value_type) = &parameter.value_type
+            {
                 registry.require_callable_type(value_type);
             }
         }

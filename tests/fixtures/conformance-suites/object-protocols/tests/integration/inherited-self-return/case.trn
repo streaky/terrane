@@ -1,0 +1,14 @@
+namespace inherited-self-return
+
+class base
+  function copy base;
+    return this
+  function marker int;
+    return 1
+
+class child extends base
+
+function test-scenario;
+  value = instance child;
+  result base = value.copy;
+  print; (result.marker;)

@@ -1070,7 +1070,7 @@ pub trait InspectProtocol: Send + Sync {
 }
 impl Clone for Box<dyn InspectProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        InspectProtocol::clone_box(&**self)
     }
 }
 pub struct Inspect(Box<dyn InspectProtocol>);

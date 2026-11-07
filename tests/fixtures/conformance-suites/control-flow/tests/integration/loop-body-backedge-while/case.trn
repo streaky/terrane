@@ -1,0 +1,14 @@
+namespace conformance/loop-body-backedge-while
+
+
+function test-scenario;
+    index = 0
+    while index < 3
+        if index > 0
+            print; item
+        if index == 0
+            item = 'a'
+        else
+            item = 'b'
+        index++
+        continue

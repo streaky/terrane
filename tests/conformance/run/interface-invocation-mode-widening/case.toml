@@ -1,2 +1,4 @@
 phase = "run"
 status = "accept"
+suite = "object-protocols"
+test = "/interface-invocation-mode-widening::test-scenario"

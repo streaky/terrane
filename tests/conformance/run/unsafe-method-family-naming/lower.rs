@@ -101,7 +101,7 @@ pub trait PairedSourceProtocol: Send + Sync {
 }
 impl Clone for Box<dyn PairedSourceProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        PairedSourceProtocol::clone_box(&**self)
     }
 }
 pub struct PairedSource(Box<dyn PairedSourceProtocol>);
@@ -216,7 +216,7 @@ pub trait InterfaceCollisionProtocol: Send + Sync {
 }
 impl Clone for Box<dyn InterfaceCollisionProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        InterfaceCollisionProtocol::clone_box(&**self)
     }
 }
 pub struct InterfaceCollision(Box<dyn InterfaceCollisionProtocol>);

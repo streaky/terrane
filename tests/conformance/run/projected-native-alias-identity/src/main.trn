@@ -31,3 +31,24 @@ function main;
     facade_value FacadeValue = ProviderValue::new; facade-input
     print; (provider_value.into_value;)
     print; (facade_value.into_value;)
+    borrowed OwnerHolder of uint8 = make_owner;
+    print; (consume_borrowed; borrowed)
+    borrowed_string Alias of string = make_string;
+    print; (consume_borrowed_string; borrowed_string)
+    print; (consume_aliased_ref; borrowed_string)
+    holder = instance StringHolder; (make_string;)
+    print; (consume_holder_field; holder)
+
+function consume_borrowed uint8; value ref OwnerHolder of uint8
+    return value.into_value;
+function consume_borrowed_string string; value ref Alias of string
+    return value.into_value;
+function consume_aliased_ref string; value ref Alias of string
+    alias = value
+    return alias.into_value;
+class StringHolder
+    item Alias of string
+    function construct; item Alias of string
+        this.item = move item
+function consume_holder_field string; holder ref StringHolder
+    return holder.item.into_value;

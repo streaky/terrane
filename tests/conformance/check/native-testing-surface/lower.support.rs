@@ -1001,6 +1001,9 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+pub(crate) static TERRANE_TEST_TIME_NANOS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(
+    0,
+);
 #[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
 fn terrane_time_domain() -> terrane_int_support::Int {
     terrane_int_support::Int::from(2_i128)
@@ -1312,9 +1315,6 @@ fn terrane_test_deadline_nanoseconds() -> terrane_int_support::Int {
         .unwrap_or_default();
     terrane_int_support::Int::from_u128(value)
 }
-static TERRANE_TEST_TIME_NANOS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(
-    0,
-);
 fn terrane_test_time_advance(nanoseconds: terrane_int_support::Int) -> bool {
     let Some(nanoseconds) = terrane_int_support::checked_coerce::<u64>(&nanoseconds)
     else {
@@ -1491,7 +1491,7 @@ pub trait TestValueProtocol: Send + Sync {
 }
 impl Clone for Box<dyn TestValueProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        TestValueProtocol::clone_box(&**self)
     }
 }
 pub struct TestValue(Box<dyn TestValueProtocol>);

@@ -1,0 +1,12 @@
+namespace app
+from /deps/terrane-query-witness import Holder, View
+class F of (T)
+    number int = 3
+class G
+    value F of Holder
+    function construct; value F of Holder
+        this.value = move value
+function main;
+    g = instance G; (instance (F of Holder);)
+    f = move g.value
+    print; f.number

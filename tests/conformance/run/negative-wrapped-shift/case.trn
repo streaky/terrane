@@ -1,8 +1,0 @@
-namespace negative-wrapped-shift
-from /core/errors import negative-shift-count
-function main;
-  value int8 = 1
-  try
-    print; (value.shift-left.wrap; -1)
-  catch negative-shift-count
-    print; >caught negative shift

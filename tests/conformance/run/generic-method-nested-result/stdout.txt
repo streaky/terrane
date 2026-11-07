@@ -1,0 +1,6 @@
+inferred
+typed
+explicit
+direct
+free
+static

@@ -1,0 +1,10 @@
+namespace app
+from /deps/terrane-query-witness import Holder, View
+function main;
+    h = Holder::new;
+    k = Holder::new;
+    v = h.copy_view;
+    a = move v
+    v = k.copy_view;
+    k.bump;
+    print; (a.size;)

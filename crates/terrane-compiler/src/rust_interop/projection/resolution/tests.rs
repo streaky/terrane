@@ -194,3 +194,69 @@ fn identity_mismatch_rebuilds() {
     assert_ne!(cache["cache_identity"], "stale-projection-identity");
     fs::remove_dir_all(root).unwrap();
 }
+#[test]
+fn member_cache_replays() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/projection-member-order-regression")
+        .join(std::process::id().to_string());
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/projected-concrete-trait-operations/fixture-registry/terrane-concrete-selection-witness-0.1.0");
+    fs::create_dir_all(root.join(".cargo")).unwrap();
+    fs::write(
+        root.join(".cargo/config.toml"),
+        "[patch.crates-io]\nterrane-concrete-selection-witness = { path = \"fixture-registry/terrane-concrete-selection-witness-0.1.0\" }\n",
+    )
+    .unwrap();
+    let package = "terrane-concrete-selection-witness-0.1.0";
+    let destination = root.join("fixture-registry").join(package);
+    fs::create_dir_all(destination.join("src")).unwrap();
+    fs::copy(fixture.join("Cargo.toml"), destination.join("Cargo.toml")).unwrap();
+    fs::copy(fixture.join("src/lib.rs"), destination.join("src/lib.rs")).unwrap();
+    fs::write(
+        root.join(DEPENDENCY_LOCK_FILE),
+        "version = 4\n\n[[package]]\nname = \"terrane-concrete-selection-witness\"\nversion = \"0.1.0\"\n",
+    )
+    .unwrap();
+    let mut dependency = dependency(
+        "terrane-concrete-selection-witness",
+        "terrane-concrete-selection-witness",
+        &[],
+    );
+    dependency.version = "=0.1.0".to_owned();
+    let dependencies = [dependency];
+
+    let first = resolve(&root, &dependencies, None).unwrap();
+    let token = first.dependencies[0]
+        .items
+        .iter()
+        .find(|item| item.name == "Token")
+        .unwrap();
+    let (ProjectedKind::ForeignType { static_methods, .. }
+    | ProjectedKind::Enum { static_methods, .. }) = &token.kind
+    else {
+        panic!("expected projected native Token")
+    };
+    assert_eq!(
+        static_methods
+            .iter()
+            .filter(|method| matches!(method.name.as_str(), "create" | "from_str"))
+            .map(|method| method.name.as_str())
+            .collect::<Vec<_>>(),
+        ["create", "from_str"]
+    );
+    let first_hash = first.content_hash.clone();
+    let identity = first.cache_identity.clone();
+
+    let cache_path = root.join(".trn/dependencies/projection.json");
+    let mut cache: serde_json::Value =
+        serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
+    cache["cache_identity"] = json!("stale-member-order-identity");
+    fs::write(&cache_path, serde_json::to_vec(&cache).unwrap()).unwrap();
+    let mut rebuilt = resolve(&root, &dependencies, None).unwrap();
+    assert_eq!(rebuilt.cache_identity, identity);
+    assert_eq!(rebuilt.content_hash, first_hash);
+    history::apply_projection_history(&root, &mut rebuilt).unwrap();
+    let cache: serde_json::Value = serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
+    assert_eq!(cache["content_hash"], first_hash);
+    fs::remove_dir_all(root).unwrap();
+}

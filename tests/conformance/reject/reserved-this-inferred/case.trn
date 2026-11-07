@@ -1,0 +1,5 @@
+namespace reserved-this-inferred
+
+function main;
+    this = 1
+    print; this

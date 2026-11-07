@@ -112,9 +112,10 @@ fn selected_receiver_borrow(
     let receiver_type = infer_value_type(unit, receiver, &unit.typed_bindings)
         .ok()
         .flatten()?;
-    let mode = super::diagnostics::member_invocation_mode(
+    let mode = super::diagnostics::member_invocation_mode_at(
         package,
         unit,
+        receiver,
         &receiver_type,
         node_text(&unit.source, member),
     );

@@ -1,0 +1,9 @@
+package = "conformance/value-protocols"
+artifact = "library"
+rust-toolchain = "pinned"
+
+[namespaces]
+"conformance/value-protocols" = "src"
+
+[testing]
+integration = "tests/integration"

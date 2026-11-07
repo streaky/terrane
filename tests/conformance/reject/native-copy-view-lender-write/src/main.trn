@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/witness import Holder
+
+function main;
+  holder = Holder::new;
+  view = holder.copy_view;
+  print; (view.size;)
+  holder.replace; 'changed'
+  print; (view.size;)

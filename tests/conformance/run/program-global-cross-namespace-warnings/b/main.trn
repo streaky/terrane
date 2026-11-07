@@ -1,0 +1,7 @@
+namespace b
+from /a import bump
+function main;
+  bump;
+  print; calls
+function local_control;
+  calls int = 0

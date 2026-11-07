@@ -238,6 +238,9 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn binding_may_be_unassigned(&self, binding: &TypedBinding) -> bool {
+        if self.unit.completion_capture_slots.contains(&binding.span) {
+            return true;
+        }
         self.unit
             .flow_availability
             .iter()
@@ -561,7 +564,7 @@ impl<'unit> Emitter<'unit> {
     }
     pub(super) fn is_throwable_value(&self, node: &SyntaxNode) -> bool {
         matches!(
-            self.value_type(node),
+            self.receiver_value_type(node),
             Some(ValueType::Object(identity))
                 if identity.namespace == "/core/errors" && identity.name == "throwable"
         )

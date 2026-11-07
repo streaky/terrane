@@ -2,6 +2,32 @@ use super::functions::project_function_inner;
 use super::*;
 #[path = "descriptor_fields.rs"]
 mod descriptor_fields;
+pub(super) fn normalize_projected_members(items: &mut [ProjectedItem]) {
+    for item in items {
+        if let ProjectedKind::ForeignType {
+            methods,
+            static_methods,
+            ..
+        }
+        | ProjectedKind::Enum {
+            methods,
+            static_methods,
+            ..
+        } = &mut item.kind
+        {
+            for methods in [methods, static_methods] {
+                methods.sort_unstable_by(|left, right| {
+                    (&left.name, &left.native_path, &left.native_owner).cmp(&(
+                        &right.name,
+                        &right.native_path,
+                        &right.native_owner,
+                    ))
+                });
+            }
+        }
+    }
+}
+
 pub(super) fn normalize_projected_items(
     items: &mut Vec<ProjectedItem>,
     declined: &mut Vec<DeclinedItem>,
@@ -524,3 +550,7 @@ mod constant_expression_tests {
         assert_eq!(project_rust_constant_expression(r#""line\nbreak""#), None);
     }
 }
+
+#[cfg(test)]
+#[path = "data_tests.rs"]
+mod tests;

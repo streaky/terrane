@@ -740,7 +740,7 @@ fn validate_projected_generic_arguments(
         let effective_interfaces =
             crate::semantics::effective_object_interfaces(package, implementor);
         let implemented = required.as_ref().and_then(|required| {
-            effective_interfaces.into_iter().find(|implemented| {
+            effective_interfaces.iter().find(|implemented| {
                 implemented.namespace == required.namespace && implemented.name == required.name
             })
         });
@@ -900,6 +900,10 @@ pub(super) fn validate_coercion_family_expression(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Resolved assignments validate destination, callable specialization, and transfer contracts together"
+)]
 pub(super) fn validate_resolved_assignment(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -986,11 +990,25 @@ pub(super) fn validate_resolved_assignment(
     };
     if initializer.kind == SyntaxKind::Name
         && let Some(contract) = function_contract_for_call(package, unit, initializer)
-        && !contract.generic_parameters.is_empty()
-        && let Some(closed) =
-            super::generics::close_generic_callable_value(unit, contract, &actual, &expected)
     {
-        actual = closed;
+        match super::generics::close_generic_callable_value(
+            unit,
+            contract,
+            &actual,
+            &expected,
+            initializer.span.start,
+        ) {
+            Ok(Some(closed)) => actual = closed,
+            Err(()) => {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "generic callable type arguments do not satisfy their bounds",
+                    initializer.span,
+                ));
+            }
+            Ok(None) => {}
+        }
     }
     validate_value_destination(
         &unit.source,
@@ -1526,7 +1544,7 @@ fn validate_mutable_reference_argument(
     ))
 }
 
-fn call_reference_origin(
+pub(super) fn call_reference_origin(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
@@ -1552,6 +1570,14 @@ fn call_reference_origin(
             Some((owner, path))
         }
         SyntaxKind::UnaryExpression => call_reference_origin(package, unit, value.children.last()?),
+        SyntaxKind::CallExpression => super::ownership::expression_provenance(
+            package,
+            unit,
+            value,
+            &unit.reference_provenance,
+            &unit.reference_return_lenders,
+        )
+        .map(|origin| (origin.owner, origin.path)),
         SyntaxKind::Name => {
             let declaration = package
                 .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))?
@@ -1579,7 +1605,10 @@ fn call_reference_origin(
     }
 }
 
-fn reference_paths_overlap(left: &[ReferenceProjection], right: &[ReferenceProjection]) -> bool {
+pub(super) fn reference_paths_overlap(
+    left: &[ReferenceProjection],
+    right: &[ReferenceProjection],
+) -> bool {
     for (left, right) in left.iter().zip(right) {
         match (left, right) {
             (ReferenceProjection::Field(left), ReferenceProjection::Field(right))
@@ -1601,7 +1630,13 @@ fn receiver_call_borrow(
     contract: &FunctionContract,
 ) -> Option<(Span, Vec<ReferenceProjection>, bool, Span)> {
     let (receiver, value_type, member) = typed_member_call(unit, callee)?;
-    let mode = member_invocation_mode(package, unit, &value_type, &member);
+    let mode = super::diagnostics::member_invocation_mode_at(
+        package,
+        unit,
+        receiver,
+        &value_type,
+        &member,
+    );
     if mode == InvocationMode::Consuming
         || !contract.parameters.iter().any(|parameter| {
             parameter.element_value_type().is_some_and(|ty| {
@@ -1974,6 +2009,14 @@ pub(crate) fn selected_callable_contract(
         let Some(bound) = &parameter.bound else {
             continue;
         };
+        // Unit selection already proved an enclosing parameter's declared bound.
+        // Only concrete implementors need the package-wide interface lookup.
+        if matches!(
+            substitutions.get(&parameter.name),
+            Some(ValueType::TypeParameter(_))
+        ) {
+            continue;
+        }
         let Some(ValueType::Object(actual)) = substitutions.get(&parameter.name) else {
             return None;
         };
@@ -1991,7 +2034,7 @@ pub(crate) fn selected_callable_contract(
         if !implements_bound(actual)
             && !effective_object_interfaces(package, implementor)
                 .iter()
-                .any(|interface| implements_bound(interface))
+                .any(implements_bound)
         {
             return None;
         }

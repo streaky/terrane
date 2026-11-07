@@ -143,7 +143,7 @@ features:
   sources:
   - docs/language-spec-concise.md#GRAMMAR
   - docs/compiler-plan.md#Milestone 4
-  - tests/conformance/run/string-display-composition/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-composition/case.trn
   - tests/conformance/reject/string-addition-no-destination-coercion/case.trn
 - id: declarations
   name: Bindings and declaration modifiers
@@ -710,9 +710,9 @@ features:
   notes: Single-evaluation selectors, lazy ordered equality alternatives or truth predicates, optional final default, no fallthrough, and ordinary function-owned branch joins.
   sources:
   - docs/language-spec-concise.md#CONTROL
-  - tests/conformance/run/switch-statements/case.trn
+  - tests/fixtures/conformance-suites/control-flow/tests/integration/switch-statements/case.trn
   - docs/compiler-plan.md#Bundled text composition and ordered branching
-  - tests/conformance/run/switch-boundaries/case.trn
+  - tests/fixtures/conformance-suites/control-flow/tests/integration/switch-boundaries/case.trn
 - id: structured-errors
   name: Throw try catch finally
   category: callables
@@ -809,11 +809,11 @@ features:
   sources:
   - docs/language-spec-concise.md#TEXT DISPLAY
   - docs/compiler-plan.md#Milestone 4.6
-  - tests/conformance/run/string-display-composition/case.trn
-  - tests/conformance/run/string-display-boundaries/case.trn
-  - tests/conformance/run/string-display-generic/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-composition/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-boundaries/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-generic/case.trn
   - tests/conformance/run/string-display-imported/src/main.trn
-  - tests/conformance/run/switch-boundaries/case.trn
+  - tests/fixtures/conformance-suites/control-flow/tests/integration/switch-boundaries/case.trn
 - id: bytes
   name: Immutable byte sequences
   category: text-data
@@ -883,9 +883,9 @@ features:
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 12
-  - tests/conformance/run/string-result-list-iteration/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-result-list-iteration/case.trn
   - tests/conformance/reject/string-result-list-mutation/case.trn
-  - tests/conformance/run/text-families/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/text-families/case.trn
   - tests/conformance/reject/string-replace-incompatible/src/main.trn
 - id: string-search
   name: String search families
@@ -901,7 +901,7 @@ features:
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 12
-  - tests/conformance/run/string-result-list-iteration/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-result-list-iteration/case.trn
   - tests/conformance/reject/string-result-list-mutation/case.trn
 - id: collection-values
   name: List map set tuple and range
@@ -917,7 +917,7 @@ features:
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 14
-  - tests/conformance/run/string-result-list-iteration/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-result-list-iteration/case.trn
   - tests/conformance/reject/string-result-list-mutation/case.trn
 - id: unordered-collections
   name: Deterministic unordered collections
@@ -962,9 +962,9 @@ features:
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 29.0
-  - tests/conformance/run/map-key-removal/case.trn
-  - tests/conformance/run/stable-list-sorting/case.trn
-  - tests/conformance/run/collection-property-method-calls/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/map-key-removal/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/stable-list-sorting/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/collection-property-method-calls/case.trn
   - tests/conformance/reject/discarded-temporary-list-append/case.trn
   - tests/conformance/reject/discarded-temporary-list-sort/case.trn
 - id: iterator-protocol
@@ -981,7 +981,7 @@ features:
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 13
-  - tests/conformance/run/string-result-list-iteration/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-result-list-iteration/case.trn
 - id: classes
   name: Classes and construction
   category: objects
@@ -1026,8 +1026,8 @@ features:
   notes: Nominal variants retain generic payload contracts and normal ownership; construction,
     exhaustive matching, borrowed inspection, and consuming resource transfer have executable witnesses.
   sources:
-  - tests/conformance/run/authored-generic-enum-states/case.trn
-  - tests/conformance/run/authored-enum-resource-transfer/case.trn
+  - tests/fixtures/conformance-suites/object-protocols/tests/integration/authored-generic-enum-states/case.trn
+  - tests/fixtures/conformance-suites/object-protocols/tests/integration/authored-enum-resource-transfer/case.trn
 - id: required-field-construction
   name: Required-field initialization and partial construction cleanup
   category: objects
@@ -1041,7 +1041,7 @@ features:
   notes: Required fields initialize exactly once on every successful path before observation or
     escape. Failed construction drops initialized fields without the incomplete user destructor.
   sources:
-  - tests/conformance/run/authored-generic-partial-construction/case.trn
+  - tests/fixtures/conformance-suites/object-protocols/tests/integration/authored-generic-partial-construction/case.trn
   - tests/conformance/reject/authored-required-missing-branch/case.trn
   - tests/conformance/reject/authored-required-double-write/case.trn
 - id: inheritance
@@ -1072,7 +1072,7 @@ features:
   sources:
   - docs/language-spec-concise.md#OBJECT_MODEL
   - docs/compiler-plan.md#Completed portion of Milestone 16
-  - tests/conformance/run/source-associated-interface/case.trn
+  - tests/fixtures/conformance-suites/object-protocols/tests/integration/source-associated-interface/case.trn
   - tests/conformance/run/associated-native-contracts/src/main.trn
   - tests/conformance/run/same-named-associated-interface-slots/case.trn
 - id: traits
@@ -1562,7 +1562,7 @@ features:
   sources:
   - docs/language-spec-concise.md#CRYPTOGRAPHIC_ALGORITHM_IDENTITY
   - docs/compiler-plan.md#Milestone 30.3
-  - tests/conformance/run/bytes-and-legacy-digests/case.trn
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/bytes-and-legacy-digests/case.trn
 - id: codecs
   name: Hex and Base64 codecs
   category: stdlib
@@ -2159,9 +2159,9 @@ features:
     applications, nominal bounds, inferred and explicit selection, and ownership-preserving generic bodies.
   sources:
   - docs/language-spec-concise.md#DECL
-  - tests/conformance/run/authored-generic-contracts/case.trn
-  - tests/conformance/run/authored-generic-interfaces/case.trn
-  - tests/conformance/run/authored-generic-resource-choice/case.trn
+  - tests/fixtures/conformance-suites/object-protocols/tests/integration/authored-generic-contracts/case.trn
+  - tests/fixtures/conformance-suites/object-protocols/tests/integration/authored-generic-interfaces/case.trn
+  - tests/fixtures/conformance-suites/object-protocols/tests/integration/authored-generic-resource-choice/case.trn
 - id: hot-code-replacement
   name: Stateful hot-code replacement
   category: future

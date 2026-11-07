@@ -1,0 +1,14 @@
+package = "conformance/native-lifetimes"
+artifact = "library"
+executor = "threaded"
+rust-toolchain = "pinned"
+
+[namespaces]
+"conformance/native-lifetimes" = "src"
+
+[testing]
+integration = "tests/integration"
+
+[rust-dependencies.terrane-query-witness]
+version = "=0.1.0"
+effects = ["build"]

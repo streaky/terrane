@@ -57,9 +57,14 @@ pub struct Namespace {
     pub symbols: BTreeMap<String, Symbol>,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "native trait proofs are independent capabilities, not mutually exclusive states"
+)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) struct NativeTypeCapabilities {
     pub cloneable: bool,
+    pub copyable: bool,
     pub send: bool,
     pub sync: bool,
 }
@@ -2081,6 +2086,8 @@ pub struct SemanticUnit {
     pub(crate) flow_replacements: BTreeMap<Span, Span>,
     pub flow_availability: BTreeMap<(u32, usize, usize), FlowAvailability>,
     pub(crate) flow_read_bindings: BTreeMap<(u32, usize, usize), BTreeSet<Span>>,
+    /// Values rebound across completion closures need address-stable take/insert storage.
+    pub(crate) completion_capture_slots: BTreeSet<Span>,
     /// Owner bindings used by declaration-directed implicit source-reference arguments.
     pub reference_owner_spans: BTreeSet<(usize, usize)>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
@@ -2105,6 +2112,8 @@ pub struct SemanticUnit {
     pub(crate) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
     pub(super) projected_removals: Vec<crate::rust_interop::projection::RemovedItem>,
+    pub(super) projected_member_inventory:
+        std::sync::Arc<crate::rust_interop::projection::ProjectedInstanceMembers>,
     pub(super) projected_destination_functions: BTreeSet<String>,
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,

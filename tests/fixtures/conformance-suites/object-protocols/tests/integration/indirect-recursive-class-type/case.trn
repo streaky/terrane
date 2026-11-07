@@ -1,0 +1,7 @@
+namespace indirect-recursive-class-type
+from /core/collections import list
+class Node
+    children list of Node
+function test-scenario;
+    node = instance Node;
+    print; node.children.length

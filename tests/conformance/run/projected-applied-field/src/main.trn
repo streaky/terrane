@@ -1,0 +1,24 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+class Box of (T)
+  value T
+  function construct; value T
+    this.value = move value
+  consuming function take T;
+    return move this.value
+
+function unbox of (T) T; box Box of T
+  return box.take;
+
+class Maker
+  box Box of Holder
+  function construct; box Box of Holder
+    this.box = move box
+  consuming function extract;
+    value = unbox; (move this.box)
+    print; (value.label_len;)
+function main;
+  maker = instance Maker; (instance Box of Holder; (Holder::new;))
+  maker.extract;

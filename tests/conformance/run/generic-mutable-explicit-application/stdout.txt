@@ -1,0 +1,10 @@
+plain
+1
+nested
+1
+borrowed
+2
+this
+3
+hoisted
+1

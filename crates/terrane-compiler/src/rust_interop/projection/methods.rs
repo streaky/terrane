@@ -1461,6 +1461,7 @@ fn project_chain_owner_item(
             generic_parameters,
             displayable: false,
             cloneable,
+            copyable: false,
             send: false,
             sync: false,
         },

@@ -1,0 +1,10 @@
+namespace app
+from /deps/witness import Holder
+function main;
+    h = Holder::new;
+    v = h.view;
+    try
+        print; (v.size;)
+        v = h.view;
+    finally
+        print; (v.size;)

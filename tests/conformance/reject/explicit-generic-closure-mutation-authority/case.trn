@@ -1,0 +1,16 @@
+namespace app
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class Counter
+    value int = 0
+    mutable function touch of (T) Box of T; value T
+        this.value = this.value + 1
+        return instance (Box of T); (move value)
+function main;
+    c = instance Counter;
+    f = function int;
+        b = (c.touch of int); 7
+        return b.value
+    print; (f;)

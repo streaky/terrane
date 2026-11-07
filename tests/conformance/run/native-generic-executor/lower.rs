@@ -51,6 +51,7 @@ impl witness::Advance for SourceCounter {
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
     }
 }
+#[derive(Clone)]
 pub struct EnumHolder {
     pub stage: Stage,
 }

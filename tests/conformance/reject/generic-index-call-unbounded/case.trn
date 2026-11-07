@@ -1,0 +1,9 @@
+namespace app
+from /core/collections import list
+function observe of (T); value T
+  print; 1
+function first of (T); items list of T
+  observe; items[0]
+function main;
+  values list of int = list; 1
+  first; values

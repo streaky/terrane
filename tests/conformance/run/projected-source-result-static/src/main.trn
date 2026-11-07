@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+class Maker
+  static function build Holder;
+    return Holder::new;
+
+function main;
+  y = Maker::build;
+  print; (y.label_len;)

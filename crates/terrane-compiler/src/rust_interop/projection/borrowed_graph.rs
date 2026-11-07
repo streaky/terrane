@@ -106,6 +106,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
             static_methods: Vec::new(),
             constants: Vec::new(),
             cloneable: false,
+            copyable: false,
             send: false,
             sync: false,
             displayable: false,

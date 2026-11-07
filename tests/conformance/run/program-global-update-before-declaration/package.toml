@@ -1,0 +1,4 @@
+package = "program-global-update-before-declaration"
+[namespaces]
+a = "a"
+z = "z"

@@ -1,0 +1,40 @@
+namespace generic-mutable-explicit-application
+class Bx of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class P
+    n int = 0
+    mutable function both of (T) Bx of T; value T
+        this.n = this.n + 1
+        return instance Bx of T; (move value)
+    mutable function again string;
+        result = (this.both of string); 'this'
+        return result.value
+class Q
+    p P
+    function construct; p P
+        this.p = move p
+function borrowed string; p mutable ref P
+    result = (p.both of string); 'borrowed'
+    return result.value
+function test-scenario;
+    p = instance P;
+    plain = (p.both of string); 'plain'
+    print; plain.value
+    print; p.n
+    q = instance Q; (instance P;)
+    nested = (q.p.both of string); 'nested'
+    print; nested.value
+    print; q.p.n
+    print; (borrowed; p)
+    print; p.n
+    print; (p.again;)
+    print; p.n
+    try
+        later = instance P;
+    catch
+        later = instance P;
+    hoisted = (later.both of string); 'hoisted'
+    print; hoisted.value
+    print; later.n

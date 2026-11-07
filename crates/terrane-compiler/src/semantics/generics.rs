@@ -210,6 +210,38 @@ pub(super) fn select_unit_callable_contract_result(
     if contract.generic_parameters.is_empty() {
         return Ok((contract.clone(), BTreeMap::new()));
     }
+    let closed_member = call
+        .children
+        .first()
+        .and_then(super::expressions::call_base_designator)
+        .filter(|callee| callee.kind == SyntaxKind::MemberExpression)
+        .and_then(|callee| {
+            let receiver = callee.children.first()?;
+            let ValueType::Object(identity) = infer_receiver_value_type(unit, receiver, bindings)
+                .ok()
+                .flatten()?
+            else {
+                return None;
+            };
+            if identity.type_arguments.is_empty() {
+                return None;
+            }
+            let (ValueType::Function(parameters, result, _)
+            | ValueType::AsyncFunction(parameters, result, _, _)) =
+                infer_member_value_type(unit, callee, bindings)
+                    .ok()
+                    .flatten()?
+            else {
+                return None;
+            };
+            let mut selected = contract.clone();
+            for (parameter, callable) in selected.parameters.iter_mut().zip(parameters) {
+                parameter.value_type = Some(callable.value_type());
+            }
+            selected.return_type = Some(result.value_type());
+            Some(selected)
+        });
+    let contract = closed_member.as_ref().unwrap_or(contract);
     let arguments = call
         .children
         .get(1)
@@ -259,14 +291,23 @@ pub(super) fn select_unit_callable_contract_result(
                     });
                 if let Some(callback) = callback
                     && !callback.generic_parameters.is_empty()
-                    && let Some(closed) = close_generic_callable_value(
+                {
+                    match close_generic_callable_value(
                         unit,
                         callback,
                         &actual,
                         &substitute_value_type(&expected, &substitutions),
-                    )
-                {
-                    actual = closed;
+                        value.span.start,
+                    ) {
+                        Ok(Some(closed)) => actual = closed,
+                        Err(()) => {
+                            return Err(GenericSelectionFailure::Argument(
+                                "generic callback type arguments do not satisfy their bounds"
+                                    .to_owned(),
+                            ));
+                        }
+                        Ok(None) => {}
+                    }
                 }
             }
             let expected = match expected {
@@ -315,7 +356,7 @@ pub(super) fn select_unit_callable_contract_result(
         bind_generic_type(result, &expected, &mut substitutions)
             .map_err(GenericSelectionFailure::Argument)?;
     }
-    validate_generic_substitutions(unit, contract, &substitutions)?;
+    validate_generic_substitutions(unit, contract, &substitutions, call.span.start)?;
     Ok((
         substitute_function_contract(contract, &substitutions),
         substitutions,
@@ -326,6 +367,7 @@ fn validate_generic_substitutions(
     unit: &SemanticUnit,
     contract: &FunctionContract,
     substitutions: &BTreeMap<String, ValueType>,
+    position: usize,
 ) -> Result<(), GenericSelectionFailure> {
     let unselected = contract
         .generic_parameters
@@ -338,7 +380,12 @@ fn validate_generic_substitutions(
     }
     for parameter in &contract.generic_parameters {
         if let Some(bound) = &parameter.bound
-            && !generic_bounds_satisfied(unit, std::slice::from_ref(parameter), substitutions)
+            && !generic_bounds_satisfied(
+                unit,
+                std::slice::from_ref(parameter),
+                substitutions,
+                position,
+            )
         {
             return Err(GenericSelectionFailure::Bound {
                 parameter: parameter.name.clone(),
@@ -518,61 +565,80 @@ pub(crate) fn close_generic_callable_value(
     contract: &FunctionContract,
     actual: &ValueType,
     expected: &ValueType,
-) -> Option<ValueType> {
+    position: usize,
+) -> Result<Option<ValueType>, ()> {
     if contract.generic_parameters.is_empty() {
-        return None;
+        return Ok(None);
     }
     let mut substitutions = BTreeMap::new();
     let (ValueType::Function(actual_parameters, actual_result, _)
     | ValueType::AsyncFunction(actual_parameters, actual_result, _, _)) = actual
     else {
-        return None;
+        return Ok(None);
     };
     let (ValueType::Function(expected_parameters, expected_result, _)
     | ValueType::AsyncFunction(expected_parameters, expected_result, _, _)) = expected
     else {
-        return None;
+        return Ok(None);
     };
     if actual_parameters.len() != expected_parameters.len() {
-        return None;
+        return Ok(None);
     }
     for (actual, expected) in actual_parameters.iter().zip(expected_parameters) {
-        bind_generic_type(
+        if bind_generic_type(
             actual.value_type_ref(),
             expected.value_type_ref(),
             &mut substitutions,
         )
-        .ok()?;
+        .is_err()
+        {
+            return Ok(None);
+        }
     }
-    bind_generic_type(
+    if bind_generic_type(
         actual_result.value_type_ref(),
         expected_result.value_type_ref(),
         &mut substitutions,
     )
-    .ok()?;
+    .is_err()
+    {
+        return Ok(None);
+    }
     if contract
         .generic_parameters
         .iter()
         .any(|parameter| !substitutions.contains_key(&parameter.name))
     {
-        return None;
+        return Ok(None);
     }
-    if !generic_bounds_satisfied(unit, &contract.generic_parameters, &substitutions) {
-        return None;
+    if !generic_bounds_satisfied(unit, &contract.generic_parameters, &substitutions, position) {
+        return Err(());
     }
-    Some(substitute_value_type(actual, &substitutions))
+    Ok(Some(substitute_value_type(actual, &substitutions)))
 }
 
 pub(crate) fn generic_bounds_satisfied(
     unit: &SemanticUnit,
     parameters: &[GenericParameterContract],
     substitutions: &BTreeMap<String, ValueType>,
+    position: usize,
 ) -> bool {
     parameters.iter().all(|parameter| {
         let Some(bound) = &parameter.bound else {
             return true;
         };
-        let Some(ValueType::Object(actual)) = substitutions.get(&parameter.name) else {
+        let Some(actual) = substitutions.get(&parameter.name) else {
+            return false;
+        };
+        if let ValueType::TypeParameter(actual_name) = actual {
+            return unit
+                .type_parameter_at(position, actual_name)
+                .and_then(|actual_parameter| actual_parameter.bound.as_ref())
+                .is_some_and(|actual_bound| {
+                    super::types::object_types_compatible(&unit.descriptors, bound, actual_bound)
+                });
+        }
+        let ValueType::Object(actual) = actual else {
             return false;
         };
         if !unit

@@ -1,0 +1,46 @@
+// Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
+// Source: src/main.trn
+// Namespace: app
+#[derive(Clone)]
+pub struct TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54> {
+    pub value: Option<TerraneType54>,
+}
+impl<TerraneType54> TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54> {
+    pub fn terrane_construct(value: TerraneType54) -> Self {
+        let mut __terrane_constructed_value = Self { value: None };
+        __terrane_constructed_value.construct(value);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, value: TerraneType54) {
+        {
+            let __terrane_value = value;
+            self.value = Some(__terrane_value);
+        }
+    }
+    pub fn take(mut self) -> TerraneType54 {
+        return self.value.take().expect("required field initialized");
+    }
+}
+fn unbox<TerraneType54>(
+    __trn_626f78: TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54>,
+) -> TerraneType54 {
+    return __trn_626f78.take();
+}
+fn main() {
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_0 =
+        &unbox(TerraneNsAppBoxIdentity2F61707000426F78:: < Holder >
+        ::terrane_construct(__terrane_raised(terrane_static_trn_486f6c646572_new(),
+        0 /* terrane-site: src/main.trn:16:47-16:59 */))); let
+        __terrane_native_input_0 = &__terrane_receiver_value_0; __terrane_raised(| | ->
+        Result < _, crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(__terrane_native_input_0.label_len()) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
+        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        "terrane_query_witness::Holder::label_len")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 1 /* terrane-site: src/main.trn:16:11-16:73 */) })
+    );
+}

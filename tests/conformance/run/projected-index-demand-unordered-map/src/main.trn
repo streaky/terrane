@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-query-witness import Token
+from /core/collections import unordered-map
+function main;
+    values unordered-map of string, Token = unordered-map; k=(Token::new;)
+    print; (values['k'].value;)
