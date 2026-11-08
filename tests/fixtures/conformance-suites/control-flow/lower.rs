@@ -1888,7 +1888,7 @@ impl Counter {
             };
         }
         {
-            let __terrane_static_value = {
+            let __terrane_static_value: terrane_int_support::Int = {
                 let __terrane_value = TERRANE_STATIC_COUNTER_TOTAL
                     .lock()
                     .expect("static field lock poisoned")
@@ -2032,7 +2032,9 @@ fn test_scenario_terrane_local_function_self_static_member() {
         "{}", terrane_scalar_support::scalar_text(&StaticCounter::terrane_static_read())
     );
     {
-        let __terrane_static_value = terrane_int_support::Int::from(9_i128);
+        let __terrane_static_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            9_i128,
+        );
         *TERRANE_STATIC_DERIVEDCOUNTER_TOTAL
             .lock()
             .expect("static field lock poisoned") = __terrane_static_value;

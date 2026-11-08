@@ -16,7 +16,7 @@ impl Holder {
 }
 fn main() {
     {
-        let __terrane_static_value = None;
+        let __terrane_static_value: Option<terrane_int_support::Int> = None;
         *TERRANE_STATIC_HOLDER_N.lock().expect("static field lock poisoned") = __terrane_static_value;
     }
     println!(

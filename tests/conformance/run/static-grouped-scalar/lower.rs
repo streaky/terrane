@@ -16,7 +16,9 @@ impl Holder {
 }
 fn main() {
     {
-        let __terrane_static_value = terrane_int_support::Int::from(4_i128);
+        let __terrane_static_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            4_i128,
+        );
         *TERRANE_STATIC_HOLDER_N.lock().expect("static field lock poisoned") = __terrane_static_value;
     }
     println!(

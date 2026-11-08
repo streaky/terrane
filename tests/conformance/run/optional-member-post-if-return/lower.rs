@@ -22,7 +22,7 @@ impl Holder {
             .is_none()
         {
             {
-                let __terrane_static_value = Some(
+                let __terrane_static_value: Option<terrane_int_support::Int> = Some(
                     terrane_int_support::Int::from(7_i128),
                 );
                 *TERRANE_STATIC_HOLDER_VALUE

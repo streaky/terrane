@@ -33,7 +33,7 @@ impl SplitError {
     }
     pub fn render(&self) -> String {
         {
-            let __terrane_static_value = {
+            let __terrane_static_value: terrane_int_support::Int = {
                 let __terrane_value = TERRANE_STATIC_SPLITERROR_RENDERS
                     .lock()
                     .expect("static field lock poisoned")

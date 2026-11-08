@@ -8809,7 +8809,7 @@ impl TerraneNsInheritedStaticStateAnimalIdentity2F696E686572697465642D7374617469
     }
     pub fn terrane_static_increase() -> terrane_int_support::Int {
         {
-            let __terrane_static_value = {
+            let __terrane_static_value: terrane_int_support::Int = {
                 let __terrane_value = TERRANE_STATIC_TERRANENSINHERITEDSTATICSTATEANIMALIDENTITY2F696E686572697465642D7374617469632D737461746500616E696D616C_CALLS
                     .lock()
                     .expect("static field lock poisoned")
@@ -8842,7 +8842,7 @@ impl TerraneNsInheritedStaticStateDogIdentity2F696E686572697465642D7374617469632
     }
     pub fn terrane_static_increase() -> terrane_int_support::Int {
         {
-            let __terrane_static_value = {
+            let __terrane_static_value: terrane_int_support::Int = {
                 let __terrane_value = TERRANE_STATIC_TERRANENSINHERITEDSTATICSTATEDOGIDENTITY2F696E686572697465642D7374617469632D737461746500646F67_CALLS
                     .lock()
                     .expect("static field lock poisoned")
@@ -12369,7 +12369,9 @@ impl TerraneNsStaticClassSingletonWidgetIdentity2F7374617469632D636C6173732D7369
             .is_none()
         {
             {
-                let __terrane_static_value = Some(
+                let __terrane_static_value: Option<
+                    TerraneNsStaticClassSingletonWidgetIdentity2F7374617469632D636C6173732D73696E676C65746F6E00776964676574,
+                > = Some(
                     TerraneNsStaticClassSingletonWidgetIdentity2F7374617469632D636C6173732D73696E676C65746F6E00776964676574::terrane_construct(),
                 );
                 *TERRANE_STATIC_TERRANENSSTATICCLASSSINGLETONWIDGETIDENTITY2F7374617469632D636C6173732D73696E676C65746F6E00776964676574_CURRENT

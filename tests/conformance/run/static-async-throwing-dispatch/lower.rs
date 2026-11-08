@@ -72,7 +72,16 @@ fn main() {
             1 /* terrane-site: case.trn:14:19-14:31 */))
         );
         {
-            let __terrane_static_value = std::sync::Arc::new(move || -> std::pin::Pin<
+            let __terrane_static_value: std::sync::Arc<
+                dyn Fn(
+                ) -> std::pin::Pin<
+                        Box<
+                            dyn Future<
+                                Output = Result<terrane_int_support::Int, TerraneError>,
+                            > + Send,
+                        >,
+                    > + Send + Sync,
+            > = std::sync::Arc::new(move || -> std::pin::Pin<
                 Box<dyn Future<Output = _> + Send>,
             > { Box::pin(bad()) });
             *TERRANE_STATIC_HOLDER_F.lock().expect("static field lock poisoned") = __terrane_static_value;

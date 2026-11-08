@@ -18,7 +18,9 @@ impl Holder {
 fn main() {
     let callback: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
     {
-        let __terrane_static_value = std::sync::Arc::new(five);
+        let __terrane_static_value: std::sync::Arc<
+            dyn Fn() -> terrane_int_support::Int + Send + Sync,
+        > = std::sync::Arc::new(five);
         *TERRANE_STATIC_HOLDER_F.lock().expect("static field lock poisoned") = __terrane_static_value;
     }
     callback = {

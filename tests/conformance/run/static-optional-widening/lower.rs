@@ -16,7 +16,9 @@ fn main() {
     let y: i64;
     y = 4;
     {
-        let __terrane_static_value = Some(terrane_int_support::Int::from(y as i128));
+        let __terrane_static_value: Option<terrane_int_support::Int> = Some(
+            terrane_int_support::Int::from(y as i128),
+        );
         *TERRANE_STATIC_HOLDER_N.lock().expect("static field lock poisoned") = __terrane_static_value;
     }
     println!(

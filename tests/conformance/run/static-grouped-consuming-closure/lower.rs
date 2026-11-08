@@ -19,7 +19,9 @@ fn main() {
         })
     };
     {
-        let __terrane_static_value = Some(closure);
+        let __terrane_static_value: Option<
+            TerraneConsumingCallable<(), terrane_int_support::Int>,
+        > = Some(closure);
         *TERRANE_STATIC_HOLDER_F.lock().expect("static field lock poisoned") = __terrane_static_value;
     }
     println!("{}", terrane_scalar_support::scalar_text(&1));
