@@ -4964,6 +4964,7 @@ fn test_scenario_terrane_map_key_removal() -> Result<(), TerraneError> {
             terrane_collection_support::IterationStep::End => break,
         };
         key = __terrane_item_1.key;
+        let _ = &key;
         value = __terrane_item_1.value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
@@ -6009,7 +6010,7 @@ fn test_scenario_terrane_stable_list_sorting() {
         };
         __terrane_result
     };
-    let __terrane_iterable_1 = descending.clone();
+    let __terrane_iterable_1 = descending;
     let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
         __terrane_iterable_1.as_slice(),
     );

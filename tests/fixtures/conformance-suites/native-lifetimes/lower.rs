@@ -4333,7 +4333,7 @@ fn test_scenario_terrane_native_ref_clone_repeat() -> Result<(), TerraneError> {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(| | -> Result <
         _, crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
-        ::TerraneForeignError > { Ok(value.clone().code()) })) { Ok(result) => result ?,
+        ::TerraneForeignError > { Ok(value.code()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_query_witness", "terrane_query_witness::CloneEnum::code")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
