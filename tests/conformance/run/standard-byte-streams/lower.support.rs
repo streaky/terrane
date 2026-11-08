@@ -1301,7 +1301,7 @@ impl ByteWriter {
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
-            return prior.clone();
+            return prior;
         }
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
@@ -1696,7 +1696,7 @@ impl TextWriter {
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
-            return prior.clone();
+            return prior;
         }
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),

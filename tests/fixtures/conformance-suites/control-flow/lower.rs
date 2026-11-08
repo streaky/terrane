@@ -2045,6 +2045,166 @@ fn test_scenario_terrane_local_function_self_static_member() {
         "{}", terrane_scalar_support::scalar_text(&DerivedCounter::terrane_static_read())
     );
 }
+// Source: tests/integration/loop-binder-owner-rebind/case.trn
+// Namespace: loop-binder-owner-rebind
+fn shared_shared() {
+    let mut values: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut value: &terrane_int_support::Int;
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let __terrane_iterable_0 = &values;
+    let mut __terrane_iterator_0 = __terrane_iterable_0.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_0.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(2_i128),
+            terrane_int_support::Int::from(3_i128)
+        ],
+    );
+    let __terrane_iterable_1 = &values;
+    let mut __terrane_iterator_1 = __terrane_iterable_1.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_1.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let _ = &value;
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
+}
+fn shared_exclusive() {
+    let mut values: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut value: &terrane_int_support::Int;
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let __terrane_iterable_2 = &values;
+    let mut __terrane_iterator_2 = __terrane_iterable_2.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_2.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(2_i128),
+            terrane_int_support::Int::from(3_i128)
+        ],
+    );
+    let __terrane_iterable_3 = &mut values;
+    let mut __terrane_iterator_3 = __terrane_iterable_3.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_3.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let _ = &value;
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
+}
+fn exclusive_shared() {
+    let mut values: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut value: &terrane_int_support::Int;
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let __terrane_iterable_4 = &mut values;
+    let mut __terrane_iterator_4 = __terrane_iterable_4.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_4.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(2_i128),
+            terrane_int_support::Int::from(3_i128)
+        ],
+    );
+    let __terrane_iterable_5 = &values;
+    let mut __terrane_iterator_5 = __terrane_iterable_5.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_5.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let _ = &value;
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
+}
+fn exclusive_exclusive() {
+    let mut values: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut value: &terrane_int_support::Int;
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let __terrane_iterable_6 = &mut values;
+    let mut __terrane_iterator_6 = __terrane_iterable_6.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_6.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    values = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(2_i128),
+            terrane_int_support::Int::from(3_i128)
+        ],
+    );
+    let __terrane_iterable_7 = &mut values;
+    let mut __terrane_iterator_7 = __terrane_iterable_7.terrane_borrowing_iterator();
+    loop {
+        value = match __terrane_iterator_7.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let _ = &value;
+        println!("{}", terrane_scalar_support::scalar_text(&* value));
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
+}
+fn test_scenario_terrane_loop_binder_owner_rebind() {
+    shared_shared();
+    shared_exclusive();
+    exclusive_shared();
+    exclusive_exclusive();
+}
 // Source: tests/integration/loop-body-backedge-arithmetic/case.trn
 // Namespace: conformance/loop-body-backedge-arithmetic
 fn inferred() {
@@ -2250,11 +2410,11 @@ fn test_scenario_terrane_conformance_loop_body_backedge_while() {
 // Namespace: loop-shadowing-scope
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF27S130 {
+enum TerraneUnionF28S130 {
     Arm0(terrane_collection_support::List<String>),
     Arm1(String),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF27S130 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF28S130 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(_) => {
@@ -2268,7 +2428,7 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF27S130 {
 }
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF27S316 {
+enum TerraneUnionF28S316 {
     Arm0(
         terrane_collection_support::Entry<
             String,
@@ -2277,7 +2437,7 @@ enum TerraneUnionF27S316 {
     ),
     Arm1(terrane_int_support::Int),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF27S316 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF28S316 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(_) => {
@@ -2293,23 +2453,23 @@ fn value_terrane_loop_shadowing_scope() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(1_i128);
 }
 fn test_scenario_terrane_loop_shadowing_scope() {
-    let mut items: TerraneUnionF27S130;
+    let mut items: TerraneUnionF28S130;
     let groups: terrane_collection_support::Map<
         String,
         terrane_collection_support::List<terrane_int_support::Int>,
     >;
-    let mut entry: Option<TerraneUnionF27S316> = None;
+    let mut entry: Option<TerraneUnionF28S316> = None;
     let numbers: terrane_collection_support::List<terrane_int_support::Int>;
     let numbers_2: String;
     let mut value_2: i64;
     let copy: terrane_int_support::Int;
-    items = TerraneUnionF27S130::Arm0(
+    items = TerraneUnionF28S130::Arm0(
         terrane_collection_support::List::<
             String,
         >::new(vec![String::from("ab"), String::from("c")]),
     );
     let __terrane_iterable_0 = match &items {
-        TerraneUnionF27S130::Arm0(value) => value,
+        TerraneUnionF28S130::Arm0(value) => value,
         _ => unreachable!("flow-proven storage refinement"),
     }
         .clone();
@@ -2317,7 +2477,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
         __terrane_iterable_0.as_slice(),
     );
     loop {
-        items = TerraneUnionF27S130::Arm1(
+        items = TerraneUnionF28S130::Arm1(
             match __terrane_iterator_0.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
@@ -2326,14 +2486,14 @@ fn test_scenario_terrane_loop_shadowing_scope() {
         let _ = &items;
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &items {
-            TerraneUnionF27S130::Arm1(value) => value, _ =>
+            TerraneUnionF28S130::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") })
         );
     }
-    if matches!(&&items, TerraneUnionF27S130::Arm1(_)) {
+    if matches!(&&items, TerraneUnionF28S130::Arm1(_)) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &items {
-            TerraneUnionF27S130::Arm1(value) => value, _ =>
+            TerraneUnionF28S130::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") })
         );
     }
@@ -2355,7 +2515,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
     loop {
         let _ = entry
             .insert(
-                TerraneUnionF27S316::Arm0(
+                TerraneUnionF28S316::Arm0(
                     match __terrane_iterator_1.next() {
                         terrane_collection_support::IterationStep::Item(item) => item,
                         terrane_collection_support::IterationStep::End => break,
@@ -2366,7 +2526,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
             .as_ref()
             .expect("flow-proven available binding")
         {
-            TerraneUnionF27S316::Arm0(value) => value,
+            TerraneUnionF28S316::Arm0(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
         }
             .value
@@ -2377,7 +2537,7 @@ fn test_scenario_terrane_loop_shadowing_scope() {
         loop {
             let _ = entry
                 .insert(
-                    TerraneUnionF27S316::Arm1(
+                    TerraneUnionF28S316::Arm1(
                         match __terrane_iterator_2.next() {
                             terrane_collection_support::IterationStep::Item(item) => item,
                             terrane_collection_support::IterationStep::End => break,
@@ -2388,19 +2548,19 @@ fn test_scenario_terrane_loop_shadowing_scope() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match entry.as_ref()
                 .expect("flow-proven available binding") {
-                TerraneUnionF27S316::Arm1(value) => value, _ =>
+                TerraneUnionF28S316::Arm1(value) => value, _ =>
                 unreachable!("flow-proven storage refinement") })
             );
         }
     }
     if matches!(
         &entry.as_ref().unwrap_or_else(|| __terrane_uninitialized_binding("entry",
-        "case.trn", 18, 6)), TerraneUnionF27S316::Arm1(_)
+        "case.trn", 18, 6)), TerraneUnionF28S316::Arm1(_)
     ) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match entry.as_ref()
             .unwrap_or_else(| | __terrane_uninitialized_binding("entry", "case.trn", 19,
-            12)) { TerraneUnionF27S316::Arm1(value) => value, _ =>
+            12)) { TerraneUnionF28S316::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") })
         );
     }
@@ -2502,18 +2662,18 @@ fn test_scenario_terrane_mutable_loop_loan_boundaries() {
 }
 // Source: tests/integration/name-aliasing/case.trn
 // Namespace: name-aliasing
-static __TERRANE_F29_ORIGINAL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from(
+static __TERRANE_F30_ORIGINAL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from(
     "namespace",
 ));
-static __TERRANE_F29_ALIAS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-    (*__TERRANE_F29_ORIGINAL).clone()
+static __TERRANE_F30_ALIAS: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    (*__TERRANE_F30_ORIGINAL).clone()
 });
 fn test_scenario_terrane_name_aliasing() {
     let local: String;
     let copy: String;
     local = String::from("function");
     copy = local;
-    println!("{}", terrane_scalar_support::scalar_text(&&* __TERRANE_F29_ALIAS));
+    println!("{}", terrane_scalar_support::scalar_text(&&* __TERRANE_F30_ALIAS));
     println!("{}", terrane_scalar_support::scalar_text(&copy));
 }
 // Source: tests/integration/nested-collection-for-binding/case.trn
@@ -3130,30 +3290,33 @@ fn main() {
             test_scenario_terrane_local_function_self_static_member();
         }
         "22" => {
-            test_scenario_terrane_conformance_loop_body_backedge_arithmetic();
+            test_scenario_terrane_loop_binder_owner_rebind();
         }
         "23" => {
-            test_scenario_terrane_conformance_loop_body_backedge_for();
+            test_scenario_terrane_conformance_loop_body_backedge_arithmetic();
         }
         "24" => {
-            test_scenario_terrane_conformance_loop_body_backedge_inferred_rhs();
+            test_scenario_terrane_conformance_loop_body_backedge_for();
         }
         "25" => {
-            test_scenario_terrane_conformance_loop_body_backedge_while();
+            test_scenario_terrane_conformance_loop_body_backedge_inferred_rhs();
         }
         "26" => {
-            test_scenario_terrane_loop_shadowing_scope();
+            test_scenario_terrane_conformance_loop_body_backedge_while();
         }
         "27" => {
-            test_scenario_terrane_mutable_loop_loan_boundaries();
+            test_scenario_terrane_loop_shadowing_scope();
         }
         "28" => {
-            test_scenario_terrane_name_aliasing();
+            test_scenario_terrane_mutable_loop_loan_boundaries();
         }
         "29" => {
-            test_scenario_terrane_nested_collection_for_binding();
+            test_scenario_terrane_name_aliasing();
         }
         "30" => {
+            test_scenario_terrane_nested_collection_for_binding();
+        }
+        "31" => {
             if let Err(error) = test_scenario_terrane_return_tail_block_strings() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -3163,10 +3326,10 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "31" => {
+        "32" => {
             test_scenario_terrane_returned_callable_local_loop();
         }
-        "32" => {
+        "33" => {
             if let Err(error) = test_scenario_terrane_static_call_throw_inference() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -3176,7 +3339,7 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "33" => {
+        "34" => {
             test_scenario_terrane_switch_boundaries();
         }
         _ => {

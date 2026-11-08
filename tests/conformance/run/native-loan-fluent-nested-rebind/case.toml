@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "native-lifetimes"
+test = "/native-loan-fluent-nested-rebind::test-scenario"

@@ -15,7 +15,7 @@ fn token_value(value: Token) -> Result<u64, TerraneError> {
                                 std::panic::AssertUnwindSafe(|| -> Result<
                                     _,
                                     crate::TerraneForeignError,
-                                > { Ok(value.clone().value()) }),
+                                > { Ok(value.value()) }),
                             ) {
                                 Ok(result) => result?,
                                 Err(payload) => {

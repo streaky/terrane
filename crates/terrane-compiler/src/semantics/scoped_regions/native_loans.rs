@@ -291,37 +291,40 @@ fn remove_transferred_noncopy_view(
                 }
             }
         }
-    }
-}
-fn remove_transferred_noncopy_views(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
-    node: &SyntaxNode,
-    lenders: &mut BTreeSet<Span>,
-) {
-    let mut node = node;
-    while matches!(
-        node.kind,
-        SyntaxKind::GroupExpression | SyntaxKind::Argument
-    ) && let Some(value) = node.children.last()
-    {
-        node = value;
-    }
-    if node.kind == SyntaxKind::Name {
-        remove_transferred_noncopy_view(package, unit, node, lenders);
-    } else if node.kind == SyntaxKind::CallExpression
-        && matches!(
-            super::super::collections::collection_constructor_identity(
+    } else if value.kind == SyntaxKind::CallExpression {
+        if let Some(constructor) = super::super::collections::collection_constructor_identity(
+            unit,
+            value,
+            &unit.typed_bindings,
+        ) && matches!(
+            constructor,
+            "list"
+                | "/core/collections::list"
+                | "map"
+                | "/core/collections::map"
+                | "unordered-map"
+                | "/core/collections::unordered-map"
+        ) && let Some(arguments) = value.children.get(1)
+        {
+            for argument in &arguments.children {
+                remove_transferred_noncopy_view(package, unit, argument, lenders);
+            }
+        } else if let [callee, _] = value.children.as_slice()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let (Some(receiver), Some(member)) =
+                (callee.children.first(), callee.children.last())
+            && let Some(receiver_type) = infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten()
+            && super::super::diagnostics::member_invocation_mode_at(
+                package,
                 unit,
-                node,
-                &unit.typed_bindings
-            ),
-            Some("list" | "/core/collections::list")
-        )
-        && let Some(arguments) = node.children.get(1)
-    {
-        for argument in &arguments.children {
-            remove_transferred_noncopy_view(package, unit, argument, lenders);
+                receiver,
+                &receiver_type,
+                node_text(&unit.source, member),
+            ) == InvocationMode::Consuming
+        {
+            remove_transferred_noncopy_view(package, unit, receiver, lenders);
         }
     }
 }
@@ -406,7 +409,7 @@ fn validate_collection_native_lenders(
             let mut places = Vec::new();
             collect_native_view_origins(package, unit, initializer, &mut lender_set, &mut places);
             collect_noncopy_flow_lenders(package, unit, initializer.span, &mut lender_set);
-            remove_transferred_noncopy_views(package, unit, initializer, &mut lender_set);
+            remove_transferred_noncopy_view(package, unit, initializer, &mut lender_set);
             if lender_set.is_empty() {
                 let empty_constructor = super::super::collections::empty_collection_identity(
                     unit,

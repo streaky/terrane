@@ -1764,13 +1764,18 @@ pub(super) fn validate_return_preservation(
         if node.kind == SyntaxKind::ReturnStatement
             && let Some(value) = node.children.first().map(ungroup)
             && let Some(binding) = binding_at(unit, value)
-            && !value_type_is_cloneable(
-                package,
-                unit,
-                unit.flow_binding_types
-                    .get(&binding.span)
-                    .unwrap_or(&binding.value_type),
+            && let value_type = unit
+                .flow_binding_types
+                .get(&binding.span)
+                .unwrap_or(&binding.value_type)
+            && !matches!(
+                value_type,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+                    | ValueType::InvocationScopedNative { .. }
             )
+            && !value_type_is_cloneable(package, unit, value_type)
             && super::bindings::binding_return_requires_preservation(
                 package,
                 binding.span,
@@ -3252,6 +3257,39 @@ fn callable_cleanup_boundary(
         .map_or_else(|| containing_statement(&unit.tree.root, use_span), Some)
 }
 
+fn span_is_iteration_binding(node: &SyntaxNode, span: Span) -> bool {
+    node.span.start <= span.start
+        && span.end <= node.span.end
+        && (node.kind == SyntaxKind::ForTarget
+            || node
+                .children
+                .iter()
+                .any(|child| span_is_iteration_binding(child, span)))
+}
+
+fn reference_read_reaches(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    declaration: Span,
+) -> bool {
+    let origins = unit
+        .flow_read_bindings
+        .get(&(node.span.file, node.span.start, node.span.end));
+    if origins.is_some_and(|origins| origins.contains(&declaration)) {
+        return true;
+    }
+    let same_storage = binding_at(unit, node)
+        .map(|binding| binding.span)
+        .or_else(|| {
+            package
+                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+                .and_then(|symbol| symbol.declaration_span)
+        })
+        == Some(declaration);
+    same_storage && (origins.is_none() || !span_is_iteration_binding(&unit.tree.root, declaration))
+}
+
 fn first_use_after(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -3259,12 +3297,12 @@ fn first_use_after(
     declaration: Span,
     position: usize,
 ) -> Option<Span> {
+    if node.kind == SyntaxKind::ForTarget {
+        return None;
+    }
     if node.kind == SyntaxKind::Name
         && node.span.start >= position
-        && package
-            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-            .and_then(|symbol| symbol.declaration_span)
-            == Some(declaration)
+        && reference_read_reaches(package, unit, node, declaration)
     {
         return Some(node.span);
     }
@@ -3280,15 +3318,15 @@ fn last_use_of_binding(
     declaration: Span,
     position: usize,
 ) -> Option<Span> {
+    if node.kind == SyntaxKind::ForTarget {
+        return None;
+    }
     if node.kind == SyntaxKind::AnonymousFunction && declaration.start < node.span.start {
         return None;
     }
     if node.kind == SyntaxKind::Name
         && node.span.start >= position
-        && package
-            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-            .and_then(|symbol| symbol.declaration_span)
-            == Some(declaration)
+        && reference_read_reaches(package, unit, node, declaration)
     {
         return Some(node.span);
     }

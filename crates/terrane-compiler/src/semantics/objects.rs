@@ -811,6 +811,36 @@ pub(super) fn value_type_is_resource_container(
             | ValueType::UnorderedSet(_)
     ) && value_type_owns_resource(value_type, resource_identities)
 }
+fn value_type_has_nonclone_scoped_map_storage(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value_type: &ValueType,
+) -> bool {
+    let unsupported_element = |element: &ValueType| {
+        let mut scoped = false;
+        super::capabilities::walk_value_type(element, &mut |ty| {
+            scoped |= matches!(ty, ValueType::InvocationScopedNative { .. });
+        });
+        scoped && !value_type_is_cloneable(package, unit, element)
+    };
+    let mut unsupported = false;
+    super::capabilities::walk_value_type(value_type, &mut |ty| {
+        if unsupported {
+            return;
+        }
+        unsupported = match ty {
+            ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
+                unsupported_element(key.value_type_ref())
+                    || unsupported_element(value.value_type_ref())
+            }
+            ValueType::Set(element) | ValueType::UnorderedSet(element) => {
+                unsupported_element(element.value_type_ref())
+            }
+            _ => false,
+        };
+    });
+    unsupported
+}
 
 fn resource_identities(package: &SemanticPackage) -> BTreeSet<String> {
     package
@@ -1329,6 +1359,7 @@ pub(super) fn propagate_resource_ownership(
             }
             if let Some(field) = object.fields.iter().find(|field| {
                 value_type_is_resource_container(&field.value_type, &resource_identities)
+                    || value_type_has_nonclone_scoped_map_storage(package, unit, &field.value_type)
             }) {
                 return Err(failure(
                     &unit.source,
@@ -1361,6 +1392,7 @@ pub(super) fn validate_resource_collection_types(
     for unit in &package.units {
         if let Some(binding) = unit.typed_bindings.iter().find(|binding| {
             value_type_is_resource_container(&binding.value_type, &resource_identities)
+                || value_type_has_nonclone_scoped_map_storage(package, unit, &binding.value_type)
         }) {
             return Err(failure(
                 &unit.source,
@@ -1373,6 +1405,7 @@ pub(super) fn validate_resource_collection_types(
             if let Some(parameter) = function.parameters.iter().find(|parameter| {
                 parameter.value_type.as_ref().is_some_and(|value_type| {
                     value_type_is_resource_container(value_type, &resource_identities)
+                        || value_type_has_nonclone_scoped_map_storage(package, unit, value_type)
                 })
             }) {
                 return Err(failure(
@@ -1384,6 +1417,7 @@ pub(super) fn validate_resource_collection_types(
             }
             if function.return_type.as_ref().is_some_and(|value_type| {
                 value_type_is_resource_container(value_type, &resource_identities)
+                    || value_type_has_nonclone_scoped_map_storage(package, unit, value_type)
             }) {
                 return Err(failure(
                     &unit.source,

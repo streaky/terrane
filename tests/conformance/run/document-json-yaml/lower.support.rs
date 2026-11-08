@@ -1464,7 +1464,7 @@ pub fn decode_json(
     let parsed: DocumentResult;
     parsed = parse_json(input, options);
     if parsed.failed {
-        return parsed.clone();
+        return parsed;
     }
     return deserialize_document(parsed.value.clone(), mapping);
 }
@@ -1558,7 +1558,7 @@ pub fn decode_yaml(
     let parsed: DocumentResult;
     parsed = parse_yaml(input, options);
     if parsed.failed {
-        return parsed.clone();
+        return parsed;
     }
     return deserialize_document(parsed.value.clone(), mapping);
 }

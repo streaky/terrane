@@ -508,7 +508,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 53] = [
+    pub static FILES: [&str; 56] = [
         "tests/integration/completion-finally-view-post-read/case.trn",
         "tests/integration/completion-native-catch-post-read/case.trn",
         "tests/integration/completion-native-post-read/case.trn",
@@ -521,6 +521,7 @@ mod __terrane_trace {
         "tests/integration/native-loan-chain-rebind-receiver/case.trn",
         "tests/integration/native-loan-exclusive-branch/case.trn",
         "tests/integration/native-loan-finally-copy-rebind/case.trn",
+        "tests/integration/native-loan-fluent-nested-rebind/case.trn",
         "tests/integration/native-loan-helper-view-origin/case.trn",
         "tests/integration/native-loan-last-use-control/case.trn",
         "tests/integration/native-loan-loop-live-lender/case.trn",
@@ -541,6 +542,7 @@ mod __terrane_trace {
         "tests/integration/native-loan-whole-move-last-use/case.trn",
         "tests/integration/native-loan-whole-mutate-last-use/case.trn",
         "tests/integration/native-loop-consuming-condition-break/case.trn",
+        "tests/integration/native-noncopy-view-loop-append/case.trn",
         "tests/integration/native-ref-clone-repeat/case.trn",
         "tests/integration/native-required-enum-field/case.trn",
         "tests/integration/native-return-parameter-single/case.trn",
@@ -551,6 +553,7 @@ mod __terrane_trace {
         "tests/integration/native-try-finally-rewrite-control/case.trn",
         "tests/integration/native-try-local-consume/case.trn",
         "tests/integration/native-try-unconditional-rewrite-control/case.trn",
+        "tests/integration/native-unordered-map-dead-lender-control/case.trn",
         "tests/integration/native-view-list-rebind/case.trn",
         "tests/integration/native-view-loop-binders/case.trn",
         "tests/integration/native-view-map-entry-iteration/case.trn",
@@ -563,7 +566,7 @@ mod __terrane_trace {
         "tests/integration/nested-view-value-value-loop/case.trn",
         "tests/integration/shared-loop-read-control/case.trn",
     ];
-    pub static FUNCTIONS: [&str; 66] = [
+    pub static FUNCTIONS: [&str; 69] = [
         "/completion-finally-view-post-read::test-scenario",
         "/completion-native-catch-post-read::test-scenario",
         "/completion-native-post-read::test-scenario",
@@ -582,6 +585,7 @@ mod __terrane_trace {
         "/native-loan-chain-rebind-receiver::test-scenario",
         "/native-loan-exclusive-branch::test-scenario",
         "/native-loan-finally-copy-rebind::test-scenario",
+        "/native-loan-fluent-nested-rebind::test-scenario",
         "/native-loan-helper-view-origin::test-scenario",
         "/native-loan-last-use-control::test-scenario",
         "/native-loan-loop-live-lender::test-scenario",
@@ -602,6 +606,7 @@ mod __terrane_trace {
         "/native-loan-whole-move-last-use::test-scenario",
         "/native-loan-whole-mutate-last-use::test-scenario",
         "/native-loop-consuming-condition-break::test-scenario",
+        "/native-noncopy-view-loop-append::test-scenario",
         "/native-ref-clone-repeat::twice",
         "/native-ref-clone-repeat::copied",
         "/native-ref-clone-repeat::test-scenario",
@@ -617,6 +622,7 @@ mod __terrane_trace {
         "/native-try-finally-rewrite-control::test-scenario",
         "/native-try-local-consume::test-scenario",
         "/native-try-unconditional-rewrite-control::test-scenario",
+        "/native-unordered-map-dead-lender-control::test-scenario",
         "/native-view-list-rebind::test-scenario",
         "/native-view-loop-binders::test-scenario",
         "/native-view-map-entry-iteration::test-scenario",
@@ -631,7 +637,7 @@ mod __terrane_trace {
         "/nested-view-value-value-loop::test-scenario",
         "/shared-loop-read-control::test-scenario",
     ];
-    pub static SITES: [Site; 361] = [
+    pub static SITES: [Site; 379] = [
         /* terrane-site-row: site 0: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:6:9-6:21) */
         { Site { function: 0, file: 0, line: 6, column: 9, end_line: 6, end_column: 21 } },
         /* terrane-site-row: site 1: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:7:9-7:21) */
@@ -824,536 +830,572 @@ mod __terrane_trace {
         { Site { function: 17, file: 11, line: 18, column: 21, end_line: 18, end_column: 28 } },
         /* terrane-site-row: site 95: /native-loan-finally-copy-rebind::test-scenario (tests/integration/native-loan-finally-copy-rebind/case.trn:19:17-19:29) */
         { Site { function: 17, file: 11, line: 19, column: 17, end_line: 19, end_column: 29 } },
-        /* terrane-site-row: site 96: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:15:9-15:21) */
-        { Site { function: 18, file: 12, line: 15, column: 9, end_line: 15, end_column: 21 } },
-        /* terrane-site-row: site 97: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:16:19-16:31) */
-        { Site { function: 18, file: 12, line: 16, column: 19, end_line: 16, end_column: 31 } },
-        /* terrane-site-row: site 98: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:17:13-17:23) */
-        { Site { function: 18, file: 12, line: 17, column: 13, end_line: 17, end_column: 23 } },
-        /* terrane-site-row: site 99: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:18:32-18:44) */
-        { Site { function: 18, file: 12, line: 18, column: 32, end_line: 18, end_column: 44 } },
-        /* terrane-site-row: site 100: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:19:13-19:22) */
-        { Site { function: 18, file: 12, line: 19, column: 13, end_line: 19, end_column: 22 } },
-        /* terrane-site-row: site 101: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:19:13-19:28) */
-        { Site { function: 18, file: 12, line: 19, column: 13, end_line: 19, end_column: 28 } },
-        /* terrane-site-row: site 102: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:20:5-20:12) */
-        { Site { function: 18, file: 12, line: 20, column: 5, end_line: 20, end_column: 12 } },
-        /* terrane-site-row: site 103: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:6:9-6:21) */
-        { Site { function: 19, file: 13, line: 6, column: 9, end_line: 6, end_column: 21 } },
-        /* terrane-site-row: site 104: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:7:38-7:50) */
-        { Site { function: 19, file: 13, line: 7, column: 38, end_line: 7, end_column: 50 } },
-        /* terrane-site-row: site 105: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:8:13-8:22) */
-        { Site { function: 19, file: 13, line: 8, column: 13, end_line: 8, end_column: 22 } },
-        /* terrane-site-row: site 106: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:8:13-8:28) */
-        { Site { function: 19, file: 13, line: 8, column: 13, end_line: 8, end_column: 28 } },
-        /* terrane-site-row: site 107: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:9:5-9:12) */
-        { Site { function: 19, file: 13, line: 9, column: 5, end_line: 9, end_column: 12 } },
-        /* terrane-site-row: site 108: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:10:13-10:25) */
-        { Site { function: 19, file: 13, line: 10, column: 13, end_line: 10, end_column: 25 } },
-        /* terrane-site-row: site 109: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:6:9-6:21) */
+        /* terrane-site-row: site 96: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:6:9-6:21) */
+        { Site { function: 18, file: 12, line: 6, column: 9, end_line: 6, end_column: 21 } },
+        /* terrane-site-row: site 97: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:7:17-7:29) */
+        { Site { function: 18, file: 12, line: 7, column: 17, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 98: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:8:9-8:16) */
+        { Site { function: 18, file: 12, line: 8, column: 9, end_line: 8, end_column: 16 } },
+        /* terrane-site-row: site 99: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:9:21-9:29) */
+        { Site { function: 18, file: 12, line: 9, column: 21, end_line: 9, end_column: 29 } },
+        /* terrane-site-row: site 100: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:10:9-10:16) */
+        { Site { function: 18, file: 12, line: 10, column: 9, end_line: 10, end_column: 16 } },
+        /* terrane-site-row: site 101: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:12:9-12:16) */
+        { Site { function: 18, file: 12, line: 12, column: 9, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 102: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:13:5-13:20) */
+        { Site { function: 18, file: 12, line: 13, column: 5, end_line: 13, end_column: 20 } },
+        /* terrane-site-row: site 103: /native-loan-fluent-nested-rebind::test-scenario (tests/integration/native-loan-fluent-nested-rebind/case.trn:16:13-16:20) */
+        { Site { function: 18, file: 12, line: 16, column: 13, end_line: 16, end_column: 20 } },
+        /* terrane-site-row: site 104: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:15:9-15:21) */
+        { Site { function: 19, file: 13, line: 15, column: 9, end_line: 15, end_column: 21 } },
+        /* terrane-site-row: site 105: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:16:19-16:31) */
+        { Site { function: 19, file: 13, line: 16, column: 19, end_line: 16, end_column: 31 } },
+        /* terrane-site-row: site 106: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:17:13-17:23) */
+        { Site { function: 19, file: 13, line: 17, column: 13, end_line: 17, end_column: 23 } },
+        /* terrane-site-row: site 107: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:18:32-18:44) */
+        { Site { function: 19, file: 13, line: 18, column: 32, end_line: 18, end_column: 44 } },
+        /* terrane-site-row: site 108: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:19:13-19:22) */
+        { Site { function: 19, file: 13, line: 19, column: 13, end_line: 19, end_column: 22 } },
+        /* terrane-site-row: site 109: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:19:13-19:28) */
+        { Site { function: 19, file: 13, line: 19, column: 13, end_line: 19, end_column: 28 } },
+        /* terrane-site-row: site 110: /native-loan-helper-view-origin::test-scenario (tests/integration/native-loan-helper-view-origin/case.trn:20:5-20:12) */
+        { Site { function: 19, file: 13, line: 20, column: 5, end_line: 20, end_column: 12 } },
+        /* terrane-site-row: site 111: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:6:9-6:21) */
         { Site { function: 20, file: 14, line: 6, column: 9, end_line: 6, end_column: 21 } },
-        /* terrane-site-row: site 110: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:7:38-7:50) */
+        /* terrane-site-row: site 112: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:7:38-7:50) */
         { Site { function: 20, file: 14, line: 7, column: 38, end_line: 7, end_column: 50 } },
-        /* terrane-site-row: site 111: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:9:17-9:28) */
-        { Site { function: 20, file: 14, line: 9, column: 17, end_line: 9, end_column: 28 } },
-        /* terrane-site-row: site 112: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:10:5-10:12) */
-        { Site { function: 20, file: 14, line: 10, column: 5, end_line: 10, end_column: 12 } },
-        /* terrane-site-row: site 113: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:11:22-11:34) */
-        { Site { function: 21, file: 15, line: 11, column: 22, end_line: 11, end_column: 34 } },
-        /* terrane-site-row: site 114: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:11:38-11:50) */
-        { Site { function: 21, file: 15, line: 11, column: 38, end_line: 11, end_column: 50 } },
-        /* terrane-site-row: site 115: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:14:13-14:26) */
-        { Site { function: 21, file: 15, line: 14, column: 13, end_line: 14, end_column: 26 } },
-        /* terrane-site-row: site 116: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:15:17-15:24) */
-        { Site { function: 21, file: 15, line: 15, column: 17, end_line: 15, end_column: 24 } },
-        /* terrane-site-row: site 117: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:16:19-16:31) */
-        { Site { function: 21, file: 15, line: 16, column: 19, end_line: 16, end_column: 31 } },
-        /* terrane-site-row: site 118: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:6:9-6:21) */
-        { Site { function: 22, file: 16, line: 6, column: 9, end_line: 6, end_column: 21 } },
-        /* terrane-site-row: site 119: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:8:26-8:38) */
-        { Site { function: 22, file: 16, line: 8, column: 26, end_line: 8, end_column: 38 } },
-        /* terrane-site-row: site 120: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:9:13-9:27) */
-        { Site { function: 22, file: 16, line: 9, column: 13, end_line: 9, end_column: 27 } },
-        /* terrane-site-row: site 121: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:9:13-9:33) */
-        { Site { function: 22, file: 16, line: 9, column: 13, end_line: 9, end_column: 33 } },
-        /* terrane-site-row: site 122: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:10:5-10:12) */
-        { Site { function: 22, file: 16, line: 10, column: 5, end_line: 10, end_column: 12 } },
-        /* terrane-site-row: site 123: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:11:9-11:21) */
-        { Site { function: 23, file: 17, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 124: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:12:9-12:16) */
-        { Site { function: 23, file: 17, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 125: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:13:16-13:23) */
-        { Site { function: 23, file: 17, line: 13, column: 16, end_line: 13, end_column: 23 } },
-        /* terrane-site-row: site 126: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:14:9-14:21) */
-        { Site { function: 23, file: 17, line: 14, column: 9, end_line: 14, end_column: 21 } },
-        /* terrane-site-row: site 127: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:16:13-16:25) */
-        { Site { function: 23, file: 17, line: 16, column: 13, end_line: 16, end_column: 25 } },
-        /* terrane-site-row: site 128: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:11:22-11:34) */
-        { Site { function: 24, file: 18, line: 11, column: 22, end_line: 11, end_column: 34 } },
-        /* terrane-site-row: site 129: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:11:38-11:50) */
-        { Site { function: 24, file: 18, line: 11, column: 38, end_line: 11, end_column: 50 } },
-        /* terrane-site-row: site 130: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:12:9-12:22) */
-        { Site { function: 24, file: 18, line: 12, column: 9, end_line: 12, end_column: 22 } },
-        /* terrane-site-row: site 131: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:14:15-14:22) */
-        { Site { function: 24, file: 18, line: 14, column: 15, end_line: 14, end_column: 22 } },
-        /* terrane-site-row: site 132: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:15:23-15:35) */
-        { Site { function: 24, file: 18, line: 15, column: 23, end_line: 15, end_column: 35 } },
-        /* terrane-site-row: site 133: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:11:22-11:34) */
+        /* terrane-site-row: site 113: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:8:13-8:22) */
+        { Site { function: 20, file: 14, line: 8, column: 13, end_line: 8, end_column: 22 } },
+        /* terrane-site-row: site 114: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:8:13-8:28) */
+        { Site { function: 20, file: 14, line: 8, column: 13, end_line: 8, end_column: 28 } },
+        /* terrane-site-row: site 115: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:9:5-9:12) */
+        { Site { function: 20, file: 14, line: 9, column: 5, end_line: 9, end_column: 12 } },
+        /* terrane-site-row: site 116: /native-loan-last-use-control::test-scenario (tests/integration/native-loan-last-use-control/case.trn:10:13-10:25) */
+        { Site { function: 20, file: 14, line: 10, column: 13, end_line: 10, end_column: 25 } },
+        /* terrane-site-row: site 117: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:6:9-6:21) */
+        { Site { function: 21, file: 15, line: 6, column: 9, end_line: 6, end_column: 21 } },
+        /* terrane-site-row: site 118: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:7:38-7:50) */
+        { Site { function: 21, file: 15, line: 7, column: 38, end_line: 7, end_column: 50 } },
+        /* terrane-site-row: site 119: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:9:17-9:28) */
+        { Site { function: 21, file: 15, line: 9, column: 17, end_line: 9, end_column: 28 } },
+        /* terrane-site-row: site 120: /native-loan-loop-live-lender::test-scenario (tests/integration/native-loan-loop-live-lender/case.trn:10:5-10:12) */
+        { Site { function: 21, file: 15, line: 10, column: 5, end_line: 10, end_column: 12 } },
+        /* terrane-site-row: site 121: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:11:22-11:34) */
+        { Site { function: 22, file: 16, line: 11, column: 22, end_line: 11, end_column: 34 } },
+        /* terrane-site-row: site 122: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:11:38-11:50) */
+        { Site { function: 22, file: 16, line: 11, column: 38, end_line: 11, end_column: 50 } },
+        /* terrane-site-row: site 123: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:14:13-14:26) */
+        { Site { function: 22, file: 16, line: 14, column: 13, end_line: 14, end_column: 26 } },
+        /* terrane-site-row: site 124: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:15:17-15:24) */
+        { Site { function: 22, file: 16, line: 15, column: 17, end_line: 15, end_column: 24 } },
+        /* terrane-site-row: site 125: /native-loan-loop-refreshed::test-scenario (tests/integration/native-loan-loop-refreshed/case.trn:16:19-16:31) */
+        { Site { function: 22, file: 16, line: 16, column: 19, end_line: 16, end_column: 31 } },
+        /* terrane-site-row: site 126: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:6:9-6:21) */
+        { Site { function: 23, file: 17, line: 6, column: 9, end_line: 6, end_column: 21 } },
+        /* terrane-site-row: site 127: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:8:26-8:38) */
+        { Site { function: 23, file: 17, line: 8, column: 26, end_line: 8, end_column: 38 } },
+        /* terrane-site-row: site 128: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:9:13-9:27) */
+        { Site { function: 23, file: 17, line: 9, column: 13, end_line: 9, end_column: 27 } },
+        /* terrane-site-row: site 129: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:9:13-9:33) */
+        { Site { function: 23, file: 17, line: 9, column: 13, end_line: 9, end_column: 33 } },
+        /* terrane-site-row: site 130: /native-loan-map-set-lender::test-scenario (tests/integration/native-loan-map-set-lender/case.trn:10:5-10:12) */
+        { Site { function: 23, file: 17, line: 10, column: 5, end_line: 10, end_column: 12 } },
+        /* terrane-site-row: site 131: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:11:9-11:21) */
+        { Site { function: 24, file: 18, line: 11, column: 9, end_line: 11, end_column: 21 } },
+        /* terrane-site-row: site 132: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:12:9-12:16) */
+        { Site { function: 24, file: 18, line: 12, column: 9, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 133: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:13:16-13:23) */
+        { Site { function: 24, file: 18, line: 13, column: 16, end_line: 13, end_column: 23 } },
+        /* terrane-site-row: site 134: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:14:9-14:21) */
+        { Site { function: 24, file: 18, line: 14, column: 9, end_line: 14, end_column: 21 } },
+        /* terrane-site-row: site 135: /native-loan-owned-observation::test-scenario (tests/integration/native-loan-owned-observation/case.trn:16:13-16:25) */
+        { Site { function: 24, file: 18, line: 16, column: 13, end_line: 16, end_column: 25 } },
+        /* terrane-site-row: site 136: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:11:22-11:34) */
         { Site { function: 25, file: 19, line: 11, column: 22, end_line: 11, end_column: 34 } },
-        /* terrane-site-row: site 134: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:11:38-11:50) */
+        /* terrane-site-row: site 137: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:11:38-11:50) */
         { Site { function: 25, file: 19, line: 11, column: 38, end_line: 11, end_column: 50 } },
-        /* terrane-site-row: site 135: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:12:9-12:22) */
+        /* terrane-site-row: site 138: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:12:9-12:22) */
         { Site { function: 25, file: 19, line: 12, column: 9, end_line: 12, end_column: 22 } },
-        /* terrane-site-row: site 136: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:16:23-16:35) */
-        { Site { function: 25, file: 19, line: 16, column: 23, end_line: 16, end_column: 35 } },
-        /* terrane-site-row: site 137: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:18:21-18:28) */
-        { Site { function: 25, file: 19, line: 18, column: 21, end_line: 18, end_column: 28 } },
-        /* terrane-site-row: site 138: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:11:22-11:34) */
+        /* terrane-site-row: site 139: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:14:15-14:22) */
+        { Site { function: 25, file: 19, line: 14, column: 15, end_line: 14, end_column: 22 } },
+        /* terrane-site-row: site 140: /native-loan-predicate-last-use::test-scenario (tests/integration/native-loan-predicate-last-use/case.trn:15:23-15:35) */
+        { Site { function: 25, file: 19, line: 15, column: 23, end_line: 15, end_column: 35 } },
+        /* terrane-site-row: site 141: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:11:22-11:34) */
         { Site { function: 26, file: 20, line: 11, column: 22, end_line: 11, end_column: 34 } },
-        /* terrane-site-row: site 139: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:11:38-11:50) */
+        /* terrane-site-row: site 142: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:11:38-11:50) */
         { Site { function: 26, file: 20, line: 11, column: 38, end_line: 11, end_column: 50 } },
-        /* terrane-site-row: site 140: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:12:9-12:22) */
+        /* terrane-site-row: site 143: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:12:9-12:22) */
         { Site { function: 26, file: 20, line: 12, column: 9, end_line: 12, end_column: 22 } },
-        /* terrane-site-row: site 141: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:16:23-16:35) */
+        /* terrane-site-row: site 144: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:16:23-16:35) */
         { Site { function: 26, file: 20, line: 16, column: 23, end_line: 16, end_column: 35 } },
-        /* terrane-site-row: site 142: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:20:21-20:28) */
-        { Site { function: 26, file: 20, line: 20, column: 21, end_line: 20, end_column: 28 } },
-        /* terrane-site-row: site 143: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:11:9-11:21) */
-        { Site { function: 27, file: 21, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 144: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:12:9-12:21) */
-        { Site { function: 27, file: 21, line: 12, column: 9, end_line: 12, end_column: 21 } },
-        /* terrane-site-row: site 145: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:13:9-13:16) */
-        { Site { function: 27, file: 21, line: 13, column: 9, end_line: 13, end_column: 16 } },
-        /* terrane-site-row: site 146: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:14:9-14:16) */
-        { Site { function: 27, file: 21, line: 14, column: 9, end_line: 14, end_column: 16 } },
-        /* terrane-site-row: site 147: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:15:9-15:24) */
-        { Site { function: 27, file: 21, line: 15, column: 9, end_line: 15, end_column: 24 } },
-        /* terrane-site-row: site 148: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:16:5-16:12) */
-        { Site { function: 27, file: 21, line: 16, column: 5, end_line: 16, end_column: 12 } },
-        /* terrane-site-row: site 149: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:17:13-17:20) */
-        { Site { function: 27, file: 21, line: 17, column: 13, end_line: 17, end_column: 20 } },
-        /* terrane-site-row: site 150: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:11:22-11:34) */
-        { Site { function: 28, file: 22, line: 11, column: 22, end_line: 11, end_column: 34 } },
-        /* terrane-site-row: site 151: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:11:38-11:50) */
-        { Site { function: 28, file: 22, line: 11, column: 38, end_line: 11, end_column: 50 } },
-        /* terrane-site-row: site 152: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:12:9-12:22) */
-        { Site { function: 28, file: 22, line: 12, column: 9, end_line: 12, end_column: 22 } },
-        /* terrane-site-row: site 153: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:13:13-13:20) */
-        { Site { function: 28, file: 22, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 154: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:14:15-14:27) */
-        { Site { function: 28, file: 22, line: 14, column: 15, end_line: 14, end_column: 27 } },
-        /* terrane-site-row: site 155: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:15:9-15:22) */
-        { Site { function: 28, file: 22, line: 15, column: 9, end_line: 15, end_column: 22 } },
-        /* terrane-site-row: site 156: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:16:13-16:20) */
-        { Site { function: 28, file: 22, line: 16, column: 13, end_line: 16, end_column: 20 } },
-        /* terrane-site-row: site 157: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:11:22-11:34) */
+        /* terrane-site-row: site 145: /native-loan-predicate-switch::test-scenario (tests/integration/native-loan-predicate-switch/case.trn:18:21-18:28) */
+        { Site { function: 26, file: 20, line: 18, column: 21, end_line: 18, end_column: 28 } },
+        /* terrane-site-row: site 146: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:11:22-11:34) */
+        { Site { function: 27, file: 21, line: 11, column: 22, end_line: 11, end_column: 34 } },
+        /* terrane-site-row: site 147: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:11:38-11:50) */
+        { Site { function: 27, file: 21, line: 11, column: 38, end_line: 11, end_column: 50 } },
+        /* terrane-site-row: site 148: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:12:9-12:22) */
+        { Site { function: 27, file: 21, line: 12, column: 9, end_line: 12, end_column: 22 } },
+        /* terrane-site-row: site 149: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:16:23-16:35) */
+        { Site { function: 27, file: 21, line: 16, column: 23, end_line: 16, end_column: 35 } },
+        /* terrane-site-row: site 150: /native-loan-predicate-three-arms::test-scenario (tests/integration/native-loan-predicate-three-arms/case.trn:20:21-20:28) */
+        { Site { function: 27, file: 21, line: 20, column: 21, end_line: 20, end_column: 28 } },
+        /* terrane-site-row: site 151: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:11:9-11:21) */
+        { Site { function: 28, file: 22, line: 11, column: 9, end_line: 11, end_column: 21 } },
+        /* terrane-site-row: site 152: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:12:9-12:21) */
+        { Site { function: 28, file: 22, line: 12, column: 9, end_line: 12, end_column: 21 } },
+        /* terrane-site-row: site 153: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:13:9-13:16) */
+        { Site { function: 28, file: 22, line: 13, column: 9, end_line: 13, end_column: 16 } },
+        /* terrane-site-row: site 154: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:14:9-14:16) */
+        { Site { function: 28, file: 22, line: 14, column: 9, end_line: 14, end_column: 16 } },
+        /* terrane-site-row: site 155: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:15:9-15:24) */
+        { Site { function: 28, file: 22, line: 15, column: 9, end_line: 15, end_column: 24 } },
+        /* terrane-site-row: site 156: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:16:5-16:12) */
+        { Site { function: 28, file: 22, line: 16, column: 5, end_line: 16, end_column: 12 } },
+        /* terrane-site-row: site 157: /native-loan-rebound-alias-chain::test-scenario (tests/integration/native-loan-rebound-alias-chain/case.trn:17:13-17:20) */
+        { Site { function: 28, file: 22, line: 17, column: 13, end_line: 17, end_column: 20 } },
+        /* terrane-site-row: site 158: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:11:22-11:34) */
         { Site { function: 29, file: 23, line: 11, column: 22, end_line: 11, end_column: 34 } },
-        /* terrane-site-row: site 158: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:11:38-11:50) */
+        /* terrane-site-row: site 159: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:11:38-11:50) */
         { Site { function: 29, file: 23, line: 11, column: 38, end_line: 11, end_column: 50 } },
-        /* terrane-site-row: site 159: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:12:9-12:22) */
+        /* terrane-site-row: site 160: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:12:9-12:22) */
         { Site { function: 29, file: 23, line: 12, column: 9, end_line: 12, end_column: 22 } },
-        /* terrane-site-row: site 160: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:13:13-13:20) */
+        /* terrane-site-row: site 161: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:13:13-13:20) */
         { Site { function: 29, file: 23, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 161: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:14:15-14:27) */
+        /* terrane-site-row: site 162: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:14:15-14:27) */
         { Site { function: 29, file: 23, line: 14, column: 15, end_line: 14, end_column: 27 } },
-        /* terrane-site-row: site 162: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:15:9-15:22) */
+        /* terrane-site-row: site 163: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:15:9-15:22) */
         { Site { function: 29, file: 23, line: 15, column: 9, end_line: 15, end_column: 22 } },
-        /* terrane-site-row: site 163: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:16:13-16:20) */
+        /* terrane-site-row: site 164: /native-loan-rebound-other::test-scenario (tests/integration/native-loan-rebound-other/case.trn:16:13-16:20) */
         { Site { function: 29, file: 23, line: 16, column: 13, end_line: 16, end_column: 20 } },
-        /* terrane-site-row: site 164: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:11:22-11:34) */
+        /* terrane-site-row: site 165: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:11:22-11:34) */
         { Site { function: 30, file: 24, line: 11, column: 22, end_line: 11, end_column: 34 } },
-        /* terrane-site-row: site 165: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:11:38-11:50) */
+        /* terrane-site-row: site 166: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:11:38-11:50) */
         { Site { function: 30, file: 24, line: 11, column: 38, end_line: 11, end_column: 50 } },
-        /* terrane-site-row: site 166: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:12:9-12:22) */
+        /* terrane-site-row: site 167: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:12:9-12:22) */
         { Site { function: 30, file: 24, line: 12, column: 9, end_line: 12, end_column: 22 } },
-        /* terrane-site-row: site 167: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:15:19-15:31) */
-        { Site { function: 30, file: 24, line: 15, column: 19, end_line: 15, end_column: 31 } },
-        /* terrane-site-row: site 168: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:17:13-17:20) */
-        { Site { function: 30, file: 24, line: 17, column: 13, end_line: 17, end_column: 20 } },
-        /* terrane-site-row: site 169: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:4:9-4:21) */
-        { Site { function: 31, file: 25, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 170: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:5:9-5:21) */
-        { Site { function: 31, file: 25, line: 5, column: 9, end_line: 5, end_column: 21 } },
-        /* terrane-site-row: site 171: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:6:9-6:16) */
-        { Site { function: 31, file: 25, line: 6, column: 9, end_line: 6, end_column: 16 } },
-        /* terrane-site-row: site 172: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:8:9-8:16) */
-        { Site { function: 31, file: 25, line: 8, column: 9, end_line: 8, end_column: 16 } },
-        /* terrane-site-row: site 173: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:9:13-9:20) */
-        { Site { function: 31, file: 25, line: 9, column: 13, end_line: 9, end_column: 20 } },
-        /* terrane-site-row: site 174: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:10:13-10:20) */
-        { Site { function: 31, file: 25, line: 10, column: 13, end_line: 10, end_column: 20 } },
-        /* terrane-site-row: site 175: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:11:5-11:12) */
-        { Site { function: 31, file: 25, line: 11, column: 5, end_line: 11, end_column: 12 } },
-        /* terrane-site-row: site 176: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:12:13-12:25) */
-        { Site { function: 31, file: 25, line: 12, column: 13, end_line: 12, end_column: 25 } },
-        /* terrane-site-row: site 177: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:11:9-11:21) */
-        { Site { function: 32, file: 26, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 178: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:12:9-12:16) */
-        { Site { function: 32, file: 26, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 179: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:14:17-14:24) */
-        { Site { function: 32, file: 26, line: 14, column: 17, end_line: 14, end_column: 24 } },
-        /* terrane-site-row: site 180: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:16:9-16:16) */
-        { Site { function: 32, file: 26, line: 16, column: 9, end_line: 16, end_column: 16 } },
-        /* terrane-site-row: site 181: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:17:13-17:25) */
-        { Site { function: 32, file: 26, line: 17, column: 13, end_line: 17, end_column: 25 } },
-        /* terrane-site-row: site 182: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 168: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:13:13-13:20) */
+        { Site { function: 30, file: 24, line: 13, column: 13, end_line: 13, end_column: 20 } },
+        /* terrane-site-row: site 169: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:14:15-14:27) */
+        { Site { function: 30, file: 24, line: 14, column: 15, end_line: 14, end_column: 27 } },
+        /* terrane-site-row: site 170: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:15:9-15:22) */
+        { Site { function: 30, file: 24, line: 15, column: 9, end_line: 15, end_column: 22 } },
+        /* terrane-site-row: site 171: /native-loan-rebound-same::test-scenario (tests/integration/native-loan-rebound-same/case.trn:16:13-16:20) */
+        { Site { function: 30, file: 24, line: 16, column: 13, end_line: 16, end_column: 20 } },
+        /* terrane-site-row: site 172: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:11:22-11:34) */
+        { Site { function: 31, file: 25, line: 11, column: 22, end_line: 11, end_column: 34 } },
+        /* terrane-site-row: site 173: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:11:38-11:50) */
+        { Site { function: 31, file: 25, line: 11, column: 38, end_line: 11, end_column: 50 } },
+        /* terrane-site-row: site 174: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:12:9-12:22) */
+        { Site { function: 31, file: 25, line: 12, column: 9, end_line: 12, end_column: 22 } },
+        /* terrane-site-row: site 175: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:15:19-15:31) */
+        { Site { function: 31, file: 25, line: 15, column: 19, end_line: 15, end_column: 31 } },
+        /* terrane-site-row: site 176: /native-loan-return-branch::test-scenario (tests/integration/native-loan-return-branch/case.trn:17:13-17:20) */
+        { Site { function: 31, file: 25, line: 17, column: 13, end_line: 17, end_column: 20 } },
+        /* terrane-site-row: site 177: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:4:9-4:21) */
+        { Site { function: 32, file: 26, line: 4, column: 9, end_line: 4, end_column: 21 } },
+        /* terrane-site-row: site 178: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:5:9-5:21) */
+        { Site { function: 32, file: 26, line: 5, column: 9, end_line: 5, end_column: 21 } },
+        /* terrane-site-row: site 179: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:6:9-6:16) */
+        { Site { function: 32, file: 26, line: 6, column: 9, end_line: 6, end_column: 16 } },
+        /* terrane-site-row: site 180: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:8:9-8:16) */
+        { Site { function: 32, file: 26, line: 8, column: 9, end_line: 8, end_column: 16 } },
+        /* terrane-site-row: site 181: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:9:13-9:20) */
+        { Site { function: 32, file: 26, line: 9, column: 13, end_line: 9, end_column: 20 } },
+        /* terrane-site-row: site 182: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:10:13-10:20) */
+        { Site { function: 32, file: 26, line: 10, column: 13, end_line: 10, end_column: 20 } },
+        /* terrane-site-row: site 183: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:11:5-11:12) */
+        { Site { function: 32, file: 26, line: 11, column: 5, end_line: 11, end_column: 12 } },
+        /* terrane-site-row: site 184: /native-loan-storage-alias-last-use::test-scenario (tests/integration/native-loan-storage-alias-last-use/case.trn:12:13-12:25) */
+        { Site { function: 32, file: 26, line: 12, column: 13, end_line: 12, end_column: 25 } },
+        /* terrane-site-row: site 185: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:11:9-11:21) */
         { Site { function: 33, file: 27, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 183: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:13:13-13:20) */
-        { Site { function: 33, file: 27, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 184: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:14:17-14:24) */
+        /* terrane-site-row: site 186: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:12:9-12:16) */
+        { Site { function: 33, file: 27, line: 12, column: 9, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 187: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:14:17-14:24) */
         { Site { function: 33, file: 27, line: 14, column: 17, end_line: 14, end_column: 24 } },
-        /* terrane-site-row: site 185: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:16:17-16:29) */
-        { Site { function: 33, file: 27, line: 16, column: 17, end_line: 16, end_column: 29 } },
-        /* terrane-site-row: site 186: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:17:13-17:25) */
+        /* terrane-site-row: site 188: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:16:9-16:16) */
+        { Site { function: 33, file: 27, line: 16, column: 9, end_line: 16, end_column: 16 } },
+        /* terrane-site-row: site 189: /native-loan-try-finally-last-use::test-scenario (tests/integration/native-loan-try-finally-last-use/case.trn:17:13-17:25) */
         { Site { function: 33, file: 27, line: 17, column: 13, end_line: 17, end_column: 25 } },
-        /* terrane-site-row: site 187: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 190: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:11:9-11:21) */
         { Site { function: 34, file: 28, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 188: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:12:9-12:16) */
-        { Site { function: 34, file: 28, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 189: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:13:13-13:20) */
+        /* terrane-site-row: site 191: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:13:13-13:20) */
         { Site { function: 34, file: 28, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 190: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:14:9-14:21) */
-        { Site { function: 34, file: 28, line: 14, column: 9, end_line: 14, end_column: 21 } },
-        /* terrane-site-row: site 191: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:15:13-15:25) */
-        { Site { function: 34, file: 28, line: 15, column: 13, end_line: 15, end_column: 25 } },
-        /* terrane-site-row: site 192: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 192: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:14:17-14:24) */
+        { Site { function: 34, file: 28, line: 14, column: 17, end_line: 14, end_column: 24 } },
+        /* terrane-site-row: site 193: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:16:17-16:29) */
+        { Site { function: 34, file: 28, line: 16, column: 17, end_line: 16, end_column: 29 } },
+        /* terrane-site-row: site 194: /native-loan-try-local::test-scenario (tests/integration/native-loan-try-local/case.trn:17:13-17:25) */
+        { Site { function: 34, file: 28, line: 17, column: 13, end_line: 17, end_column: 25 } },
+        /* terrane-site-row: site 195: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:11:9-11:21) */
         { Site { function: 35, file: 29, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 193: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:12:9-12:16) */
+        /* terrane-site-row: site 196: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:12:9-12:16) */
         { Site { function: 35, file: 29, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 194: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:13:13-13:20) */
+        /* terrane-site-row: site 197: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:13:13-13:20) */
         { Site { function: 35, file: 29, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 195: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:15:13-15:29) */
-        { Site { function: 35, file: 29, line: 15, column: 13, end_line: 15, end_column: 29 } },
-        /* terrane-site-row: site 196: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 198: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:14:9-14:21) */
+        { Site { function: 35, file: 29, line: 14, column: 9, end_line: 14, end_column: 21 } },
+        /* terrane-site-row: site 199: /native-loan-whole-last-use::test-scenario (tests/integration/native-loan-whole-last-use/case.trn:15:13-15:25) */
+        { Site { function: 35, file: 29, line: 15, column: 13, end_line: 15, end_column: 25 } },
+        /* terrane-site-row: site 200: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:11:9-11:21) */
         { Site { function: 36, file: 30, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 197: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:12:9-12:16) */
+        /* terrane-site-row: site 201: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:12:9-12:16) */
         { Site { function: 36, file: 30, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 198: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:13:13-13:20) */
+        /* terrane-site-row: site 202: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:13:13-13:20) */
         { Site { function: 36, file: 30, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 199: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:14:5-14:12) */
-        { Site { function: 36, file: 30, line: 14, column: 5, end_line: 14, end_column: 12 } },
-        /* terrane-site-row: site 200: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:15:13-15:25) */
-        { Site { function: 36, file: 30, line: 15, column: 13, end_line: 15, end_column: 25 } },
-        /* terrane-site-row: site 201: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:11:9-11:21) */
+        /* terrane-site-row: site 203: /native-loan-whole-move-last-use::test-scenario (tests/integration/native-loan-whole-move-last-use/case.trn:15:13-15:29) */
+        { Site { function: 36, file: 30, line: 15, column: 13, end_line: 15, end_column: 29 } },
+        /* terrane-site-row: site 204: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:11:9-11:21) */
         { Site { function: 37, file: 31, line: 11, column: 9, end_line: 11, end_column: 21 } },
-        /* terrane-site-row: site 202: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:12:9-12:16) */
+        /* terrane-site-row: site 205: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:12:9-12:16) */
         { Site { function: 37, file: 31, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 203: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:13:12-13:24) */
-        { Site { function: 37, file: 31, line: 13, column: 12, end_line: 13, end_column: 24 } },
-        /* terrane-site-row: site 204: /native-ref-clone-repeat::twice (tests/integration/native-ref-clone-repeat/case.trn:4:13-4:24) */
-        { Site { function: 38, file: 32, line: 4, column: 13, end_line: 4, end_column: 24 } },
-        /* terrane-site-row: site 205: /native-ref-clone-repeat::twice (tests/integration/native-ref-clone-repeat/case.trn:5:14-5:25) */
-        { Site { function: 38, file: 32, line: 5, column: 14, end_line: 5, end_column: 25 } },
-        /* terrane-site-row: site 206: /native-ref-clone-repeat::twice (tests/integration/native-ref-clone-repeat/case.trn:6:12-6:26) */
-        { Site { function: 38, file: 32, line: 6, column: 12, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 207: /native-ref-clone-repeat::copied (tests/integration/native-ref-clone-repeat/case.trn:8:13-8:25) */
-        { Site { function: 39, file: 32, line: 8, column: 13, end_line: 8, end_column: 25 } },
-        /* terrane-site-row: site 208: /native-ref-clone-repeat::copied (tests/integration/native-ref-clone-repeat/case.trn:9:21-9:33) */
-        { Site { function: 39, file: 32, line: 9, column: 21, end_line: 9, end_column: 33 } },
-        /* terrane-site-row: site 209: /native-ref-clone-repeat::copied (tests/integration/native-ref-clone-repeat/case.trn:9:12-9:34) */
-        { Site { function: 39, file: 32, line: 9, column: 12, end_line: 9, end_column: 34 } },
-        /* terrane-site-row: site 210: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:11:13-11:26) */
-        { Site { function: 40, file: 32, line: 11, column: 13, end_line: 11, end_column: 26 } },
-        /* terrane-site-row: site 211: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:12:13-12:25) */
-        { Site { function: 40, file: 32, line: 12, column: 13, end_line: 12, end_column: 25 } },
-        /* terrane-site-row: site 212: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:13:13-13:24) */
-        { Site { function: 40, file: 32, line: 13, column: 13, end_line: 13, end_column: 24 } },
-        /* terrane-site-row: site 213: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:14:13-14:24) */
-        { Site { function: 40, file: 32, line: 14, column: 13, end_line: 14, end_column: 24 } },
-        /* terrane-site-row: site 214: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:15:13-15:26) */
-        { Site { function: 40, file: 32, line: 15, column: 13, end_line: 15, end_column: 26 } },
-        /* terrane-site-row: site 215: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:16:13-16:25) */
-        { Site { function: 40, file: 32, line: 16, column: 13, end_line: 16, end_column: 25 } },
-        /* terrane-site-row: site 216: /native-required-enum-field::construct (tests/integration/native-required-enum-field/case.trn:7:22-7:28) */
-        { Site { function: 41, file: 33, line: 7, column: 22, end_line: 7, end_column: 28 } },
-        /* terrane-site-row: site 217: /native-required-enum-field::finish (tests/integration/native-required-enum-field/case.trn:9:16-9:32) */
-        { Site { function: 42, file: 33, line: 9, column: 16, end_line: 9, end_column: 32 } },
-        /* terrane-site-row: site 218: /native-required-enum-field::test-scenario (tests/integration/native-required-enum-field/case.trn:16:13-16:30) */
-        { Site { function: 43, file: 33, line: 16, column: 13, end_line: 16, end_column: 30 } },
-        /* terrane-site-row: site 219: /native-required-enum-field::test-scenario (tests/integration/native-required-enum-field/case.trn:19:13-19:36) */
-        { Site { function: 43, file: 33, line: 19, column: 13, end_line: 19, end_column: 36 } },
-        /* terrane-site-row: site 220: /native-required-enum-field::test-scenario (tests/integration/native-required-enum-field/case.trn:22:13-22:26) */
-        { Site { function: 43, file: 33, line: 22, column: 13, end_line: 22, end_column: 26 } },
-        /* terrane-site-row: site 221: /native-return-parameter-single::f (tests/integration/native-return-parameter-single/case.trn:5:12-5:24) */
-        { Site { function: 44, file: 34, line: 5, column: 12, end_line: 5, end_column: 24 } },
-        /* terrane-site-row: site 222: /native-return-parameter-single::test-scenario (tests/integration/native-return-parameter-single/case.trn:8:9-8:21) */
-        { Site { function: 45, file: 34, line: 8, column: 9, end_line: 8, end_column: 21 } },
-        /* terrane-site-row: site 223: /native-return-parameter-single::test-scenario (tests/integration/native-return-parameter-single/case.trn:10:13-10:20) */
-        { Site { function: 45, file: 34, line: 10, column: 13, end_line: 10, end_column: 20 } },
-        /* terrane-site-row: site 224: /native-return-parameter-single::test-scenario (tests/integration/native-return-parameter-single/case.trn:11:5-11:12) */
-        { Site { function: 45, file: 34, line: 11, column: 5, end_line: 11, end_column: 12 } },
-        /* terrane-site-row: site 225: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:4:9-4:21) */
-        { Site { function: 46, file: 35, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 226: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:5:9-5:16) */
-        { Site { function: 46, file: 35, line: 5, column: 9, end_line: 5, end_column: 16 } },
-        /* terrane-site-row: site 227: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:7:17-7:29) */
-        { Site { function: 46, file: 35, line: 7, column: 17, end_line: 7, end_column: 29 } },
-        /* terrane-site-row: site 228: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:8:13-8:20) */
-        { Site { function: 46, file: 35, line: 8, column: 13, end_line: 8, end_column: 20 } },
-        /* terrane-site-row: site 229: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:9:17-9:24) */
-        { Site { function: 46, file: 35, line: 9, column: 17, end_line: 9, end_column: 24 } },
-        /* terrane-site-row: site 230: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:4:9-4:21) */
-        { Site { function: 47, file: 36, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 231: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:5:9-5:16) */
-        { Site { function: 47, file: 36, line: 5, column: 9, end_line: 5, end_column: 16 } },
-        /* terrane-site-row: site 232: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:7:17-7:29) */
-        { Site { function: 47, file: 36, line: 7, column: 17, end_line: 7, end_column: 29 } },
-        /* terrane-site-row: site 233: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:8:13-8:20) */
-        { Site { function: 47, file: 36, line: 8, column: 13, end_line: 8, end_column: 20 } },
-        /* terrane-site-row: site 234: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:10:13-10:20) */
+        /* terrane-site-row: site 206: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:13:13-13:20) */
+        { Site { function: 37, file: 31, line: 13, column: 13, end_line: 13, end_column: 20 } },
+        /* terrane-site-row: site 207: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:14:5-14:12) */
+        { Site { function: 37, file: 31, line: 14, column: 5, end_line: 14, end_column: 12 } },
+        /* terrane-site-row: site 208: /native-loan-whole-mutate-last-use::test-scenario (tests/integration/native-loan-whole-mutate-last-use/case.trn:15:13-15:25) */
+        { Site { function: 37, file: 31, line: 15, column: 13, end_line: 15, end_column: 25 } },
+        /* terrane-site-row: site 209: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:11:9-11:21) */
+        { Site { function: 38, file: 32, line: 11, column: 9, end_line: 11, end_column: 21 } },
+        /* terrane-site-row: site 210: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:12:9-12:16) */
+        { Site { function: 38, file: 32, line: 12, column: 9, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 211: /native-loop-consuming-condition-break::test-scenario (tests/integration/native-loop-consuming-condition-break/case.trn:13:12-13:24) */
+        { Site { function: 38, file: 32, line: 13, column: 12, end_line: 13, end_column: 24 } },
+        /* terrane-site-row: site 212: /native-noncopy-view-loop-append::test-scenario (tests/integration/native-noncopy-view-loop-append/case.trn:6:14-6:26) */
+        { Site { function: 39, file: 33, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 213: /native-noncopy-view-loop-append::test-scenario (tests/integration/native-noncopy-view-loop-append/case.trn:7:12-7:24) */
+        { Site { function: 39, file: 33, line: 7, column: 12, end_line: 7, end_column: 24 } },
+        /* terrane-site-row: site 214: /native-noncopy-view-loop-append::test-scenario (tests/integration/native-noncopy-view-loop-append/case.trn:11:16-11:28) */
+        { Site { function: 39, file: 33, line: 11, column: 16, end_line: 11, end_column: 28 } },
+        /* terrane-site-row: site 215: /native-noncopy-view-loop-append::test-scenario (tests/integration/native-noncopy-view-loop-append/case.trn:14:17-14:28) */
+        { Site { function: 39, file: 33, line: 14, column: 17, end_line: 14, end_column: 28 } },
+        /* terrane-site-row: site 216: /native-ref-clone-repeat::twice (tests/integration/native-ref-clone-repeat/case.trn:4:13-4:24) */
+        { Site { function: 40, file: 34, line: 4, column: 13, end_line: 4, end_column: 24 } },
+        /* terrane-site-row: site 217: /native-ref-clone-repeat::twice (tests/integration/native-ref-clone-repeat/case.trn:5:14-5:25) */
+        { Site { function: 40, file: 34, line: 5, column: 14, end_line: 5, end_column: 25 } },
+        /* terrane-site-row: site 218: /native-ref-clone-repeat::twice (tests/integration/native-ref-clone-repeat/case.trn:6:12-6:26) */
+        { Site { function: 40, file: 34, line: 6, column: 12, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 219: /native-ref-clone-repeat::copied (tests/integration/native-ref-clone-repeat/case.trn:8:13-8:25) */
+        { Site { function: 41, file: 34, line: 8, column: 13, end_line: 8, end_column: 25 } },
+        /* terrane-site-row: site 220: /native-ref-clone-repeat::copied (tests/integration/native-ref-clone-repeat/case.trn:9:21-9:33) */
+        { Site { function: 41, file: 34, line: 9, column: 21, end_line: 9, end_column: 33 } },
+        /* terrane-site-row: site 221: /native-ref-clone-repeat::copied (tests/integration/native-ref-clone-repeat/case.trn:9:12-9:34) */
+        { Site { function: 41, file: 34, line: 9, column: 12, end_line: 9, end_column: 34 } },
+        /* terrane-site-row: site 222: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:11:13-11:26) */
+        { Site { function: 42, file: 34, line: 11, column: 13, end_line: 11, end_column: 26 } },
+        /* terrane-site-row: site 223: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:12:13-12:25) */
+        { Site { function: 42, file: 34, line: 12, column: 13, end_line: 12, end_column: 25 } },
+        /* terrane-site-row: site 224: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:13:13-13:24) */
+        { Site { function: 42, file: 34, line: 13, column: 13, end_line: 13, end_column: 24 } },
+        /* terrane-site-row: site 225: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:14:13-14:24) */
+        { Site { function: 42, file: 34, line: 14, column: 13, end_line: 14, end_column: 24 } },
+        /* terrane-site-row: site 226: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:15:13-15:26) */
+        { Site { function: 42, file: 34, line: 15, column: 13, end_line: 15, end_column: 26 } },
+        /* terrane-site-row: site 227: /native-ref-clone-repeat::test-scenario (tests/integration/native-ref-clone-repeat/case.trn:16:13-16:25) */
+        { Site { function: 42, file: 34, line: 16, column: 13, end_line: 16, end_column: 25 } },
+        /* terrane-site-row: site 228: /native-required-enum-field::construct (tests/integration/native-required-enum-field/case.trn:7:22-7:28) */
+        { Site { function: 43, file: 35, line: 7, column: 22, end_line: 7, end_column: 28 } },
+        /* terrane-site-row: site 229: /native-required-enum-field::finish (tests/integration/native-required-enum-field/case.trn:9:16-9:32) */
+        { Site { function: 44, file: 35, line: 9, column: 16, end_line: 9, end_column: 32 } },
+        /* terrane-site-row: site 230: /native-required-enum-field::test-scenario (tests/integration/native-required-enum-field/case.trn:16:13-16:30) */
+        { Site { function: 45, file: 35, line: 16, column: 13, end_line: 16, end_column: 30 } },
+        /* terrane-site-row: site 231: /native-required-enum-field::test-scenario (tests/integration/native-required-enum-field/case.trn:19:13-19:36) */
+        { Site { function: 45, file: 35, line: 19, column: 13, end_line: 19, end_column: 36 } },
+        /* terrane-site-row: site 232: /native-required-enum-field::test-scenario (tests/integration/native-required-enum-field/case.trn:22:13-22:26) */
+        { Site { function: 45, file: 35, line: 22, column: 13, end_line: 22, end_column: 26 } },
+        /* terrane-site-row: site 233: /native-return-parameter-single::f (tests/integration/native-return-parameter-single/case.trn:5:12-5:24) */
+        { Site { function: 46, file: 36, line: 5, column: 12, end_line: 5, end_column: 24 } },
+        /* terrane-site-row: site 234: /native-return-parameter-single::test-scenario (tests/integration/native-return-parameter-single/case.trn:8:9-8:21) */
+        { Site { function: 47, file: 36, line: 8, column: 9, end_line: 8, end_column: 21 } },
+        /* terrane-site-row: site 235: /native-return-parameter-single::test-scenario (tests/integration/native-return-parameter-single/case.trn:10:13-10:20) */
         { Site { function: 47, file: 36, line: 10, column: 13, end_line: 10, end_column: 20 } },
-        /* terrane-site-row: site 235: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:11:17-11:24) */
-        { Site { function: 47, file: 36, line: 11, column: 17, end_line: 11, end_column: 24 } },
-        /* terrane-site-row: site 236: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:4:9-4:21) */
+        /* terrane-site-row: site 236: /native-return-parameter-single::test-scenario (tests/integration/native-return-parameter-single/case.trn:11:5-11:12) */
+        { Site { function: 47, file: 36, line: 11, column: 5, end_line: 11, end_column: 12 } },
+        /* terrane-site-row: site 237: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:4:9-4:21) */
         { Site { function: 48, file: 37, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 237: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:5:9-5:21) */
-        { Site { function: 48, file: 37, line: 5, column: 9, end_line: 5, end_column: 21 } },
-        /* terrane-site-row: site 238: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:6:9-6:21) */
-        { Site { function: 48, file: 37, line: 6, column: 9, end_line: 6, end_column: 21 } },
-        /* terrane-site-row: site 239: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:8:17-8:24) */
-        { Site { function: 48, file: 37, line: 8, column: 17, end_line: 8, end_column: 24 } },
-        /* terrane-site-row: site 240: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:9:13-9:25) */
-        { Site { function: 48, file: 37, line: 9, column: 13, end_line: 9, end_column: 25 } },
-        /* terrane-site-row: site 241: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:11:17-11:24) */
-        { Site { function: 48, file: 37, line: 11, column: 17, end_line: 11, end_column: 24 } },
-        /* terrane-site-row: site 242: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:12:13-12:20) */
-        { Site { function: 48, file: 37, line: 12, column: 13, end_line: 12, end_column: 20 } },
-        /* terrane-site-row: site 243: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:4:9-4:21) */
+        /* terrane-site-row: site 238: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:5:9-5:16) */
+        { Site { function: 48, file: 37, line: 5, column: 9, end_line: 5, end_column: 16 } },
+        /* terrane-site-row: site 239: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:7:17-7:29) */
+        { Site { function: 48, file: 37, line: 7, column: 17, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 240: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:8:13-8:20) */
+        { Site { function: 48, file: 37, line: 8, column: 13, end_line: 8, end_column: 20 } },
+        /* terrane-site-row: site 241: /native-try-body-rewrite-control::test-scenario (tests/integration/native-try-body-rewrite-control/case.trn:9:17-9:24) */
+        { Site { function: 48, file: 37, line: 9, column: 17, end_line: 9, end_column: 24 } },
+        /* terrane-site-row: site 242: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:4:9-4:21) */
         { Site { function: 49, file: 38, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 244: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:5:9-5:16) */
+        /* terrane-site-row: site 243: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:5:9-5:16) */
         { Site { function: 49, file: 38, line: 5, column: 9, end_line: 5, end_column: 16 } },
-        /* terrane-site-row: site 245: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:7:17-7:29) */
+        /* terrane-site-row: site 244: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:7:17-7:29) */
         { Site { function: 49, file: 38, line: 7, column: 17, end_line: 7, end_column: 29 } },
-        /* terrane-site-row: site 246: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:8:13-8:20) */
+        /* terrane-site-row: site 245: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:8:13-8:20) */
         { Site { function: 49, file: 38, line: 8, column: 13, end_line: 8, end_column: 20 } },
-        /* terrane-site-row: site 247: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:10:13-10:20) */
+        /* terrane-site-row: site 246: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:10:13-10:20) */
         { Site { function: 49, file: 38, line: 10, column: 13, end_line: 10, end_column: 20 } },
-        /* terrane-site-row: site 248: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:11:17-11:24) */
+        /* terrane-site-row: site 247: /native-try-catch-dominating-rewrite::test-scenario (tests/integration/native-try-catch-dominating-rewrite/case.trn:11:17-11:24) */
         { Site { function: 49, file: 38, line: 11, column: 17, end_line: 11, end_column: 24 } },
-        /* terrane-site-row: site 249: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:4:9-4:21) */
+        /* terrane-site-row: site 248: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:4:9-4:21) */
         { Site { function: 50, file: 39, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 250: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:5:9-5:16) */
-        { Site { function: 50, file: 39, line: 5, column: 9, end_line: 5, end_column: 16 } },
-        /* terrane-site-row: site 251: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:9:17-9:29) */
-        { Site { function: 50, file: 39, line: 9, column: 17, end_line: 9, end_column: 29 } },
-        /* terrane-site-row: site 252: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:10:13-10:20) */
-        { Site { function: 50, file: 39, line: 10, column: 13, end_line: 10, end_column: 20 } },
-        /* terrane-site-row: site 253: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:11:17-11:24) */
+        /* terrane-site-row: site 249: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:5:9-5:21) */
+        { Site { function: 50, file: 39, line: 5, column: 9, end_line: 5, end_column: 21 } },
+        /* terrane-site-row: site 250: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:6:9-6:21) */
+        { Site { function: 50, file: 39, line: 6, column: 9, end_line: 6, end_column: 21 } },
+        /* terrane-site-row: site 251: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:8:17-8:24) */
+        { Site { function: 50, file: 39, line: 8, column: 17, end_line: 8, end_column: 24 } },
+        /* terrane-site-row: site 252: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:9:13-9:25) */
+        { Site { function: 50, file: 39, line: 9, column: 13, end_line: 9, end_column: 25 } },
+        /* terrane-site-row: site 253: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:11:17-11:24) */
         { Site { function: 50, file: 39, line: 11, column: 17, end_line: 11, end_column: 24 } },
-        /* terrane-site-row: site 254: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:4:9-4:21) */
+        /* terrane-site-row: site 254: /native-try-copy-finally-control::test-scenario (tests/integration/native-try-copy-finally-control/case.trn:12:13-12:20) */
+        { Site { function: 50, file: 39, line: 12, column: 13, end_line: 12, end_column: 20 } },
+        /* terrane-site-row: site 255: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:4:9-4:21) */
         { Site { function: 51, file: 40, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 255: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:6:13-6:20) */
-        { Site { function: 51, file: 40, line: 6, column: 13, end_line: 6, end_column: 20 } },
-        /* terrane-site-row: site 256: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:7:17-7:29) */
+        /* terrane-site-row: site 256: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:5:9-5:16) */
+        { Site { function: 51, file: 40, line: 5, column: 9, end_line: 5, end_column: 16 } },
+        /* terrane-site-row: site 257: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:7:17-7:29) */
         { Site { function: 51, file: 40, line: 7, column: 17, end_line: 7, end_column: 29 } },
-        /* terrane-site-row: site 257: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:13:20-13:27) */
-        { Site { function: 51, file: 40, line: 13, column: 20, end_line: 13, end_column: 27 } },
-        /* terrane-site-row: site 258: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:14:21-14:36) */
-        { Site { function: 51, file: 40, line: 14, column: 21, end_line: 14, end_column: 36 } },
-        /* terrane-site-row: site 259: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:4:9-4:21) */
+        /* terrane-site-row: site 258: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:8:13-8:20) */
+        { Site { function: 51, file: 40, line: 8, column: 13, end_line: 8, end_column: 20 } },
+        /* terrane-site-row: site 259: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:10:13-10:20) */
+        { Site { function: 51, file: 40, line: 10, column: 13, end_line: 10, end_column: 20 } },
+        /* terrane-site-row: site 260: /native-try-finally-dominating-rewrite::test-scenario (tests/integration/native-try-finally-dominating-rewrite/case.trn:11:17-11:24) */
+        { Site { function: 51, file: 40, line: 11, column: 17, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 261: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:4:9-4:21) */
         { Site { function: 52, file: 41, line: 4, column: 9, end_line: 4, end_column: 21 } },
-        /* terrane-site-row: site 260: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:5:9-5:21) */
-        { Site { function: 52, file: 41, line: 5, column: 9, end_line: 5, end_column: 21 } },
-        /* terrane-site-row: site 261: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:6:9-6:16) */
-        { Site { function: 52, file: 41, line: 6, column: 9, end_line: 6, end_column: 16 } },
-        /* terrane-site-row: site 262: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:8:17-8:29) */
-        { Site { function: 52, file: 41, line: 8, column: 17, end_line: 8, end_column: 29 } },
-        /* terrane-site-row: site 263: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:9:13-9:20) */
-        { Site { function: 52, file: 41, line: 9, column: 13, end_line: 9, end_column: 20 } },
-        /* terrane-site-row: site 264: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:12:9-12:16) */
-        { Site { function: 52, file: 41, line: 12, column: 9, end_line: 12, end_column: 16 } },
-        /* terrane-site-row: site 265: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:13:13-13:20) */
-        { Site { function: 52, file: 41, line: 13, column: 13, end_line: 13, end_column: 20 } },
-        /* terrane-site-row: site 266: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:12:9-12:21) */
-        { Site { function: 53, file: 42, line: 12, column: 9, end_line: 12, end_column: 21 } },
-        /* terrane-site-row: site 267: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:13:9-13:16) */
-        { Site { function: 53, file: 42, line: 13, column: 9, end_line: 13, end_column: 16 } },
-        /* terrane-site-row: site 268: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:14:21-14:28) */
-        { Site { function: 53, file: 42, line: 14, column: 21, end_line: 14, end_column: 28 } },
-        /* terrane-site-row: site 269: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:16:9-16:16) */
-        { Site { function: 53, file: 42, line: 16, column: 9, end_line: 16, end_column: 16 } },
-        /* terrane-site-row: site 270: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:17:13-17:20) */
-        { Site { function: 53, file: 42, line: 17, column: 13, end_line: 17, end_column: 20 } },
-        /* terrane-site-row: site 271: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:19:22-19:34) */
-        { Site { function: 53, file: 42, line: 19, column: 22, end_line: 19, end_column: 34 } },
-        /* terrane-site-row: site 272: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:20:15-20:35) */
-        { Site { function: 53, file: 42, line: 20, column: 15, end_line: 20, end_column: 35 } },
-        /* terrane-site-row: site 273: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:21:27-21:47) */
-        { Site { function: 53, file: 42, line: 21, column: 27, end_line: 21, end_column: 47 } },
-        /* terrane-site-row: site 274: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:23:15-23:35) */
-        { Site { function: 53, file: 42, line: 23, column: 15, end_line: 23, end_column: 35 } },
-        /* terrane-site-row: site 275: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:24:9-24:21) */
-        { Site { function: 53, file: 42, line: 24, column: 9, end_line: 24, end_column: 21 } },
-        /* terrane-site-row: site 276: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:25:11-25:18) */
-        { Site { function: 53, file: 42, line: 25, column: 11, end_line: 25, end_column: 18 } },
-        /* terrane-site-row: site 277: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:26:27-26:34) */
-        { Site { function: 53, file: 42, line: 26, column: 27, end_line: 26, end_column: 34 } },
-        /* terrane-site-row: site 278: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:28:13-28:25) */
-        { Site { function: 53, file: 42, line: 28, column: 13, end_line: 28, end_column: 25 } },
-        /* terrane-site-row: site 279: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:29:11-29:22) */
-        { Site { function: 53, file: 42, line: 29, column: 11, end_line: 29, end_column: 22 } },
-        /* terrane-site-row: site 280: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:31:13-31:20) */
-        { Site { function: 53, file: 42, line: 31, column: 13, end_line: 31, end_column: 20 } },
-        /* terrane-site-row: site 281: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:33:13-33:20) */
-        { Site { function: 53, file: 42, line: 33, column: 13, end_line: 33, end_column: 20 } },
-        /* terrane-site-row: site 282: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:35:19-35:26) */
-        { Site { function: 53, file: 42, line: 35, column: 19, end_line: 35, end_column: 26 } },
-        /* terrane-site-row: site 283: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:37:19-37:30) */
-        { Site { function: 53, file: 42, line: 37, column: 19, end_line: 37, end_column: 30 } },
-        /* terrane-site-row: site 284: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:39:20-39:32) */
-        { Site { function: 53, file: 42, line: 39, column: 20, end_line: 39, end_column: 32 } },
-        /* terrane-site-row: site 285: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:40:20-40:32) */
-        { Site { function: 53, file: 42, line: 40, column: 20, end_line: 40, end_column: 32 } },
-        /* terrane-site-row: site 286: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:41:17-41:29) */
-        { Site { function: 53, file: 42, line: 41, column: 17, end_line: 41, end_column: 29 } },
-        /* terrane-site-row: site 287: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:42:18-42:41) */
-        { Site { function: 53, file: 42, line: 42, column: 18, end_line: 42, end_column: 41 } },
-        /* terrane-site-row: site 288: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:43:19-43:42) */
-        { Site { function: 53, file: 42, line: 43, column: 19, end_line: 43, end_column: 42 } },
-        /* terrane-site-row: site 289: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:45:22-45:45) */
-        { Site { function: 53, file: 42, line: 45, column: 22, end_line: 45, end_column: 45 } },
-        /* terrane-site-row: site 290: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:46:9-46:28) */
-        { Site { function: 53, file: 42, line: 46, column: 9, end_line: 46, end_column: 28 } },
-        /* terrane-site-row: site 291: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:49:5-49:20) */
-        { Site { function: 53, file: 42, line: 49, column: 5, end_line: 49, end_column: 20 } },
-        /* terrane-site-row: site 292: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:50:13-50:30) */
-        { Site { function: 53, file: 42, line: 50, column: 13, end_line: 50, end_column: 30 } },
-        /* terrane-site-row: site 293: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:51:19-51:31) */
-        { Site { function: 53, file: 42, line: 51, column: 19, end_line: 51, end_column: 31 } },
-        /* terrane-site-row: site 294: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:52:14-52:26) */
-        { Site { function: 53, file: 42, line: 52, column: 14, end_line: 52, end_column: 26 } },
-        /* terrane-site-row: site 295: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:53:18-53:30) */
-        { Site { function: 53, file: 42, line: 53, column: 18, end_line: 53, end_column: 30 } },
-        /* terrane-site-row: site 296: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:54:17-54:39) */
-        { Site { function: 53, file: 42, line: 54, column: 17, end_line: 54, end_column: 39 } },
-        /* terrane-site-row: site 297: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:55:18-55:40) */
-        { Site { function: 53, file: 42, line: 55, column: 18, end_line: 55, end_column: 40 } },
-        /* terrane-site-row: site 298: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:57:21-57:38) */
-        { Site { function: 53, file: 42, line: 57, column: 21, end_line: 57, end_column: 38 } },
-        /* terrane-site-row: site 299: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:60:5-60:21) */
-        { Site { function: 53, file: 42, line: 60, column: 5, end_line: 60, end_column: 21 } },
-        /* terrane-site-row: site 300: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:61:13-61:29) */
-        { Site { function: 53, file: 42, line: 61, column: 13, end_line: 61, end_column: 29 } },
-        /* terrane-site-row: site 301: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:6:14-6:26) */
-        { Site { function: 54, file: 43, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 302: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:7:21-7:38) */
-        { Site { function: 54, file: 43, line: 7, column: 21, end_line: 7, end_column: 38 } },
-        /* terrane-site-row: site 303: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:9:17-9:28) */
-        { Site { function: 54, file: 43, line: 9, column: 17, end_line: 9, end_column: 28 } },
-        /* terrane-site-row: site 304: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:11:17-11:28) */
-        { Site { function: 54, file: 43, line: 11, column: 17, end_line: 11, end_column: 28 } },
-        /* terrane-site-row: site 305: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:13:17-13:28) */
-        { Site { function: 54, file: 43, line: 13, column: 17, end_line: 13, end_column: 28 } },
-        /* terrane-site-row: site 306: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:15:17-15:28) */
-        { Site { function: 54, file: 43, line: 15, column: 17, end_line: 15, end_column: 28 } },
-        /* terrane-site-row: site 307: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:18:21-18:32) */
-        { Site { function: 54, file: 43, line: 18, column: 21, end_line: 18, end_column: 32 } },
-        /* terrane-site-row: site 308: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:19:17-19:28) */
-        { Site { function: 54, file: 43, line: 19, column: 17, end_line: 19, end_column: 28 } },
-        /* terrane-site-row: site 309: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:6:14-6:26) */
+        /* terrane-site-row: site 262: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:5:9-5:16) */
+        { Site { function: 52, file: 41, line: 5, column: 9, end_line: 5, end_column: 16 } },
+        /* terrane-site-row: site 263: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:9:17-9:29) */
+        { Site { function: 52, file: 41, line: 9, column: 17, end_line: 9, end_column: 29 } },
+        /* terrane-site-row: site 264: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:10:13-10:20) */
+        { Site { function: 52, file: 41, line: 10, column: 13, end_line: 10, end_column: 20 } },
+        /* terrane-site-row: site 265: /native-try-finally-rewrite-control::test-scenario (tests/integration/native-try-finally-rewrite-control/case.trn:11:17-11:24) */
+        { Site { function: 52, file: 41, line: 11, column: 17, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 266: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:4:9-4:21) */
+        { Site { function: 53, file: 42, line: 4, column: 9, end_line: 4, end_column: 21 } },
+        /* terrane-site-row: site 267: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:6:13-6:20) */
+        { Site { function: 53, file: 42, line: 6, column: 13, end_line: 6, end_column: 20 } },
+        /* terrane-site-row: site 268: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:7:17-7:29) */
+        { Site { function: 53, file: 42, line: 7, column: 17, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 269: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:13:20-13:27) */
+        { Site { function: 53, file: 42, line: 13, column: 20, end_line: 13, end_column: 27 } },
+        /* terrane-site-row: site 270: /native-try-local-consume::test-scenario (tests/integration/native-try-local-consume/case.trn:14:21-14:36) */
+        { Site { function: 53, file: 42, line: 14, column: 21, end_line: 14, end_column: 36 } },
+        /* terrane-site-row: site 271: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:4:9-4:21) */
+        { Site { function: 54, file: 43, line: 4, column: 9, end_line: 4, end_column: 21 } },
+        /* terrane-site-row: site 272: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:5:9-5:21) */
+        { Site { function: 54, file: 43, line: 5, column: 9, end_line: 5, end_column: 21 } },
+        /* terrane-site-row: site 273: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:6:9-6:16) */
+        { Site { function: 54, file: 43, line: 6, column: 9, end_line: 6, end_column: 16 } },
+        /* terrane-site-row: site 274: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:8:17-8:29) */
+        { Site { function: 54, file: 43, line: 8, column: 17, end_line: 8, end_column: 29 } },
+        /* terrane-site-row: site 275: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:9:13-9:20) */
+        { Site { function: 54, file: 43, line: 9, column: 13, end_line: 9, end_column: 20 } },
+        /* terrane-site-row: site 276: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:12:9-12:16) */
+        { Site { function: 54, file: 43, line: 12, column: 9, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 277: /native-try-unconditional-rewrite-control::test-scenario (tests/integration/native-try-unconditional-rewrite-control/case.trn:13:13-13:20) */
+        { Site { function: 54, file: 43, line: 13, column: 13, end_line: 13, end_column: 20 } },
+        /* terrane-site-row: site 278: /native-unordered-map-dead-lender-control::test-scenario (tests/integration/native-unordered-map-dead-lender-control/case.trn:6:14-6:26) */
         { Site { function: 55, file: 44, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 310: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:8:30-8:47) */
-        { Site { function: 55, file: 44, line: 8, column: 30, end_line: 8, end_column: 47 } },
-        /* terrane-site-row: site 311: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:10:17-10:28) */
-        { Site { function: 55, file: 44, line: 10, column: 17, end_line: 10, end_column: 28 } },
-        /* terrane-site-row: site 312: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:13:34-13:51) */
-        { Site { function: 55, file: 44, line: 13, column: 34, end_line: 13, end_column: 51 } },
-        /* terrane-site-row: site 313: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:15:17-15:28) */
-        { Site { function: 55, file: 44, line: 15, column: 17, end_line: 15, end_column: 28 } },
-        /* terrane-site-row: site 314: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:18:35-18:52) */
-        { Site { function: 55, file: 44, line: 18, column: 35, end_line: 18, end_column: 52 } },
-        /* terrane-site-row: site 315: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:23:21-23:32) */
-        { Site { function: 55, file: 44, line: 23, column: 21, end_line: 23, end_column: 32 } },
-        /* terrane-site-row: site 316: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:26:37-26:54) */
-        { Site { function: 55, file: 44, line: 26, column: 37, end_line: 26, end_column: 54 } },
-        /* terrane-site-row: site 317: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:31:21-31:32) */
-        { Site { function: 55, file: 44, line: 31, column: 21, end_line: 31, end_column: 32 } },
-        /* terrane-site-row: site 318: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:34:17-34:28) */
-        { Site { function: 55, file: 44, line: 34, column: 17, end_line: 34, end_column: 28 } },
-        /* terrane-site-row: site 319: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:35:32-35:49) */
-        { Site { function: 55, file: 44, line: 35, column: 32, end_line: 35, end_column: 49 } },
-        /* terrane-site-row: site 320: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:6:14-6:26) */
-        { Site { function: 56, file: 45, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 321: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:7:40-7:57) */
-        { Site { function: 56, file: 45, line: 7, column: 40, end_line: 7, end_column: 57 } },
-        /* terrane-site-row: site 322: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:9:17-9:28) */
-        { Site { function: 56, file: 45, line: 9, column: 17, end_line: 9, end_column: 28 } },
-        /* terrane-site-row: site 323: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:12:17-12:28) */
-        { Site { function: 56, file: 45, line: 12, column: 17, end_line: 12, end_column: 28 } },
-        /* terrane-site-row: site 324: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:13:24-13:41) */
-        { Site { function: 56, file: 45, line: 13, column: 24, end_line: 13, end_column: 41 } },
-        /* terrane-site-row: site 325: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:15:17-15:28) */
-        { Site { function: 56, file: 45, line: 15, column: 17, end_line: 15, end_column: 28 } },
-        /* terrane-site-row: site 326: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:17:17-17:28) */
-        { Site { function: 56, file: 45, line: 17, column: 17, end_line: 17, end_column: 28 } },
-        /* terrane-site-row: site 327: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:18:27-18:44) */
-        { Site { function: 56, file: 45, line: 18, column: 27, end_line: 18, end_column: 44 } },
-        /* terrane-site-row: site 328: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:19:17-19:28) */
-        { Site { function: 56, file: 45, line: 19, column: 17, end_line: 19, end_column: 28 } },
-        /* terrane-site-row: site 329: /native-view-value-iteration::observe (tests/integration/native-view-value-iteration/case.trn:7:17-7:28) */
-        { Site { function: 57, file: 46, line: 7, column: 17, end_line: 7, end_column: 28 } },
-        /* terrane-site-row: site 330: /native-view-value-iteration::observe-ref (tests/integration/native-view-value-iteration/case.trn:12:17-12:28) */
-        { Site { function: 58, file: 46, line: 12, column: 17, end_line: 12, end_column: 28 } },
-        /* terrane-site-row: site 331: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:16:14-16:26) */
-        { Site { function: 59, file: 46, line: 16, column: 14, end_line: 16, end_column: 26 } },
-        /* terrane-site-row: site 332: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:17:37-17:54) */
-        { Site { function: 59, file: 46, line: 17, column: 37, end_line: 17, end_column: 54 } },
-        /* terrane-site-row: site 333: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:19:17-19:28) */
-        { Site { function: 59, file: 46, line: 19, column: 17, end_line: 19, end_column: 28 } },
-        /* terrane-site-row: site 334: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:23:17-23:28) */
-        { Site { function: 59, file: 46, line: 23, column: 17, end_line: 23, end_column: 28 } },
-        /* terrane-site-row: site 335: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:24:23-24:40) */
-        { Site { function: 59, file: 46, line: 24, column: 23, end_line: 24, end_column: 40 } },
-        /* terrane-site-row: site 336: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:26:17-26:28) */
-        { Site { function: 59, file: 46, line: 26, column: 17, end_line: 26, end_column: 28 } },
-        /* terrane-site-row: site 337: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:30:27-30:44) */
-        { Site { function: 59, file: 46, line: 30, column: 27, end_line: 30, end_column: 44 } },
-        /* terrane-site-row: site 338: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:31:17-31:28) */
-        { Site { function: 59, file: 46, line: 31, column: 17, end_line: 31, end_column: 28 } },
-        /* terrane-site-row: site 339: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:36:24-36:41) */
-        { Site { function: 59, file: 46, line: 36, column: 24, end_line: 36, end_column: 41 } },
-        /* terrane-site-row: site 340: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:37:17-37:28) */
-        { Site { function: 59, file: 46, line: 37, column: 17, end_line: 37, end_column: 28 } },
-        /* terrane-site-row: site 341: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:6:14-6:26) */
-        { Site { function: 60, file: 47, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 342: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:7:28-7:40) */
-        { Site { function: 60, file: 47, line: 7, column: 28, end_line: 7, end_column: 40 } },
-        /* terrane-site-row: site 343: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:10:21-10:32) */
-        { Site { function: 60, file: 47, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 344: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:6:14-6:26) */
-        { Site { function: 61, file: 48, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 345: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:7:28-7:45) */
-        { Site { function: 61, file: 48, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 346: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:10:21-10:32) */
-        { Site { function: 61, file: 48, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 347: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:6:14-6:26) */
-        { Site { function: 62, file: 49, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 348: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:7:28-7:45) */
-        { Site { function: 62, file: 49, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 349: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:10:21-10:32) */
-        { Site { function: 62, file: 49, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 350: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:6:14-6:26) */
+        /* terrane-site-row: site 279: /native-unordered-map-dead-lender-control::test-scenario (tests/integration/native-unordered-map-dead-lender-control/case.trn:7:17-7:29) */
+        { Site { function: 55, file: 44, line: 7, column: 17, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 280: /native-unordered-map-dead-lender-control::test-scenario (tests/integration/native-unordered-map-dead-lender-control/case.trn:9:26-9:43) */
+        { Site { function: 55, file: 44, line: 9, column: 26, end_line: 9, end_column: 43 } },
+        /* terrane-site-row: site 281: /native-unordered-map-dead-lender-control::test-scenario (tests/integration/native-unordered-map-dead-lender-control/case.trn:11:17-11:28) */
+        { Site { function: 55, file: 44, line: 11, column: 17, end_line: 11, end_column: 28 } },
+        /* terrane-site-row: site 282: /native-unordered-map-dead-lender-control::test-scenario (tests/integration/native-unordered-map-dead-lender-control/case.trn:12:9-12:24) */
+        { Site { function: 55, file: 44, line: 12, column: 9, end_line: 12, end_column: 24 } },
+        /* terrane-site-row: site 283: /native-unordered-map-dead-lender-control::test-scenario (tests/integration/native-unordered-map-dead-lender-control/case.trn:13:5-13:17) */
+        { Site { function: 55, file: 44, line: 13, column: 5, end_line: 13, end_column: 17 } },
+        /* terrane-site-row: site 284: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:12:9-12:21) */
+        { Site { function: 56, file: 45, line: 12, column: 9, end_line: 12, end_column: 21 } },
+        /* terrane-site-row: site 285: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:13:9-13:16) */
+        { Site { function: 56, file: 45, line: 13, column: 9, end_line: 13, end_column: 16 } },
+        /* terrane-site-row: site 286: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:14:21-14:28) */
+        { Site { function: 56, file: 45, line: 14, column: 21, end_line: 14, end_column: 28 } },
+        /* terrane-site-row: site 287: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:16:9-16:16) */
+        { Site { function: 56, file: 45, line: 16, column: 9, end_line: 16, end_column: 16 } },
+        /* terrane-site-row: site 288: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:17:13-17:20) */
+        { Site { function: 56, file: 45, line: 17, column: 13, end_line: 17, end_column: 20 } },
+        /* terrane-site-row: site 289: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:19:22-19:34) */
+        { Site { function: 56, file: 45, line: 19, column: 22, end_line: 19, end_column: 34 } },
+        /* terrane-site-row: site 290: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:20:15-20:35) */
+        { Site { function: 56, file: 45, line: 20, column: 15, end_line: 20, end_column: 35 } },
+        /* terrane-site-row: site 291: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:21:27-21:47) */
+        { Site { function: 56, file: 45, line: 21, column: 27, end_line: 21, end_column: 47 } },
+        /* terrane-site-row: site 292: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:23:15-23:35) */
+        { Site { function: 56, file: 45, line: 23, column: 15, end_line: 23, end_column: 35 } },
+        /* terrane-site-row: site 293: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:24:9-24:21) */
+        { Site { function: 56, file: 45, line: 24, column: 9, end_line: 24, end_column: 21 } },
+        /* terrane-site-row: site 294: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:25:11-25:18) */
+        { Site { function: 56, file: 45, line: 25, column: 11, end_line: 25, end_column: 18 } },
+        /* terrane-site-row: site 295: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:26:27-26:34) */
+        { Site { function: 56, file: 45, line: 26, column: 27, end_line: 26, end_column: 34 } },
+        /* terrane-site-row: site 296: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:28:13-28:25) */
+        { Site { function: 56, file: 45, line: 28, column: 13, end_line: 28, end_column: 25 } },
+        /* terrane-site-row: site 297: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:29:11-29:22) */
+        { Site { function: 56, file: 45, line: 29, column: 11, end_line: 29, end_column: 22 } },
+        /* terrane-site-row: site 298: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:31:13-31:20) */
+        { Site { function: 56, file: 45, line: 31, column: 13, end_line: 31, end_column: 20 } },
+        /* terrane-site-row: site 299: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:33:13-33:20) */
+        { Site { function: 56, file: 45, line: 33, column: 13, end_line: 33, end_column: 20 } },
+        /* terrane-site-row: site 300: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:35:19-35:26) */
+        { Site { function: 56, file: 45, line: 35, column: 19, end_line: 35, end_column: 26 } },
+        /* terrane-site-row: site 301: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:37:19-37:30) */
+        { Site { function: 56, file: 45, line: 37, column: 19, end_line: 37, end_column: 30 } },
+        /* terrane-site-row: site 302: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:39:20-39:32) */
+        { Site { function: 56, file: 45, line: 39, column: 20, end_line: 39, end_column: 32 } },
+        /* terrane-site-row: site 303: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:40:20-40:32) */
+        { Site { function: 56, file: 45, line: 40, column: 20, end_line: 40, end_column: 32 } },
+        /* terrane-site-row: site 304: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:41:17-41:29) */
+        { Site { function: 56, file: 45, line: 41, column: 17, end_line: 41, end_column: 29 } },
+        /* terrane-site-row: site 305: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:42:18-42:41) */
+        { Site { function: 56, file: 45, line: 42, column: 18, end_line: 42, end_column: 41 } },
+        /* terrane-site-row: site 306: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:43:19-43:42) */
+        { Site { function: 56, file: 45, line: 43, column: 19, end_line: 43, end_column: 42 } },
+        /* terrane-site-row: site 307: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:45:22-45:45) */
+        { Site { function: 56, file: 45, line: 45, column: 22, end_line: 45, end_column: 45 } },
+        /* terrane-site-row: site 308: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:46:9-46:28) */
+        { Site { function: 56, file: 45, line: 46, column: 9, end_line: 46, end_column: 28 } },
+        /* terrane-site-row: site 309: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:49:5-49:20) */
+        { Site { function: 56, file: 45, line: 49, column: 5, end_line: 49, end_column: 20 } },
+        /* terrane-site-row: site 310: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:50:13-50:30) */
+        { Site { function: 56, file: 45, line: 50, column: 13, end_line: 50, end_column: 30 } },
+        /* terrane-site-row: site 311: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:51:19-51:31) */
+        { Site { function: 56, file: 45, line: 51, column: 19, end_line: 51, end_column: 31 } },
+        /* terrane-site-row: site 312: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:52:14-52:26) */
+        { Site { function: 56, file: 45, line: 52, column: 14, end_line: 52, end_column: 26 } },
+        /* terrane-site-row: site 313: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:53:18-53:30) */
+        { Site { function: 56, file: 45, line: 53, column: 18, end_line: 53, end_column: 30 } },
+        /* terrane-site-row: site 314: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:54:17-54:39) */
+        { Site { function: 56, file: 45, line: 54, column: 17, end_line: 54, end_column: 39 } },
+        /* terrane-site-row: site 315: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:55:18-55:40) */
+        { Site { function: 56, file: 45, line: 55, column: 18, end_line: 55, end_column: 40 } },
+        /* terrane-site-row: site 316: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:57:21-57:38) */
+        { Site { function: 56, file: 45, line: 57, column: 21, end_line: 57, end_column: 38 } },
+        /* terrane-site-row: site 317: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:60:5-60:21) */
+        { Site { function: 56, file: 45, line: 60, column: 5, end_line: 60, end_column: 21 } },
+        /* terrane-site-row: site 318: /native-view-list-rebind::test-scenario (tests/integration/native-view-list-rebind/case.trn:61:13-61:29) */
+        { Site { function: 56, file: 45, line: 61, column: 13, end_line: 61, end_column: 29 } },
+        /* terrane-site-row: site 319: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:6:14-6:26) */
+        { Site { function: 57, file: 46, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 320: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:7:21-7:38) */
+        { Site { function: 57, file: 46, line: 7, column: 21, end_line: 7, end_column: 38 } },
+        /* terrane-site-row: site 321: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:9:17-9:28) */
+        { Site { function: 57, file: 46, line: 9, column: 17, end_line: 9, end_column: 28 } },
+        /* terrane-site-row: site 322: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:11:17-11:28) */
+        { Site { function: 57, file: 46, line: 11, column: 17, end_line: 11, end_column: 28 } },
+        /* terrane-site-row: site 323: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:13:17-13:28) */
+        { Site { function: 57, file: 46, line: 13, column: 17, end_line: 13, end_column: 28 } },
+        /* terrane-site-row: site 324: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:15:17-15:28) */
+        { Site { function: 57, file: 46, line: 15, column: 17, end_line: 15, end_column: 28 } },
+        /* terrane-site-row: site 325: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:18:21-18:32) */
+        { Site { function: 57, file: 46, line: 18, column: 21, end_line: 18, end_column: 32 } },
+        /* terrane-site-row: site 326: /native-view-loop-binders::test-scenario (tests/integration/native-view-loop-binders/case.trn:19:17-19:28) */
+        { Site { function: 57, file: 46, line: 19, column: 17, end_line: 19, end_column: 28 } },
+        /* terrane-site-row: site 327: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:6:14-6:26) */
+        { Site { function: 58, file: 47, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 328: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:8:30-8:47) */
+        { Site { function: 58, file: 47, line: 8, column: 30, end_line: 8, end_column: 47 } },
+        /* terrane-site-row: site 329: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:10:17-10:28) */
+        { Site { function: 58, file: 47, line: 10, column: 17, end_line: 10, end_column: 28 } },
+        /* terrane-site-row: site 330: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:13:34-13:51) */
+        { Site { function: 58, file: 47, line: 13, column: 34, end_line: 13, end_column: 51 } },
+        /* terrane-site-row: site 331: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:15:17-15:28) */
+        { Site { function: 58, file: 47, line: 15, column: 17, end_line: 15, end_column: 28 } },
+        /* terrane-site-row: site 332: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:18:35-18:52) */
+        { Site { function: 58, file: 47, line: 18, column: 35, end_line: 18, end_column: 52 } },
+        /* terrane-site-row: site 333: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:23:21-23:32) */
+        { Site { function: 58, file: 47, line: 23, column: 21, end_line: 23, end_column: 32 } },
+        /* terrane-site-row: site 334: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:26:37-26:54) */
+        { Site { function: 58, file: 47, line: 26, column: 37, end_line: 26, end_column: 54 } },
+        /* terrane-site-row: site 335: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:31:21-31:32) */
+        { Site { function: 58, file: 47, line: 31, column: 21, end_line: 31, end_column: 32 } },
+        /* terrane-site-row: site 336: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:34:17-34:28) */
+        { Site { function: 58, file: 47, line: 34, column: 17, end_line: 34, end_column: 28 } },
+        /* terrane-site-row: site 337: /native-view-map-entry-iteration::test-scenario (tests/integration/native-view-map-entry-iteration/case.trn:35:32-35:49) */
+        { Site { function: 58, file: 47, line: 35, column: 32, end_line: 35, end_column: 49 } },
+        /* terrane-site-row: site 338: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:6:14-6:26) */
+        { Site { function: 59, file: 48, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 339: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:7:40-7:57) */
+        { Site { function: 59, file: 48, line: 7, column: 40, end_line: 7, end_column: 57 } },
+        /* terrane-site-row: site 340: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:9:17-9:28) */
+        { Site { function: 59, file: 48, line: 9, column: 17, end_line: 9, end_column: 28 } },
+        /* terrane-site-row: site 341: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:12:17-12:28) */
+        { Site { function: 59, file: 48, line: 12, column: 17, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 342: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:13:24-13:41) */
+        { Site { function: 59, file: 48, line: 13, column: 24, end_line: 13, end_column: 41 } },
+        /* terrane-site-row: site 343: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:15:17-15:28) */
+        { Site { function: 59, file: 48, line: 15, column: 17, end_line: 15, end_column: 28 } },
+        /* terrane-site-row: site 344: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:17:17-17:28) */
+        { Site { function: 59, file: 48, line: 17, column: 17, end_line: 17, end_column: 28 } },
+        /* terrane-site-row: site 345: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:18:27-18:44) */
+        { Site { function: 59, file: 48, line: 18, column: 27, end_line: 18, end_column: 44 } },
+        /* terrane-site-row: site 346: /native-view-tuple-iteration::test-scenario (tests/integration/native-view-tuple-iteration/case.trn:19:17-19:28) */
+        { Site { function: 59, file: 48, line: 19, column: 17, end_line: 19, end_column: 28 } },
+        /* terrane-site-row: site 347: /native-view-value-iteration::observe (tests/integration/native-view-value-iteration/case.trn:7:17-7:28) */
+        { Site { function: 60, file: 49, line: 7, column: 17, end_line: 7, end_column: 28 } },
+        /* terrane-site-row: site 348: /native-view-value-iteration::observe-ref (tests/integration/native-view-value-iteration/case.trn:12:17-12:28) */
+        { Site { function: 61, file: 49, line: 12, column: 17, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 349: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:16:14-16:26) */
+        { Site { function: 62, file: 49, line: 16, column: 14, end_line: 16, end_column: 26 } },
+        /* terrane-site-row: site 350: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:17:37-17:54) */
+        { Site { function: 62, file: 49, line: 17, column: 37, end_line: 17, end_column: 54 } },
+        /* terrane-site-row: site 351: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:19:17-19:28) */
+        { Site { function: 62, file: 49, line: 19, column: 17, end_line: 19, end_column: 28 } },
+        /* terrane-site-row: site 352: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:23:17-23:28) */
+        { Site { function: 62, file: 49, line: 23, column: 17, end_line: 23, end_column: 28 } },
+        /* terrane-site-row: site 353: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:24:23-24:40) */
+        { Site { function: 62, file: 49, line: 24, column: 23, end_line: 24, end_column: 40 } },
+        /* terrane-site-row: site 354: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:26:17-26:28) */
+        { Site { function: 62, file: 49, line: 26, column: 17, end_line: 26, end_column: 28 } },
+        /* terrane-site-row: site 355: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:30:27-30:44) */
+        { Site { function: 62, file: 49, line: 30, column: 27, end_line: 30, end_column: 44 } },
+        /* terrane-site-row: site 356: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:31:17-31:28) */
+        { Site { function: 62, file: 49, line: 31, column: 17, end_line: 31, end_column: 28 } },
+        /* terrane-site-row: site 357: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:36:24-36:41) */
+        { Site { function: 62, file: 49, line: 36, column: 24, end_line: 36, end_column: 41 } },
+        /* terrane-site-row: site 358: /native-view-value-iteration::test-scenario (tests/integration/native-view-value-iteration/case.trn:37:17-37:28) */
+        { Site { function: 62, file: 49, line: 37, column: 17, end_line: 37, end_column: 28 } },
+        /* terrane-site-row: site 359: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:6:14-6:26) */
         { Site { function: 63, file: 50, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 351: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:7:28-7:45) */
-        { Site { function: 63, file: 50, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 352: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:10:21-10:32) */
+        /* terrane-site-row: site 360: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:7:28-7:40) */
+        { Site { function: 63, file: 50, line: 7, column: 28, end_line: 7, end_column: 40 } },
+        /* terrane-site-row: site 361: /nested-noncopy-view-loops::test-scenario (tests/integration/nested-noncopy-view-loops/case.trn:10:21-10:32) */
         { Site { function: 63, file: 50, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 353: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:6:14-6:26) */
+        /* terrane-site-row: site 362: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:6:14-6:26) */
         { Site { function: 64, file: 51, line: 6, column: 14, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 354: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:7:28-7:45) */
+        /* terrane-site-row: site 363: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:7:28-7:45) */
         { Site { function: 64, file: 51, line: 7, column: 28, end_line: 7, end_column: 45 } },
-        /* terrane-site-row: site 355: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:10:21-10:32) */
+        /* terrane-site-row: site 364: /nested-view-loops::test-scenario (tests/integration/nested-view-loops/case.trn:10:21-10:32) */
         { Site { function: 64, file: 51, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 356: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
-        { Site { function: 65, file: 52, line: 18, column: 14, end_line: 18, end_column: 26 } },
-        /* terrane-site-row: site 357: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
-        { Site { function: 65, file: 52, line: 19, column: 20, end_line: 19, end_column: 37 } },
-        /* terrane-site-row: site 358: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
-        { Site { function: 65, file: 52, line: 21, column: 17, end_line: 21, end_column: 27 } },
-        /* terrane-site-row: site 359: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
-        { Site { function: 65, file: 52, line: 24, column: 21, end_line: 24, end_column: 33 } },
-        /* terrane-site-row: site 360: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
-        { Site { function: 65, file: 52, line: 25, column: 20, end_line: 25, end_column: 37 } },
+        /* terrane-site-row: site 365: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:6:14-6:26) */
+        { Site { function: 65, file: 52, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 366: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:7:28-7:45) */
+        { Site { function: 65, file: 52, line: 7, column: 28, end_line: 7, end_column: 45 } },
+        /* terrane-site-row: site 367: /nested-view-ref-value-loop::test-scenario (tests/integration/nested-view-ref-value-loop/case.trn:10:21-10:32) */
+        { Site { function: 65, file: 52, line: 10, column: 21, end_line: 10, end_column: 32 } },
+        /* terrane-site-row: site 368: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:6:14-6:26) */
+        { Site { function: 66, file: 53, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 369: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:7:28-7:45) */
+        { Site { function: 66, file: 53, line: 7, column: 28, end_line: 7, end_column: 45 } },
+        /* terrane-site-row: site 370: /nested-view-value-ref-loop::test-scenario (tests/integration/nested-view-value-ref-loop/case.trn:10:21-10:32) */
+        { Site { function: 66, file: 53, line: 10, column: 21, end_line: 10, end_column: 32 } },
+        /* terrane-site-row: site 371: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:6:14-6:26) */
+        { Site { function: 67, file: 54, line: 6, column: 14, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 372: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:7:28-7:45) */
+        { Site { function: 67, file: 54, line: 7, column: 28, end_line: 7, end_column: 45 } },
+        /* terrane-site-row: site 373: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:10:21-10:32) */
+        { Site { function: 67, file: 54, line: 10, column: 21, end_line: 10, end_column: 32 } },
+        /* terrane-site-row: site 374: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
+        { Site { function: 68, file: 55, line: 18, column: 14, end_line: 18, end_column: 26 } },
+        /* terrane-site-row: site 375: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
+        { Site { function: 68, file: 55, line: 19, column: 20, end_line: 19, end_column: 37 } },
+        /* terrane-site-row: site 376: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
+        { Site { function: 68, file: 55, line: 21, column: 17, end_line: 21, end_column: 27 } },
+        /* terrane-site-row: site 377: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
+        { Site { function: 68, file: 55, line: 24, column: 21, end_line: 24, end_column: 33 } },
+        /* terrane-site-row: site 378: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
+        { Site { function: 68, file: 55, line: 25, column: 20, end_line: 25, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]

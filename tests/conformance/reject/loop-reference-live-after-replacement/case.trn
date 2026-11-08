@@ -1,0 +1,8 @@
+namespace loop-reference-live-after-replacement
+from /core/collections import list
+function main;
+    values = list; 1
+    for value in ref values
+        print; value
+    values = list; 2, 3
+    print; value

@@ -780,7 +780,7 @@ pub fn path_parent(subject: Path) -> Path {
     if terrane_int_support::Int::from(parts.length())
         == terrane_int_support::Int::from(0_i128)
     {
-        return normal.clone();
+        return normal;
     }
     if terrane_int_support::Int::from(parts.length())
         == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
@@ -857,7 +857,7 @@ pub fn path_stem(subject: Path) -> String {
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
-        return current.clone();
+        return current;
     }
     if terrane_int_support::Int::from(pieces.len() as i128)
         == terrane_int_support::Int::from(2_i128)
@@ -997,7 +997,7 @@ pub fn join_path(base: Path, child: Path) -> Path {
     let combined: Path;
     absolute = path_is_absolute(child.clone());
     if absolute {
-        return normalise_path(child.clone());
+        return normalise_path(child);
     }
     joined = base.text.clone();
     if joined.as_str() != ""

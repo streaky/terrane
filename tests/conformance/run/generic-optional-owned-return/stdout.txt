@@ -16,3 +16,14 @@ false
 clone-present
 true
 clone-fallback
+false
+1
+true
+true
+1
+false
+false
+false
+1
+parameter
+leftleft!

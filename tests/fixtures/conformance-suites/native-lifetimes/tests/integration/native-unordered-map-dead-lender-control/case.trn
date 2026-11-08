@@ -1,0 +1,13 @@
+namespace native-unordered-map-dead-lender-control
+from /deps/terrane-query-witness import Holder, CopyView
+from /core/collections import unordered-map
+
+function test-scenario;
+    holder = Holder::new;
+    unrelated = Holder::new;
+    values unordered-map of string, CopyView = unordered-map;
+    values.set; 'view', (holder.copy_view;)
+    for key, value in values
+        print; (value.size;)
+        unrelated.bump;
+    holder.bump;

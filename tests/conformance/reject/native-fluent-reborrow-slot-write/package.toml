@@ -1,0 +1,6 @@
+package = "native-fluent-reborrow-slot-write"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-query-witness]
+version = "=0.1.0"
+effects = ["build"]

@@ -4,7 +4,7 @@ mod callbacks;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    SourceFile, Span,
+    InvocationMode, SourceFile, Span,
     syntax::{SyntaxKind, SyntaxNode},
 };
 
@@ -1128,28 +1128,28 @@ fn binding_read_crosses_completion_capture(
         .find(|unit| unit.source.id() == read.file)
         .is_some_and(|unit| visit(&unit.tree.root, declaration, read, later))
 }
-fn binding_read_is_return_operand(package: &SemanticPackage, read: Span) -> bool {
-    fn visit(node: &SyntaxNode, read: Span, inside_return: bool) -> bool {
+fn binding_read_return_span(package: &SemanticPackage, read: Span) -> Option<Span> {
+    fn visit(node: &SyntaxNode, read: Span, return_span: Option<Span>) -> Option<Span> {
         if node.span.start > read.start || read.end > node.span.end {
-            return false;
+            return None;
         }
-        let inside_return = if node.kind == SyntaxKind::AnonymousFunction {
-            false
-        } else {
-            inside_return || node.kind == SyntaxKind::ReturnStatement
+        let return_span = match node.kind {
+            SyntaxKind::AnonymousFunction => None,
+            SyntaxKind::ReturnStatement => Some(node.span),
+            _ => return_span,
         };
         if node.kind == SyntaxKind::Name && node.span == read {
-            return inside_return;
+            return return_span;
         }
         node.children
             .iter()
-            .any(|child| visit(child, read, inside_return))
+            .find_map(|child| visit(child, read, return_span))
     }
     package
         .units
         .iter()
         .find(|unit| unit.source.id() == read.file)
-        .is_some_and(|unit| visit(&unit.tree.root, read, false))
+        .and_then(|unit| visit(&unit.tree.root, read, None))
 }
 
 fn binding_read_loops_again(
@@ -1162,7 +1162,7 @@ fn binding_read_loops_again(
         declaration.file != loop_span.file
             || declaration.start < loop_span.start
             || loop_span.end < declaration.end
-    }) && !binding_read_is_return_operand(package, read)
+    }) && binding_read_return_span(package, read).is_none()
 }
 
 pub(crate) fn binding_return_requires_preservation(
@@ -1170,7 +1170,14 @@ pub(crate) fn binding_return_requires_preservation(
     declaration: Span,
     read: Span,
 ) -> bool {
-    fn visit(node: &SyntaxNode, read: Span, events: &[BindingEvent], mut preserve: bool) -> bool {
+    fn visit(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        declaration: Span,
+        read: Span,
+        events: &[BindingEvent],
+        mut preserve: bool,
+    ) -> bool {
         if node.span.start > read.start || read.end > node.span.end {
             return false;
         }
@@ -1178,7 +1185,12 @@ pub(crate) fn binding_return_requires_preservation(
             node.kind,
             SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
         ) {
-            preserve = false;
+            preserve = node.kind == SyntaxKind::AnonymousFunction
+                && !(node.span.start <= declaration.start && declaration.end <= node.span.end)
+                && unit.functions.iter().any(|function| {
+                    function.span == node.span
+                        && function.written_invocation_mode != InvocationMode::Consuming
+                });
         }
         if node.kind == SyntaxKind::TryStatement {
             preserve |= node.children.iter().any(|clause| {
@@ -1195,7 +1207,7 @@ pub(crate) fn binding_return_requires_preservation(
         }
         node.children
             .iter()
-            .any(|child| visit(child, read, events, preserve))
+            .any(|child| visit(unit, child, declaration, read, events, preserve))
     }
     let Some(events) = package.binding_events.get(&span_key(declaration)) else {
         return false;
@@ -1204,7 +1216,7 @@ pub(crate) fn binding_return_requires_preservation(
         .units
         .iter()
         .find(|unit| unit.source.id() == read.file)
-        .is_some_and(|unit| visit(&unit.tree.root, read, events, false))
+        .is_some_and(|unit| visit(unit, &unit.tree.root, declaration, read, events, false))
 }
 
 pub(crate) fn binding_read_value_is_reused(
@@ -1230,6 +1242,13 @@ pub(crate) fn binding_read_value_is_reused(
     else {
         return false;
     };
+    if let Some(return_span) = binding_read_return_span(package, read_span) {
+        return binding_return_requires_preservation(package, declaration_span, read_span)
+            || events[read + 1..].iter().any(|event| {
+                matches!(event, BindingEvent::Read { span, .. }
+                    if return_span.start <= span.start && span.end <= return_span.end)
+            });
+    }
     let mut intervening_stores: Vec<&[ControlRegion]> = Vec::new();
     for event in &events[read + 1..] {
         match event {

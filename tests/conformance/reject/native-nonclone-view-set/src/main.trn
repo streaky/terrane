@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-query-witness import View
+from /core/collections import set
+
+function main;
+    values set of View = set;
+    print; values.length

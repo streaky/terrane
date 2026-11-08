@@ -661,6 +661,15 @@ impl<'unit> Emitter<'unit> {
             {
                 return false;
             }
+            if let ValueType::List(item) = &binding.value_type
+                && !crate::semantics::value_type_is_cloneable(
+                    self.package,
+                    self.unit,
+                    item.value_type_ref(),
+                )
+            {
+                return false;
+            }
             let (condition_references, _) = uses(self, condition, false, binding.span);
             let (references, appends) = uses(self, block, false, binding.span);
             condition_references == 0 && appends > 0 && references == appends

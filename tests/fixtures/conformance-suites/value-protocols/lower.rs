@@ -4095,6 +4095,122 @@ fn return_finally_clone(value: Option<String>, fallback: String) -> String {
     }
     return fallback;
 }
+fn read_before_return<TerraneType54>(
+    value: Option<TerraneType54>,
+    fallback: TerraneType54,
+) -> TerraneType54 {
+    let mut item: terrane_int_support::Int;
+    let __terrane_iterable_5 = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(1_i128),
+            terrane_int_support::Int::from(2_i128)
+        ],
+    );
+    let mut __terrane_iterator_5 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_5.as_slice(),
+    );
+    loop {
+        item = match __terrane_iterator_5.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        if item == terrane_int_support::Int::from(2_i128) {
+            if (&value).is_some() {
+                return match value {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                };
+            }
+        }
+        println!("{}", terrane_scalar_support::scalar_text(&value.is_none()));
+    }
+    return fallback;
+}
+fn read_before_return_continue<TerraneType54>(
+    value: Option<TerraneType54>,
+    fallback: TerraneType54,
+) -> TerraneType54 {
+    let mut item: terrane_int_support::Int;
+    let __terrane_iterable_6 = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(1_i128),
+            terrane_int_support::Int::from(2_i128),
+            terrane_int_support::Int::from(3_i128)
+        ],
+    );
+    let mut __terrane_iterator_6 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_6.as_slice(),
+    );
+    loop {
+        item = match __terrane_iterator_6.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&value.is_none()));
+        if item == terrane_int_support::Int::from(1_i128) {
+            continue;
+        }
+        if item == terrane_int_support::Int::from(3_i128) {
+            if (&value).is_some() {
+                return match value {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                };
+            }
+        }
+    }
+    return fallback;
+}
+fn closure_parameter<TerraneType54>(value: TerraneType54) -> TerraneType54 {
+    let callback: std::sync::Arc<dyn Fn(TerraneType54) -> TerraneType54 + Send + Sync>;
+    callback = {
+        std::sync::Arc::new(move |input: TerraneType54| -> TerraneType54 {
+            let item: terrane_int_support::Int;
+            let __terrane_iterable_7 = terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(vec![terrane_int_support::Int::from(1_i128)]);
+            let mut __terrane_iterator_7 = terrane_collection_support::slice_iterator(
+                __terrane_iterable_7.as_slice(),
+            );
+            loop {
+                item = match __terrane_iterator_7.next() {
+                    terrane_collection_support::IterationStep::Item(item) => item,
+                    terrane_collection_support::IterationStep::End => break,
+                };
+                let _ = &item;
+                return input;
+            }
+            return input;
+        })
+    };
+    return callback(value);
+}
+fn combine(left: String, right: String) -> String {
+    return {
+        let mut __terrane_text = String::with_capacity(0);
+        terrane_scalar_support::ScalarDisplay::write_scalar(&left, &mut __terrane_text);
+        terrane_scalar_support::ScalarDisplay::write_scalar(&right, &mut __terrane_text);
+        __terrane_text
+    };
+}
+fn return_expression(value: String) -> String {
+    return combine(
+        value.clone(),
+        {
+            let mut __terrane_text = String::with_capacity(1);
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &value,
+                &mut __terrane_text,
+            );
+            __terrane_text.push_str("!");
+            __terrane_text
+        },
+    );
+}
 fn test_scenario_terrane_generic_optional_owned_return() {
     println!(
         "{}",
@@ -4167,6 +4283,36 @@ fn test_scenario_terrane_generic_optional_owned_return() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&return_finally_clone(None,
         String::from("clone-fallback")))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(read_before_return(Some(terrane_collection_support::List::
+        < terrane_int_support::Int >
+        ::new(vec![terrane_int_support::Int::from(20_i128)])),
+        terrane_collection_support::List:: < terrane_int_support::Int >
+        ::new(vec![terrane_int_support::Int::from(30_i128)])).length()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(read_before_return(None,
+        terrane_collection_support::List:: < terrane_int_support::Int >
+        ::new(vec![terrane_int_support::Int::from(40_i128)])).length()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(read_before_return_continue(Some(terrane_collection_support::List::
+        < terrane_int_support::Int >
+        ::new(vec![terrane_int_support::Int::from(50_i128)])),
+        terrane_collection_support::List:: < terrane_int_support::Int >
+        ::new(vec![terrane_int_support::Int::from(60_i128)])).length()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&closure_parameter(String::from("parameter")))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&return_expression(String::from("left")))
     );
 }
 // Source: tests/integration/integer-coercions/case.trn

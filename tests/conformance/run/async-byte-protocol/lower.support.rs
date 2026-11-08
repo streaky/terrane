@@ -3132,8 +3132,7 @@ impl TcpStream {
         let mut data: Vec<u8>;
         let mut part: ReadResult;
         if count < terrane_int_support::Int::from(0_i128) {
-            return __terrane_await(self.read_async(count.clone(), options.clone()))
-                .await;
+            return __terrane_await(self.read_async(count.clone(), options)).await;
         }
         progress = ExactReadProgress::terrane_construct(count.clone());
         data = Vec::<u8>::from([]);
@@ -3181,7 +3180,7 @@ impl TcpStream {
             return __terrane_await({
                     let __terrane_shared_call_handle = __terrane_shared_handle.clone();
                     let __terrane_shared_argument_0 = count.clone();
-                    let __terrane_shared_argument_1 = options.clone();
+                    let __terrane_shared_argument_1 = options;
                     let __terrane_shared_argument_2 = __terrane_shared_argument_0;
                     let __terrane_shared_argument_3 = __terrane_shared_argument_1;
                     TcpStream::__terrane_shared_async_read_async(
@@ -5329,8 +5328,7 @@ impl ByteReader {
         let mut data: Vec<u8>;
         let mut part: ReadResult;
         if count < terrane_int_support::Int::from(0_i128) {
-            return __terrane_await(self.read_async(count.clone(), options.clone()))
-                .await;
+            return __terrane_await(self.read_async(count.clone(), options)).await;
         }
         progress = ExactReadProgress::terrane_construct(count.clone());
         data = Vec::<u8>::from([]);
@@ -5378,7 +5376,7 @@ impl ByteReader {
             return __terrane_await({
                     let __terrane_shared_call_handle = __terrane_shared_handle.clone();
                     let __terrane_shared_argument_0 = count.clone();
-                    let __terrane_shared_argument_1 = options.clone();
+                    let __terrane_shared_argument_1 = options;
                     let __terrane_shared_argument_2 = __terrane_shared_argument_0;
                     let __terrane_shared_argument_3 = __terrane_shared_argument_1;
                     ByteReader::__terrane_shared_async_read_async(
@@ -5664,7 +5662,7 @@ impl ByteWriter {
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
-            return prior.clone();
+            return prior;
         }
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
@@ -6305,7 +6303,7 @@ impl TextWriter {
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
-            return prior.clone();
+            return prior;
         }
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),

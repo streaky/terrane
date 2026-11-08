@@ -50,6 +50,32 @@ function return-finally-clone string; value string|none, fallback string
     finally
         print; (value is a none)
     return fallback
+function read-before-return of (T) T; value T|none, fallback T
+    for item in (list; 1, 2)
+        if item == 2
+            if value != none
+                return value
+        print; (value is a none)
+    return fallback
+function read-before-return-continue of (T) T; value T|none, fallback T
+    for item in (list; 1, 2, 3)
+        print; (value is a none)
+        if item == 1
+            continue
+        if item == 3
+            if value != none
+                return value
+    return fallback
+function closure-parameter of (T) T; value T
+    callback = function T; input T
+        for item in (list; 1)
+            return input
+        return input
+    return (callback; value)
+function combine string; left string, right string
+    return left + right
+function return-expression string; value string
+    return combine; value, (value.concat; '!')
 function test-scenario;
     print; (choose; 7, 9)
     print; (choose; none, 9)
@@ -64,3 +90,8 @@ function test-scenario;
     print; (return-finally of (string); none, 'generic-fallback')
     print; (return-finally-clone; 'clone-present', 'clone-fallback')
     print; (return-finally-clone; none, 'clone-fallback')
+    print; (read-before-return; (list; 20), (list; 30)).length
+    print; (read-before-return; none, (list; 40)).length
+    print; (read-before-return-continue; (list; 50), (list; 60)).length
+    print; (closure-parameter; 'parameter')
+    print; (return-expression; 'left')

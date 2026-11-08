@@ -9,6 +9,9 @@ impl View<'_> {
     pub fn chain(self) -> Self {
         self
     }
+    pub fn reborrow(&self) -> View<'_> {
+        View(self.0)
+    }
 }
 #[derive(Clone, Copy)]
 pub struct CopyView<'a>(&'a str);

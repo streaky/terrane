@@ -514,7 +514,7 @@ impl Builder<'_> {
                     infer_value_type(self.unit, receiver, &self.unit.typed_bindings)
                         .ok()
                         .flatten(),
-                    Some(ValueType::List(_) | ValueType::Map(_, _))
+                    Some(ValueType::List(_) | ValueType::Map(_, _) | ValueType::UnorderedMap(_, _),)
                 )
             {
                 event.definition = self.identity(receiver);
