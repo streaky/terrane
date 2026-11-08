@@ -17,7 +17,8 @@ impl Accumulator {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.total.clone() + delta.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + delta.clone();
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -27,7 +28,7 @@ impl Accumulator {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
@@ -205,7 +206,9 @@ fn main() {
         }
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
         {
-            let __terrane_value = terrane_int_support::Int::from(9_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                9_i128,
+            );
             acc.total = __terrane_value;
         }
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
@@ -321,7 +324,9 @@ fn main() {
             }
         }
         {
-            let __terrane_value = terrane_int_support::Int::from(8_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                8_i128,
+            );
             r.total = __terrane_value;
         }
         println!("{}", terrane_scalar_support::scalar_text(&r.total));

@@ -735,11 +735,11 @@ impl LogLevel {
     }
     pub fn construct(&mut self, name: String, rank: terrane_int_support::Int) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
         {
-            let __terrane_value = rank.clone();
+            let __terrane_value: terrane_int_support::Int = rank.clone();
             self.rank = __terrane_value;
         }
     }
@@ -815,7 +815,7 @@ impl DocumentLogValue {
     }
     pub fn construct(&mut self, input: DocumentValue) {
         {
-            let __terrane_value = input;
+            let __terrane_value: DocumentValue = input;
             self.value = __terrane_value;
         }
     }
@@ -851,7 +851,7 @@ impl TextLogValue {
     }
     pub fn construct(&mut self, input: String) {
         {
-            let __terrane_value = input;
+            let __terrane_value: String = input;
             self.value = __terrane_value;
         }
     }
@@ -887,7 +887,7 @@ impl ErrorLogValue {
     }
     pub fn construct(&mut self, rendered: String) {
         {
-            let __terrane_value = rendered;
+            let __terrane_value: String = rendered;
             self.rendered = __terrane_value;
         }
     }
@@ -951,19 +951,19 @@ impl LogField {
         source: String,
     ) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
         {
-            let __terrane_value = input;
+            let __terrane_value: LogValue = input;
             self.value = __terrane_value;
         }
         {
-            let __terrane_value = secret;
+            let __terrane_value: bool = secret;
             self.secret = __terrane_value;
         }
         {
-            let __terrane_value = source;
+            let __terrane_value: String = source;
             self.source = __terrane_value;
         }
     }
@@ -999,7 +999,7 @@ impl LogSink {
     }
     pub fn construct(&mut self, handle: TerranePlatformCapability) {
         {
-            let __terrane_value = handle;
+            let __terrane_value: TerranePlatformCapability = handle;
             self.handle = __terrane_value;
         }
     }
@@ -1024,15 +1024,15 @@ impl LogSinkResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, sink: LogSink) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = sink;
+            let __terrane_value: LogSink = sink;
             self.value = __terrane_value;
         }
     }
@@ -1118,23 +1118,23 @@ impl LoggerOptions {
         max_bytes: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = minimum;
+            let __terrane_value: LogLevel = minimum;
             self.minimum = __terrane_value;
         }
         {
-            let __terrane_value = target_prefix;
+            let __terrane_value: String = target_prefix;
             self.target_prefix = __terrane_value;
         }
         {
-            let __terrane_value = target;
+            let __terrane_value: String = target;
             self.target = __terrane_value;
         }
         {
-            let __terrane_value = max_fields.clone();
+            let __terrane_value: terrane_int_support::Int = max_fields.clone();
             self.max_fields = __terrane_value;
         }
         {
-            let __terrane_value = max_bytes.clone();
+            let __terrane_value: terrane_int_support::Int = max_bytes.clone();
             self.max_bytes = __terrane_value;
         }
     }
@@ -1192,7 +1192,7 @@ impl LogContext {
             updated.append(__terrane_collection_argument_0);
         };
         {
-            let __terrane_value = updated;
+            let __terrane_value: terrane_collection_support::List<LogField> = updated;
             self.fields = __terrane_value;
         }
     }
@@ -1222,7 +1222,7 @@ impl LogContext {
             updated.append(__terrane_collection_argument_0);
         };
         {
-            let __terrane_value = updated;
+            let __terrane_value: terrane_collection_support::List<String> = updated;
             self.spans = __terrane_value;
         }
     }
@@ -1322,15 +1322,15 @@ impl Logger {
         context: LogContext,
     ) {
         {
-            let __terrane_value = sink;
+            let __terrane_value: LogSink = sink;
             self.sink = __terrane_value;
         }
         {
-            let __terrane_value = options;
+            let __terrane_value: LoggerOptions = options;
             self.options = __terrane_value;
         }
         {
-            let __terrane_value = context;
+            let __terrane_value: LogContext = context;
             self.context = __terrane_value;
         }
     }
@@ -1394,15 +1394,15 @@ impl LogOutcome {
     }
     pub fn construct(&mut self, filtered: bool, failed: bool, message: String) {
         {
-            let __terrane_value = filtered;
+            let __terrane_value: bool = filtered;
             self.filtered = __terrane_value;
         }
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -1438,19 +1438,19 @@ impl LogEvent {
         fields: terrane_collection_support::List<LogField>,
     ) {
         {
-            let __terrane_value = level;
+            let __terrane_value: LogLevel = level;
             self.level = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = fields;
+            let __terrane_value: terrane_collection_support::List<LogField> = fields;
             self.fields = __terrane_value;
         }
         {
-            let __terrane_value = source;
+            let __terrane_value: String = source;
             self.source = __terrane_value;
         }
     }
@@ -1725,7 +1725,7 @@ impl DocumentInteger {
     }
     pub fn construct(&mut self, text: String) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -1757,15 +1757,15 @@ impl DocumentDecimal {
         text: String,
     ) {
         {
-            let __terrane_value = coefficient;
+            let __terrane_value: String = coefficient;
             self.coefficient = __terrane_value;
         }
         {
-            let __terrane_value = exponent.clone();
+            let __terrane_value: terrane_int_support::Int = exponent.clone();
             self.exponent = __terrane_value;
         }
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -1901,20 +1901,20 @@ impl DocumentValue {
     }
     pub fn construct(&mut self, raw: terrane_document_support::DataResult) {
         {
-            let __terrane_value = terrane_document_kind(&raw);
+            let __terrane_value: String = terrane_document_kind(&raw);
             self.kind = __terrane_value;
         }
         {
-            let __terrane_value = terrane_document_text(&raw);
+            let __terrane_value: String = terrane_document_text(&raw);
             self.scalar = __terrane_value;
         }
         {
-            let __terrane_value = terrane_data_encoded(&raw);
+            let __terrane_value: String = terrane_data_encoded(&raw);
             self.encoded = __terrane_value;
         }
         if self.kind.as_str() == "integer" {
             {
-                let __terrane_value = DocumentInteger::terrane_construct(
+                let __terrane_value: DocumentInteger = DocumentInteger::terrane_construct(
                     self.scalar.clone(),
                 );
                 self.integer = __terrane_value;
@@ -1922,7 +1922,7 @@ impl DocumentValue {
         }
         if self.kind.as_str() == "decimal" {
             {
-                let __terrane_value = DocumentDecimal::terrane_construct(
+                let __terrane_value: DocumentDecimal = DocumentDecimal::terrane_construct(
                     terrane_document_coefficient(&raw),
                     terrane_document_exponent(&raw),
                     self.scalar.clone(),
@@ -1931,7 +1931,7 @@ impl DocumentValue {
             }
         }
         {
-            let __terrane_value = raw;
+            let __terrane_value: terrane_document_support::DataResult = raw;
             self.raw = __terrane_value;
         }
     }
@@ -2006,23 +2006,23 @@ impl DocumentResult {
         raw: terrane_document_support::DataResult,
     ) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = path;
+            let __terrane_value: String = path;
             self.path = __terrane_value;
         }
         {
-            let __terrane_value = expected;
+            let __terrane_value: String = expected;
             self.expected = __terrane_value;
         }
         {
-            let __terrane_value = DocumentValue::terrane_construct(raw);
+            let __terrane_value: DocumentValue = DocumentValue::terrane_construct(raw);
             self.value = __terrane_value;
         }
     }
@@ -2071,15 +2071,15 @@ impl DocumentMapping {
         allow_unknown: bool,
     ) {
         {
-            let __terrane_value = descriptor_name;
+            let __terrane_value: String = descriptor_name;
             self.descriptor_name = __terrane_value;
         }
         {
-            let __terrane_value = expected_kind;
+            let __terrane_value: String = expected_kind;
             self.expected_kind = __terrane_value;
         }
         {
-            let __terrane_value = allow_unknown;
+            let __terrane_value: bool = allow_unknown;
             self.allow_unknown = __terrane_value;
         }
     }
@@ -2152,13 +2152,13 @@ impl DocumentMapEntries {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = terrane_make_document_map();
+            let __terrane_value: terrane_document_support::DataResult = terrane_make_document_map();
             self.raw = __terrane_value;
         }
     }
     pub fn append(&mut self, key: String, value: DocumentValue) {
         {
-            let __terrane_value = terrane_document_map_insert(
+            let __terrane_value: terrane_document_support::DataResult = terrane_document_map_insert(
                 &self.raw,
                 key,
                 &value.raw,
@@ -2416,7 +2416,7 @@ pub fn decode_document(
     result = make_document_result(raw);
     if result.failed {
         {
-            let __terrane_value = mapping.descriptor_name.clone();
+            let __terrane_value: String = mapping.descriptor_name.clone();
             result.expected = __terrane_value;
         }
     }

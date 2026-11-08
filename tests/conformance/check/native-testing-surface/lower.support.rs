@@ -1523,7 +1523,7 @@ impl TestFailure {
     }
     pub fn construct(&mut self, failure_message: String) {
         {
-            let __terrane_value = failure_message;
+            let __terrane_value: String = failure_message;
             self.message = __terrane_value;
         }
     }
@@ -1549,7 +1549,7 @@ impl TestSkip {
     }
     pub fn construct(&mut self, reason: String) {
         {
-            let __terrane_value = reason;
+            let __terrane_value: String = reason;
             self.message = __terrane_value;
         }
     }
@@ -1569,7 +1569,7 @@ impl TestInfrastructureFailure {
     }
     pub fn construct(&mut self, failure_message: String) {
         {
-            let __terrane_value = failure_message;
+            let __terrane_value: String = failure_message;
             self.message = __terrane_value;
         }
     }
@@ -1667,7 +1667,7 @@ pub fn fail_comparison(
     };
     failure = TestFailure::terrane_construct(failure_message);
     {
-        let __terrane_value = details;
+        let __terrane_value: terrane_collection_support::List<String> = details;
         failure.details = __terrane_value;
     }
     return Err({
@@ -1748,7 +1748,7 @@ pub fn fail_near(
         String::from("floating values differ beyond tolerance"),
     );
     {
-        let __terrane_value = details;
+        let __terrane_value: terrane_collection_support::List<String> = details;
         failure.details = __terrane_value;
     }
     return Err({
@@ -2224,7 +2224,7 @@ impl ProcessFixture {
     }
     pub fn construct(&mut self, executable: String) {
         {
-            let __terrane_value = executable;
+            let __terrane_value: String = executable;
             self.artifact = __terrane_value;
         }
     }
@@ -2281,31 +2281,31 @@ impl ProcessResult {
         errors_truncated: bool,
     ) {
         {
-            let __terrane_value = status.clone();
+            let __terrane_value: terrane_int_support::Int = status.clone();
             self.exit_code = __terrane_value;
         }
         {
-            let __terrane_value = did_crash;
+            let __terrane_value: bool = did_crash;
             self.crashed = __terrane_value;
         }
         {
-            let __terrane_value = exceeded_deadline;
+            let __terrane_value: bool = exceeded_deadline;
             self.timed_out = __terrane_value;
         }
         {
-            let __terrane_value = output;
+            let __terrane_value: Vec<u8> = output;
             self.stdout = __terrane_value;
         }
         {
-            let __terrane_value = errors;
+            let __terrane_value: Vec<u8> = errors;
             self.stderr = __terrane_value;
         }
         {
-            let __terrane_value = output_truncated;
+            let __terrane_value: bool = output_truncated;
             self.stdout_truncated = __terrane_value;
         }
         {
-            let __terrane_value = errors_truncated;
+            let __terrane_value: bool = errors_truncated;
             self.stderr_truncated = __terrane_value;
         }
     }
@@ -2419,15 +2419,15 @@ impl NativeString {
     }
     pub fn construct(&mut self, encoded: String) {
         {
-            let __terrane_value = terrane_platform_value_is_text(&encoded);
+            let __terrane_value: bool = terrane_platform_value_is_text(&encoded);
             self.is_text = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_value_text(&encoded);
+            let __terrane_value: String = terrane_platform_value_text(&encoded);
             self.text = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_value_bytes(&encoded);
+            let __terrane_value: Vec<u8> = terrane_platform_value_bytes(&encoded);
             self.raw = __terrane_value;
         }
     }
@@ -2448,11 +2448,11 @@ impl EnvironmentEntry {
     }
     pub fn construct(&mut self, name: NativeString, entry_value: NativeString) {
         {
-            let __terrane_value = name;
+            let __terrane_value: NativeString = name;
             self.name = __terrane_value;
         }
         {
-            let __terrane_value = entry_value;
+            let __terrane_value: NativeString = entry_value;
             self.value = __terrane_value;
         }
     }
@@ -2489,19 +2489,19 @@ impl ProcessHostNameResult {
         result_value: NativeString,
     ) {
         {
-            let __terrane_value = did_fail;
+            let __terrane_value: bool = did_fail;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = is_available;
+            let __terrane_value: bool = is_available;
             self.available = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = result_value;
+            let __terrane_value: NativeString = result_value;
             self.value = __terrane_value;
         }
     }
@@ -2632,7 +2632,7 @@ impl CliSchema {
     }
     pub fn construct(&mut self, declared: terrane_collection_support::List<String>) {
         {
-            let __terrane_value = declared;
+            let __terrane_value: terrane_collection_support::List<String> = declared;
             self.entries = __terrane_value;
         }
     }
@@ -2834,27 +2834,29 @@ pub fn parse_command_line(
     }
     result = CommandLine::terrane_construct();
     {
-        let __terrane_value = flags;
+        let __terrane_value: terrane_collection_support::List<String> = flags;
         result.flags = __terrane_value;
     }
     {
-        let __terrane_value = option_names;
+        let __terrane_value: terrane_collection_support::List<String> = option_names;
         result.option_names = __terrane_value;
     }
     {
-        let __terrane_value = option_values;
+        let __terrane_value: terrane_collection_support::List<NativeString> = option_values;
         result.option_values = __terrane_value;
     }
     {
-        let __terrane_value = positionals;
+        let __terrane_value: terrane_collection_support::List<NativeString> = positionals;
         result.positionals = __terrane_value;
     }
     {
-        let __terrane_value = diagnostic_arguments;
+        let __terrane_value: terrane_collection_support::List<
+            terrane_int_support::Int,
+        > = diagnostic_arguments;
         result.diagnostic_arguments = __terrane_value;
     }
     {
-        let __terrane_value = diagnostic_messages;
+        let __terrane_value: terrane_collection_support::List<String> = diagnostic_messages;
         result.diagnostic_messages = __terrane_value;
     }
     return result;
@@ -2879,16 +2881,18 @@ pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
         || requested > terrane_int_support::Int::from(255_i128)
     {
         {
-            let __terrane_value = terrane_int_support::Int::from(255_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                255_i128,
+            );
             result.code = __terrane_value;
         }
         {
-            let __terrane_value = false;
+            let __terrane_value: bool = false;
             result.valid = __terrane_value;
         }
     } else {
         {
-            let __terrane_value = requested.clone();
+            let __terrane_value: terrane_int_support::Int = requested.clone();
             result.code = __terrane_value;
         }
     }
@@ -2955,7 +2959,7 @@ impl DurationSubtraction {
     }
     pub fn construct(&mut self, total: terrane_int_support::Int) {
         {
-            let __terrane_value = total.clone();
+            let __terrane_value: terrane_int_support::Int = total.clone();
             self.total_nanoseconds = __terrane_value;
         }
     }
@@ -3002,21 +3006,22 @@ impl Duration {
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = whole_seconds.clone();
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone();
             self.seconds = __terrane_value;
         }
         {
-            let __terrane_value = fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
             self.nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value = whole_seconds.clone()
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone()
                 * terrane_int_support::Int::from(1000000000_i128)
                 + fractional_nanoseconds.clone();
             self.total_nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value = DurationSubtraction::terrane_construct(
+            let __terrane_value: DurationSubtraction = DurationSubtraction::terrane_construct(
                 self.total_nanoseconds.clone(),
             );
             self.subtract = __terrane_value;
@@ -3200,11 +3205,11 @@ impl MonotonicInstant {
         elapsed: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = runtime_domain.clone();
+            let __terrane_value: terrane_int_support::Int = runtime_domain.clone();
             self.domain = __terrane_value;
         }
         {
-            let __terrane_value = elapsed.clone();
+            let __terrane_value: terrane_int_support::Int = elapsed.clone();
             self.elapsed_nanoseconds = __terrane_value;
         }
     }
@@ -3275,11 +3280,12 @@ impl Instant {
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = seconds.clone();
+            let __terrane_value: terrane_int_support::Int = seconds.clone();
             self.unix_seconds = __terrane_value;
         }
         {
-            let __terrane_value = fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
             self.nanoseconds = __terrane_value;
         }
     }
@@ -3301,7 +3307,7 @@ impl Deadline {
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
         {
-            let __terrane_value = target;
+            let __terrane_value: MonotonicInstant = target;
             self.expires_at = __terrane_value;
         }
     }
@@ -3386,15 +3392,15 @@ impl Tick {
         expirations: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = scheduled_at;
+            let __terrane_value: MonotonicInstant = scheduled_at;
             self.scheduled = __terrane_value;
         }
         {
-            let __terrane_value = observed_at;
+            let __terrane_value: MonotonicInstant = observed_at;
             self.observed = __terrane_value;
         }
         {
-            let __terrane_value = expirations.clone();
+            let __terrane_value: terrane_int_support::Int = expirations.clone();
             self.count = __terrane_value;
         }
     }
@@ -3430,11 +3436,11 @@ impl Ticker {
     }
     pub fn construct(&mut self, interval: Duration) {
         {
-            let __terrane_value = Clock::terrane_static_monotonic();
+            let __terrane_value: MonotonicInstant = Clock::terrane_static_monotonic();
             self.anchor = __terrane_value;
         }
         {
-            let __terrane_value = interval;
+            let __terrane_value: Duration = interval;
             self.period = __terrane_value;
         }
     }
@@ -3468,7 +3474,7 @@ impl Ticker {
                 + period_total.clone() * observed_index.clone(),
         );
         {
-            let __terrane_value = observed_index.clone()
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.next_index = __terrane_value;
         }
@@ -3581,7 +3587,7 @@ impl Ticker {
                 .clone() + period_total.clone() * observed_index.clone(),
         );
         {
-            let __terrane_value = observed_index.clone()
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
                 + terrane_int_support::Int::from(1_i128);
             __terrane_shared_handle
                 .lock()

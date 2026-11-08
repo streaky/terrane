@@ -1,0 +1,21 @@
+namespace escaping-loop-callback-store
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named); fs mutable ref list of function to int, item T
+    l list of function to int = list;
+    l.append; function int;
+        return item.name;
+    for cb in l
+        fs.append; cb
+
+function main;
+    fs list of function to int = list;
+    go; fs, (instance value;)
+    print; fs.length

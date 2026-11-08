@@ -2726,6 +2726,15 @@ impl Emitter<'_> {
             } else {
                 format!("({})", self.expression(callee))
             }
+        } else if callee.kind == SyntaxKind::Name
+            && matches!(
+                self.value_type(callee),
+                Some(ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects))
+                    if effects.modes.written == InvocationMode::Consuming
+            )
+            && let Some(payload) = self.narrowed_storage_name(callee, true, false)
+        {
+            payload
         } else if let Some(contract) = &contract
             && contract.owner.is_none()
         {

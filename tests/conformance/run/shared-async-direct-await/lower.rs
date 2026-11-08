@@ -29,7 +29,8 @@ impl Accumulator {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value = self.total.clone() + delta.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + delta.clone();
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -51,7 +52,7 @@ impl Accumulator {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")

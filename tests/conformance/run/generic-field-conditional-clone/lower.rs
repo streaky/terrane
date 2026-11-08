@@ -26,7 +26,7 @@ impl G {
     }
     pub fn construct(&mut self, value: F<Holder>) {
         {
-            let __terrane_value = value;
+            let __terrane_value: F<Holder> = value;
             self.value = Some(__terrane_value);
         }
     }

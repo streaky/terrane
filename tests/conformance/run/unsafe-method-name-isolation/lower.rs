@@ -14,7 +14,7 @@ impl ConfigError {
     }
     pub fn construct(&mut self, message: String) {
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -36,7 +36,7 @@ impl Item {
     }
     pub fn construct(&mut self, input: terrane_int_support::Int) {
         {
-            let __terrane_value = input.clone();
+            let __terrane_value: terrane_int_support::Int = input.clone();
             self.value = __terrane_value;
         }
     }

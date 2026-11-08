@@ -39,7 +39,7 @@ impl Counter {
         }
         value = self.current.clone();
         {
-            let __terrane_value = self.current.clone()
+            let __terrane_value: terrane_int_support::Int = self.current.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.current = __terrane_value;
         }

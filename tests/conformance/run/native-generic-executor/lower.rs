@@ -14,7 +14,7 @@ impl SourceCounter {
     }
     pub fn advance(&mut self) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.count.clone()
+            let __terrane_value: terrane_int_support::Int = self.count.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.count = __terrane_value;
         }

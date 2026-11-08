@@ -85,7 +85,7 @@ async fn wait(
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         {
             let __terrane_owner_0 = observer.clone();
-            let __terrane_value = true;
+            let __terrane_value: bool = true;
             __terrane_owner_0.lock().expect("shared reference lock poisoned").cleaned = __terrane_value;
         }
         TerraneCompletion::Normal

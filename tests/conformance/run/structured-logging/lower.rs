@@ -14,7 +14,7 @@ impl RequestData {
     }
     pub fn construct(&mut self, token: String) {
         {
-            let __terrane_value = token;
+            let __terrane_value: String = token;
             self.token = __terrane_value;
         }
     }
@@ -31,7 +31,7 @@ impl CountedValue {
     }
     pub fn construct(&mut self, input: String) {
         {
-            let __terrane_value = input;
+            let __terrane_value: String = input;
             self.value = __terrane_value;
         }
     }

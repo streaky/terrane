@@ -14,11 +14,11 @@ impl W {
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }

@@ -14,7 +14,7 @@ impl R {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = {
+            let __terrane_value: Record = {
                 let __terrane_conversion_input_0 = terrane_int_support::Int::from(
                     7_i128,
                 );

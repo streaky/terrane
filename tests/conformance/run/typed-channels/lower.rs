@@ -14,7 +14,7 @@ impl Message {
     }
     pub fn construct(&mut self, text: String) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -35,7 +35,7 @@ impl StringBatch {
     }
     pub fn construct(&mut self, values: terrane_collection_support::List<String>) {
         {
-            let __terrane_value = values;
+            let __terrane_value: terrane_collection_support::List<String> = values;
             self.values = __terrane_value;
         }
     }

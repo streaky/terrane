@@ -16,7 +16,7 @@ impl Point {
     }
     pub fn construct(&mut self, x: terrane_int_support::Int) {
         {
-            let __terrane_value = x.clone();
+            let __terrane_value: terrane_int_support::Int = x.clone();
             self.x = __terrane_value;
         }
     }

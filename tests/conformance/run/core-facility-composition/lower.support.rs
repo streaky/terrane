@@ -1229,11 +1229,11 @@ impl FilesystemOperationResult {
     }
     pub fn construct(&mut self, failure: bool, detail: String) {
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1256,15 +1256,15 @@ impl ExistenceResult {
     }
     pub fn construct(&mut self, exists: bool, failure: bool, detail: String) {
         {
-            let __terrane_value = exists;
+            let __terrane_value: bool = exists;
             self.exists = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1287,15 +1287,15 @@ impl PathResult {
     }
     pub fn construct(&mut self, target: Path, failure: bool, detail: String) {
         {
-            let __terrane_value = target;
+            let __terrane_value: Path = target;
             self.resolved = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1340,27 +1340,27 @@ impl FileMetadata {
         detail: String,
     ) {
         {
-            let __terrane_value = kind;
+            let __terrane_value: String = kind;
             self.kind = __terrane_value;
         }
         {
-            let __terrane_value = size.clone();
+            let __terrane_value: terrane_int_support::Int = size.clone();
             self.size = __terrane_value;
         }
         {
-            let __terrane_value = readonly;
+            let __terrane_value: bool = readonly;
             self.readonly = __terrane_value;
         }
         {
-            let __terrane_value = permission_detail;
+            let __terrane_value: String = permission_detail;
             self.permission_detail = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1400,23 +1400,23 @@ impl FileData {
         detail: String,
     ) {
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.data = __terrane_value;
         }
         {
-            let __terrane_value = completed.clone();
+            let __terrane_value: terrane_int_support::Int = completed.clone();
             self.completed = __terrane_value;
         }
         {
-            let __terrane_value = end;
+            let __terrane_value: bool = end;
             self.end = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1450,15 +1450,15 @@ impl FileHandle {
         detail: String,
     ) {
         {
-            let __terrane_value = raw;
+            let __terrane_value: TerranePlatformStreamHandle = raw;
             self.handle = Some(__terrane_value);
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1505,15 +1505,15 @@ impl DirectoryHandle {
         detail: String,
     ) {
         {
-            let __terrane_value = raw;
+            let __terrane_value: TerranePlatformStreamHandle = raw;
             self.handle = Some(__terrane_value);
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1681,7 +1681,7 @@ impl Filesystem {
     }
     pub fn construct(&mut self, authority: TerraneFilesystemAuthority) {
         {
-            let __terrane_value = authority;
+            let __terrane_value: TerraneFilesystemAuthority = authority;
             self.authority = Some(__terrane_value);
         }
     }
@@ -1890,15 +1890,15 @@ impl StreamOperationResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, deadline_exceeded: bool) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = deadline_exceeded;
+            let __terrane_value: bool = deadline_exceeded;
             self.deadline_exceeded = __terrane_value;
         }
     }
@@ -1943,27 +1943,27 @@ impl ReadResult {
         deadline_exceeded: bool,
     ) {
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.data = __terrane_value;
         }
         {
-            let __terrane_value = completed.clone();
+            let __terrane_value: terrane_int_support::Int = completed.clone();
             self.completed = __terrane_value;
         }
         {
-            let __terrane_value = end;
+            let __terrane_value: bool = end;
             self.end = __terrane_value;
         }
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = deadline_exceeded;
+            let __terrane_value: bool = deadline_exceeded;
             self.deadline_exceeded = __terrane_value;
         }
     }
@@ -2003,23 +2003,23 @@ impl TextReadResult {
         message: String,
     ) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
         {
-            let __terrane_value = completed.clone();
+            let __terrane_value: terrane_int_support::Int = completed.clone();
             self.completed = __terrane_value;
         }
         {
-            let __terrane_value = end;
+            let __terrane_value: bool = end;
             self.end = __terrane_value;
         }
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -2061,29 +2061,29 @@ impl WriteResult {
     ) {
         if completed == terrane_int_support::Int::from(data.len() as i128) && !failed {
             {
-                let __terrane_value = Vec::<u8>::from([]);
+                let __terrane_value: Vec<u8> = Vec::<u8>::from([]);
                 self.data = __terrane_value;
             }
         } else {
             {
-                let __terrane_value = data;
+                let __terrane_value: Vec<u8> = data;
                 self.data = __terrane_value;
             }
         }
         {
-            let __terrane_value = completed.clone();
+            let __terrane_value: terrane_int_support::Int = completed.clone();
             self.completed = __terrane_value;
         }
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = deadline_exceeded;
+            let __terrane_value: bool = deadline_exceeded;
             self.deadline_exceeded = __terrane_value;
         }
     }
@@ -2104,7 +2104,7 @@ impl ByteReader {
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
         {
-            let __terrane_value = handle;
+            let __terrane_value: TerranePlatformStreamHandle = handle;
             self.handle = Some(__terrane_value);
         }
     }
@@ -2280,7 +2280,7 @@ impl ByteWriter {
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
         {
-            let __terrane_value = handle;
+            let __terrane_value: TerranePlatformStreamHandle = handle;
             self.handle = Some(__terrane_value);
         }
     }
@@ -2442,11 +2442,11 @@ impl TextReader {
         codec: terrane_string_support::Encoding,
     ) {
         {
-            let __terrane_value = handle;
+            let __terrane_value: TerranePlatformStreamHandle = handle;
             self.handle = Some(__terrane_value);
         }
         {
-            let __terrane_value = codec;
+            let __terrane_value: terrane_string_support::Encoding = codec;
             self.codec = __terrane_value;
         }
     }
@@ -2661,11 +2661,11 @@ impl TextWriter {
         codec: terrane_string_support::Encoding,
     ) {
         {
-            let __terrane_value = handle;
+            let __terrane_value: TerranePlatformStreamHandle = handle;
             self.handle = Some(__terrane_value);
         }
         {
-            let __terrane_value = codec;
+            let __terrane_value: terrane_string_support::Encoding = codec;
             self.codec = __terrane_value;
         }
     }
@@ -2841,7 +2841,7 @@ impl Path {
     }
     pub fn construct(&mut self, input: String) {
         {
-            let __terrane_value = input;
+            let __terrane_value: String = input;
             self.text = __terrane_value;
         }
     }

@@ -1,0 +1,21 @@
+namespace local-loop-callback-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named) int; item T
+    l list of function to int = list;
+    l.append; function int;
+        return item.name;
+    t = 0
+    for cb in l
+        t = t + (cb;)
+    return t
+
+function test-scenario;
+    print; (go; (instance value;))

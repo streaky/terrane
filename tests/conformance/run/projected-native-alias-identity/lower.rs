@@ -247,7 +247,7 @@ impl StringHolder {
     }
     pub fn construct(&mut self, item: owner::Holder<String>) {
         {
-            let __terrane_value = item;
+            let __terrane_value: owner::Holder<String> = item;
             self.item = Some(__terrane_value);
         }
     }

@@ -28,7 +28,9 @@ impl DirectHolder {
         >,
     ) {
         {
-            let __terrane_value = operation(terrane_int_support::Int::from(1_i128));
+            let __terrane_value: terrane_int_support::Int = operation(
+                terrane_int_support::Int::from(1_i128),
+            );
             self.stored = __terrane_value;
         }
     }
@@ -75,7 +77,9 @@ impl BaseHolderStorage {
         >,
     ) {
         {
-            let __terrane_value = operation(terrane_int_support::Int::from(1_i128));
+            let __terrane_value: terrane_int_support::Int = operation(
+                terrane_int_support::Int::from(1_i128),
+            );
             self.stored = __terrane_value;
         }
     }
@@ -150,7 +154,9 @@ impl ChildHolder {
         >,
     ) {
         {
-            let __terrane_value = operation(terrane_int_support::Int::from(1_i128));
+            let __terrane_value: terrane_int_support::Int = operation(
+                terrane_int_support::Int::from(1_i128),
+            );
             self.stored = __terrane_value;
         }
     }

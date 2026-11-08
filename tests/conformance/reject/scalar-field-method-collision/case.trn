@@ -1,0 +1,11 @@
+namespace scalar-field-method-collision
+from /core/collections import list
+class holder
+    n int = 3
+    function n int;
+        return 9
+
+function main;
+    h = instance holder;
+    print; h.n
+    print; (h.n;)

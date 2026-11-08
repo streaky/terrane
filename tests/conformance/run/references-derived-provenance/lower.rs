@@ -16,7 +16,7 @@ impl Holder {
     }
     pub fn construct(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value = amount.clone();
+            let __terrane_value: terrane_int_support::Int = amount.clone();
             self.value = __terrane_value;
         }
     }

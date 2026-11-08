@@ -1,0 +1,20 @@
+namespace narrowed-optional-callable
+function first int;
+    return 1
+class holder
+    f (function to int)|none
+    function construct; f (function to int)|none
+        this.f = f
+function invoke int; callback (function to int)|none
+    if callback != none
+        return callback;
+    return 0
+function test-scenario;
+    local (function to int)|none = first
+    if local != none
+        print; (local;)
+    h = instance holder; first
+    selected = h.f
+    if selected != none
+        print; (selected;)
+    print; (invoke; first)

@@ -1,0 +1,9 @@
+namespace inherited-method-field-collision
+class base
+    function f int;
+        return 9
+class child extends base
+    f int = 3
+function main;
+    h = instance child;
+    print; h.f

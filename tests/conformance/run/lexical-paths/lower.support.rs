@@ -523,7 +523,7 @@ impl Path {
     }
     pub fn construct(&mut self, input: String) {
         {
-            let __terrane_value = input;
+            let __terrane_value: String = input;
             self.text = __terrane_value;
         }
     }

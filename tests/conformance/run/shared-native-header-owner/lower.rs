@@ -16,7 +16,8 @@ impl RequestBuilderOwner {
     }
     pub fn construct(&mut self, builder: std::sync::Arc<TerraneSharedCell<Builder>>) {
         {
-            let __terrane_value = builder.clone();
+            let __terrane_value: std::sync::Arc<TerraneSharedCell<Builder>> = builder
+                .clone();
             self.builder = Some(__terrane_value);
         }
     }

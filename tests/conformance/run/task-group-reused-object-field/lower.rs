@@ -29,7 +29,8 @@ async fn work(
     offset: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
     {
-        let __terrane_value = item.value.clone() + offset.clone();
+        let __terrane_value: terrane_int_support::Int = item.value.clone()
+            + offset.clone();
         item.value = __terrane_value;
     }
     return item.value.clone();

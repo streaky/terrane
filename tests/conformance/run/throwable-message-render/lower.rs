@@ -23,11 +23,11 @@ impl SplitError {
     }
     pub fn construct(&mut self, message: String, display: String) {
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = display;
+            let __terrane_value: String = display;
             self.display = __terrane_value;
         }
     }

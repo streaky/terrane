@@ -13,7 +13,7 @@ impl Holder {
     }
     pub fn construct(&mut self, value: Builder) {
         {
-            let __terrane_value = value;
+            let __terrane_value: Builder = value;
             self.value = Some(__terrane_value);
         }
     }
@@ -75,7 +75,7 @@ fn main() {
             )
         };
         {
-            let __terrane_value = replacement;
+            let __terrane_value: Builder = replacement;
             h.value = Some(__terrane_value);
         }
         println!(

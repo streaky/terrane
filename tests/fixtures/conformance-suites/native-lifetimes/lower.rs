@@ -766,7 +766,7 @@ impl TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: Token = __terrane_raised(
                 terrane_static_trn_546f6b656e_new(),
 
                     44 /* terrane-site: tests/integration/native-field-copy-clone-conversion/case.trn:7:18-7:29 */,
@@ -774,7 +774,7 @@ impl TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642
             self.t = Some(__terrane_value);
         }
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: CloneEnum = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {
                         let value = match std::panic::catch_unwind(
@@ -1418,11 +1418,11 @@ impl TerraneNsNativeLoanChainRebindReceiverWIdentity2F6E61746976652D6C6F616E2D63
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -1553,11 +1553,11 @@ impl TerraneNsNativeLoanExclusiveBranchWIdentity2F6E61746976652D6C6F616E2D657863
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -1612,7 +1612,7 @@ fn test_scenario_terrane_native_loan_exclusive_branch() {
     c = true;
     if c {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: Holder = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
                     90 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:15:19-15:31 */,
@@ -1647,11 +1647,11 @@ impl TerraneNsNativeLoanFinallyCopyRebindWIdentity2F6E61746976652D6C6F616E2D6669
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -2232,11 +2232,11 @@ impl TerraneNsNativeLoanLoopRefreshedWIdentity2F6E61746976652D6C6F616E2D6C6F6F70
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -2301,7 +2301,7 @@ fn test_scenario_terrane_native_loan_loop_refreshed() {
             u128)) } } (), 124 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:15:17-15:24 */))
         );
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: Holder = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
                     125 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:16:19-16:31 */,
@@ -2416,11 +2416,11 @@ impl TerraneNsNativeLoanOwnedObservationWIdentity2F6E61746976652D6C6F616E2D6F776
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -2520,11 +2520,11 @@ impl TerraneNsNativeLoanPredicateLastUseWIdentity2F6E61746976652D6C6F616E2D70726
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -2606,7 +2606,7 @@ fn test_scenario_terrane_native_loan_predicate_last_use() {
     ) > terrane_int_support::Int::from(100_i128)
     {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: Holder = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
                     140 /* terrane-site: tests/integration/native-loan-predicate-last-use/case.trn:15:23-15:35 */,
@@ -2631,11 +2631,11 @@ impl TerraneNsNativeLoanPredicateSwitchWIdentity2F6E61746976652D6C6F616E2D707265
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -2690,7 +2690,7 @@ fn test_scenario_terrane_native_loan_predicate_switch() {
     i = 1;
     if i == 0 {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: Holder = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
                     144 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:16:23-16:35 */,
@@ -2725,11 +2725,11 @@ impl TerraneNsNativeLoanPredicateThreeArmsWIdentity2F6E61746976652D6C6F616E2D707
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -2784,7 +2784,7 @@ fn test_scenario_terrane_native_loan_predicate_three_arms() {
     i = 2;
     if i == 0 {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: Holder = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
                     149 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:16:23-16:35 */,
@@ -2820,11 +2820,11 @@ impl TerraneNsNativeLoanReboundAliasChainWIdentity2F6E61746976652D6C6F616E2D7265
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -2978,11 +2978,11 @@ impl TerraneNsNativeLoanReboundOtherWIdentity2F6E61746976652D6C6F616E2D7265626F7
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3044,7 +3044,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
         (), 161 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:13:13-13:20 */))
     );
     {
-        let __terrane_value = __terrane_raised(
+        let __terrane_value: Holder = __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
                 162 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:14:15-14:27 */,
@@ -3107,11 +3107,11 @@ impl TerraneNsNativeLoanReboundSameWIdentity2F6E61746976652D6C6F616E2D7265626F75
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3173,7 +3173,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
         (), 168 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:13:13-13:20 */))
     );
     {
-        let __terrane_value = __terrane_raised(
+        let __terrane_value: Holder = __terrane_raised(
             terrane_static_trn_486f6c646572_new(),
 
                 169 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:14:15-14:27 */,
@@ -3236,11 +3236,11 @@ impl TerraneNsNativeLoanReturnBranchWIdentity2F6E61746976652D6C6F616E2D726574757
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3295,7 +3295,7 @@ fn test_scenario_terrane_native_loan_return_branch() {
     c = false;
     if c {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: Holder = __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
 
                     175 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:15:19-15:31 */,
@@ -3460,11 +3460,11 @@ impl TerraneNsNativeLoanTryFinallyLastUseWIdentity2F6E61746976652D6C6F616E2D7472
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3581,11 +3581,11 @@ impl TerraneNsNativeLoanTryLocalWIdentity2F6E61746976652D6C6F616E2D7472792D6C6F6
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3690,11 +3690,11 @@ impl TerraneNsNativeLoanWholeLastUseWIdentity2F6E61746976652D6C6F616E2D77686F6C6
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3773,11 +3773,11 @@ impl TerraneNsNativeLoanWholeMoveLastUseWIdentity2F6E61746976652D6C6F616E2D77686
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3853,11 +3853,11 @@ impl TerraneNsNativeLoanWholeMutateLastUseWIdentity2F6E61746976652D6C6F616E2D776
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -3961,11 +3961,11 @@ impl TerraneNsNativeLoopConsumingConditionBreakWIdentity2F6E61746976652D6C6F6F70
     }
     pub fn construct(&mut self, inner: Holder, other: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
         {
-            let __terrane_value = other;
+            let __terrane_value: Holder = other;
             self.other = Some(__terrane_value);
         }
     }
@@ -4377,7 +4377,7 @@ impl TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: NE = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {
                         let value = match std::panic::catch_unwind(
@@ -4469,7 +4469,7 @@ impl Outer {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052::terrane_construct();
+            let __terrane_value: TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052 = TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D656E756D2D6669656C640052::terrane_construct();
             self.inner = Some(__terrane_value);
         }
     }

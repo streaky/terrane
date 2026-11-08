@@ -367,6 +367,17 @@ impl Emitter<'_> {
             .as_ref()
             .map(|binding| binding.value_type.clone())
             .or_else(|| self.value_type(left));
+        let field_value_type = match left.children.as_slice() {
+            [receiver, member]
+                if left.kind == SyntaxKind::MemberExpression
+                    && self.object_field(receiver, self.text(member)) =>
+            {
+                value_type
+                    .as_ref()
+                    .map(|value_type| rust_value_type(self.package, value_type.clone()))
+            }
+            _ => None,
+        };
         let value = if let Some(binding) = union_binding {
             self.union_value(&binding, right)
         } else if let Some(value_type) = value_type {
@@ -418,8 +429,9 @@ impl Emitter<'_> {
             } else {
                 "__terrane_value"
             };
+            let annotation = field_value_type.map_or_else(String::new, |ty| format!(": {ty}"));
             self.line(&format!(
-                "{{ {setup} let __terrane_value = {value}; {target} = {assigned}; }}"
+                "{{ {setup} let __terrane_value{annotation} = {value}; {target} = {assigned}; }}"
             ));
             return;
         }

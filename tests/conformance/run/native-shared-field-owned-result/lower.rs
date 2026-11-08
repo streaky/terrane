@@ -13,7 +13,7 @@ impl Wrapped {
     }
     pub fn construct(&mut self, inner: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
     }

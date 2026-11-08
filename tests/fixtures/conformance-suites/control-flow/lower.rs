@@ -1580,7 +1580,7 @@ impl TerraneNsFunctionScopeReleaseMarkerIdentity2F66756E6374696F6E2D73636F70652D
     }
     pub fn construct(&mut self, name: String) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
     }
@@ -4002,7 +4002,7 @@ impl TerraneNsSwitchBoundariesMarkerIdentity2F7377697463682D626F756E646172696573
     }
     pub fn construct(&mut self, name: String) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
     }
@@ -4039,7 +4039,7 @@ impl RequiredValue {
     }
     pub fn construct(&mut self, text: String) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -4058,14 +4058,14 @@ impl Configured {
         let __terrane_switch_value_429 = &value;
         if __terrane_switch_value_429.as_str() == "a" {
             {
-                let __terrane_value = RequiredValue::terrane_construct(
+                let __terrane_value: RequiredValue = RequiredValue::terrane_construct(
                     String::from("first"),
                 );
                 self.slot = Some(__terrane_value);
             }
         } else {
             {
-                let __terrane_value = RequiredValue::terrane_construct(
+                let __terrane_value: RequiredValue = RequiredValue::terrane_construct(
                     String::from("other"),
                 );
                 self.slot = Some(__terrane_value);

@@ -18,11 +18,12 @@ async function main;
   value.change;
   read = value.read
   change = value.change-async
-  finish = value.finish-async
+  finish = move value.finish-async
   first = await read; 1
   second = await change; 2
   third = await finish; 3
   print; first, second, third
   print; >changed
-  value.finish;
+  finish-sync = move value.finish
+  finish-sync;
   print; >finished

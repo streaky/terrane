@@ -12,7 +12,7 @@ impl SourceHolder {
     }
     pub fn bump(&mut self) {
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: i64 = __terrane_raised(
                 terrane_int_support::fixed_addition(self.value, 1),
                 0 /* terrane-site: src/main.trn:8:22-8:36 */,
             );

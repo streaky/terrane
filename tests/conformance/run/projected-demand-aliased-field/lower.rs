@@ -44,7 +44,7 @@ impl C {
     }
     pub fn construct(&mut self, b: TerraneNsAppBoxIdentity2F61707000426F78<Holder>) {
         {
-            let __terrane_value = b;
+            let __terrane_value: TerraneNsAppBoxIdentity2F61707000426F78<Holder> = b;
             self.b = Some(__terrane_value);
         }
     }

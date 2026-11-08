@@ -2589,12 +2589,18 @@ impl Emitter<'_> {
                         binding.name == name
                             && binding.is_visible_at(self.source.id(), node.span.start)
                     })
-                    .map(|binding| binding.value_type.clone())
+                    .map(|binding| {
+                        narrowed_value_type(self.unit, node, &self.unit.typed_bindings)
+                            .unwrap_or_else(|| binding.value_type.clone())
+                    })
                     .or_else(|| {
                         self.parameter_types
                             .iter()
                             .find(|(parameter, _)| parameter == name)
-                            .map(|(_, value_type)| value_type.clone())
+                            .map(|(_, value_type)| {
+                                narrowed_value_type(self.unit, node, &self.unit.typed_bindings)
+                                    .unwrap_or_else(|| value_type.clone())
+                            })
                     })
             }
             SyntaxKind::TypeExpression

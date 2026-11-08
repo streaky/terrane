@@ -1,0 +1,6 @@
+namespace narrowed-optional-callable-arity
+function main;
+    callback (function from int to int)|none = function int; value int
+        return value
+    if callback != none
+        print; (callback;)

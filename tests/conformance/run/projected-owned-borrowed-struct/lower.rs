@@ -51,7 +51,7 @@ fn main() {
         2 /* terrane-site: src/main.trn:9:20-9:41 */,
     );
     {
-        let __terrane_value = 36;
+        let __terrane_value: u32 = 36;
         descriptor.offset = __terrane_value;
     }
     println!(

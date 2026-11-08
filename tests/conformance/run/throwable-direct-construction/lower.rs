@@ -14,7 +14,7 @@ impl ImportedError {
     }
     pub fn construct(&mut self, message: String) {
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -40,11 +40,11 @@ impl ConsumerError {
     }
     pub fn construct(&mut self, declaration: DocumentValue, message: String) {
         {
-            let __terrane_value = declaration;
+            let __terrane_value: DocumentValue = declaration;
             self.declaration = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -78,7 +78,7 @@ impl ExplicitError {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = String::from("explicit constructor");
+            let __terrane_value: String = String::from("explicit constructor");
             self.message = __terrane_value;
         }
     }

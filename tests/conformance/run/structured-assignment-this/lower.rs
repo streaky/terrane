@@ -13,7 +13,9 @@ impl Item {
     }
     pub fn bump(&mut self) {
         {
-            let __terrane_value = terrane_int_support::Int::from(5_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                5_i128,
+            );
             self.x = __terrane_value;
         }
     }

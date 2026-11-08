@@ -268,6 +268,14 @@ impl CaptureGraph<'_> {
                 self.static_roots.insert(value.span);
             }
         }
+        if node.kind == SyntaxKind::ForStatement
+            && let [target, collection, ..] = node.children.as_slice()
+            && target.kind == SyntaxKind::ForTarget
+        {
+            for name in &target.children {
+                self.edge(name.span, collection.span);
+            }
+        }
         if node.kind == SyntaxKind::ReturnStatement
             && let Some(value) = node.children.first()
             && carries_callable(unit, value)?

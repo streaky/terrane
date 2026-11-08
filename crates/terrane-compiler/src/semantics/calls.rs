@@ -278,13 +278,32 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && callee.kind == SyntaxKind::Name
-        && let Some(binding) = scoped_bindings.iter().rev().find(|binding| {
+        && scoped_bindings.iter().any(|binding| {
             binding.name == node_text(&unit.source, callee)
                 && binding.is_visible_at(unit.source.id(), callee.span.start)
+                && matches!(
+                    match &binding.value_type {
+                        ValueType::Optional(inner) => inner.as_ref(),
+                        value_type => value_type,
+                    },
+                    ValueType::Function(_, _, _) | ValueType::AsyncFunction(_, _, _, _)
+                )
         })
-        && let ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _) =
-            &binding.value_type
     {
+        let Some(
+            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
+        ) = infer_value_type(unit, callee, scoped_bindings)?
+        else {
+            return Err(failure(
+                &unit.source,
+                "T0039",
+                format!(
+                    "`{}` is a value and cannot be called",
+                    node_text(&unit.source, callee)
+                ),
+                callee.span,
+            ));
+        };
         let variadic = parameters
             .last()
             .is_some_and(CallableParameterType::is_variadic);

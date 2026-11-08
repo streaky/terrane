@@ -37,7 +37,7 @@ impl FrameBody {
     }
     pub fn construct(&mut self, x: f64) {
         {
-            let __terrane_value = x;
+            let __terrane_value: f64 = x;
             self.x = __terrane_value;
         }
     }
@@ -60,7 +60,7 @@ impl FrameState {
     }
     pub fn construct(&mut self, bodies: terrane_collection_support::List<FrameBody>) {
         {
-            let __terrane_value = bodies;
+            let __terrane_value: terrane_collection_support::List<FrameBody> = bodies;
             self.bodies = __terrane_value;
         }
     }

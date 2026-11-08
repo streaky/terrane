@@ -14,7 +14,7 @@ impl BaseErrorStorage {
     }
     pub fn construct(&mut self, message: String) {
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -80,7 +80,7 @@ impl ChildError {
     }
     pub fn construct(&mut self, message: String) {
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }

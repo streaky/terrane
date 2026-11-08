@@ -2103,7 +2103,9 @@ fn infer_nonbinary_value_type(
                 })
                 .max_by_key(|binding| binding.visible_from)
             {
-                return match &binding.value_type {
+                let value_type = infer_value_type(unit, callee, bindings)?
+                    .unwrap_or_else(|| binding.value_type.clone());
+                return match &value_type {
                     ValueType::Function(_, result, _) => Ok(Some(result.value_type())),
                     ValueType::AsyncFunction(_, result, transferability, _) => {
                         Ok(Some(ValueType::Task(result.clone(), *transferability)))

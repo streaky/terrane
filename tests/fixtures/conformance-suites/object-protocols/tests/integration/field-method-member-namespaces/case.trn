@@ -1,0 +1,9 @@
+namespace field-method-member-namespaces
+class holder
+    value int = 4
+    static function value int;
+        return 6
+function test-scenario;
+    h = instance holder;
+    print; h.value
+    print; (holder::value;)

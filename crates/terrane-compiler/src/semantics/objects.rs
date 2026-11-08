@@ -1517,6 +1517,63 @@ pub(crate) fn bind_projected_requirement(
     bound
 }
 
+fn validate_effective_field_method_collisions(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn method_in_hierarchy<'a>(
+        package: &'a SemanticPackage,
+        object: &DescriptorContract,
+        field: &ObjectField,
+    ) -> Option<&'a FunctionContract> {
+        package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.functions)
+            .find(|method| {
+                method.owner_identity.as_ref() == Some(&object.identity)
+                    && method.name == field.name
+                    && method.is_static == field.is_static
+                    && method.span.file == object.span.file
+                    && object.span.start <= method.span.start
+                    && method.span.end <= object.span.end
+                    && package.units.iter().any(|unit| {
+                        unit.source.id() == method.span.file
+                            && find_node_by_span(&unit.tree.root, method.span)
+                                .is_some_and(|node| node.kind == SyntaxKind::FunctionDeclaration)
+                    })
+            })
+            .or_else(|| {
+                object
+                    .base
+                    .iter()
+                    .chain(&object.traits)
+                    .filter_map(|identity| descriptor_declaration(package, identity))
+                    .find_map(|(_, ancestor)| method_in_hierarchy(package, ancestor, field))
+            })
+    }
+    for unit in &package.units {
+        for object in unit.descriptors.iter().filter(|object| {
+            object.span.file == unit.source.id()
+                && matches!(object.kind, ObjectKind::Class | ObjectKind::Trait)
+        }) {
+            for field in effective_object_fields(package, object) {
+                if method_in_hierarchy(package, object, &field).is_some() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0063",
+                        format!(
+                            "field `{}` conflicts with a method in the effective members of `{}`",
+                            field.name, object.name
+                        ),
+                        object.span,
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "object conformance checks inheritance, interfaces, and trait conflicts together"
@@ -3471,6 +3528,7 @@ pub(super) fn prepare_type_declarations(
     }
     apply_projected_method_contracts(&mut package.units, &package.projection);
     materialize_imported_ancestor_contracts(package);
+    validate_effective_field_method_collisions(package)?;
     for unit in &mut package.units {
         for descriptor in &mut unit.descriptors {
             if descriptor.kind == ObjectKind::Interface {

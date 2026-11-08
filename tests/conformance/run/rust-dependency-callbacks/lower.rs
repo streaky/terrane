@@ -183,7 +183,8 @@ impl ProjectedCounter {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.total.clone() + delta.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + delta.clone();
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -255,7 +256,8 @@ impl ProjectedLocalCounter {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.total.clone() + delta.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + delta.clone();
             self.total = __terrane_value;
         }
         return self.total.clone();

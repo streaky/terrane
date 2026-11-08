@@ -45,7 +45,7 @@ fn main() {
         0 /* terrane-site: src/main.trn:12:9-12:23 */,
     );
     {
-        let __terrane_value = String::from("changed");
+        let __terrane_value: String = String::from("changed");
         cfg.other = __terrane_value;
     }
     println!(
@@ -60,7 +60,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&cfg.other)
     );
     {
-        let __terrane_value = String::from("x");
+        let __terrane_value: String = String::from("x");
         cfg.sql = __terrane_value;
     }
     println!("{}", terrane_scalar_support::scalar_text(&cfg.sql));

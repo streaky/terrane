@@ -1,0 +1,12 @@
+namespace field-method-real-override
+class base
+    function f int;
+        return 4
+class child extends base
+    function f int;
+        return 7
+function test-scenario;
+    h = instance child;
+    alias = h.f
+    print; (h.f;)
+    print; (alias;)

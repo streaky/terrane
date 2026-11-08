@@ -47,7 +47,7 @@ impl Maker {
         __trn_626f78: TerraneNsAppBoxIdentity2F61707000426F78<Holder>,
     ) {
         {
-            let __terrane_value = __trn_626f78;
+            let __terrane_value: TerraneNsAppBoxIdentity2F61707000426F78<Holder> = __trn_626f78;
             self.__trn_626f78 = Some(__terrane_value);
         }
     }

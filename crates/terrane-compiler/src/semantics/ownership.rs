@@ -43,6 +43,65 @@ fn requires_noncopyable_projection_access(
     )
 }
 
+fn validate_callable_field_invocation(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let callee = ungroup(callee);
+    if callee.kind != SyntaxKind::MemberExpression {
+        return Ok(());
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return Ok(());
+    };
+    let Some(receiver_type) =
+        super::member_inference::infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
+    else {
+        return Ok(());
+    };
+    let mut receiver_type = &receiver_type;
+    while let ValueType::Reference(inner)
+    | ValueType::MutableReference(inner)
+    | ValueType::SharedReference(inner) = receiver_type
+    {
+        receiver_type = inner.value_type_ref();
+    }
+    let ValueType::Object(identity) = receiver_type else {
+        return Ok(());
+    };
+    let field = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|object| object.identity.base() == identity.base())
+        .is_some_and(|object| {
+            super::objects::effective_object_fields(package, object)
+                .iter()
+                .any(|field| !field.is_static && field.name == node_text(&unit.source, member))
+        });
+    if field
+        && matches!(
+            infer_value_type(unit, callee, &unit.typed_bindings)?,
+            Some(ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects))
+                if effects.modes.written == InvocationMode::Consuming
+        )
+    {
+        return Err(SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "T0135",
+                "a consuming callable field must be explicitly moved out before invocation",
+                callee.span,
+            )
+            .with_help(
+                "when ownership permits, bind `callback = move owner.field`, then invoke `callback;`",
+            )],
+        });
+    }
+    Ok(())
+}
+
 fn validate_field_snapshot(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -474,6 +533,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 }
             }
             let callee = ungroup(callee);
+            validate_callable_field_invocation(package, unit, callee)?;
             let projected = super::bindings::projected_function_for_call(
                 package,
                 unit,
@@ -720,14 +780,14 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
+            && let Some(callee) = node.children.first().map(ungroup)
             && callee.kind == SyntaxKind::Name
             && let Some(binding) =
                 binding_at(unit, node_text(&unit.source, callee), callee.span.start)
             && matches!(
-                &unit.typed_bindings[binding].value_type,
-                ValueType::Function(_, _, effects)
-                    | ValueType::AsyncFunction(_, _, _, effects)
+                infer_value_type(unit, callee, &unit.typed_bindings)?,
+                Some(ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects))
                     if effects.modes.written == InvocationMode::Consuming
             )
         {

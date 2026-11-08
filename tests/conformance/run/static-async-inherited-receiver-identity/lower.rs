@@ -34,7 +34,8 @@ impl BaseStorage {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value = self.total.clone() + delta.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + delta.clone();
             self.total = __terrane_value;
         }
         reported = __terrane_await(Box::pin(results.send(self.total.clone()))).await;
@@ -65,7 +66,7 @@ impl BaseStorage {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
@@ -233,8 +234,8 @@ impl Derived {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value = self.total.clone() + delta.clone()
-                + self.bonus.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + delta.clone() + self.bonus.clone();
             self.total = __terrane_value;
         }
         reported = __terrane_await(Box::pin(results.send(self.total.clone()))).await;
@@ -265,7 +266,7 @@ impl Derived {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
@@ -394,7 +395,9 @@ fn main() {
         TERRANE_STATIC_HOLDER_SLOT.replace(Base::terrane_construct());
         {
             let __terrane_owner_1 = TERRANE_STATIC_HOLDER_SLOT.handle();
-            let __terrane_value = terrane_int_support::Int::from(100_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                100_i128,
+            );
             *__terrane_owner_1
                 .lock()
                 .expect("static field lock poisoned")

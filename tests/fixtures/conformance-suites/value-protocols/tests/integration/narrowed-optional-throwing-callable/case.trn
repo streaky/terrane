@@ -1,0 +1,15 @@
+namespace narrowed-optional-throwing-callable
+from /core/errors import throwable
+class failure implements throwable
+    message string = 'optional failure'
+    function render string;
+        return this.message
+function bad int throws throwable;
+    throw instance failure;
+function test-scenario;
+    callback (function to int throws throwable)|none = bad
+    if callback != none
+        try
+            print; (callback;)
+        catch failure as error
+            print; error.message

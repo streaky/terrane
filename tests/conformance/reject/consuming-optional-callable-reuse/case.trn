@@ -1,0 +1,7 @@
+namespace consuming-optional-callable-reuse
+function main;
+    callback (consuming function to int)|none = consuming function int;
+        return 8
+    if callback != none
+        print; (callback;)
+        print; (callback;)

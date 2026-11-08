@@ -29,7 +29,7 @@ impl Holder {
     }
     pub async fn bump(&mut self) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.value.clone()
+            let __terrane_value: terrane_int_support::Int = self.value.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.value = __terrane_value;
         }
@@ -39,7 +39,7 @@ impl Holder {
         __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
@@ -74,7 +74,7 @@ impl SnapshotOuter {
     }
     pub fn construct(&mut self, inner: Holder) {
         {
-            let __terrane_value = inner;
+            let __terrane_value: Holder = inner;
             self.inner = Some(__terrane_value);
         }
     }
@@ -112,7 +112,8 @@ impl SharedOuter {
     }
     pub fn construct(&mut self, inner: std::sync::Arc<TerraneSharedCell<Holder>>) {
         {
-            let __terrane_value = inner.clone();
+            let __terrane_value: std::sync::Arc<TerraneSharedCell<Holder>> = inner
+                .clone();
             self.inner = Some(__terrane_value);
         }
     }

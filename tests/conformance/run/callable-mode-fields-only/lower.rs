@@ -71,6 +71,7 @@ fn main() {
         let first: terrane_int_support::Int;
         let second: terrane_int_support::Int;
         let third: terrane_int_support::Int;
+        let finish_sync: TerraneConsumingCallable<(), ()>;
         value = Operations::terrane_construct();
         value.change.call(());
         read = value.read;
@@ -87,7 +88,8 @@ fn main() {
             terrane_scalar_support::scalar_text(&third)
         );
         println!("{}", String::from("changed"));
-        value.finish.call(());
+        finish_sync = value.finish;
+        finish_sync.call(());
         println!("{}", String::from("finished"));
     });
 }

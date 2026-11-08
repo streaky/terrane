@@ -109,7 +109,9 @@ fn main() {
     );
     {
         let __terrane_owner_2 = b.clone();
-        let __terrane_value = terrane_int_support::Int::from(4_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            4_i128,
+        );
         __terrane_owner_2.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     ha = a.clone();

@@ -31,17 +31,21 @@ fn main() {
     let mut j: Job;
     j = Job::terrane_construct();
     {
-        let __terrane_value = finish(terrane_int_support::Int::from(1_i128));
+        let __terrane_value: State<terrane_int_support::Int> = finish(
+            terrane_int_support::Int::from(1_i128),
+        );
         j.status = __terrane_value;
     }
     println!("{}", terrane_scalar_support::scalar_text(&result(&j.status)));
     {
-        let __terrane_value = finish(terrane_int_support::Int::from(42_i128));
+        let __terrane_value: State<terrane_int_support::Int> = finish(
+            terrane_int_support::Int::from(42_i128),
+        );
         j.status = __terrane_value;
     }
     println!("{}", terrane_scalar_support::scalar_text(&result(&j.status)));
     {
-        let __terrane_value = {
+        let __terrane_value: State<terrane_int_support::Int> = {
             let __terrane_enum_payload_0 = terrane_int_support::Int::from(5_i128);
             State::<terrane_int_support::Int>::Completed(__terrane_enum_payload_0)
         };
@@ -49,7 +53,9 @@ fn main() {
     }
     println!("{}", terrane_scalar_support::scalar_text(&result(&j.status)));
     {
-        let __terrane_value = terrane_collection_support::List::<
+        let __terrane_value: terrane_collection_support::List<
+            State<terrane_int_support::Int>,
+        > = terrane_collection_support::List::<
             State<terrane_int_support::Int>,
         >::new(vec![finish(terrane_int_support::Int::from(9_i128))]);
         j.statuses = __terrane_value;

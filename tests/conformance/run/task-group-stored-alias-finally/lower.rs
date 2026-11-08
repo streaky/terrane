@@ -54,7 +54,7 @@ async fn child(
 ) -> terrane_int_support::Int {
     {
         let __terrane_owner_0 = observer.clone();
-        let __terrane_value = true;
+        let __terrane_value: bool = true;
         __terrane_owner_0
             .lock()
             .expect("shared reference lock poisoned")
@@ -82,7 +82,7 @@ async fn child(
                     }
                     {
                         let __terrane_owner_1 = observer.clone();
-                        let __terrane_value = true;
+                        let __terrane_value: bool = true;
                         __terrane_owner_1
                             .lock()
                             .expect("shared reference lock poisoned")
@@ -115,7 +115,7 @@ async fn child(
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         {
             let __terrane_owner_2 = observer.clone();
-            let __terrane_value = true;
+            let __terrane_value: bool = true;
             __terrane_owner_2
                 .lock()
                 .expect("shared reference lock poisoned")

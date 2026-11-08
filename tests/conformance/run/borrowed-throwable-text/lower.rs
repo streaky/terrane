@@ -121,13 +121,13 @@ impl ErrorHolder {
     }
     pub fn construct(&mut self, current: TerraneError) {
         {
-            let __terrane_value = current;
+            let __terrane_value: TerraneError = current;
             self.current = Some(__terrane_value);
         }
     }
     pub fn replace_current(&mut self) -> String {
         {
-            let __terrane_value = make_error(true);
+            let __terrane_value: TerraneError = make_error(true);
             self.current = Some(__terrane_value);
         }
         return String::from("original");

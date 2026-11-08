@@ -961,7 +961,7 @@ impl RetainedResource {
     }
     pub fn construct(&mut self, value: Unique) {
         {
-            let __terrane_value = value;
+            let __terrane_value: Unique = value;
             self.payload = Some(__terrane_value);
         }
     }
@@ -1977,7 +1977,7 @@ fn check_numeric_fields() {
     };
     selected = optional_number(true, terrane_int_support::Int::from(73_i128));
     {
-        let __terrane_value = match selected.clone() {
+        let __terrane_value: Option<u32> = match selected.clone() {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
@@ -1991,7 +1991,7 @@ fn check_numeric_fields() {
         fields.quality = __terrane_value;
     }
     {
-        let __terrane_value = match selected.clone() {
+        let __terrane_value: Option<f64> = match selected.clone() {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
@@ -2018,7 +2018,7 @@ fn check_numeric_fields() {
     );
     absent = optional_number(false, terrane_int_support::Int::from(0_i128));
     {
-        let __terrane_value = match absent {
+        let __terrane_value: Option<u32> = match absent {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
@@ -2033,7 +2033,7 @@ fn check_numeric_fields() {
     }
     println!("{}", terrane_scalar_support::scalar_text(&(&fields.quality).is_none()));
     {
-        let __terrane_value = match selected {
+        let __terrane_value: Option<u32> = match selected {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
@@ -2050,7 +2050,7 @@ fn check_numeric_fields() {
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
             {
-                let __terrane_value = match invalid {
+                let __terrane_value: Option<u32> = match invalid {
                     Some(__terrane_optional_value) => {
                         Some(
                             __terrane_raised_completion!(

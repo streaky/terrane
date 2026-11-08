@@ -62,7 +62,7 @@ impl Marker {
     }
     pub fn construct(&mut self, name: String) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
     }

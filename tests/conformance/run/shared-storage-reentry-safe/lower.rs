@@ -39,7 +39,7 @@ impl TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652
         >,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.count.clone()
+            let __terrane_value: terrane_int_support::Int = self.count.clone()
                 + {
                     let __terrane_snapshot = other
                         .lock()
@@ -166,12 +166,16 @@ fn branch(flag: bool) -> terrane_int_support::Int {
     );
     {
         let __terrane_owner_2 = second.clone();
-        let __terrane_value = terrane_int_support::Int::from(4_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            4_i128,
+        );
         __terrane_owner_2.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     {
         let __terrane_owner_3 = third.clone();
-        let __terrane_value = terrane_int_support::Int::from(8_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            8_i128,
+        );
         __terrane_owner_3.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     a = first.clone();
@@ -241,7 +245,9 @@ fn main() {
     );
     {
         let __terrane_owner_6 = other.clone();
-        let __terrane_value = terrane_int_support::Int::from(4_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            4_i128,
+        );
         __terrane_owner_6.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     held = plain.clone();

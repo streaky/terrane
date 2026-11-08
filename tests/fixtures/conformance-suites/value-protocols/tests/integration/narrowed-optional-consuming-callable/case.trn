@@ -1,0 +1,6 @@
+namespace narrowed-optional-consuming-callable
+function test-scenario;
+    callback (consuming function to int)|none = consuming function int;
+        return 8
+    if callback != none
+        print; (callback;)
