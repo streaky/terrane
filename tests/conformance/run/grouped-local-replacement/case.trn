@@ -1,0 +1,5 @@
+namespace grouped-local-replacement
+function main;
+    g = 1
+    ((g)) = 4
+    print; g

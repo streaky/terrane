@@ -69,6 +69,7 @@ pub(super) fn analyze_binding_node(
         && let [receiver, member] = target.children.as_slice()
         && let Some(identity) = class_designator_identity(unit, receiver)
     {
+        infer_value_type(unit, target, bindings)?;
         let Some(expected) =
             object_field_type(unit, &identity, node_text(&unit.source, member), true)
         else {

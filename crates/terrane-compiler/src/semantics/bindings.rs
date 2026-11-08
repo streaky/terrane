@@ -502,6 +502,7 @@ pub(super) fn first_write_to<'a>(
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
     ) && node.span != declaration_span
         && let Some(target) = node.children.first()
+        && let target = super::types::ungrouped_expression(target)
         && target.kind == SyntaxKind::Name
         && package
             .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
@@ -837,13 +838,16 @@ pub(super) fn collect_binding_events(
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
     ) && !declares_binding
     {
-        node.children.first().filter(|target| {
-            target.kind == SyntaxKind::Name
-                && !matches!(
-                    unit.inferred_value_type(target),
-                    Some(ValueType::MutableReference(_))
-                )
-        })
+        node.children
+            .first()
+            .map(super::types::ungrouped_expression)
+            .filter(|target| {
+                target.kind == SyntaxKind::Name
+                    && !matches!(
+                        unit.inferred_value_type(target),
+                        Some(ValueType::MutableReference(_))
+                    )
+            })
     } else {
         None
     };
@@ -862,8 +866,9 @@ pub(super) fn collect_binding_events(
                         .iter()
                         .any(|prior| prior.kind == SyntaxKind::Name)
             };
-        let plain_assignment_target =
-            assignment_target.is_some() && node.kind == SyntaxKind::Assignment && index == 0;
+        let plain_assignment_target = (assignment_target.is_some() || declares_binding)
+            && node.kind == SyntaxKind::Assignment
+            && index == 0;
         if !plain_assignment_target {
             let repeats = binding_event_child_repeats(node, index);
             let region = binding_event_child_region(node, child, index);
@@ -1361,7 +1366,7 @@ pub(crate) fn binding_stores_are_independent(
     ) -> Option<usize> {
         let writes = matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
             && (node.span == binding
-                || node.children.first().is_some_and(|target| {
+                || node.assignment_target().is_some_and(|target| {
                     target.kind == SyntaxKind::Name
                         && package
                             .resolve_name_at(

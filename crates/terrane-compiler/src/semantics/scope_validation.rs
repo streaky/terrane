@@ -40,8 +40,7 @@ pub(super) fn validate_assignment_block(
                     validate_assigned_reads(unit, value, declared, assigned)?;
                 }
                 if let Some(target) = statement
-                    .children
-                    .first()
+                    .assignment_target()
                     .filter(|target| target.kind == SyntaxKind::Name)
                 {
                     let name = node_text(&unit.source, target).to_owned();

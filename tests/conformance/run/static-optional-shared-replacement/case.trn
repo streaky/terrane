@@ -1,0 +1,12 @@
+namespace static-optional-shared-replacement
+function five int;
+    return 5
+class holder
+    static f (function to int)|none = none
+function main;
+    holder::f = five
+    callback = holder::f
+    if callback != none
+        print; (callback;)
+    holder::f = none
+    print; holder::f == none

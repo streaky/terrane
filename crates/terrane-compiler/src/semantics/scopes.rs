@@ -480,9 +480,8 @@ pub(super) fn populate_assignment(
         })
     {
         if node
-            .children
-            .first()
-            .is_some_and(|child| child.kind == SyntaxKind::Name)
+            .assignment_target()
+            .is_some_and(|target| target.kind == SyntaxKind::Name)
             && visible_local_symbol(scopes, index, &declaration.name)
                 .is_some_and(|symbol| is_lexically_owned_function(symbol, scopes, index))
         {

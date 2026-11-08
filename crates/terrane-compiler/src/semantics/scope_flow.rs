@@ -1631,7 +1631,7 @@ fn assignment_writes_through_reference(
     if statement.kind != SyntaxKind::Assignment {
         return false;
     }
-    let Some(target) = statement.children.first() else {
+    let Some(target) = statement.assignment_target() else {
         return false;
     };
     state
@@ -1651,7 +1651,7 @@ fn record_assignment_reads(
     state: &FlowEnv,
 ) {
     if statement.kind == SyntaxKind::Assignment
-        && let Some(destination) = statement.children.first()
+        && let Some(destination) = statement.assignment_target()
         && (destination.kind != SyntaxKind::Name
             || assignment_writes_through_reference(unit, statement, state))
     {

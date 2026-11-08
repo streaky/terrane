@@ -51,6 +51,13 @@ impl Emitter<'_> {
     }
 
     pub(super) fn statement(&mut self, node: &SyntaxNode) {
+        let statement = node;
+        let mut node = node;
+        while node.kind == SyntaxKind::GroupExpression
+            && let [inner] = node.children.as_slice()
+        {
+            node = inner;
+        }
         self.statement_debug_point(node);
         let referenced_fresh_lists = self.statement_fresh_list_references(node);
         match node.kind {
@@ -138,7 +145,7 @@ impl Emitter<'_> {
             }
             _ => {}
         }
-        self.emit_callable_drops_after(node);
+        self.emit_callable_drops_after(statement);
         self.invalidate_fresh_lists(&referenced_fresh_lists);
     }
 
@@ -284,11 +291,13 @@ impl Emitter<'_> {
             return false;
         };
         let storage = rust_static_field_name(self.package, &object.identity, self.text(member));
-        if matches!(self.value_type(left), Some(ValueType::Object(_))) {
+        let value_type = self.value_type(left).expect("validated static field type");
+        if matches!(value_type, ValueType::Object(_)) {
             self.line(&format!("{storage}.replace({value});"));
         } else {
+            let destination_type = rust_value_type(self.package, value_type);
             self.line(&format!(
-                "{{ let __terrane_static_value = {value}; *{storage}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}"
+                "{{ let __terrane_static_value: {destination_type} = {value}; *{storage}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}"
             ));
         }
         true
@@ -1212,13 +1221,19 @@ impl Emitter<'_> {
         reason = "binding lowering keeps typed storage, ownership, discard, and initialization in one path"
     )]
     pub(super) fn binding(&mut self, node: &SyntaxNode) {
-        let Some((name_index, name_node)) = node
-            .children
-            .iter()
-            .enumerate()
-            .find(|(_, child)| child.kind == SyntaxKind::Name)
+        let Some(name_node) = node
+            .assignment_target()
+            .filter(|target| target.kind == SyntaxKind::Name)
         else {
             return;
+        };
+        let name_index = if node.kind == SyntaxKind::Assignment {
+            0
+        } else {
+            node.children
+                .iter()
+                .position(|child| child.span == name_node.span)
+                .expect("binding contains its declared name")
         };
         let source_name = self.text(name_node);
         let binding = self

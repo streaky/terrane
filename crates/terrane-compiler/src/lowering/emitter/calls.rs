@@ -2598,7 +2598,7 @@ impl Emitter<'_> {
                     )
                 })
         } else if callable_static_field {
-            self.expression(callee)
+            format!("({})", self.expression(callee))
         } else if let [receiver, member] = callee.children.as_slice()
             && callee.kind == SyntaxKind::StaticMemberExpression
             && let Some(object) = self.class_designator(receiver)

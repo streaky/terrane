@@ -1325,8 +1325,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .filter(|binding| noncopyable_binding(package, unit, *binding));
             let assignment_target = node.assignment_target();
             for (index, child) in node.children.iter().enumerate() {
-                if assignment_target.is_some_and(|target| target.span == child.span)
-                    && child.kind == SyntaxKind::Name
+                if assignment_target.is_some_and(|target| target.span == ungroup(child).span)
+                    && ungroup(child).kind == SyntaxKind::Name
                 {
                     // Write-through assignment uses the reference handle, not a new binding.
                     if node.kind != SyntaxKind::Assignment

@@ -875,16 +875,20 @@ fn binding_mutation_count(
         node.kind,
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
     ) && node.span != declaration_span
-        && node.children.first().is_some_and(|target| {
-            (!only_interior
-                || node.kind == SyntaxKind::PostfixExpression
-                || target.kind != SyntaxKind::Name)
-                && (resolves_to_binding(target)
-                    || (matches!(
-                        target.kind,
-                        SyntaxKind::IndexExpression | SyntaxKind::MemberExpression
-                    ) && target.children.first().is_some_and(resolves_to_binding)))
-        });
+        && node
+            .children
+            .first()
+            .map(super::types::ungrouped_expression)
+            .is_some_and(|target| {
+                (!only_interior
+                    || node.kind == SyntaxKind::PostfixExpression
+                    || target.kind != SyntaxKind::Name)
+                    && (resolves_to_binding(target)
+                        || (matches!(
+                            target.kind,
+                            SyntaxKind::IndexExpression | SyntaxKind::MemberExpression
+                        ) && target.children.first().is_some_and(resolves_to_binding)))
+            });
     let mutator_call = node.kind == SyntaxKind::CallExpression
         && node.children.first().is_some_and(|callee| {
             let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee) else {

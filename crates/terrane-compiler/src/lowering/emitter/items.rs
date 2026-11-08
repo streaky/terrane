@@ -40,13 +40,13 @@ impl Emitter<'_> {
         let Some(storage) = storage else {
             return false;
         };
-        let Some((name_index, _)) = node
-            .children
-            .iter()
-            .enumerate()
-            .find(|(_, child)| child.kind == SyntaxKind::Name)
-        else {
-            return false;
+        let name_index = if node.kind == SyntaxKind::Assignment {
+            0
+        } else {
+            node.children
+                .iter()
+                .position(|child| child.span == name.span)
+                .expect("binding contains its declared name")
         };
         let Some(initializer) = binding_initializer(node, name_index) else {
             return false;
