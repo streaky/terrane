@@ -564,7 +564,7 @@ pub struct TerraneOwnedMutableInputsM<A0, Output> {
     >,
 }
 impl<A0, Output> TerraneOwnedMutableInputsM<A0, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnMut((&mut A0,)) -> Output + Clone + Send + 'static,
     {
@@ -572,7 +572,7 @@ impl<A0, Output> TerraneOwnedMutableInputsM<A0, Output> {
             body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
-    fn call(&self, arguments: (&mut A0,)) -> Output {
+    pub fn call(&self, arguments: (&mut A0,)) -> Output {
         self.body.lock().expect("mutable callable lock poisoned").call(arguments)
     }
 }

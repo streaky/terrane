@@ -493,7 +493,7 @@ pub struct TerraneConsumingCallable<Arguments, Output> {
     body: std::boxed::Box<dyn TerraneConsumingCallableBody<Arguments, Output>>,
 }
 impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnOnce(Arguments) -> Output + Send + 'static,
     {
@@ -501,7 +501,7 @@ impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
             body: std::boxed::Box::new(function),
         }
     }
-    fn call(self, arguments: Arguments) -> Output {
+    pub fn call(self, arguments: Arguments) -> Output {
         self.body.call(arguments)
     }
 }
