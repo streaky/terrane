@@ -91,11 +91,10 @@ fn main() {
                     value = outcome.value.clone();
                     if (&value).is_some() {
                         total = total.clone()
-                            + match &value {
+                            + match value {
                                 Some(value) => value,
                                 _ => unreachable!("flow-proven storage refinement"),
-                            }
-                                .clone();
+                            };
                     }
                 }
                 println!(

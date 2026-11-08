@@ -1355,7 +1355,7 @@ pub fn named_logger(sink: LogSink, target: String) -> Logger {
         sink,
         make_logger_options(
             info_level(),
-            target,
+            target.clone(),
             target,
             terrane_int_support::Int::from(64_i128),
             terrane_int_support::Int::from(65536_i128),

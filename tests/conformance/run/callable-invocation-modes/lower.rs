@@ -372,7 +372,7 @@ fn main() {
             .call((terrane_int_support::Int::from(1_i128),)))
         );
         redemption = {
-            let receiver = value_2.clone();
+            let receiver = value_2;
             TerraneConsumingCallable::new(move |(): ()| receiver.redeem())
         };
         println!("{}", terrane_scalar_support::scalar_text(&redemption.call(())));

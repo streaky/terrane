@@ -553,7 +553,7 @@ fn main() {
         batch_tx = batch_pair.sender;
         batch_rx = batch_pair.receiver;
         batch_send = __terrane_await(
-                Box::pin(batch_tx.send(StringBatch::terrane_construct(values.clone()))),
+                Box::pin(batch_tx.send(StringBatch::terrane_construct(values))),
             )
             .await;
         batch_tx.close();

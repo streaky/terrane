@@ -4923,7 +4923,7 @@ impl ExactReadProgress {
             self.deadline_exceeded = __terrane_value;
         }
         {
-            let __terrane_value = message.clone();
+            let __terrane_value = message;
             self.message = __terrane_value;
         }
         if completed == terrane_int_support::Int::from(0_i128) && !end && !failed
@@ -5000,7 +5000,7 @@ impl WriteProgress {
             self.deadline_exceeded = __terrane_value;
         }
         {
-            let __terrane_value = message.clone();
+            let __terrane_value = message;
             self.message = __terrane_value;
         }
         if completed == terrane_int_support::Int::from(0_i128) && !failed

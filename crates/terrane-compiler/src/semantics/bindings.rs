@@ -852,6 +852,10 @@ pub(super) fn collect_binding_events(
     };
 
     for (index, child) in node.children.iter().enumerate() {
+        // A member selector is not a lexical read of a same-named binding.
+        if node.kind == SyntaxKind::MemberExpression && index == 1 {
+            continue;
+        }
         let declares_child = child.kind == SyntaxKind::Name
             && if node.kind == SyntaxKind::ForTarget {
                 true

@@ -600,7 +600,7 @@ fn main() {
         };
         println!(
             "{}", terrane_scalar_support::scalar_text(&inspect_callback(text.clone(),
-            text.clone()))
+            text))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0

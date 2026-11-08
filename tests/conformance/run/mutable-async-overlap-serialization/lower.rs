@@ -177,7 +177,7 @@ fn main() {
         );
         value = GatedAccumulator::terrane_construct();
         bound = {
-            let receiver = TerraneAsyncMutableState::new(value.clone());
+            let receiver = TerraneAsyncMutableState::new(value);
             TerraneMutableCallable::new(move |
                 (
                     argument_0,
