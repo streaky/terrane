@@ -1189,6 +1189,9 @@ fn analyze_parsed_with_projection(
     super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);
+    // Validate constructor places before tracking transfers into them: a repeated
+    // required-field write is invalid independently of its RHS ownership.
+    super::initialization::validate(&mut semantic)?;
     // Exact callable captures can make an environment noncopyable. Validate
     // transfers only after effect inference has refreshed binding types.
     validate_moves(&semantic)?;
@@ -1209,7 +1212,6 @@ fn analyze_parsed_with_projection(
     validate_referenced_replacements(&semantic)?;
     super::generic_recursion::validate(&semantic)?;
     validate_discarded_temporary_mutations(&semantic)?;
-    super::initialization::validate(&mut semantic)?;
     validate_suspension_ownership(&semantic)?;
     validate_task_consumption(&semantic)?;
     super::task_groups::validate_task_groups(&semantic)?;
