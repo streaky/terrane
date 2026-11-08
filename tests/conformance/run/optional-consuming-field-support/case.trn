@@ -1,0 +1,7 @@
+namespace optional-consuming-field-support
+class holder
+    callback (consuming function to int)|none
+    function construct;
+        this.callback = none
+function main;
+    print; 0

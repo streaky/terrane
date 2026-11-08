@@ -23,6 +23,7 @@ pub(super) fn value_type_contains_callable(
                 value_type_contains_callable(parameter.value_type_ref(), predicate)
             }) || value_type_contains_callable(result.value_type_ref(), predicate)
         }
+        ValueType::Optional(inner) => value_type_contains_callable(inner, predicate),
         ValueType::Union(arms) => arms
             .iter()
             .any(|arm| value_type_contains_callable(arm, predicate)),
