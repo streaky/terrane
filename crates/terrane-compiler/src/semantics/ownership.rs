@@ -1753,43 +1753,168 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     Ok(())
 }
 
+/// Authority of an earlier call argument borrowing this owned argument's place.
+pub(super) fn call_argument_borrow_authority(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    argument: &SyntaxNode,
+) -> Option<ReferenceAuthority> {
+    let [callee, arguments] = call.children.as_slice() else {
+        return None;
+    };
+    let contract = function_contract_for_call(package, unit, callee)
+        .or_else(|| super::bindings::callback_contract(package, unit, callee));
+    let callable = contract
+        .is_none()
+        .then(|| {
+            infer_value_type(unit, callee, &unit.typed_bindings)
+                .ok()
+                .flatten()
+        })
+        .flatten();
+    let callable_parameters = match &callable {
+        Some(
+            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
+        ) => Some(parameters),
+        _ => None,
+    };
+    if contract.is_none() && callable_parameters.is_none() {
+        return None;
+    }
+    let projected =
+        projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(call));
+    let authority = |ty: &ValueType| match ty {
+        ValueType::Reference(_) => Some(ReferenceAuthority::ReadOnly),
+        ValueType::MutableReference(_) => Some(ReferenceAuthority::Exclusive),
+        _ => None,
+    };
+    let borrowed = |index: usize, value: &SyntaxNode| {
+        if let Some(contract) = contract {
+            contract
+                .parameters
+                .iter()
+                .enumerate()
+                .find_map(|(parameter_index, parameter)| {
+                    argument_for_parameter(unit, arguments, contract, parameter_index)
+                        .filter(|actual| actual.span == value.span)?;
+                    parameter
+                        .element_value_type()
+                        .as_ref()
+                        .and_then(authority)
+                        .or_else(|| {
+                            projected
+                                .as_ref()
+                                .and_then(|function| function.parameters.get(parameter_index))
+                                .filter(|parameter| parameter.borrowed)
+                                .map(|parameter| {
+                                    if parameter.mutable_borrow {
+                                        ReferenceAuthority::Exclusive
+                                    } else {
+                                        ReferenceAuthority::ReadOnly
+                                    }
+                                })
+                        })
+                })
+        } else {
+            callable_parameters
+                .and_then(|parameters| {
+                    parameters
+                        .get(index)
+                        .or_else(|| parameters.last().filter(|p| p.is_variadic()))
+                })
+                .and_then(|parameter| authority(parameter.value_type_ref()))
+        }
+    };
+    let target_index = arguments
+        .children
+        .iter()
+        .position(|actual| actual.children.last().unwrap_or(actual).span == argument.span)?;
+    let target = argument;
+    if borrowed(target_index, target).is_some() {
+        return None;
+    }
+    let (target_owner, target_path) = call_argument_owner_path(package, unit, target)?;
+    arguments
+        .children
+        .iter()
+        .enumerate()
+        .take(target_index)
+        .filter_map(|(index, actual)| {
+            let place = actual.children.last().unwrap_or(actual);
+            let authority = borrowed(index, place)?;
+            owner_place_path(
+                package,
+                unit,
+                place,
+                target_owner,
+                &unit.reference_provenance,
+            )
+            .filter(|path| owner_paths_overlap(&target_path, path))
+            .map(|_| authority)
+        })
+        .max_by_key(|authority| matches!(authority, ReferenceAuthority::Exclusive))
+}
+
+fn call_argument_owner_path(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    place: &SyntaxNode,
+) -> Option<(Span, Vec<ReferenceProjection>)> {
+    let place = ungroup(place);
+    let place = if place.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, place).as_deref() == Some("move")
+    {
+        place.children.last().unwrap_or(place)
+    } else {
+        place
+    };
+    unit.typed_bindings.iter().find_map(|binding| {
+        owner_place_path(
+            package,
+            unit,
+            place,
+            binding.span,
+            &unit.reference_provenance,
+        )
+        .map(|path| (binding.span, path))
+    })
+}
+
+fn validate_preserved_return_value(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let value = ungroup(value);
+    if let Some(binding) = binding_at(unit, value)
+        && let value_type = unit
+            .flow_binding_types
+            .get(&binding.span)
+            .unwrap_or(&binding.value_type)
+        && !matches!(
+            value_type,
+            ValueType::Reference(_)
+                | ValueType::MutableReference(_)
+                | ValueType::SharedReference(_)
+                | ValueType::InvocationScopedNative { .. }
+        )
+        && !value_type_is_cloneable(package, unit, value_type)
+        && super::bindings::binding_return_requires_preservation(package, binding.span, value.span)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "return cannot preserve a non-Clone or unconstrained value for another read; transfer it only after its final observation",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn validate_return_preservation(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
-    fn validate_value(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        value: &SyntaxNode,
-    ) -> Result<(), SemanticFailure> {
-        let value = ungroup(value);
-        if let Some(binding) = binding_at(unit, value)
-            && let value_type = unit
-                .flow_binding_types
-                .get(&binding.span)
-                .unwrap_or(&binding.value_type)
-            && !matches!(
-                value_type,
-                ValueType::Reference(_)
-                    | ValueType::MutableReference(_)
-                    | ValueType::SharedReference(_)
-                    | ValueType::InvocationScopedNative { .. }
-            )
-            && !value_type_is_cloneable(package, unit, value_type)
-            && super::bindings::binding_return_requires_preservation(
-                package,
-                binding.span,
-                value.span,
-            )
-        {
-            return Err(failure(
-                &unit.source,
-                "T0135",
-                "return cannot preserve a non-Clone or unconstrained value for another read; transfer it only after its final observation",
-                value.span,
-            ));
-        }
-        Ok(())
-    }
     fn visit(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -1805,7 +1930,7 @@ pub(super) fn validate_return_preservation(
         if node.kind == SyntaxKind::ReturnStatement {
             returning = true;
             if let Some(value) = node.children.first() {
-                validate_value(package, unit, value)?;
+                validate_preserved_return_value(package, unit, value)?;
             }
         }
         if returning
@@ -1839,8 +1964,16 @@ pub(super) fn validate_return_preservation(
                 if !borrowed
                     && let Some(value) = argument_for_parameter(unit, arguments, &contract, index)
                 {
-                    validate_value(package, unit, value)?;
+                    validate_preserved_return_value(package, unit, value)?;
                 }
+            }
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(arguments) = node.children.get(1)
+        {
+            for argument in &arguments.children {
+                let value = argument.children.last().unwrap_or(argument);
+                validate_call_argument_preservation(package, unit, node, value)?;
             }
         }
         for child in &node.children {
@@ -1850,6 +1983,46 @@ pub(super) fn validate_return_preservation(
     }
     for unit in &package.units {
         visit(package, unit, &unit.tree.root, false)?;
+    }
+    Ok(())
+}
+
+fn validate_call_argument_preservation(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if let Some(authority) = call_argument_borrow_authority(package, unit, node, value) {
+        if authority == ReferenceAuthority::Exclusive {
+            return Err(failure(
+                &unit.source,
+                "T0149",
+                "cannot access a value while an earlier call argument borrows it exclusively",
+                value.span,
+            ));
+        }
+        let moved = ungroup(value);
+        if moved.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, moved).as_deref() == Some("move")
+        {
+            return Err(failure(
+                &unit.source,
+                "T0058",
+                "cannot move a value while an earlier call argument borrows it",
+                value.span,
+            ));
+        }
+        if let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)?
+            && !value_type_is_cloneable(package, unit, &value_type)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "call cannot preserve a non-Clone or unconstrained value borrowed by an earlier argument",
+                value.span,
+            ));
+        }
     }
     Ok(())
 }

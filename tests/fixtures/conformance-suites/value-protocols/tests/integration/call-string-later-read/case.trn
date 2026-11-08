@@ -1,0 +1,7 @@
+namespace call-string-later-read
+function look string; a ref string, b string
+    return a + b
+function test-scenario;
+    o = 'x'
+    print; (look; a = o, b = o)
+    print; o

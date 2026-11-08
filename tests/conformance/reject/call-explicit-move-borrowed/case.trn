@@ -1,0 +1,6 @@
+namespace call-explicit-move-borrowed
+function look string; a ref string, b string
+    return a + b
+function main;
+    o = 'x'
+    print; (look; a = o, b = move o)

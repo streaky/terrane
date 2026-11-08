@@ -131,6 +131,8 @@ fn callback_capture_trait_failure(
                 captured_binding(package, unit, contract, capture).is_some_and(|binding| {
                     !value_type_satisfies_capture_auto_trait(
                         package,
+                        unit,
+                        contract.span.start,
                         &binding.value_type,
                         obligation,
                     )

@@ -1,0 +1,8 @@
+namespace list-ref-then-owned-local
+from /core/collections import list
+function look int; a ref list of int, b list of int
+    return 1
+
+function test-scenario;
+    o = list; 1
+    print; (look; o, o)

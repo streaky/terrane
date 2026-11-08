@@ -4,6 +4,26 @@ use super::model::{
 use super::prelude::*;
 use crate::rust_interop::{BoundQuestion, ProbeAnswer, ProjectionOracle};
 
+/// Supertrait obligations carried by the emitted interface protocol.
+pub(crate) fn protocol_transfer_capabilities(
+    object: &DescriptorContract,
+    native_traits: Option<(bool, bool)>,
+    has_async_method: bool,
+) -> (bool, bool) {
+    match native_traits {
+        _ if object.identity.namespace == "/core/logging"
+            && object.identity.name == "log-value" =>
+        {
+            (true, true)
+        }
+        None | Some((true, true)) => (true, true),
+        Some((true, false)) => (true, false),
+        Some((false, true)) => (false, true),
+        Some((false, false)) if object.resource_owning && has_async_method => (true, true),
+        Some((false, false)) => (false, false),
+    }
+}
+
 /// Structural Copy representations shared by ownership planning and lowering.
 pub(crate) const fn rust_value_is_copy(ty: &ValueType) -> bool {
     matches!(

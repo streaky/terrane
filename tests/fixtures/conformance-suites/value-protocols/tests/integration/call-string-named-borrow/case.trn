@@ -1,0 +1,7 @@
+namespace call-string-named-borrow
+from /core/collections import list
+function look string; a ref string, b string
+    return a + b
+function test-scenario;
+    o = 'x'
+    print; (look; a = o, b = o)

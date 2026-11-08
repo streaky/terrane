@@ -1,0 +1,22 @@
+namespace bounded-owner-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+class container of (T implements named)
+    item T
+    function construct; item T
+        this.item = move item
+    consuming function read int;
+        item = move this.item
+        f = function int;
+            return item.name;
+        return f;
+function test-scenario;
+    c = instance container of value; (instance value;)
+    print; (c.read;)

@@ -1243,11 +1243,52 @@ pub(crate) fn binding_return_requires_preservation(
         .is_some_and(|unit| visit(unit, &unit.tree.root, declaration, read, events, false))
 }
 
+fn binding_read_borrows_earlier_argument(package: &SemanticPackage, read: Span) -> bool {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        read: Span,
+    ) -> bool {
+        if node.span.start > read.start || read.end > node.span.end {
+            return false;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(arguments) = node.children.get(1)
+            && arguments.children.iter().any(|argument| {
+                let value = argument.children.last().unwrap_or(argument);
+                let mut place = value;
+                while place.kind == SyntaxKind::GroupExpression
+                    && let [inner] = place.children.as_slice()
+                {
+                    place = inner;
+                }
+                place.span == read
+                    && super::ownership::call_argument_borrow_authority(package, unit, node, value)
+                        .is_some()
+            })
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| visit(package, unit, child, read))
+    }
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .is_some_and(|unit| visit(package, unit, &unit.tree.root, read))
+}
+
 pub(crate) fn binding_read_value_is_reused(
     package: &SemanticPackage,
     declaration_span: Span,
     read_span: Span,
 ) -> bool {
+    if binding_read_borrows_earlier_argument(package, read_span) {
+        return true;
+    }
     let Some(events) = package.binding_events.get(&span_key(declaration_span)) else {
         return false;
     };

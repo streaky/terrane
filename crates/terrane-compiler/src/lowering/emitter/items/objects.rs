@@ -28,18 +28,12 @@ fn protocol_transfer_bounds(
     native_traits: Option<(bool, bool)>,
     has_async_method: bool,
 ) -> &'static str {
-    if native_traits.is_none_or(|(send, sync)| send && sync)
-        || object.identity.namespace == "/core/logging" && object.identity.name == "log-value"
+    match crate::semantics::protocol_transfer_capabilities(object, native_traits, has_async_method)
     {
-        "Send + Sync"
-    } else if native_traits.is_some_and(|(send, _)| send) {
-        "Send"
-    } else if native_traits.is_some_and(|(_, sync)| sync) {
-        "Sync"
-    } else if object.resource_owning && has_async_method {
-        "Send + Sync"
-    } else {
-        ""
+        (true, true) => "Send + Sync",
+        (true, false) => "Send",
+        (false, true) => "Sync",
+        (false, false) => "",
     }
 }
 

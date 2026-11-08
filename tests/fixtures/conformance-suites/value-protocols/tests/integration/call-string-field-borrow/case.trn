@@ -1,0 +1,9 @@
+namespace call-string-field-borrow
+from /core/collections import list
+class box
+    value string = 'x'
+function look string; a ref string, b string
+    return a + b
+function test-scenario;
+    o = instance box;
+    print; (look; o.value, o.value)

@@ -1,0 +1,21 @@
+namespace bounded-two-interfaces
+from /core/collections import list
+interface a
+    function n int;
+
+interface b
+    function m int;
+
+class v implements a, b
+    function n int;
+        return 1
+    function m int;
+        return 2
+
+function go of (T implements a) int; item T
+    f = function int;
+        return item.n;
+    return f;
+
+function test-scenario;
+    print; (go; (instance v;))

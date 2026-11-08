@@ -108,7 +108,7 @@ pub(crate) use bindings::{
     descriptor_binding_is_materialized,
 };
 pub(crate) use calls::selected_callable_contract;
-pub(crate) use capabilities::rust_value_is_copy;
+pub(crate) use capabilities::{protocol_transfer_capabilities, rust_value_is_copy};
 pub(crate) use collections::collection_member_call;
 pub(crate) use contracts::{
     descriptor_expression_category, descriptor_expression_type, task_expression_throwables,

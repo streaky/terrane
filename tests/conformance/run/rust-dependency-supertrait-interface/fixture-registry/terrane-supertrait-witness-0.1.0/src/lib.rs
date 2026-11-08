@@ -35,3 +35,15 @@ pub fn erased_child_total(value: Box<dyn Child + Send + Sync>) -> i64 {
 pub fn diamond_total<T: Diamond>(value: T) -> i64 {
     value.base() + value.left() + value.right() + value.diamond()
 }
+
+pub trait LocalBound {
+    fn value(&self) -> i64;
+}
+
+pub trait SendBound: Send {
+    fn value(&self) -> i64;
+}
+
+pub trait SyncBound: Sync {
+    fn value(&self) -> i64;
+}

@@ -1,0 +1,7 @@
+namespace call-callable-alias
+function look string; a ref string, b string
+    return a + b
+function test-scenario;
+    f = look
+    o = 'x'
+    print; (f; o, o)

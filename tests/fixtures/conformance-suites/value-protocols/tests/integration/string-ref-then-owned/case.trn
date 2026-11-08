@@ -1,0 +1,10 @@
+namespace string-ref-then-owned
+from /core/collections import list
+function look int; a ref string, b string
+    return 1
+
+function f int; o string
+    return (look; o, o)
+
+function test-scenario;
+    print; (f; 'a')

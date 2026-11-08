@@ -1,0 +1,6 @@
+namespace call-mutable-borrow-owned
+function look string; a mutable ref string, b string
+    return a + b
+function main;
+    o = 'x'
+    print; (look; a = o, b = o)
