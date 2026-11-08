@@ -1,0 +1,9 @@
+namespace consuming-method-reference-snapshot
+class holder
+    value int = 5
+    consuming function finish int;
+        return this.value
+function test-scenario;
+    h = instance holder;
+    callback = h.finish
+    print; (callback;)

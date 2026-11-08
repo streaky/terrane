@@ -16,6 +16,7 @@ fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
 }
 
 fn requires_noncopyable_projection_access(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<bool, SemanticFailure> {
@@ -26,39 +27,49 @@ fn requires_noncopyable_projection_access(
     ) {
         return Ok(false);
     }
-    Ok(
-        infer_value_type(unit, value, &unit.typed_bindings)?.is_some_and(|value_type| {
-            if matches!(&value_type, ValueType::TypeParameter(_)) {
-                return true;
-            }
-            if value.kind == SyntaxKind::IndexExpression {
-                return false;
-            }
-            matches!(value_type, ValueType::MutableReference(_))
-                || (!matches!(
-                    value_type,
-                    ValueType::Reference(_) | ValueType::SharedReference(_)
-                ) && value_type_contains_nonclone_foreign(unit, &value_type))
-        }),
-    )
+    let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+        return Ok(false);
+    };
+    if matches!(&value_type, ValueType::TypeParameter(_)) {
+        return Ok(true);
+    }
+    if value.kind == SyntaxKind::IndexExpression {
+        return Ok(false);
+    }
+    let mut callable_type = &value_type;
+    while let ValueType::Optional(inner) = callable_type {
+        callable_type = inner;
+    }
+    if matches!(
+        callable_type,
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects)
+            if effects.modes.written == InvocationMode::Consuming
+    ) {
+        return is_instance_field(package, unit, value);
+    }
+    Ok(matches!(value_type, ValueType::MutableReference(_))
+        || (!matches!(
+            value_type,
+            ValueType::Reference(_) | ValueType::SharedReference(_)
+        ) && value_type_contains_nonclone_foreign(unit, &value_type)))
 }
 
-fn validate_callable_field_invocation(
+fn is_instance_field(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     callee: &SyntaxNode,
-) -> Result<(), SemanticFailure> {
+) -> Result<bool, SemanticFailure> {
     let callee = ungroup(callee);
     if callee.kind != SyntaxKind::MemberExpression {
-        return Ok(());
+        return Ok(false);
     }
     let [receiver, member] = callee.children.as_slice() else {
-        return Ok(());
+        return Ok(false);
     };
     let Some(receiver_type) =
         super::member_inference::infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
     else {
-        return Ok(());
+        return Ok(false);
     };
     let mut receiver_type = &receiver_type;
     while let ValueType::Reference(inner)
@@ -68,9 +79,9 @@ fn validate_callable_field_invocation(
         receiver_type = inner.value_type_ref();
     }
     let ValueType::Object(identity) = receiver_type else {
-        return Ok(());
+        return Ok(false);
     };
-    let field = package
+    Ok(package
         .units
         .iter()
         .flat_map(|unit| &unit.descriptors)
@@ -79,8 +90,16 @@ fn validate_callable_field_invocation(
             super::objects::effective_object_fields(package, object)
                 .iter()
                 .any(|field| !field.is_static && field.name == node_text(&unit.source, member))
-        });
-    if field
+        }))
+}
+
+fn validate_callable_field_invocation(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let callee = ungroup(callee);
+    if is_instance_field(package, unit, callee)?
         && matches!(
             infer_value_type(unit, callee, &unit.typed_bindings)?,
             Some(ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects))
@@ -108,7 +127,7 @@ fn validate_field_snapshot(
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
     let value = ungroup(value);
-    if requires_noncopyable_projection_access(unit, value)? {
+    if requires_noncopyable_projection_access(package, unit, value)? {
         return Err(failure(
             &unit.source,
             "T0135",
@@ -150,10 +169,11 @@ fn validate_field_snapshot(
 }
 
 pub(super) fn validate_async_field_borrow(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    if requires_noncopyable_projection_access(unit, value)? {
+    if requires_noncopyable_projection_access(package, unit, value)? {
         validate_async_receiver_field_borrow(unit, value)?;
     }
     Ok(())
@@ -549,7 +569,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 && callee.kind == SyntaxKind::MemberExpression
                 && let Some(receiver) = callee.children.first()
             {
-                validate_async_field_borrow(unit, receiver)?;
+                validate_async_field_borrow(package, unit, receiver)?;
             }
             if callee.kind == SyntaxKind::MemberExpression
                 && let [receiver, member] = callee.children.as_slice()
@@ -605,7 +625,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )
                 && let Some(receiver) = callee.children.first()
                 && ungroup(receiver).kind == SyntaxKind::IndexExpression
-                && requires_noncopyable_projection_access(unit, receiver)?
+                && requires_noncopyable_projection_access(package, unit, receiver)?
             {
                 return Err(failure(
                     &unit.source,
@@ -646,7 +666,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         });
                     if let Some(value) = argument_for_parameter(unit, arguments, contract, index) {
                         if borrowed {
-                            validate_async_field_borrow(unit, value)?;
+                            validate_async_field_borrow(package, unit, value)?;
                         } else {
                             validate_field_snapshot(package, unit, value)?;
                         }
@@ -2899,7 +2919,7 @@ pub(super) fn validate_implicit_reference_argument(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    validate_async_field_borrow(unit, value)?;
+    validate_async_field_borrow(package, unit, value)?;
     if let Some(ValueType::Object(identity)) = infer_value_type(unit, value, &unit.typed_bindings)?
         && package
             .projection
@@ -3399,7 +3419,7 @@ fn record_unary_reference_provenance(
         && let Some(operator) = unary_operator_text(unit, node)
         && matches!(operator.as_str(), "ref" | "mutable ref" | "shared ref")
     {
-        validate_async_field_borrow(unit, operand)?;
+        validate_async_field_borrow(package, unit, operand)?;
         if let Some(ValueType::Object(identity)) =
             infer_value_type(unit, operand, &unit.typed_bindings)?
             && package

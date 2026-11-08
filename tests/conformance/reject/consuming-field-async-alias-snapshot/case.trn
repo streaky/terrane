@@ -1,0 +1,11 @@
+namespace consuming-field-async-alias-snapshot
+
+class holder
+    f consuming async function to int
+    function construct; f consuming async function to int
+        this.f = f
+
+function main;
+    h = instance holder; consuming async function int;
+        return 5
+    callback = h.f
