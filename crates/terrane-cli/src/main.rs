@@ -197,7 +197,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             return Ok(ExitCode::SUCCESS);
         }
         CliCommand::Help => {
-            println!("{}", usage());
+            print!("{}", usage());
             return Ok(ExitCode::SUCCESS);
         }
         CliCommand::DeclarationInterface => return run_declaration_interface(arguments),
@@ -1925,7 +1925,7 @@ fn usage() -> String {
      package  hash or install directory, tagged-Git, and source-archive Terrane libraries\n  \
      projection-census  compare native public surface with real compiler projection admission;\n\
        versions are normalized to exact requirements and aliases default to package names with hyphens replaced by underscores\n  \
-     toolchains  report Rust toolchains previously requested by Terrane"
+     toolchains  report Rust toolchains previously requested by Terrane\n"
         .to_owned()
 }
 #[cfg(test)]
