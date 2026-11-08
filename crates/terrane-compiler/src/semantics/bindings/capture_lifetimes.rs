@@ -51,12 +51,34 @@ impl CaptureGraph<'_> {
     }
 
     fn store(&mut self, unit: &SemanticUnit, target: &SyntaxNode, value: Span) {
+        // Source object fields use their declared owned callable representation,
+        // even when the containing object itself is local.
+        if target.kind == SyntaxKind::MemberExpression {
+            self.static_roots.insert(value);
+        }
         if let Some(origins) =
             unit.flow_read_bindings
                 .get(&(target.span.file, target.span.start, target.span.end))
         {
             for origin in origins {
                 self.edge(*origin, value);
+                // Reaching reference writes preserve caller-owned storage through
+                // aliases and branch joins; an owned local copy has no such lender.
+                // Parameter and field declarations also fix their callable ABI
+                // to 'static, even for a parameter passed by value.
+                let external = unit.reference_assignment_provenance.iter().any(|version| {
+                    version.assignment == *origin
+                        && (version.provenance.external_lender
+                            || version.provenance.lender_parameter.is_some())
+                }) || unit.functions.iter().any(|function| {
+                    function.parameters.iter().any(|parameter| {
+                        parameter.span == *origin
+                            && parameter.value_type.as_ref().is_some_and(contains_callable)
+                    })
+                });
+                if external {
+                    self.static_roots.insert(value);
+                }
             }
         }
         if target.kind == SyntaxKind::Name {

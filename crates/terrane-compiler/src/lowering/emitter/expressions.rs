@@ -1246,16 +1246,21 @@ impl Emitter<'_> {
             {
                 self.expression(node)
             }
-            ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
-                if matches!(
-                    node.kind,
-                    SyntaxKind::Name | SyntaxKind::StaticMemberExpression
-                ) || node.kind == SyntaxKind::MemberExpression
+            ValueType::AsyncFunction(..) | ValueType::Function(..)
+                if node.kind == SyntaxKind::MemberExpression
                     && matches!(
                         node.children.as_slice(),
                         [receiver, member]
                             if self.callable_object_field(receiver, self.text(member))
                     ) =>
+            {
+                self.member(node, Some(&value_type))
+            }
+            ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
+                if matches!(
+                    node.kind,
+                    SyntaxKind::Name | SyntaxKind::StaticMemberExpression
+                ) =>
             {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
@@ -1418,9 +1423,8 @@ impl Emitter<'_> {
                 if node.kind == SyntaxKind::MemberExpression =>
             {
                 let [receiver, member] = node.children.as_slice() else {
-                    return String::new();
+                    unreachable!("bound method member has a receiver and selector")
                 };
-                let callable_field = self.callable_object_field(receiver, self.text(member));
                 let value_type = self.value_type(node);
                 let value_requires_throwing_abi = matches!(
                     &value_type,
@@ -1444,7 +1448,7 @@ impl Emitter<'_> {
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
                 let receiver = self.expression_as(receiver, receiver_type.clone());
-                let (declarations, arguments, tuple_arguments) =
+                let (declarations, arguments, _) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
                 let argument_values = (0..parameters.len())
                     .map(|index| format!("argument_{index}"))
@@ -1531,13 +1535,7 @@ impl Emitter<'_> {
                             .join(", ")
                     });
                 let method_arguments = borrowed_arguments.as_deref().unwrap_or(&arguments);
-                let call = if callable_field && actual_mode != InvocationMode::Shared {
-                    format!("receiver.{method_name}.call({tuple_arguments})")
-                } else if callable_field {
-                    format!("(receiver.{method_name})({arguments})")
-                } else {
-                    format!("receiver.{method_name}({method_arguments})")
-                };
+                let call = format!("receiver.{method_name}({method_arguments})");
                 let body = if expected_throws && !actual_throws {
                     format!("Ok({call})")
                 } else {

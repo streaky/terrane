@@ -474,7 +474,8 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
+        "/required-throwing-callable-field::failure",
         "/string-display-composition::render-error",
         "/typed-json-boundaries::policy-error",
     ];
@@ -488,7 +489,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 43] = [
+    pub static FILES: [&str; 46] = [
         "tests/integration/bounded-arithmetic-families/case.trn",
         "tests/integration/byte-index-and-slice/case.trn",
         "tests/integration/bytes-and-legacy-digests/case.trn",
@@ -511,6 +512,7 @@ mod __terrane_trace {
         "tests/integration/foundational-float-math/case.trn",
         "tests/integration/integer-coercions/case.trn",
         "tests/integration/integer-euclidean/case.trn",
+        "tests/integration/local-collection-capture/case.trn",
         "tests/integration/map-entry-destructuring/case.trn",
         "tests/integration/map-key-removal/case.trn",
         "tests/integration/mixed-width-arithmetic/case.trn",
@@ -518,7 +520,9 @@ mod __terrane_trace {
         "tests/integration/nested-call-and-receiver-loans/case.trn",
         "tests/integration/null-byte-literal/case.trn",
         "tests/integration/numeric-destination-conversion/case.trn",
+        "tests/integration/owned-copy-collection-capture/case.trn",
         "tests/integration/parse-radix-families/case.trn",
+        "tests/integration/required-throwing-callable-field/case.trn",
         "tests/integration/scalar-reference-transparency/case.trn",
         "tests/integration/stable-list-sorting/case.trn",
         "tests/integration/string-display-composition/case.trn",
@@ -533,7 +537,7 @@ mod __terrane_trace {
         "core/documents.trn",
         "core/urls.trn",
     ];
-    pub static FUNCTIONS: [&str; 53] = [
+    pub static FUNCTIONS: [&str; 58] = [
         "/bounded-arithmetic-families::test-scenario",
         "/byte-index-and-slice::test-scenario",
         "/bytes-and-legacy-digests::test-scenario",
@@ -558,6 +562,8 @@ mod __terrane_trace {
         "/foundational-float-math::test-scenario",
         "/integer-coercions::test-values",
         "/integer-euclidean::test-scenario",
+        "/local-collection-capture::local",
+        "/local-collection-capture::test-scenario",
         "/map-entry-destructuring::test-scenario",
         "/map-key-removal::test-scenario",
         "/mixed-width-arithmetic::test-values",
@@ -565,9 +571,12 @@ mod __terrane_trace {
         "/nested-call-and-receiver-loans::test-scenario",
         "/null-byte-literal::test-scenario",
         "/numeric-destination-conversion::test-values",
+        "/owned-copy-collection-capture::go",
         "/parse-radix-families::from-hex",
         "/parse-radix-families::fail",
         "/parse-radix-families::test-scenario",
+        "/required-throwing-callable-field::bad",
+        "/required-throwing-callable-field::test-scenario",
         "/scalar-reference-transparency::test-scenario",
         "/stable-list-sorting::test-scenario",
         "/string-display-composition::to-string",
@@ -588,7 +597,7 @@ mod __terrane_trace {
         "/core/urls::get",
         "/core/urls::get-all",
     ];
-    pub static SITES: [Site; 257] = [
+    pub static SITES: [Site; 263] = [
         /* terrane-site-row: site 0: /bounded-arithmetic-families::test-scenario (tests/integration/bounded-arithmetic-families/case.trn:8:10-8:26) */
         { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 26 } },
         /* terrane-site-row: site 1: /bounded-arithmetic-families::test-scenario (tests/integration/bounded-arithmetic-families/case.trn:14:11-14:26) */
@@ -817,292 +826,304 @@ mod __terrane_trace {
         { Site { function: 23, file: 21, line: 6, column: 10, end_line: 6, end_column: 16 } },
         /* terrane-site-row: site 113: /integer-euclidean::test-scenario (tests/integration/integer-euclidean/case.trn:7:10-7:16) */
         { Site { function: 23, file: 21, line: 7, column: 10, end_line: 7, end_column: 16 } },
-        /* terrane-site-row: site 114: /map-entry-destructuring::test-scenario (tests/integration/map-entry-destructuring/case.trn:11:10-11:26) */
-        { Site { function: 24, file: 22, line: 11, column: 10, end_line: 11, end_column: 26 } },
-        /* terrane-site-row: site 115: /map-entry-destructuring::test-scenario (tests/integration/map-entry-destructuring/case.trn:11:28-11:45) */
-        { Site { function: 24, file: 22, line: 11, column: 28, end_line: 11, end_column: 45 } },
-        /* terrane-site-row: site 116: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:15:17-15:41) */
-        { Site { function: 25, file: 23, line: 15, column: 17, end_line: 15, end_column: 41 } },
-        /* terrane-site-row: site 117: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:25:5-25:30) */
-        { Site { function: 25, file: 23, line: 25, column: 5, end_line: 25, end_column: 30 } },
-        /* terrane-site-row: site 118: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:31:11-31:37) */
-        { Site { function: 25, file: 23, line: 31, column: 11, end_line: 31, end_column: 37 } },
-        /* terrane-site-row: site 119: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:40:3-40:35) */
-        { Site { function: 25, file: 23, line: 40, column: 3, end_line: 40, end_column: 35 } },
-        /* terrane-site-row: site 120: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:44:3-44:24) */
-        { Site { function: 25, file: 23, line: 44, column: 3, end_line: 44, end_column: 24 } },
-        /* terrane-site-row: site 121: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:49:29-49:50) */
-        { Site { function: 25, file: 23, line: 49, column: 29, end_line: 49, end_column: 50 } },
-        /* terrane-site-row: site 122: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:51:20-51:40) */
-        { Site { function: 25, file: 23, line: 51, column: 20, end_line: 51, end_column: 40 } },
-        /* terrane-site-row: site 123: /mixed-width-arithmetic::test-values (tests/integration/mixed-width-arithmetic/case.trn:7:17-7:29) */
-        { Site { function: 26, file: 24, line: 7, column: 17, end_line: 7, end_column: 29 } },
-        /* terrane-site-row: site 124: /mixed-width-arithmetic::test-values (tests/integration/mixed-width-arithmetic/case.trn:8:20-8:35) */
-        { Site { function: 26, file: 24, line: 8, column: 20, end_line: 8, end_column: 35 } },
-        /* terrane-site-row: site 125: /negative-wrapped-shift::test-scenario (tests/integration/negative-wrapped-shift/case.trn:6:13-6:38) */
-        { Site { function: 27, file: 25, line: 6, column: 13, end_line: 6, end_column: 38 } },
-        /* terrane-site-row: site 126: /nested-call-and-receiver-loans::test-scenario (tests/integration/nested-call-and-receiver-loans/case.trn:38:12-38:30) */
-        { Site { function: 28, file: 26, line: 38, column: 12, end_line: 38, end_column: 30 } },
-        /* terrane-site-row: site 127: /nested-call-and-receiver-loans::test-scenario (tests/integration/nested-call-and-receiver-loans/case.trn:39:12-39:30) */
-        { Site { function: 28, file: 26, line: 39, column: 12, end_line: 39, end_column: 30 } },
-        /* terrane-site-row: site 128: /null-byte-literal::test-scenario (tests/integration/null-byte-literal/case.trn:6:23-6:39) */
-        { Site { function: 29, file: 27, line: 6, column: 23, end_line: 6, end_column: 39 } },
-        /* terrane-site-row: site 129: /numeric-destination-conversion::test-values (tests/integration/numeric-destination-conversion/case.trn:11:23-11:28) */
-        { Site { function: 30, file: 28, line: 11, column: 23, end_line: 11, end_column: 28 } },
-        /* terrane-site-row: site 130: /numeric-destination-conversion::test-values (tests/integration/numeric-destination-conversion/case.trn:13:19-13:24) */
-        { Site { function: 30, file: 28, line: 13, column: 19, end_line: 13, end_column: 24 } },
-        /* terrane-site-row: site 131: /numeric-destination-conversion::test-values (tests/integration/numeric-destination-conversion/case.trn:27:10-27:19) */
-        { Site { function: 30, file: 28, line: 27, column: 10, end_line: 27, end_column: 19 } },
-        /* terrane-site-row: site 132: /parse-radix-families::from-hex (tests/integration/parse-radix-families/case.trn:4:10-4:26) */
-        { Site { function: 31, file: 29, line: 4, column: 10, end_line: 4, end_column: 26 } },
-        /* terrane-site-row: site 133: /parse-radix-families::fail (tests/integration/parse-radix-families/case.trn:7:3-7:23) */
-        { Site { function: 32, file: 29, line: 7, column: 3, end_line: 7, end_column: 23 } },
-        /* terrane-site-row: site 134: /parse-radix-families::test-scenario (tests/integration/parse-radix-families/case.trn:13:11-13:26) */
-        { Site { function: 33, file: 29, line: 13, column: 11, end_line: 13, end_column: 26 } },
-        /* terrane-site-row: site 135: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:12:13-12:33) */
-        { Site { function: 34, file: 30, line: 12, column: 13, end_line: 12, end_column: 33 } },
-        /* terrane-site-row: site 136: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:17:13-17:28) */
-        { Site { function: 34, file: 30, line: 17, column: 13, end_line: 17, end_column: 28 } },
-        /* terrane-site-row: site 137: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:18:12-18:24) */
-        { Site { function: 34, file: 30, line: 18, column: 12, end_line: 18, end_column: 24 } },
-        /* terrane-site-row: site 138: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:22:12-22:21) */
-        { Site { function: 34, file: 30, line: 22, column: 12, end_line: 22, end_column: 21 } },
-        /* terrane-site-row: site 139: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:10-7:21) */
-        { Site { function: 35, file: 31, line: 7, column: 10, end_line: 7, end_column: 21 } },
-        /* terrane-site-row: site 140: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:23-7:34) */
-        { Site { function: 35, file: 31, line: 7, column: 23, end_line: 7, end_column: 34 } },
-        /* terrane-site-row: site 141: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:10-9:21) */
-        { Site { function: 35, file: 31, line: 9, column: 10, end_line: 9, end_column: 21 } },
-        /* terrane-site-row: site 142: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:23-9:34) */
-        { Site { function: 35, file: 31, line: 9, column: 23, end_line: 9, end_column: 34 } },
-        /* terrane-site-row: site 143: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:10-31:18) */
-        { Site { function: 35, file: 31, line: 31, column: 10, end_line: 31, end_column: 18 } },
-        /* terrane-site-row: site 144: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:20-31:29) */
-        { Site { function: 35, file: 31, line: 31, column: 20, end_line: 31, end_column: 29 } },
-        /* terrane-site-row: site 145: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:31-31:40) */
-        { Site { function: 35, file: 31, line: 31, column: 31, end_line: 31, end_column: 40 } },
-        /* terrane-site-row: site 146: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:42-31:51) */
-        { Site { function: 35, file: 31, line: 31, column: 42, end_line: 31, end_column: 51 } },
-        /* terrane-site-row: site 147: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:53-31:63) */
-        { Site { function: 35, file: 31, line: 31, column: 53, end_line: 31, end_column: 63 } },
-        /* terrane-site-row: site 148: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:10-32:19) */
-        { Site { function: 35, file: 31, line: 32, column: 10, end_line: 32, end_column: 19 } },
-        /* terrane-site-row: site 149: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:21-32:31) */
-        { Site { function: 35, file: 31, line: 32, column: 21, end_line: 32, end_column: 31 } },
-        /* terrane-site-row: site 150: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:33-32:43) */
-        { Site { function: 35, file: 31, line: 32, column: 33, end_line: 32, end_column: 43 } },
-        /* terrane-site-row: site 151: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:45-32:55) */
-        { Site { function: 35, file: 31, line: 32, column: 45, end_line: 32, end_column: 55 } },
-        /* terrane-site-row: site 152: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:57-32:68) */
-        { Site { function: 35, file: 31, line: 32, column: 57, end_line: 32, end_column: 68 } },
-        /* terrane-site-row: site 153: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:10-36:18) */
-        { Site { function: 35, file: 31, line: 36, column: 10, end_line: 36, end_column: 18 } },
-        /* terrane-site-row: site 154: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:20-36:28) */
-        { Site { function: 35, file: 31, line: 36, column: 20, end_line: 36, end_column: 28 } },
-        /* terrane-site-row: site 155: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:30-36:38) */
-        { Site { function: 35, file: 31, line: 36, column: 30, end_line: 36, end_column: 38 } },
-        /* terrane-site-row: site 156: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:10-38:18) */
-        { Site { function: 35, file: 31, line: 38, column: 10, end_line: 38, end_column: 18 } },
-        /* terrane-site-row: site 157: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:20-38:28) */
-        { Site { function: 35, file: 31, line: 38, column: 20, end_line: 38, end_column: 28 } },
-        /* terrane-site-row: site 158: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:30-38:38) */
-        { Site { function: 35, file: 31, line: 38, column: 30, end_line: 38, end_column: 38 } },
-        /* terrane-site-row: site 159: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:10-50:19) */
-        { Site { function: 35, file: 31, line: 50, column: 10, end_line: 50, end_column: 19 } },
-        /* terrane-site-row: site 160: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:30-50:39) */
-        { Site { function: 35, file: 31, line: 50, column: 30, end_line: 50, end_column: 39 } },
-        /* terrane-site-row: site 161: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:55-50:64) */
-        { Site { function: 35, file: 31, line: 50, column: 55, end_line: 50, end_column: 64 } },
-        /* terrane-site-row: site 162: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:80-50:89) */
-        { Site { function: 35, file: 31, line: 50, column: 80, end_line: 50, end_column: 89 } },
-        /* terrane-site-row: site 163: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:105-50:114) */
-        { Site { function: 35, file: 31, line: 50, column: 105, end_line: 50, end_column: 114 } },
-        /* terrane-site-row: site 164: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:125-50:134) */
-        { Site { function: 35, file: 31, line: 50, column: 125, end_line: 50, end_column: 134 } },
-        /* terrane-site-row: site 165: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:149-50:158) */
-        { Site { function: 35, file: 31, line: 50, column: 149, end_line: 50, end_column: 158 } },
-        /* terrane-site-row: site 166: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:10-52:19) */
-        { Site { function: 35, file: 31, line: 52, column: 10, end_line: 52, end_column: 19 } },
-        /* terrane-site-row: site 167: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:30-52:39) */
-        { Site { function: 35, file: 31, line: 52, column: 30, end_line: 52, end_column: 39 } },
-        /* terrane-site-row: site 168: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:55-52:64) */
-        { Site { function: 35, file: 31, line: 52, column: 55, end_line: 52, end_column: 64 } },
-        /* terrane-site-row: site 169: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:80-52:89) */
-        { Site { function: 35, file: 31, line: 52, column: 80, end_line: 52, end_column: 89 } },
-        /* terrane-site-row: site 170: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:105-52:114) */
-        { Site { function: 35, file: 31, line: 52, column: 105, end_line: 52, end_column: 114 } },
-        /* terrane-site-row: site 171: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:125-52:134) */
-        { Site { function: 35, file: 31, line: 52, column: 125, end_line: 52, end_column: 134 } },
-        /* terrane-site-row: site 172: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:150-52:159) */
-        { Site { function: 35, file: 31, line: 52, column: 150, end_line: 52, end_column: 159 } },
-        /* terrane-site-row: site 173: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:174-52:183) */
-        { Site { function: 35, file: 31, line: 52, column: 174, end_line: 52, end_column: 183 } },
-        /* terrane-site-row: site 174: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:10-56:19) */
-        { Site { function: 35, file: 31, line: 56, column: 10, end_line: 56, end_column: 19 } },
-        /* terrane-site-row: site 175: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:21-56:30) */
-        { Site { function: 35, file: 31, line: 56, column: 21, end_line: 56, end_column: 30 } },
-        /* terrane-site-row: site 176: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:10-61:22) */
-        { Site { function: 35, file: 31, line: 61, column: 10, end_line: 61, end_column: 22 } },
-        /* terrane-site-row: site 177: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:24-61:33) */
-        { Site { function: 35, file: 31, line: 61, column: 24, end_line: 61, end_column: 33 } },
-        /* terrane-site-row: site 178: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:35-61:46) */
-        { Site { function: 35, file: 31, line: 61, column: 35, end_line: 61, end_column: 46 } },
-        /* terrane-site-row: site 179: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:69:17-69:29) */
-        { Site { function: 35, file: 31, line: 69, column: 17, end_line: 69, end_column: 29 } },
-        /* terrane-site-row: site 180: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:72:17-72:29) */
-        { Site { function: 35, file: 31, line: 72, column: 17, end_line: 72, end_column: 29 } },
-        /* terrane-site-row: site 181: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:78:24-78:33) */
-        { Site { function: 35, file: 31, line: 78, column: 24, end_line: 78, end_column: 33 } },
-        /* terrane-site-row: site 182: /string-display-composition::to-string (tests/integration/string-display-composition/case.trn:23:9-23:37) */
-        { Site { function: 36, file: 32, line: 23, column: 9, end_line: 23, end_column: 37 } },
-        /* terrane-site-row: site 183: /string-display-composition::render-generic (tests/integration/string-display-composition/case.trn:34:25-34:30) */
-        { Site { function: 37, file: 32, line: 34, column: 25, end_line: 34, end_column: 30 } },
-        /* terrane-site-row: site 184: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:50:29-50:45) */
-        { Site { function: 38, file: 32, line: 50, column: 29, end_line: 50, end_column: 45 } },
-        /* terrane-site-row: site 185: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:54:17-54:33) */
-        { Site { function: 38, file: 32, line: 54, column: 17, end_line: 54, end_column: 33 } },
-        /* terrane-site-row: site 186: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:58:25-58:41) */
-        { Site { function: 38, file: 32, line: 58, column: 25, end_line: 58, end_column: 41 } },
-        /* terrane-site-row: site 187: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:62:24-62:40) */
-        { Site { function: 38, file: 32, line: 62, column: 24, end_line: 62, end_column: 40 } },
-        /* terrane-site-row: site 188: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:66:17-66:51) */
-        { Site { function: 38, file: 32, line: 66, column: 17, end_line: 66, end_column: 51 } },
-        /* terrane-site-row: site 189: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:69:13-69:45) */
-        { Site { function: 38, file: 32, line: 69, column: 13, end_line: 69, end_column: 45 } },
-        /* terrane-site-row: site 190: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:71:27-71:33) */
-        { Site { function: 38, file: 32, line: 71, column: 27, end_line: 71, end_column: 33 } },
-        /* terrane-site-row: site 191: /text-families::test-scenario (tests/integration/text-families/case.trn:25:11-25:52) */
-        { Site { function: 39, file: 33, line: 25, column: 11, end_line: 25, end_column: 52 } },
-        /* terrane-site-row: site 192: /text-families::test-scenario (tests/integration/text-families/case.trn:28:11-28:65) */
-        { Site { function: 39, file: 33, line: 28, column: 11, end_line: 28, end_column: 65 } },
-        /* terrane-site-row: site 193: /text-families::test-scenario (tests/integration/text-families/case.trn:33:11-33:65) */
-        { Site { function: 39, file: 33, line: 33, column: 11, end_line: 33, end_column: 65 } },
-        /* terrane-site-row: site 194: /text-families::test-scenario (tests/integration/text-families/case.trn:34:11-34:52) */
-        { Site { function: 39, file: 33, line: 34, column: 11, end_line: 34, end_column: 52 } },
-        /* terrane-site-row: site 195: /text-families::test-scenario (tests/integration/text-families/case.trn:37:11-37:55) */
-        { Site { function: 39, file: 33, line: 37, column: 11, end_line: 37, end_column: 55 } },
-        /* terrane-site-row: site 196: /text-families::test-scenario (tests/integration/text-families/case.trn:38:11-38:54) */
-        { Site { function: 39, file: 33, line: 38, column: 11, end_line: 38, end_column: 54 } },
-        /* terrane-site-row: site 197: /text-families::test-scenario (tests/integration/text-families/case.trn:41:13-41:60) */
-        { Site { function: 39, file: 33, line: 41, column: 13, end_line: 41, end_column: 60 } },
-        /* terrane-site-row: site 198: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:27-13:38) */
-        { Site { function: 40, file: 34, line: 13, column: 27, end_line: 13, end_column: 38 } },
-        /* terrane-site-row: site 199: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:40-13:51) */
-        { Site { function: 40, file: 34, line: 13, column: 40, end_line: 13, end_column: 51 } },
-        /* terrane-site-row: site 200: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:34) */
-        { Site { function: 40, file: 34, line: 18, column: 25, end_line: 18, end_column: 34 } },
-        /* terrane-site-row: site 201: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:37) */
-        { Site { function: 40, file: 34, line: 18, column: 25, end_line: 18, end_column: 37 } },
-        /* terrane-site-row: site 202: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:48) */
-        { Site { function: 40, file: 34, line: 18, column: 39, end_line: 18, end_column: 48 } },
-        /* terrane-site-row: site 203: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:51) */
-        { Site { function: 40, file: 34, line: 18, column: 39, end_line: 18, end_column: 51 } },
-        /* terrane-site-row: site 204: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:7:7-7:27) */
-        { Site { function: 41, file: 35, line: 7, column: 7, end_line: 7, end_column: 27 } },
-        /* terrane-site-row: site 205: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:11:7-11:32) */
-        { Site { function: 41, file: 35, line: 11, column: 7, end_line: 11, end_column: 32 } },
-        /* terrane-site-row: site 206: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:17:7-17:27) */
-        { Site { function: 41, file: 35, line: 17, column: 7, end_line: 17, end_column: 27 } },
-        /* terrane-site-row: site 207: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:19:7-19:19) */
-        { Site { function: 41, file: 35, line: 19, column: 7, end_line: 19, end_column: 19 } },
-        /* terrane-site-row: site 208: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:24:5-24:30) */
-        { Site { function: 41, file: 35, line: 24, column: 5, end_line: 24, end_column: 30 } },
-        /* terrane-site-row: site 209: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:12-38:34) */
-        { Site { function: 42, file: 36, line: 38, column: 12, end_line: 38, end_column: 34 } },
-        /* terrane-site-row: site 210: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:36-38:64) */
-        { Site { function: 42, file: 36, line: 38, column: 36, end_line: 38, end_column: 64 } },
-        /* terrane-site-row: site 211: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:66-38:94) */
-        { Site { function: 42, file: 36, line: 38, column: 66, end_line: 38, end_column: 94 } },
-        /* terrane-site-row: site 212: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:13-44:37) */
-        { Site { function: 42, file: 36, line: 44, column: 13, end_line: 44, end_column: 37 } },
-        /* terrane-site-row: site 213: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:69-44:93) */
-        { Site { function: 42, file: 36, line: 44, column: 69, end_line: 44, end_column: 93 } },
-        /* terrane-site-row: site 214: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:28-47:50) */
-        { Site { function: 42, file: 36, line: 47, column: 28, end_line: 47, end_column: 50 } },
-        /* terrane-site-row: site 215: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:59-47:81) */
-        { Site { function: 42, file: 36, line: 47, column: 59, end_line: 47, end_column: 81 } },
-        /* terrane-site-row: site 216: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:56:48-56:71) */
-        { Site { function: 42, file: 36, line: 56, column: 48, end_line: 56, end_column: 71 } },
-        /* terrane-site-row: site 217: /typed-json-boundaries::unknown-policy (tests/integration/typed-json-boundaries/case.trn:13:5-13:33) */
-        { Site { function: 43, file: 37, line: 13, column: 5, end_line: 13, end_column: 33 } },
-        /* terrane-site-row: site 218: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:33-52:57) */
-        { Site { function: 44, file: 37, line: 52, column: 33, end_line: 52, end_column: 57 } },
-        /* terrane-site-row: site 219: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:100-52:123) */
-        { Site { function: 44, file: 37, line: 52, column: 100, end_line: 52, end_column: 123 } },
-        /* terrane-site-row: site 220: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:166-52:189) */
-        { Site { function: 44, file: 37, line: 52, column: 166, end_line: 52, end_column: 189 } },
-        /* terrane-site-row: site 221: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:233-52:257) */
-        { Site { function: 44, file: 37, line: 52, column: 233, end_line: 52, end_column: 257 } },
-        /* terrane-site-row: site 222: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:59:69-59:84) */
-        { Site { function: 44, file: 37, line: 59, column: 69, end_line: 59, end_column: 84 } },
-        /* terrane-site-row: site 223: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:60:16-60:38) */
-        { Site { function: 44, file: 37, line: 60, column: 16, end_line: 60, end_column: 38 } },
-        /* terrane-site-row: site 224: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:33-11:49) */
-        { Site { function: 45, file: 38, line: 11, column: 33, end_line: 11, end_column: 49 } },
-        /* terrane-site-row: site 225: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:56-11:72) */
-        { Site { function: 45, file: 38, line: 11, column: 56, end_line: 11, end_column: 72 } },
-        /* terrane-site-row: site 226: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:13:30-13:48) */
-        { Site { function: 45, file: 38, line: 13, column: 30, end_line: 13, end_column: 48 } },
-        /* terrane-site-row: site 227: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:30-15:43) */
-        { Site { function: 45, file: 38, line: 15, column: 30, end_line: 15, end_column: 43 } },
-        /* terrane-site-row: site 228: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:50-15:63) */
-        { Site { function: 45, file: 38, line: 15, column: 50, end_line: 15, end_column: 63 } },
-        /* terrane-site-row: site 229: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:31-17:45) */
-        { Site { function: 45, file: 38, line: 17, column: 31, end_line: 17, end_column: 45 } },
-        /* terrane-site-row: site 230: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:52-17:66) */
-        { Site { function: 45, file: 38, line: 17, column: 52, end_line: 17, end_column: 66 } },
-        /* terrane-site-row: site 231: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:91-39:115) */
-        { Site { function: 46, file: 39, line: 39, column: 91, end_line: 39, end_column: 115 } },
-        /* terrane-site-row: site 232: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:122-39:149) */
-        { Site { function: 46, file: 39, line: 39, column: 122, end_line: 39, end_column: 149 } },
-        /* terrane-site-row: site 233: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:156-39:177) */
-        { Site { function: 46, file: 39, line: 39, column: 156, end_line: 39, end_column: 177 } },
-        /* terrane-site-row: site 234: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:43:90-43:112) */
-        { Site { function: 46, file: 39, line: 43, column: 90, end_line: 43, end_column: 112 } },
-        /* terrane-site-row: site 235: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54) */
-        { Site { function: 47, file: 40, line: 11, column: 33, end_line: 11, end_column: 54 } },
-        /* terrane-site-row: site 236: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82) */
-        { Site { function: 47, file: 40, line: 11, column: 61, end_line: 11, end_column: 82 } },
-        /* terrane-site-row: site 237: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85) */
-        { Site { function: 47, file: 40, line: 11, column: 61, end_line: 11, end_column: 85 } },
-        /* terrane-site-row: site 238: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80) */
-        { Site { function: 47, file: 40, line: 14, column: 61, end_line: 14, end_column: 80 } },
-        /* terrane-site-row: site 239: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47) */
-        { Site { function: 47, file: 40, line: 17, column: 32, end_line: 17, end_column: 47 } },
-        /* terrane-site-row: site 240: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51) */
-        { Site { function: 47, file: 40, line: 19, column: 31, end_line: 19, end_column: 51 } },
-        /* terrane-site-row: site 241: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83) */
-        { Site { function: 47, file: 40, line: 19, column: 63, end_line: 19, end_column: 83 } },
-        /* terrane-site-row: site 242: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51) */
-        { Site { function: 47, file: 40, line: 21, column: 34, end_line: 21, end_column: 51 } },
-        /* terrane-site-row: site 243: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54) */
-        { Site { function: 47, file: 40, line: 21, column: 34, end_line: 21, end_column: 54 } },
-        /* terrane-site-row: site 244: /core/documents::make-document-list (core/documents.trn:141:47-141:60) */
-        { Site { function: 48, file: 41, line: 141, column: 47, end_line: 141, end_column: 60 } },
-        /* terrane-site-row: site 245: /core/documents::mapping-required-fields (core/documents.trn:154:17-154:30) */
-        { Site { function: 49, file: 41, line: 154, column: 17, end_line: 154, end_column: 30 } },
-        /* terrane-site-row: site 246: /core/documents::mapping-required-fields (core/documents.trn:158:16-158:47) */
-        { Site { function: 49, file: 41, line: 158, column: 16, end_line: 158, end_column: 47 } },
-        /* terrane-site-row: site 247: /core/documents::mapping-required-fields (core/documents.trn:164:16-164:45) */
-        { Site { function: 49, file: 41, line: 164, column: 16, end_line: 164, end_column: 45 } },
-        /* terrane-site-row: site 248: /core/documents::decode-document (core/documents.trn:177:12-177:44) */
-        { Site { function: 50, file: 41, line: 177, column: 12, end_line: 177, end_column: 44 } },
-        /* terrane-site-row: site 249: /core/documents::decode-document (core/documents.trn:178:37-178:69) */
-        { Site { function: 50, file: 41, line: 178, column: 37, end_line: 178, end_column: 69 } },
-        /* terrane-site-row: site 250: /core/documents::decode-document (core/documents.trn:184:12-184:49) */
-        { Site { function: 50, file: 41, line: 184, column: 12, end_line: 184, end_column: 49 } },
-        /* terrane-site-row: site 251: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
-        { Site { function: 50, file: 41, line: 185, column: 36, end_line: 185, end_column: 73 } },
-        /* terrane-site-row: site 252: /core/documents::decode-document (core/documents.trn:186:36-186:73) */
-        { Site { function: 50, file: 41, line: 186, column: 36, end_line: 186, end_column: 73 } },
-        /* terrane-site-row: site 253: /core/urls::get (core/urls.trn:23:16-23:32) */
-        { Site { function: 51, file: 42, line: 23, column: 16, end_line: 23, end_column: 32 } },
-        /* terrane-site-row: site 254: /core/urls::get (core/urls.trn:24:24-24:42) */
-        { Site { function: 51, file: 42, line: 24, column: 24, end_line: 24, end_column: 42 } },
-        /* terrane-site-row: site 255: /core/urls::get-all (core/urls.trn:32:16-32:32) */
-        { Site { function: 52, file: 42, line: 32, column: 16, end_line: 32, end_column: 32 } },
-        /* terrane-site-row: site 256: /core/urls::get-all (core/urls.trn:33:32-33:50) */
-        { Site { function: 52, file: 42, line: 33, column: 32, end_line: 33, end_column: 50 } },
+        /* terrane-site-row: site 114: /local-collection-capture::local (tests/integration/local-collection-capture/case.trn:13:16-13:28) */
+        { Site { function: 24, file: 22, line: 13, column: 16, end_line: 13, end_column: 28 } },
+        /* terrane-site-row: site 115: /local-collection-capture::test-scenario (tests/integration/local-collection-capture/case.trn:22:16-22:28) */
+        { Site { function: 25, file: 22, line: 22, column: 16, end_line: 22, end_column: 28 } },
+        /* terrane-site-row: site 116: /map-entry-destructuring::test-scenario (tests/integration/map-entry-destructuring/case.trn:11:10-11:26) */
+        { Site { function: 26, file: 23, line: 11, column: 10, end_line: 11, end_column: 26 } },
+        /* terrane-site-row: site 117: /map-entry-destructuring::test-scenario (tests/integration/map-entry-destructuring/case.trn:11:28-11:45) */
+        { Site { function: 26, file: 23, line: 11, column: 28, end_line: 11, end_column: 45 } },
+        /* terrane-site-row: site 118: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:15:17-15:41) */
+        { Site { function: 27, file: 24, line: 15, column: 17, end_line: 15, end_column: 41 } },
+        /* terrane-site-row: site 119: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:25:5-25:30) */
+        { Site { function: 27, file: 24, line: 25, column: 5, end_line: 25, end_column: 30 } },
+        /* terrane-site-row: site 120: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:31:11-31:37) */
+        { Site { function: 27, file: 24, line: 31, column: 11, end_line: 31, end_column: 37 } },
+        /* terrane-site-row: site 121: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:40:3-40:35) */
+        { Site { function: 27, file: 24, line: 40, column: 3, end_line: 40, end_column: 35 } },
+        /* terrane-site-row: site 122: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:44:3-44:24) */
+        { Site { function: 27, file: 24, line: 44, column: 3, end_line: 44, end_column: 24 } },
+        /* terrane-site-row: site 123: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:49:29-49:50) */
+        { Site { function: 27, file: 24, line: 49, column: 29, end_line: 49, end_column: 50 } },
+        /* terrane-site-row: site 124: /map-key-removal::test-scenario (tests/integration/map-key-removal/case.trn:51:20-51:40) */
+        { Site { function: 27, file: 24, line: 51, column: 20, end_line: 51, end_column: 40 } },
+        /* terrane-site-row: site 125: /mixed-width-arithmetic::test-values (tests/integration/mixed-width-arithmetic/case.trn:7:17-7:29) */
+        { Site { function: 28, file: 25, line: 7, column: 17, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 126: /mixed-width-arithmetic::test-values (tests/integration/mixed-width-arithmetic/case.trn:8:20-8:35) */
+        { Site { function: 28, file: 25, line: 8, column: 20, end_line: 8, end_column: 35 } },
+        /* terrane-site-row: site 127: /negative-wrapped-shift::test-scenario (tests/integration/negative-wrapped-shift/case.trn:6:13-6:38) */
+        { Site { function: 29, file: 26, line: 6, column: 13, end_line: 6, end_column: 38 } },
+        /* terrane-site-row: site 128: /nested-call-and-receiver-loans::test-scenario (tests/integration/nested-call-and-receiver-loans/case.trn:38:12-38:30) */
+        { Site { function: 30, file: 27, line: 38, column: 12, end_line: 38, end_column: 30 } },
+        /* terrane-site-row: site 129: /nested-call-and-receiver-loans::test-scenario (tests/integration/nested-call-and-receiver-loans/case.trn:39:12-39:30) */
+        { Site { function: 30, file: 27, line: 39, column: 12, end_line: 39, end_column: 30 } },
+        /* terrane-site-row: site 130: /null-byte-literal::test-scenario (tests/integration/null-byte-literal/case.trn:6:23-6:39) */
+        { Site { function: 31, file: 28, line: 6, column: 23, end_line: 6, end_column: 39 } },
+        /* terrane-site-row: site 131: /numeric-destination-conversion::test-values (tests/integration/numeric-destination-conversion/case.trn:11:23-11:28) */
+        { Site { function: 32, file: 29, line: 11, column: 23, end_line: 11, end_column: 28 } },
+        /* terrane-site-row: site 132: /numeric-destination-conversion::test-values (tests/integration/numeric-destination-conversion/case.trn:13:19-13:24) */
+        { Site { function: 32, file: 29, line: 13, column: 19, end_line: 13, end_column: 24 } },
+        /* terrane-site-row: site 133: /numeric-destination-conversion::test-values (tests/integration/numeric-destination-conversion/case.trn:27:10-27:19) */
+        { Site { function: 32, file: 29, line: 27, column: 10, end_line: 27, end_column: 19 } },
+        /* terrane-site-row: site 134: /owned-copy-collection-capture::go (tests/integration/owned-copy-collection-capture/case.trn:15:16-15:24) */
+        { Site { function: 33, file: 30, line: 15, column: 16, end_line: 15, end_column: 24 } },
+        /* terrane-site-row: site 135: /parse-radix-families::from-hex (tests/integration/parse-radix-families/case.trn:4:10-4:26) */
+        { Site { function: 34, file: 31, line: 4, column: 10, end_line: 4, end_column: 26 } },
+        /* terrane-site-row: site 136: /parse-radix-families::fail (tests/integration/parse-radix-families/case.trn:7:3-7:23) */
+        { Site { function: 35, file: 31, line: 7, column: 3, end_line: 7, end_column: 23 } },
+        /* terrane-site-row: site 137: /parse-radix-families::test-scenario (tests/integration/parse-radix-families/case.trn:13:11-13:26) */
+        { Site { function: 36, file: 31, line: 13, column: 11, end_line: 13, end_column: 26 } },
+        /* terrane-site-row: site 138: /required-throwing-callable-field::bad (tests/integration/required-throwing-callable-field/case.trn:12:5-12:28) */
+        { Site { function: 37, file: 32, line: 12, column: 5, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 139: /required-throwing-callable-field::test-scenario (tests/integration/required-throwing-callable-field/case.trn:16:17-16:21) */
+        { Site { function: 38, file: 32, line: 16, column: 17, end_line: 16, end_column: 21 } },
+        /* terrane-site-row: site 140: /required-throwing-callable-field::test-scenario (tests/integration/required-throwing-callable-field/case.trn:21:17-21:23) */
+        { Site { function: 38, file: 32, line: 21, column: 17, end_line: 21, end_column: 23 } },
+        /* terrane-site-row: site 141: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:12:13-12:33) */
+        { Site { function: 39, file: 33, line: 12, column: 13, end_line: 12, end_column: 33 } },
+        /* terrane-site-row: site 142: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:17:13-17:28) */
+        { Site { function: 39, file: 33, line: 17, column: 13, end_line: 17, end_column: 28 } },
+        /* terrane-site-row: site 143: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:18:12-18:24) */
+        { Site { function: 39, file: 33, line: 18, column: 12, end_line: 18, end_column: 24 } },
+        /* terrane-site-row: site 144: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:22:12-22:21) */
+        { Site { function: 39, file: 33, line: 22, column: 12, end_line: 22, end_column: 21 } },
+        /* terrane-site-row: site 145: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:10-7:21) */
+        { Site { function: 40, file: 34, line: 7, column: 10, end_line: 7, end_column: 21 } },
+        /* terrane-site-row: site 146: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:23-7:34) */
+        { Site { function: 40, file: 34, line: 7, column: 23, end_line: 7, end_column: 34 } },
+        /* terrane-site-row: site 147: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:10-9:21) */
+        { Site { function: 40, file: 34, line: 9, column: 10, end_line: 9, end_column: 21 } },
+        /* terrane-site-row: site 148: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:23-9:34) */
+        { Site { function: 40, file: 34, line: 9, column: 23, end_line: 9, end_column: 34 } },
+        /* terrane-site-row: site 149: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:10-31:18) */
+        { Site { function: 40, file: 34, line: 31, column: 10, end_line: 31, end_column: 18 } },
+        /* terrane-site-row: site 150: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:20-31:29) */
+        { Site { function: 40, file: 34, line: 31, column: 20, end_line: 31, end_column: 29 } },
+        /* terrane-site-row: site 151: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:31-31:40) */
+        { Site { function: 40, file: 34, line: 31, column: 31, end_line: 31, end_column: 40 } },
+        /* terrane-site-row: site 152: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:42-31:51) */
+        { Site { function: 40, file: 34, line: 31, column: 42, end_line: 31, end_column: 51 } },
+        /* terrane-site-row: site 153: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:53-31:63) */
+        { Site { function: 40, file: 34, line: 31, column: 53, end_line: 31, end_column: 63 } },
+        /* terrane-site-row: site 154: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:10-32:19) */
+        { Site { function: 40, file: 34, line: 32, column: 10, end_line: 32, end_column: 19 } },
+        /* terrane-site-row: site 155: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:21-32:31) */
+        { Site { function: 40, file: 34, line: 32, column: 21, end_line: 32, end_column: 31 } },
+        /* terrane-site-row: site 156: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:33-32:43) */
+        { Site { function: 40, file: 34, line: 32, column: 33, end_line: 32, end_column: 43 } },
+        /* terrane-site-row: site 157: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:45-32:55) */
+        { Site { function: 40, file: 34, line: 32, column: 45, end_line: 32, end_column: 55 } },
+        /* terrane-site-row: site 158: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:57-32:68) */
+        { Site { function: 40, file: 34, line: 32, column: 57, end_line: 32, end_column: 68 } },
+        /* terrane-site-row: site 159: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:10-36:18) */
+        { Site { function: 40, file: 34, line: 36, column: 10, end_line: 36, end_column: 18 } },
+        /* terrane-site-row: site 160: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:20-36:28) */
+        { Site { function: 40, file: 34, line: 36, column: 20, end_line: 36, end_column: 28 } },
+        /* terrane-site-row: site 161: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:30-36:38) */
+        { Site { function: 40, file: 34, line: 36, column: 30, end_line: 36, end_column: 38 } },
+        /* terrane-site-row: site 162: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:10-38:18) */
+        { Site { function: 40, file: 34, line: 38, column: 10, end_line: 38, end_column: 18 } },
+        /* terrane-site-row: site 163: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:20-38:28) */
+        { Site { function: 40, file: 34, line: 38, column: 20, end_line: 38, end_column: 28 } },
+        /* terrane-site-row: site 164: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:30-38:38) */
+        { Site { function: 40, file: 34, line: 38, column: 30, end_line: 38, end_column: 38 } },
+        /* terrane-site-row: site 165: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:10-50:19) */
+        { Site { function: 40, file: 34, line: 50, column: 10, end_line: 50, end_column: 19 } },
+        /* terrane-site-row: site 166: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:30-50:39) */
+        { Site { function: 40, file: 34, line: 50, column: 30, end_line: 50, end_column: 39 } },
+        /* terrane-site-row: site 167: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:55-50:64) */
+        { Site { function: 40, file: 34, line: 50, column: 55, end_line: 50, end_column: 64 } },
+        /* terrane-site-row: site 168: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:80-50:89) */
+        { Site { function: 40, file: 34, line: 50, column: 80, end_line: 50, end_column: 89 } },
+        /* terrane-site-row: site 169: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:105-50:114) */
+        { Site { function: 40, file: 34, line: 50, column: 105, end_line: 50, end_column: 114 } },
+        /* terrane-site-row: site 170: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:125-50:134) */
+        { Site { function: 40, file: 34, line: 50, column: 125, end_line: 50, end_column: 134 } },
+        /* terrane-site-row: site 171: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:149-50:158) */
+        { Site { function: 40, file: 34, line: 50, column: 149, end_line: 50, end_column: 158 } },
+        /* terrane-site-row: site 172: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:10-52:19) */
+        { Site { function: 40, file: 34, line: 52, column: 10, end_line: 52, end_column: 19 } },
+        /* terrane-site-row: site 173: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:30-52:39) */
+        { Site { function: 40, file: 34, line: 52, column: 30, end_line: 52, end_column: 39 } },
+        /* terrane-site-row: site 174: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:55-52:64) */
+        { Site { function: 40, file: 34, line: 52, column: 55, end_line: 52, end_column: 64 } },
+        /* terrane-site-row: site 175: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:80-52:89) */
+        { Site { function: 40, file: 34, line: 52, column: 80, end_line: 52, end_column: 89 } },
+        /* terrane-site-row: site 176: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:105-52:114) */
+        { Site { function: 40, file: 34, line: 52, column: 105, end_line: 52, end_column: 114 } },
+        /* terrane-site-row: site 177: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:125-52:134) */
+        { Site { function: 40, file: 34, line: 52, column: 125, end_line: 52, end_column: 134 } },
+        /* terrane-site-row: site 178: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:150-52:159) */
+        { Site { function: 40, file: 34, line: 52, column: 150, end_line: 52, end_column: 159 } },
+        /* terrane-site-row: site 179: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:174-52:183) */
+        { Site { function: 40, file: 34, line: 52, column: 174, end_line: 52, end_column: 183 } },
+        /* terrane-site-row: site 180: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:10-56:19) */
+        { Site { function: 40, file: 34, line: 56, column: 10, end_line: 56, end_column: 19 } },
+        /* terrane-site-row: site 181: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:21-56:30) */
+        { Site { function: 40, file: 34, line: 56, column: 21, end_line: 56, end_column: 30 } },
+        /* terrane-site-row: site 182: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:10-61:22) */
+        { Site { function: 40, file: 34, line: 61, column: 10, end_line: 61, end_column: 22 } },
+        /* terrane-site-row: site 183: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:24-61:33) */
+        { Site { function: 40, file: 34, line: 61, column: 24, end_line: 61, end_column: 33 } },
+        /* terrane-site-row: site 184: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:35-61:46) */
+        { Site { function: 40, file: 34, line: 61, column: 35, end_line: 61, end_column: 46 } },
+        /* terrane-site-row: site 185: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:69:17-69:29) */
+        { Site { function: 40, file: 34, line: 69, column: 17, end_line: 69, end_column: 29 } },
+        /* terrane-site-row: site 186: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:72:17-72:29) */
+        { Site { function: 40, file: 34, line: 72, column: 17, end_line: 72, end_column: 29 } },
+        /* terrane-site-row: site 187: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:78:24-78:33) */
+        { Site { function: 40, file: 34, line: 78, column: 24, end_line: 78, end_column: 33 } },
+        /* terrane-site-row: site 188: /string-display-composition::to-string (tests/integration/string-display-composition/case.trn:23:9-23:37) */
+        { Site { function: 41, file: 35, line: 23, column: 9, end_line: 23, end_column: 37 } },
+        /* terrane-site-row: site 189: /string-display-composition::render-generic (tests/integration/string-display-composition/case.trn:34:25-34:30) */
+        { Site { function: 42, file: 35, line: 34, column: 25, end_line: 34, end_column: 30 } },
+        /* terrane-site-row: site 190: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:50:29-50:45) */
+        { Site { function: 43, file: 35, line: 50, column: 29, end_line: 50, end_column: 45 } },
+        /* terrane-site-row: site 191: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:54:17-54:33) */
+        { Site { function: 43, file: 35, line: 54, column: 17, end_line: 54, end_column: 33 } },
+        /* terrane-site-row: site 192: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:58:25-58:41) */
+        { Site { function: 43, file: 35, line: 58, column: 25, end_line: 58, end_column: 41 } },
+        /* terrane-site-row: site 193: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:62:24-62:40) */
+        { Site { function: 43, file: 35, line: 62, column: 24, end_line: 62, end_column: 40 } },
+        /* terrane-site-row: site 194: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:66:17-66:51) */
+        { Site { function: 43, file: 35, line: 66, column: 17, end_line: 66, end_column: 51 } },
+        /* terrane-site-row: site 195: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:69:13-69:45) */
+        { Site { function: 43, file: 35, line: 69, column: 13, end_line: 69, end_column: 45 } },
+        /* terrane-site-row: site 196: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:71:27-71:33) */
+        { Site { function: 43, file: 35, line: 71, column: 27, end_line: 71, end_column: 33 } },
+        /* terrane-site-row: site 197: /text-families::test-scenario (tests/integration/text-families/case.trn:25:11-25:52) */
+        { Site { function: 44, file: 36, line: 25, column: 11, end_line: 25, end_column: 52 } },
+        /* terrane-site-row: site 198: /text-families::test-scenario (tests/integration/text-families/case.trn:28:11-28:65) */
+        { Site { function: 44, file: 36, line: 28, column: 11, end_line: 28, end_column: 65 } },
+        /* terrane-site-row: site 199: /text-families::test-scenario (tests/integration/text-families/case.trn:33:11-33:65) */
+        { Site { function: 44, file: 36, line: 33, column: 11, end_line: 33, end_column: 65 } },
+        /* terrane-site-row: site 200: /text-families::test-scenario (tests/integration/text-families/case.trn:34:11-34:52) */
+        { Site { function: 44, file: 36, line: 34, column: 11, end_line: 34, end_column: 52 } },
+        /* terrane-site-row: site 201: /text-families::test-scenario (tests/integration/text-families/case.trn:37:11-37:55) */
+        { Site { function: 44, file: 36, line: 37, column: 11, end_line: 37, end_column: 55 } },
+        /* terrane-site-row: site 202: /text-families::test-scenario (tests/integration/text-families/case.trn:38:11-38:54) */
+        { Site { function: 44, file: 36, line: 38, column: 11, end_line: 38, end_column: 54 } },
+        /* terrane-site-row: site 203: /text-families::test-scenario (tests/integration/text-families/case.trn:41:13-41:60) */
+        { Site { function: 44, file: 36, line: 41, column: 13, end_line: 41, end_column: 60 } },
+        /* terrane-site-row: site 204: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:27-13:38) */
+        { Site { function: 45, file: 37, line: 13, column: 27, end_line: 13, end_column: 38 } },
+        /* terrane-site-row: site 205: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:40-13:51) */
+        { Site { function: 45, file: 37, line: 13, column: 40, end_line: 13, end_column: 51 } },
+        /* terrane-site-row: site 206: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:34) */
+        { Site { function: 45, file: 37, line: 18, column: 25, end_line: 18, end_column: 34 } },
+        /* terrane-site-row: site 207: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:37) */
+        { Site { function: 45, file: 37, line: 18, column: 25, end_line: 18, end_column: 37 } },
+        /* terrane-site-row: site 208: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:48) */
+        { Site { function: 45, file: 37, line: 18, column: 39, end_line: 18, end_column: 48 } },
+        /* terrane-site-row: site 209: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:51) */
+        { Site { function: 45, file: 37, line: 18, column: 39, end_line: 18, end_column: 51 } },
+        /* terrane-site-row: site 210: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:7:7-7:27) */
+        { Site { function: 46, file: 38, line: 7, column: 7, end_line: 7, end_column: 27 } },
+        /* terrane-site-row: site 211: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:11:7-11:32) */
+        { Site { function: 46, file: 38, line: 11, column: 7, end_line: 11, end_column: 32 } },
+        /* terrane-site-row: site 212: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:17:7-17:27) */
+        { Site { function: 46, file: 38, line: 17, column: 7, end_line: 17, end_column: 27 } },
+        /* terrane-site-row: site 213: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:19:7-19:19) */
+        { Site { function: 46, file: 38, line: 19, column: 7, end_line: 19, end_column: 19 } },
+        /* terrane-site-row: site 214: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:24:5-24:30) */
+        { Site { function: 46, file: 38, line: 24, column: 5, end_line: 24, end_column: 30 } },
+        /* terrane-site-row: site 215: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:12-38:34) */
+        { Site { function: 47, file: 39, line: 38, column: 12, end_line: 38, end_column: 34 } },
+        /* terrane-site-row: site 216: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:36-38:64) */
+        { Site { function: 47, file: 39, line: 38, column: 36, end_line: 38, end_column: 64 } },
+        /* terrane-site-row: site 217: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:66-38:94) */
+        { Site { function: 47, file: 39, line: 38, column: 66, end_line: 38, end_column: 94 } },
+        /* terrane-site-row: site 218: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:13-44:37) */
+        { Site { function: 47, file: 39, line: 44, column: 13, end_line: 44, end_column: 37 } },
+        /* terrane-site-row: site 219: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:69-44:93) */
+        { Site { function: 47, file: 39, line: 44, column: 69, end_line: 44, end_column: 93 } },
+        /* terrane-site-row: site 220: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:28-47:50) */
+        { Site { function: 47, file: 39, line: 47, column: 28, end_line: 47, end_column: 50 } },
+        /* terrane-site-row: site 221: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:59-47:81) */
+        { Site { function: 47, file: 39, line: 47, column: 59, end_line: 47, end_column: 81 } },
+        /* terrane-site-row: site 222: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:56:48-56:71) */
+        { Site { function: 47, file: 39, line: 56, column: 48, end_line: 56, end_column: 71 } },
+        /* terrane-site-row: site 223: /typed-json-boundaries::unknown-policy (tests/integration/typed-json-boundaries/case.trn:13:5-13:33) */
+        { Site { function: 48, file: 40, line: 13, column: 5, end_line: 13, end_column: 33 } },
+        /* terrane-site-row: site 224: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:33-52:57) */
+        { Site { function: 49, file: 40, line: 52, column: 33, end_line: 52, end_column: 57 } },
+        /* terrane-site-row: site 225: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:100-52:123) */
+        { Site { function: 49, file: 40, line: 52, column: 100, end_line: 52, end_column: 123 } },
+        /* terrane-site-row: site 226: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:166-52:189) */
+        { Site { function: 49, file: 40, line: 52, column: 166, end_line: 52, end_column: 189 } },
+        /* terrane-site-row: site 227: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:233-52:257) */
+        { Site { function: 49, file: 40, line: 52, column: 233, end_line: 52, end_column: 257 } },
+        /* terrane-site-row: site 228: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:59:69-59:84) */
+        { Site { function: 49, file: 40, line: 59, column: 69, end_line: 59, end_column: 84 } },
+        /* terrane-site-row: site 229: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:60:16-60:38) */
+        { Site { function: 49, file: 40, line: 60, column: 16, end_line: 60, end_column: 38 } },
+        /* terrane-site-row: site 230: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:33-11:49) */
+        { Site { function: 50, file: 41, line: 11, column: 33, end_line: 11, end_column: 49 } },
+        /* terrane-site-row: site 231: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:56-11:72) */
+        { Site { function: 50, file: 41, line: 11, column: 56, end_line: 11, end_column: 72 } },
+        /* terrane-site-row: site 232: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:13:30-13:48) */
+        { Site { function: 50, file: 41, line: 13, column: 30, end_line: 13, end_column: 48 } },
+        /* terrane-site-row: site 233: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:30-15:43) */
+        { Site { function: 50, file: 41, line: 15, column: 30, end_line: 15, end_column: 43 } },
+        /* terrane-site-row: site 234: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:50-15:63) */
+        { Site { function: 50, file: 41, line: 15, column: 50, end_line: 15, end_column: 63 } },
+        /* terrane-site-row: site 235: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:31-17:45) */
+        { Site { function: 50, file: 41, line: 17, column: 31, end_line: 17, end_column: 45 } },
+        /* terrane-site-row: site 236: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:52-17:66) */
+        { Site { function: 50, file: 41, line: 17, column: 52, end_line: 17, end_column: 66 } },
+        /* terrane-site-row: site 237: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:91-39:115) */
+        { Site { function: 51, file: 42, line: 39, column: 91, end_line: 39, end_column: 115 } },
+        /* terrane-site-row: site 238: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:122-39:149) */
+        { Site { function: 51, file: 42, line: 39, column: 122, end_line: 39, end_column: 149 } },
+        /* terrane-site-row: site 239: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:156-39:177) */
+        { Site { function: 51, file: 42, line: 39, column: 156, end_line: 39, end_column: 177 } },
+        /* terrane-site-row: site 240: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:43:90-43:112) */
+        { Site { function: 51, file: 42, line: 43, column: 90, end_line: 43, end_column: 112 } },
+        /* terrane-site-row: site 241: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54) */
+        { Site { function: 52, file: 43, line: 11, column: 33, end_line: 11, end_column: 54 } },
+        /* terrane-site-row: site 242: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82) */
+        { Site { function: 52, file: 43, line: 11, column: 61, end_line: 11, end_column: 82 } },
+        /* terrane-site-row: site 243: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85) */
+        { Site { function: 52, file: 43, line: 11, column: 61, end_line: 11, end_column: 85 } },
+        /* terrane-site-row: site 244: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80) */
+        { Site { function: 52, file: 43, line: 14, column: 61, end_line: 14, end_column: 80 } },
+        /* terrane-site-row: site 245: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47) */
+        { Site { function: 52, file: 43, line: 17, column: 32, end_line: 17, end_column: 47 } },
+        /* terrane-site-row: site 246: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51) */
+        { Site { function: 52, file: 43, line: 19, column: 31, end_line: 19, end_column: 51 } },
+        /* terrane-site-row: site 247: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83) */
+        { Site { function: 52, file: 43, line: 19, column: 63, end_line: 19, end_column: 83 } },
+        /* terrane-site-row: site 248: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51) */
+        { Site { function: 52, file: 43, line: 21, column: 34, end_line: 21, end_column: 51 } },
+        /* terrane-site-row: site 249: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54) */
+        { Site { function: 52, file: 43, line: 21, column: 34, end_line: 21, end_column: 54 } },
+        /* terrane-site-row: site 250: /core/documents::make-document-list (core/documents.trn:141:47-141:60) */
+        { Site { function: 53, file: 44, line: 141, column: 47, end_line: 141, end_column: 60 } },
+        /* terrane-site-row: site 251: /core/documents::mapping-required-fields (core/documents.trn:154:17-154:30) */
+        { Site { function: 54, file: 44, line: 154, column: 17, end_line: 154, end_column: 30 } },
+        /* terrane-site-row: site 252: /core/documents::mapping-required-fields (core/documents.trn:158:16-158:47) */
+        { Site { function: 54, file: 44, line: 158, column: 16, end_line: 158, end_column: 47 } },
+        /* terrane-site-row: site 253: /core/documents::mapping-required-fields (core/documents.trn:164:16-164:45) */
+        { Site { function: 54, file: 44, line: 164, column: 16, end_line: 164, end_column: 45 } },
+        /* terrane-site-row: site 254: /core/documents::decode-document (core/documents.trn:177:12-177:44) */
+        { Site { function: 55, file: 44, line: 177, column: 12, end_line: 177, end_column: 44 } },
+        /* terrane-site-row: site 255: /core/documents::decode-document (core/documents.trn:178:37-178:69) */
+        { Site { function: 55, file: 44, line: 178, column: 37, end_line: 178, end_column: 69 } },
+        /* terrane-site-row: site 256: /core/documents::decode-document (core/documents.trn:184:12-184:49) */
+        { Site { function: 55, file: 44, line: 184, column: 12, end_line: 184, end_column: 49 } },
+        /* terrane-site-row: site 257: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
+        { Site { function: 55, file: 44, line: 185, column: 36, end_line: 185, end_column: 73 } },
+        /* terrane-site-row: site 258: /core/documents::decode-document (core/documents.trn:186:36-186:73) */
+        { Site { function: 55, file: 44, line: 186, column: 36, end_line: 186, end_column: 73 } },
+        /* terrane-site-row: site 259: /core/urls::get (core/urls.trn:23:16-23:32) */
+        { Site { function: 56, file: 45, line: 23, column: 16, end_line: 23, end_column: 32 } },
+        /* terrane-site-row: site 260: /core/urls::get (core/urls.trn:24:24-24:42) */
+        { Site { function: 56, file: 45, line: 24, column: 24, end_line: 24, end_column: 42 } },
+        /* terrane-site-row: site 261: /core/urls::get-all (core/urls.trn:32:16-32:32) */
+        { Site { function: 57, file: 45, line: 32, column: 16, end_line: 32, end_column: 32 } },
+        /* terrane-site-row: site 262: /core/urls::get-all (core/urls.trn:33:32-33:50) */
+        { Site { function: 57, file: 45, line: 33, column: 32, end_line: 33, end_column: 50 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1276,6 +1297,248 @@ for TerraneSharedProjection<H, U, T> {
         };
         if poisoned { Err(std::sync::PoisonError::new(guard)) } else { Ok(guard) }
     }
+}
+trait TerraneMutableCallableBody<Arguments, Output>: Send {
+    fn call(&mut self, arguments: Arguments) -> Output;
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>;
+}
+impl<Arguments, Output, Function> TerraneMutableCallableBody<Arguments, Output>
+for Function
+where
+    Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
+{
+    fn call(&mut self, arguments: Arguments) -> Output {
+        self(arguments)
+    }
+    fn clone_box(
+        &self,
+    ) -> std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>> {
+        std::boxed::Box::new(self.clone())
+    }
+}
+pub struct TerraneMutableCallable<Arguments, Output> {
+    body: std::sync::Mutex<
+        std::boxed::Box<dyn TerraneMutableCallableBody<Arguments, Output>>,
+    >,
+}
+impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
+    fn new<Function>(function: Function) -> Self
+    where
+        Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
+    {
+        Self {
+            body: std::sync::Mutex::new(std::boxed::Box::new(function)),
+        }
+    }
+    fn call(&self, arguments: Arguments) -> Output {
+        self.body.lock().expect("mutable callable lock poisoned").call(arguments)
+    }
+}
+impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
+    fn clone(&self) -> Self {
+        let body = self.body.lock().expect("mutable callable lock poisoned").clone_box();
+        Self {
+            body: std::sync::Mutex::new(body),
+        }
+    }
+}
+async fn __terrane_await<F: Future>(future: F) -> F::Output {
+    struct YieldOnce(bool);
+    impl Future for YieldOnce {
+        type Output = ();
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        }
+    }
+    YieldOnce(false).await;
+    let output = future.await;
+    YieldOnce(false).await;
+    output
+}
+#[allow(
+    dead_code,
+    clippy::unused_async,
+    reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
+)]
+async fn __terrane_wait_projected_cleanups() {}
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
+#[allow(
+    dead_code,
+    reason = "shared async support also serves packages without awaited destructors"
+)]
+const TERRANE_RUNTIME_CLOSING: usize = 1 << usize::BITS - 1;
+#[allow(
+    dead_code,
+    reason = "libraries can use async support without owning an executor"
+)]
+struct TerraneRuntimeLiveness {
+    active: std::sync::atomic::AtomicUsize,
+    drain: std::sync::Mutex<()>,
+    changed: std::sync::Condvar,
+}
+thread_local! {
+    static TERRANE_RUNTIME_LIVE : std::cell::RefCell < Option < (tokio::runtime::Id,
+    std::sync::Arc < TerraneRuntimeLiveness >) >> = const { std::cell::RefCell::new(None)
+    };
+}
+#[allow(
+    dead_code,
+    reason = "libraries can use awaited destruction without owning an executor"
+)]
+struct TerraneRuntimeLivenessGuard {
+    live: std::sync::Arc<TerraneRuntimeLiveness>,
+    previous: Option<(tokio::runtime::Id, std::sync::Arc<TerraneRuntimeLiveness>)>,
+}
+impl Drop for TerraneRuntimeLivenessGuard {
+    fn drop(&mut self) {
+        if self
+            .live
+            .active
+            .fetch_or(TERRANE_RUNTIME_CLOSING, std::sync::atomic::Ordering::AcqRel) != 0
+        {
+            let drained = self
+                .live
+                .drain
+                .lock()
+                .expect("destructor drain lock poisoned");
+            let _drained = self
+                .live
+                .changed
+                .wait_while(
+                    drained,
+                    |()| {
+                        self.live.active.load(std::sync::atomic::Ordering::Acquire)
+                            != TERRANE_RUNTIME_CLOSING
+                    },
+                )
+                .expect("destructor drain lock poisoned");
+        }
+        TERRANE_RUNTIME_LIVE.with(|live| *live.borrow_mut() = self.previous.take());
+    }
+}
+#[allow(
+    dead_code,
+    reason = "libraries can use awaited destruction without owning an executor"
+)]
+fn __terrane_runtime_liveness_enter(
+    runtime: &tokio::runtime::Runtime,
+    live: std::sync::Arc<TerraneRuntimeLiveness>,
+) -> TerraneRuntimeLivenessGuard {
+    let previous = TERRANE_RUNTIME_LIVE
+        .with(|current| {
+            current.borrow_mut().replace((runtime.handle().id(), live.clone()))
+        });
+    TerraneRuntimeLivenessGuard {
+        live,
+        previous,
+    }
+}
+#[allow(
+    dead_code,
+    reason = "shared async support also serves packages without awaited destructors"
+)]
+struct TerraneDestructorPermit(std::sync::Arc<TerraneRuntimeLiveness>);
+impl Drop for TerraneDestructorPermit {
+    fn drop(&mut self) {
+        if self.0.active.fetch_sub(1, std::sync::atomic::Ordering::AcqRel)
+            == TERRANE_RUNTIME_CLOSING + 1
+        {
+            let _drained = self.0.drain.lock().expect("destructor drain lock poisoned");
+            self.0.changed.notify_one();
+        }
+    }
+}
+fn __terrane_await_destructor<F>(future: F)
+where
+    F: Future<Output = ()> + Send,
+{
+    let permit = tokio::runtime::Handle::try_current()
+        .ok()
+        .and_then(|handle| {
+            if handle.runtime_flavor() != tokio::runtime::RuntimeFlavor::MultiThread {
+                return None;
+            }
+            TERRANE_RUNTIME_LIVE
+                .with(|current| {
+                    let current = current.borrow();
+                    let (id, live) = current.as_ref()?;
+                    if *id != handle.id() {
+                        return None;
+                    }
+                    live.active
+                        .try_update(
+                            std::sync::atomic::Ordering::AcqRel,
+                            std::sync::atomic::Ordering::Acquire,
+                            |active| {
+                                (active < TERRANE_RUNTIME_CLOSING - 1).then(|| active + 1)
+                            },
+                        )
+                        .ok()?;
+                    Some((handle, TerraneDestructorPermit(live.clone())))
+                })
+        });
+    if let Some((handle, _permit)) = permit {
+        tokio::task::block_in_place(|| handle.block_on(future));
+        return;
+    }
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Terrane destructor runtime must initialize")
+                    .block_on(future);
+            })
+            .join()
+            .expect("Terrane awaited destructor must not panic");
+    });
+}
+fn __terrane_run<F: Future>(future: F) -> F::Output {
+    let live = std::sync::Arc::new(TerraneRuntimeLiveness {
+        active: std::sync::atomic::AtomicUsize::new(0),
+        drain: std::sync::Mutex::new(()),
+        changed: std::sync::Condvar::new(),
+    });
+    let worker_live = live.clone();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .on_thread_start(move || {
+            TERRANE_RUNTIME_LIVE
+                .with(|current| {
+                    *current.borrow_mut() = Some((
+                        tokio::runtime::Handle::current().id(),
+                        worker_live.clone(),
+                    ));
+                });
+        })
+        .enable_all()
+        .build()
+        .expect("Terrane async runtime must initialize");
+    let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
+    let future = Box::pin(future);
+    runtime
+        .block_on(async move {
+            let output = __terrane_async_entry(future).await;
+            __terrane_wait_projected_cleanups().await;
+            output
+        })
 }
 pub(crate) static TERRANE_TEST_TIME_NANOS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(
     0,
@@ -3518,10 +3781,10 @@ pub fn make_document_list(
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                244 /* terrane-site: core/documents.trn:141:47-141:60 */,
+                                250 /* terrane-site: core/documents.trn:141:47-141:60 */,
                             ),
                         ),
-                    244 /* terrane-site: core/documents.trn:141:47-141:60 */,
+                    250 /* terrane-site: core/documents.trn:141:47-141:60 */,
                 )
                 .raw,
         );
@@ -3558,10 +3821,10 @@ pub fn mapping_required_fields(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            245 /* terrane-site: core/documents.trn:154:17-154:30 */,
+                            251 /* terrane-site: core/documents.trn:154:17-154:30 */,
                         ),
                     ),
-                245 /* terrane-site: core/documents.trn:154:17-154:30 */,
+                251 /* terrane-site: core/documents.trn:154:17-154:30 */,
             );
             optional = false;
             optional_index = terrane_int_support::Int::from(0_i128);
@@ -3575,10 +3838,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &optional_index.clone(),
                                     ),
-                                    246 /* terrane-site: core/documents.trn:158:16-158:47 */,
+                                    252 /* terrane-site: core/documents.trn:158:16-158:47 */,
                                 ),
                             ),
-                        246 /* terrane-site: core/documents.trn:158:16-158:47 */,
+                        252 /* terrane-site: core/documents.trn:158:16-158:47 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -3598,10 +3861,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    247 /* terrane-site: core/documents.trn:164:16-164:45 */,
+                                    253 /* terrane-site: core/documents.trn:164:16-164:45 */,
                                 ),
                             ),
-                        247 /* terrane-site: core/documents.trn:164:16-164:45 */,
+                        253 /* terrane-site: core/documents.trn:164:16-164:45 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -3648,10 +3911,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &field_index.clone(),
                                 ),
-                                248 /* terrane-site: core/documents.trn:177:12-177:44 */,
+                                254 /* terrane-site: core/documents.trn:177:12-177:44 */,
                             ),
                         ),
-                    248 /* terrane-site: core/documents.trn:177:12-177:44 */,
+                    254 /* terrane-site: core/documents.trn:177:12-177:44 */,
                 )
                 .as_str() != ""
             {
@@ -3664,10 +3927,10 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &field_index.clone(),
                                     ),
-                                    249 /* terrane-site: core/documents.trn:178:37-178:69 */,
+                                    255 /* terrane-site: core/documents.trn:178:37-178:69 */,
                                 ),
                             ),
-                        249 /* terrane-site: core/documents.trn:178:37-178:69 */,
+                        255 /* terrane-site: core/documents.trn:178:37-178:69 */,
                     );
                     __terrane_list_append_1.push(__terrane_collection_argument_0);
                 };
@@ -3690,10 +3953,10 @@ pub fn decode_document(
                             terrane_collection_support::index_from_int(
                                 &default_index.clone(),
                             ),
-                            250 /* terrane-site: core/documents.trn:184:12-184:49 */,
+                            256 /* terrane-site: core/documents.trn:184:12-184:49 */,
                         ),
                     ),
-                250 /* terrane-site: core/documents.trn:184:12-184:49 */,
+                256 /* terrane-site: core/documents.trn:184:12-184:49 */,
             )
             .as_str() != ""
         {
@@ -3706,10 +3969,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &default_index.clone(),
                                 ),
-                                251 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                                257 /* terrane-site: core/documents.trn:185:36-185:73 */,
                             ),
                         ),
-                    251 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                    257 /* terrane-site: core/documents.trn:185:36-185:73 */,
                 );
                 default_fields.append(__terrane_collection_argument_0);
             };
@@ -3722,10 +3985,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &default_index.clone(),
                                 ),
-                                252 /* terrane-site: core/documents.trn:186:36-186:73 */,
+                                258 /* terrane-site: core/documents.trn:186:36-186:73 */,
                             ),
                         ),
-                    252 /* terrane-site: core/documents.trn:186:36-186:73 */,
+                    258 /* terrane-site: core/documents.trn:186:36-186:73 */,
                 );
                 default_values.append(__terrane_collection_argument_0);
             };
@@ -3975,10 +4238,10 @@ impl UrlQuery {
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                253 /* terrane-site: core/urls.trn:23:16-23:32 */,
+                                259 /* terrane-site: core/urls.trn:23:16-23:32 */,
                             ),
                         ),
-                    253 /* terrane-site: core/urls.trn:23:16-23:32 */,
+                    259 /* terrane-site: core/urls.trn:23:16-23:32 */,
                 )
                 .as_str() == name.as_str()
             {
@@ -3988,10 +4251,10 @@ impl UrlQuery {
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                254 /* terrane-site: core/urls.trn:24:24-24:42 */,
+                                260 /* terrane-site: core/urls.trn:24:24-24:42 */,
                             ),
                         ),
-                    254 /* terrane-site: core/urls.trn:24:24-24:42 */,
+                    260 /* terrane-site: core/urls.trn:24:24-24:42 */,
                 );
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -4012,10 +4275,10 @@ impl UrlQuery {
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    255 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                                    261 /* terrane-site: core/urls.trn:32:16-32:32 */,
                                 ),
                             ),
-                        255 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                        261 /* terrane-site: core/urls.trn:32:16-32:32 */,
                     )
                     .as_str() == name.as_str()
                 {
@@ -4026,10 +4289,10 @@ impl UrlQuery {
                                 .get_or_error(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(&index.clone()),
-                                        256 /* terrane-site: core/urls.trn:33:32-33:50 */,
+                                        262 /* terrane-site: core/urls.trn:33:32-33:50 */,
                                     ),
                                 ),
-                            256 /* terrane-site: core/urls.trn:33:32-33:50 */,
+                            262 /* terrane-site: core/urls.trn:33:32-33:50 */,
                         );
                         __terrane_list_append_0.push(__terrane_collection_argument_0);
                     };

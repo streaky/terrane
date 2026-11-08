@@ -73,8 +73,8 @@ fn main() {
         let third: terrane_int_support::Int;
         value = Operations::terrane_construct();
         value.change.call(());
-        read = value.read.clone();
-        change = value.change_async.clone();
+        read = value.read;
+        change = value.change_async;
         finish = value.finish_async;
         first = __terrane_await(read(terrane_int_support::Int::from(1_i128))).await;
         second = __terrane_await(change.call((terrane_int_support::Int::from(2_i128),)))

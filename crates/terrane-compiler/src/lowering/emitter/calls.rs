@@ -2722,11 +2722,32 @@ impl Emitter<'_> {
                 .is_none_or(|contract| contract.owner.is_none())
             && self.callable_object_field(receiver, self.text(member))
         {
-            format!(
-                "({}.{})",
-                self.expression(receiver),
-                rust_name(self.text(member))
-            )
+            let mode = self
+                .value_type(callee)
+                .and_then(|value_type| match value_type {
+                    ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects) => Some(effects.modes.written),
+                    _ => None,
+                });
+            if mode == Some(InvocationMode::Mutable) {
+                // The owned mutable carrier synchronizes its environment through
+                // &self. Borrow the stored payload without cloning its state or
+                // requiring a mutable borrow of the initialization slot.
+                if let Some((setup, place, _)) = self.projected_field_place_parts(
+                    callee,
+                    receiver,
+                    member,
+                    false,
+                    GuardScope::Expression,
+                ) {
+                    shared_argument_setup.push_str(&setup);
+                    place
+                } else {
+                    self.expression(callee)
+                }
+            } else {
+                self.expression(callee)
+            }
         } else if let [receiver, _member] = callee.children.as_slice()
             && let Some(projected) = projected_function.as_ref()
             && let Some(identity) = self.projected_receiver_identity(receiver)

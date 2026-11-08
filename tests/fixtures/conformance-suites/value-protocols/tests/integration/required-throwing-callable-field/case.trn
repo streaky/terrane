@@ -1,0 +1,23 @@
+namespace required-throwing-callable-field
+from /core/errors import throwable
+class failure implements throwable
+    message string = 'field failure'
+    function render string;
+        return this.message
+class holder
+    f function to int throws throwable
+    function construct; f function to int throws throwable
+        this.f = f
+function bad int throws failure;
+    throw instance failure;
+function test-scenario;
+    h = instance holder; bad
+    try
+        print; (h.f;)
+    catch failure as error
+        print; error.message
+    alias = h.f
+    try
+        print; (alias;)
+    catch failure as error
+        print; error.message

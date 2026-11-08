@@ -1,0 +1,15 @@
+namespace required-mutable-callable-field
+class holder
+    f mutable function to int
+    function construct; f mutable function to int
+        this.f = f
+function test-scenario;
+    n = 0
+    h = instance holder; mutable function int;
+        n = n + 1
+        return n
+    print; (h.f;)
+    print; (h.f;)
+    alias = h.f
+    print; (alias;)
+    print; (h.f;)

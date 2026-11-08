@@ -1,0 +1,19 @@
+namespace escaping-field-collection-store
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+class holder
+    fs list of function to int = list;
+function go of (T implements named); h mutable ref holder, item T
+    h.fs.append; function int;
+        return item.name;
+function main;
+    h = instance holder;
+    go; h, (instance value;)
+    print; h.fs.length

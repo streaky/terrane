@@ -1,0 +1,15 @@
+namespace callable-field-direct
+class holder
+    f function to int
+    function construct; f function to int
+        this.f = f
+class derived extends holder
+    function construct; f function to int
+        this.f = f
+function test-scenario;
+    h = instance holder; function int;
+        return 5
+    print; (h.f;)
+    child = instance derived; function int;
+        return 7
+    print; (child.f;)

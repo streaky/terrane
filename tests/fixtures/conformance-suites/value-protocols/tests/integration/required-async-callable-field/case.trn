@@ -1,0 +1,11 @@
+namespace required-async-callable-field
+class holder
+    f async function to int
+    function construct; f async function to int
+        this.f = f
+async function test-scenario;
+    h = instance holder; async function int;
+        return 9
+    print; (await (h.f;))
+    alias = h.f
+    print; (await (alias;))

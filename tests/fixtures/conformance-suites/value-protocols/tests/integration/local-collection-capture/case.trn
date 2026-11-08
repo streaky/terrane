@@ -1,0 +1,23 @@
+namespace local-collection-capture
+from /core/collections import list
+interface named
+    function name int;
+class value implements named
+    amount int = 7
+    function name int;
+        return this.amount
+function local of (T implements named) int; item T
+    callbacks list of function to int = list;
+    callbacks.append; function int;
+        return item.name;
+    callback = callbacks[0]
+    return callback;
+function store; callbacks mutable ref list of function to int, item value
+    callbacks.append; function int;
+        return item.name;
+function test-scenario;
+    print; (local; (instance value;))
+    callbacks list of function to int = list;
+    store; callbacks, (instance value;)
+    callback = callbacks[0]
+    print; (callback;)

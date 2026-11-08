@@ -1466,7 +1466,12 @@ impl Emitter<'_> {
                 )
             }
             name if wrapped_field && required_field => {
-                format!("({receiver}).terrane_field_{}()", rust_name(name))
+                let access = format!("({receiver}).terrane_field_{}()", rust_name(name));
+                if owned_snapshot.is_some() && !explicit_field_move {
+                    format!("({access}).clone()")
+                } else {
+                    access
+                }
             }
             name if wrapped_field => {
                 format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
@@ -1488,6 +1493,17 @@ impl Emitter<'_> {
                     }
                 } else {
                     format!("{receiver}.{field}")
+                };
+                let access = if owned_snapshot.is_some()
+                    && required_field
+                    && !explicit_field_move
+                    && matches!(
+                        required_field_type,
+                        Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+                    ) {
+                    format!("({access}).clone()")
+                } else {
+                    access
                 };
                 if !self.assignment_target
                     && let Some(projected) = self.native_field_type(node)

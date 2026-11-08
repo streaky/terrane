@@ -1,0 +1,14 @@
+namespace callable-field-alias
+class holder
+    f function to int
+    function construct; f function to int
+        this.f = f
+    function method int;
+        return 6
+function test-scenario;
+    h = instance holder; function int;
+        return 5
+    g = h.f
+    print; (g;)
+    m = h.method
+    print; (m;)
