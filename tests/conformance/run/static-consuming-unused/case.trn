@@ -1,0 +1,5 @@
+namespace static-consuming-unused
+class holder
+    static f (consuming function to int)|none = none
+function main;
+    print; 1

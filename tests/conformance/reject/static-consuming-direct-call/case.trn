@@ -1,0 +1,7 @@
+namespace static-consuming-direct-call
+function five int;
+    return 5
+class holder
+    static f consuming function to int = five
+function main;
+    print; (holder::f;)

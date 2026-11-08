@@ -1,0 +1,6 @@
+namespace static-consuming-snapshot
+class holder
+    static f (consuming function to int)|none = none
+function main;
+    callback = holder::f
+    print; callback == none

@@ -121,6 +121,54 @@ fn validate_callable_field_invocation(
     Ok(())
 }
 
+fn validate_static_callable_field_read(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if value.kind != SyntaxKind::StaticMemberExpression {
+        return Ok(());
+    }
+    let [receiver, member] = value.children.as_slice() else {
+        return Ok(());
+    };
+    let Some(identity) = class_designator_identity(unit, receiver) else {
+        return Ok(());
+    };
+    let field = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|object| object.identity.base() == identity.base())
+        .is_some_and(|object| {
+            super::objects::effective_object_fields(package, object)
+                .iter()
+                .any(|field| field.is_static && field.name == node_text(&unit.source, member))
+        });
+    if !field {
+        return Ok(());
+    }
+    let Some(mut value_type) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+        return Ok(());
+    };
+    while let ValueType::Optional(inner) = value_type {
+        value_type = *inner;
+    }
+    if matches!(
+        value_type,
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects)
+            if effects.modes.written == InvocationMode::Consuming
+    ) {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "static consuming callable fields cannot be read or moved; static slots require Clone snapshots",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 fn validate_field_snapshot(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -447,10 +495,13 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         unit: &SemanticUnit,
         node: &SyntaxNode,
         moved: &mut BTreeSet<usize>,
-        declaration_name: bool,
+        write_place: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
         loop_exits: &mut LoopMoveExits,
     ) -> Result<(), SemanticFailure> {
+        if !write_place {
+            validate_static_callable_field_read(package, unit, node)?;
+        }
         if matches!(
             node.kind,
             SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::ReturnStatement
@@ -1249,7 +1300,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             moved.extend(transferred);
             return Ok(());
         }
-        if node.kind == SyntaxKind::Name && !declaration_name {
+        if node.kind == SyntaxKind::Name && !write_place {
             let name = node_text(&unit.source, node);
             if let Some(binding) = binding_at(unit, name, node.span.start)
                 && moved.contains(&binding)
@@ -1272,7 +1323,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 })
                 .filter(|binding| noncopyable_binding(package, unit, *binding));
             let mut skipped_name = false;
-            for child in &node.children {
+            for (index, child) in node.children.iter().enumerate() {
                 if !skipped_name && child.kind == SyntaxKind::Name {
                     skipped_name = true;
                     // Write-through assignment uses the reference handle, not a new binding.
@@ -1290,7 +1341,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     unit,
                     child,
                     moved,
-                    false,
+                    index == 0,
                     resource_objects,
                     loop_exits,
                 )?;
@@ -1808,7 +1859,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 unit,
                 child,
                 moved,
-                false,
+                write_place && node.kind == SyntaxKind::GroupExpression,
                 resource_objects,
                 loop_exits,
             )?;

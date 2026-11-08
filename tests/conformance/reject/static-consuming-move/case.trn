@@ -1,0 +1,6 @@
+namespace static-consuming-move
+class holder
+    static f (consuming function to int)|none = none
+function main;
+    callback = move holder::f
+    print; callback == none

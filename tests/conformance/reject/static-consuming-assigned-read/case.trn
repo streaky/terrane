@@ -1,0 +1,9 @@
+namespace static-consuming-assigned-read
+class holder
+    static f (consuming function to int)|none = none
+function main;
+    holder::f = consuming function int;
+        return 5
+    callback = holder::f
+    if callback != none
+        print; (callback;)
