@@ -1,0 +1,12 @@
+namespace static-callable-capture-escape
+interface named
+    function name int;
+class holder
+    static f function to int = function int;
+        return 0
+function install of (T implements named); value T
+    callback = function int;
+        return value.name;
+    holder::f = callback
+function main;
+    print; 1

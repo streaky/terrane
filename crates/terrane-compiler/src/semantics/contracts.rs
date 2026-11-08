@@ -85,9 +85,8 @@ pub(super) fn descriptor_alias(
         return None;
     }
     let name = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)?;
+        .assignment_target()
+        .filter(|child| child.kind == SyntaxKind::Name)?;
     let initializer = node.children.last()?;
     let descriptor_name = node_text(&unit.source, initializer).trim();
     if descriptor_name == "none" {
@@ -399,9 +398,8 @@ pub(super) fn collect_typed_bindings(
             let mut region_bindings = visible_bindings.clone();
             if acquisition.kind == SyntaxKind::Assignment
                 && let Some(target) = acquisition
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::Name)
+                    .assignment_target()
+                    .filter(|child| child.kind == SyntaxKind::Name)
                 && let Some(initializer) = acquisition.children.last()
             {
                 let name = node_text(&unit.source, target);

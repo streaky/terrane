@@ -45,9 +45,8 @@ pub(super) fn validate_constant_reassignment(
             && let Some(target) = first_write_to(package, unit, node.span, &unit.tree.root)
         {
             let name = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
                 .map_or("constant", |child| node_text(&unit.source, child));
             return Err(failure(
                 &unit.source,
@@ -62,9 +61,8 @@ pub(super) fn validate_constant_reassignment(
                     && node_text(&unit.source, child) == "global"
             })
             && let Some(target) = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
             && let Some(symbol) =
                 package.resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
             && symbol
@@ -129,7 +127,7 @@ pub(super) fn validate_namespace_storage(package: &SemanticPackage) -> Result<()
                 child.kind == SyntaxKind::DeclarationQualifier
                     && node_text(&unit.source, child) == "global"
             }))
-            && let Some(name) = node.children.iter().find(|child| child.kind == SyntaxKind::Name)
+            && let Some(name) = node.assignment_target().filter(|child| child.kind == SyntaxKind::Name)
             && let Some(symbol) =
                 package.resolve_name_at(unit, name.span.start, node_text(&unit.source, name))
             && symbol.declaration_span == Some(node.span)
@@ -187,9 +185,8 @@ pub(super) fn validate_global_definite_assignment(
     }
 
     fn global_name<'a>(unit: &'a SemanticUnit, node: &'a SyntaxNode) -> Option<&'a str> {
-        node.children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
+        node.assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
             .map(|child| node_text(&unit.source, child))
     }
 
@@ -229,9 +226,8 @@ pub(super) fn validate_global_definite_assignment(
             && has_qualifier(unit, node, "global")
         {
             let name_node = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name);
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name);
             for child in &node.children {
                 if Some(child.span) != name_node.map(|name| name.span) {
                     validate_node(package, unit, child, relevant, assigned)?;

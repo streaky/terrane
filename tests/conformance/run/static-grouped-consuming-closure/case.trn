@@ -1,0 +1,8 @@
+namespace static-grouped-consuming-closure
+class holder
+    static f (consuming function to int)|none = none
+function main;
+    closure = consuming function int;
+        return 1
+    (holder::f) = closure
+    print; 1

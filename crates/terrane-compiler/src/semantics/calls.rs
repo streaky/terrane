@@ -979,15 +979,9 @@ pub(super) fn validate_resolved_assignment(
     if !matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
         return Ok(());
     }
-    let name_node = if node.kind == SyntaxKind::Assignment {
-        node.children
-            .first()
-            .filter(|child| child.kind == SyntaxKind::Name)
-    } else {
-        node.children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
-    };
+    let name_node = node
+        .assignment_target()
+        .filter(|child| child.kind == SyntaxKind::Name);
     let Some(name_node) = name_node else {
         return Ok(());
     };

@@ -1,0 +1,19 @@
+namespace static-async-throwing-dispatch
+from /core/errors import throwable
+class failure implements throwable
+    message string = 'async field failure'
+    function render string;
+        return this.message
+async function safe int;
+    return 7
+async function bad int throws throwable;
+    throw instance failure;
+class holder
+    static f async function to int throws throwable = safe
+async function main;
+    print; (await (holder::f;))
+    holder::f = bad
+    try
+        print; (await (holder::f;))
+    catch failure as error
+        print; error.message

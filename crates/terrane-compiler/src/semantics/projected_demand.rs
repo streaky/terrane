@@ -171,11 +171,14 @@ pub(super) fn collect_projected_binding_owners(
     if matches!(
         node.kind,
         SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
-    ) && let Some(name) = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)
-    {
+    ) && let Some(name) = if node.kind == SyntaxKind::Parameter {
+        node.children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+    } else {
+        node.assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
+    } {
         let owners = node
             .children
             .iter()
@@ -886,11 +889,15 @@ fn find_preceding_binding<'a>(
         node.kind,
         SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
     ) && node.span.start < before
-        && node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
-            .is_some_and(|candidate| node_text(source, candidate) == name)
+        && (if node.kind == SyntaxKind::Parameter {
+            node.children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)
+        } else {
+            node.assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
+        })
+        .is_some_and(|candidate| node_text(source, candidate) == name)
         && best.is_none_or(|candidate| candidate.span.start < node.span.start)
     {
         *best = Some(node);

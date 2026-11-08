@@ -302,8 +302,16 @@ impl Emitter<'_> {
         if self.global_assignment(node) {
             return;
         }
-        if let [target, value] = node.children.as_slice()
-            && target.kind == SyntaxKind::IndexExpression
+        let [target, value] = node.children.as_slice() else {
+            return;
+        };
+        let mut target = target;
+        while target.kind == SyntaxKind::GroupExpression
+            && let [inner] = target.children.as_slice()
+        {
+            target = inner;
+        }
+        if target.kind == SyntaxKind::IndexExpression
             && let [receiver, index] = target.children.as_slice()
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
@@ -344,12 +352,8 @@ impl Emitter<'_> {
             self.binding(node);
             return;
         }
-        let [left, right] = node.children.as_slice() else {
-            return;
-        };
-        if let [left, right] = node.children.as_slice()
-            && let Some(ValueType::MutableReference(item)) = self.value_type(left)
-        {
+        let (left, right) = (target, value);
+        if let Some(ValueType::MutableReference(item)) = self.value_type(left) {
             let value = self.expression_as(right, item.value_type());
             let target = self.expression(left);
             self.line(&format!("*({target}) = {value};"));

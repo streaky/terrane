@@ -487,9 +487,8 @@ pub(super) fn populate_assignment(
                 .is_some_and(|symbol| is_lexically_owned_function(symbol, scopes, index))
         {
             let name = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
                 .expect("ordinary assignment has a name");
             return Err(failure(
                 &unit.source,
@@ -513,9 +512,8 @@ pub(super) fn populate_assignment(
         });
     if let Some(symbol) = namespace_binding {
         let name = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
+            .assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
             .expect("ordinary assignment has a name");
         if symbol
             .declaration_span

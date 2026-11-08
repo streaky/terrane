@@ -251,7 +251,8 @@ impl CaptureGraph<'_> {
             }
         }
         if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
-            && let [target, .., value] = node.children.as_slice()
+            && let Some(target) = node.assignment_target()
+            && let Some(value) = node.children.last()
         {
             self.edge(target.span, value.span);
             if node.kind == SyntaxKind::Assignment {
@@ -261,8 +262,10 @@ impl CaptureGraph<'_> {
                 && (unit.containing_function(node.span).is_none()
                     || node.kind == SyntaxKind::Assignment
                         && matches!(
-                            target.kind,
-                            SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+                            crate::semantics::types::ungrouped_expression(target).kind,
+                            SyntaxKind::MemberExpression
+                                | SyntaxKind::StaticMemberExpression
+                                | SyntaxKind::IndexExpression
                         ))
             {
                 self.static_roots.insert(value.span);

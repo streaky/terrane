@@ -281,10 +281,14 @@ pub(super) fn declaration_from_syntax(
     unit: &SemanticUnit,
     node: &SyntaxNode,
 ) -> Option<Declaration> {
-    let name_node = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)?;
+    let name_node = if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
+        node.assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
+    } else {
+        node.children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+    }?;
     let name = node_text(&unit.source, name_node).to_owned();
     let visibility_node = node
         .children

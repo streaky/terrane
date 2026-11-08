@@ -64,6 +64,40 @@ pub(super) fn analyze_binding_node(
     };
     if node.kind == SyntaxKind::Assignment
         && let [target, value] = node.children.as_slice()
+        && let target = ungrouped_expression(target)
+        && target.kind == SyntaxKind::StaticMemberExpression
+        && let [receiver, member] = target.children.as_slice()
+        && let Some(identity) = class_designator_identity(unit, receiver)
+    {
+        let Some(expected) =
+            object_field_type(unit, &identity, node_text(&unit.source, member), true)
+        else {
+            return Err(failure(
+                &unit.source,
+                "T0072",
+                format!(
+                    "member `{}` is read-only and cannot be assigned",
+                    node_text(&unit.source, member)
+                ),
+                member.span,
+            ));
+        };
+        if let Some(actual) = super::expressions::infer_boundary_value_type(unit, value, bindings)?
+        {
+            validate_value_destination(
+                &unit.source,
+                &unit.descriptors,
+                node_text(&unit.source, member),
+                &expected,
+                &actual,
+                value,
+                "T0077",
+            )?;
+        }
+        return Ok(());
+    }
+    if node.kind == SyntaxKind::Assignment
+        && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = target.children.as_slice()
     {
@@ -146,9 +180,8 @@ pub(super) fn analyze_binding_node(
         return Ok(());
     }
     let Some(name_node) = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)
+        .assignment_target()
+        .filter(|child| child.kind == SyntaxKind::Name)
     else {
         return Ok(());
     };

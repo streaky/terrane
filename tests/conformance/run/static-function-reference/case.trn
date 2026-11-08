@@ -1,0 +1,9 @@
+namespace static-function-reference
+function five int;
+    return 5
+class holder
+    static f function to int = five
+function main;
+    holder::f = five
+    callback function to int = holder::f
+    print; (callback;)

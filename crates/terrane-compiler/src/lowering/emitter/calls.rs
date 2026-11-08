@@ -1940,11 +1940,13 @@ impl Emitter<'_> {
                             && descriptor.kind == crate::semantics::ObjectKind::Interface
                     })
             });
-        let callable_field = callee.kind == SyntaxKind::MemberExpression
-            && matches!(
-                callee.children.as_slice(),
-                [receiver, member] if self.callable_object_field(receiver, self.text(member))
-            );
+        let callable_static_field = self.callable_static_field(callee);
+        let callable_field = callable_static_field
+            || callee.kind == SyntaxKind::MemberExpression
+                && matches!(
+                    callee.children.as_slice(),
+                    [receiver, member] if self.callable_object_field(receiver, self.text(member))
+                );
         let contract = if native_macro_path.is_some() {
             None
         } else {
@@ -2595,6 +2597,8 @@ impl Emitter<'_> {
                             .replacen('<', "::<", 1)
                     )
                 })
+        } else if callable_static_field {
+            self.expression(callee)
         } else if let [receiver, member] = callee.children.as_slice()
             && callee.kind == SyntaxKind::StaticMemberExpression
             && let Some(object) = self.class_designator(receiver)

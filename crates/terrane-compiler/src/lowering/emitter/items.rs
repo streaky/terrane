@@ -26,11 +26,7 @@ impl Emitter<'_> {
     }
 
     pub(super) fn global_assignment(&mut self, node: &SyntaxNode) -> bool {
-        let Some(name) = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
-        else {
+        let Some(name) = node.assignment_target() else {
             return false;
         };
         let declared_global = node.children.iter().any(|child| {

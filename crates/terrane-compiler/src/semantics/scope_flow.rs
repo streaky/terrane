@@ -54,9 +54,8 @@ fn record_join_binding_ids(
     }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
         && let Some(target) = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
+            .assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
         && node_text(&unit.source, target) == name
     {
         let key = (node.span.file, node.span.start, node.span.end);
@@ -572,9 +571,8 @@ fn flow_region(
                 binding.span,
             );
             if let Some(target) = acquisition
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
             {
                 unit.flow_binding_ids.insert(
                     (target.span.file, target.span.start, target.span.end),
@@ -1669,17 +1667,9 @@ fn record_assignment_reads(
 fn assignment_target_and_value(
     statement: &SyntaxNode,
 ) -> (Option<&SyntaxNode>, Option<&SyntaxNode>) {
-    let target = if statement.kind == SyntaxKind::Binding {
-        statement
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
-    } else {
-        statement
-            .children
-            .first()
-            .filter(|child| child.kind == SyntaxKind::Name)
-    };
+    let target = statement
+        .assignment_target()
+        .filter(|child| child.kind == SyntaxKind::Name);
     let value = if statement.kind == SyntaxKind::Binding {
         super::ownership::binding_initializer(statement)
     } else {

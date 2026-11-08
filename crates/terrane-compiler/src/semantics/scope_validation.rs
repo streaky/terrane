@@ -331,9 +331,8 @@ pub(super) fn validate_assignment_block(
                 {
                     validate_assigned_reads(unit, value, declared, assigned)?;
                     if let Some(name) = initializer
-                        .children
-                        .iter()
-                        .find(|child| child.kind == SyntaxKind::Name)
+                        .assignment_target()
+                        .filter(|child| child.kind == SyntaxKind::Name)
                     {
                         let name = node_text(&unit.source, name).to_owned();
                         declared.insert(name.clone());

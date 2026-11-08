@@ -1184,6 +1184,25 @@ impl<'unit> Emitter<'unit> {
                     })
             })
     }
+    pub(super) fn callable_static_field(&self, node: &SyntaxNode) -> bool {
+        let [class, member] = node.children.as_slice() else {
+            return false;
+        };
+        node.kind == SyntaxKind::StaticMemberExpression
+            && self.static_storage_name(node).is_some()
+            && self.class_designator(class).is_some_and(|object| {
+                effective_object_fields(self.package, object)
+                    .iter()
+                    .any(|field| {
+                        field.is_static
+                            && field.name == self.text(member)
+                            && matches!(
+                                field.value_type,
+                                ValueType::Function(..) | ValueType::AsyncFunction(..)
+                            )
+                    })
+            })
+    }
 
     pub(super) fn wrapped_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {

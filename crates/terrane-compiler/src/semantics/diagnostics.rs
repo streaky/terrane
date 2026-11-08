@@ -1133,10 +1133,15 @@ pub(super) fn resolve_path(current: &str, anchored: bool, path: &[&str]) -> Opti
 }
 
 pub(super) fn declaration_name(node: &SyntaxNode, source: &SourceFile) -> Option<String> {
-    node.children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)
-        .map(|child| node_text(source, child).to_owned())
+    (if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
+        node.assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
+    } else {
+        node.children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+    })
+    .map(|child| node_text(source, child).to_owned())
 }
 
 pub(super) fn unary_operator_text(unit: &SemanticUnit, node: &SyntaxNode) -> Option<String> {

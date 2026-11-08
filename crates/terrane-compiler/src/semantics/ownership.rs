@@ -1313,6 +1313,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let transferred = node
                 .children
                 .last()
+                .map(ungroup)
                 .filter(|initializer| initializer.kind == SyntaxKind::Name)
                 .and_then(|initializer| {
                     binding_at(
@@ -1322,10 +1323,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     )
                 })
                 .filter(|binding| noncopyable_binding(package, unit, *binding));
-            let mut skipped_name = false;
+            let assignment_target = node.assignment_target();
             for (index, child) in node.children.iter().enumerate() {
-                if !skipped_name && child.kind == SyntaxKind::Name {
-                    skipped_name = true;
+                if assignment_target.is_some_and(|target| target.span == child.span)
+                    && child.kind == SyntaxKind::Name
+                {
                     // Write-through assignment uses the reference handle, not a new binding.
                     if node.kind != SyntaxKind::Assignment
                         || !matches!(
@@ -1349,10 +1351,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(binding) = transferred {
                 moved.insert(binding);
             }
-            let assignment_target = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name);
+            let assignment_target =
+                assignment_target.filter(|child| child.kind == SyntaxKind::Name);
             let target_binding = assignment_target.and_then(|target| {
                 let identity = unit
                     .flow_binding_ids
@@ -4097,9 +4097,8 @@ fn last_callable_carrier_use(
             .filter(|source| source.kind == SyntaxKind::Name)
         && binding_at(unit, source).map(|binding| binding.span) == Some(carrier)
         && let Some(target) = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
+            .assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
         && let Some(target_span) = super::bindings::declared_bindings_at_node(unit, node)
             .map(|binding| binding.span)
             .next()
@@ -5250,9 +5249,8 @@ pub(super) fn validate_initializer_dependencies(
                 continue;
             };
             let name = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
                 .expect("ordinary assignment has a name");
             if package
                 .globals
