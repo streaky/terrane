@@ -1940,6 +1940,11 @@ impl Emitter<'_> {
                             && descriptor.kind == crate::semantics::ObjectKind::Interface
                     })
             });
+        let callable_field = callee.kind == SyntaxKind::MemberExpression
+            && matches!(
+                callee.children.as_slice(),
+                [receiver, member] if self.callable_object_field(receiver, self.text(member))
+            );
         let contract = if native_macro_path.is_some() {
             None
         } else {
@@ -2692,35 +2697,8 @@ impl Emitter<'_> {
                     rust_name(self.text(member))
                 )
             }
-        } else if let Some(contract) = &contract
-            && contract.owner.is_none()
-        {
-            let lookup_name = is_unsafe.then(|| format!("unsafe::{}", self.text(callee)));
-            self.package
-                .resolve_name_at(
-                    self.unit,
-                    callee.span.start,
-                    lookup_name.as_deref().unwrap_or_else(|| self.text(callee)),
-                )
-                .and_then(|symbol| {
-                    self.package
-                        .projection
-                        .item(&symbol.namespace, &symbol.name)
-                })
-                .filter(|item| {
-                    matches!(&item.kind, crate::rust_interop::projection::ProjectedKind::Function(function)
-                        if specialization.is_some_and(|specialization| specialization.direct_projected_call)
-                            || function.chain_role == Some(crate::rust_interop::projection::ChainRole::Root))
-                })
-                .map_or_else(
-                    || function_name(self.package, contract),
-                    |item| item.rust_path.clone(),
-                )
         } else if let [receiver, member] = callee.children.as_slice()
-            && contract
-                .as_ref()
-                .is_none_or(|contract| contract.owner.is_none())
-            && self.callable_object_field(receiver, self.text(member))
+            && callable_field
         {
             let mode = self
                 .value_type(callee)
@@ -2746,8 +2724,32 @@ impl Emitter<'_> {
                     self.expression(callee)
                 }
             } else {
-                self.expression(callee)
+                format!("({})", self.expression(callee))
             }
+        } else if let Some(contract) = &contract
+            && contract.owner.is_none()
+        {
+            let lookup_name = is_unsafe.then(|| format!("unsafe::{}", self.text(callee)));
+            self.package
+                .resolve_name_at(
+                    self.unit,
+                    callee.span.start,
+                    lookup_name.as_deref().unwrap_or_else(|| self.text(callee)),
+                )
+                .and_then(|symbol| {
+                    self.package
+                        .projection
+                        .item(&symbol.namespace, &symbol.name)
+                })
+                .filter(|item| {
+                    matches!(&item.kind, crate::rust_interop::projection::ProjectedKind::Function(function)
+                        if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+                            || function.chain_role == Some(crate::rust_interop::projection::ChainRole::Root))
+                })
+                .map_or_else(
+                    || function_name(self.package, contract),
+                    |item| item.rust_path.clone(),
+                )
         } else if let [receiver, _member] = callee.children.as_slice()
             && let Some(projected) = projected_function.as_ref()
             && let Some(identity) = self.projected_receiver_identity(receiver)
@@ -3488,7 +3490,7 @@ impl Emitter<'_> {
                     "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({native_path} {{ {assignments} }}) }})()"
                 )
             }
-        } else if contract.is_none()
+        } else if (contract.is_none() || callable_field)
             && matches!(
                 callable_mode,
                 Some(InvocationMode::Mutable | InvocationMode::Consuming)
@@ -3813,17 +3815,12 @@ impl Emitter<'_> {
         } else {
             call
         };
-        let function_value_call = contract.is_none()
+        let function_value_call = (contract.is_none() || callable_field)
             && matches!(
                 self.value_type(callee),
                 Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
             )
-            && (callee.kind == SyntaxKind::Name
-                || matches!(
-                    callee.children.as_slice(),
-                    [receiver, member]
-                        if self.callable_object_field(receiver, self.text(member))
-                ));
+            && (callee.kind == SyntaxKind::Name || callable_field);
         let dependency_contract = contract.as_ref().is_some_and(|contract| {
             !projected_interface_dispatch
                 && self.package.units.iter().any(|unit| {
