@@ -104,8 +104,8 @@ pub(crate) use analysis::analyze_declarations;
 pub use analysis::{analyze, dependency_projection_demands};
 pub(crate) use bindings::{
     binding_read_value_is_reused, binding_requires_mutable_storage, binding_storage_is_replaced,
-    binding_store_value_is_read, callback_contract, descriptor_binding_is_materialized,
-    native_copy_stores_are_independent,
+    binding_store_value_is_read, binding_stores_are_independent, callback_contract,
+    descriptor_binding_is_materialized,
 };
 pub(crate) use calls::selected_callable_contract;
 pub(crate) use capabilities::rust_value_is_copy;

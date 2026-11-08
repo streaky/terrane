@@ -97,12 +97,10 @@ fn main() {
         TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let mut ordinary: terrane_collection_support::List<terrane_int_support::Int>;
-    let mut ordinary_observer: &terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
+    let ordinary_observer: &terrane_collection_support::List<terrane_int_support::Int>;
     let ordinary_replacement: terrane_collection_support::List<terrane_int_support::Int>;
-    let mut typed_observer: &terrane_collection_support::List<terrane_int_support::Int>;
-    let mut shared_observer: std::sync::Weak<
+    let typed_observer: &terrane_collection_support::List<terrane_int_support::Int>;
+    let shared_observer: std::sync::Weak<
         TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     early_observer();
@@ -207,8 +205,8 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         4 /* terrane-site: case.trn:48:10-48:27 */)), 4 /* terrane-site: case.trn:48:10-48:27 */))
     );
-    ordinary_observer = &ordinary_replacement;
-    typed_observer = &ordinary_replacement;
+    let ordinary_observer = &ordinary_replacement;
+    let typed_observer = &ordinary_replacement;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&count(ordinary_observer)),
         terrane_scalar_support::scalar_text(&__terrane_raised(typed_observer
@@ -223,7 +221,7 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         6 /* terrane-site: case.trn:54:10-54:28 */)), 6 /* terrane-site: case.trn:54:10-54:28 */) })
     );
-    shared_observer = std::sync::Arc::downgrade(&replacement.clone());
+    let shared_observer = std::sync::Arc::downgrade(&replacement.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_8 =
         (&shared_observer).upgrade().expect("reference expired");

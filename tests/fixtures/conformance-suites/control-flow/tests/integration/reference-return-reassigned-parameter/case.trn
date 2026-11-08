@@ -1,0 +1,20 @@
+namespace reference-return-reassigned-parameter
+
+function pick ref int; a ref int, b ref int
+    r ref int = a
+    r = b
+    return r
+
+function pick-observed ref int; a ref int, b ref int
+    r ref int = a
+    print; r
+    r = b
+    return r
+
+function test-scenario;
+    a = 1
+    b = 2
+    r = pick; a, b
+    print; r
+    observed = pick-observed; a, b
+    print; observed

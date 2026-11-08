@@ -274,6 +274,11 @@ pub struct ReferenceProvenance {
     pub path: Vec<ReferenceProjection>,
     pub lifetime_end: Option<Span>,
 }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct ReferenceAssignmentProvenance {
+    pub assignment: Span,
+    pub provenance: ReferenceProvenance,
+}
 
 // This consumes unit-classified identity facts; the package-level objects helper
 // derives its facts from projection capabilities. Keep those policies distinct
@@ -2096,6 +2101,8 @@ pub struct SemanticUnit {
     /// Owner bindings used by declaration-directed implicit source-reference arguments.
     pub reference_owner_spans: BTreeSet<(usize, usize)>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
+    /// Provenance versions established by scalar reference assignments.
+    pub(super) reference_assignment_provenance: Vec<ReferenceAssignmentProvenance>,
     /// Borrowed callable carriers keyed by their last-use statement's cleanup boundary.
     pub callable_drops_after: BTreeMap<(u32, usize, usize), Vec<Span>>,
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,

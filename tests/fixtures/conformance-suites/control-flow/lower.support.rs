@@ -465,7 +465,17 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 1] = ["/core/time::invalid-duration"];
+    pub static DESCRIPTORS: [&str; 9] = [
+        "/return-catch-class-in-loop::Err",
+        "/return-catch-class-no-later-read::Err",
+        "/return-catch-class-read-in-catch::Err",
+        "/return-catch-class-then-read::Err",
+        "/return-catch-list-then-read::Err",
+        "/return-catch-string-then-read::Err",
+        "/return-finally-class-read::Err",
+        "/return-plain-return-in-try-class::Err",
+        "/core/time::invalid-duration",
+    ];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -476,7 +486,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 13] = [
+    pub static FILES: [&str; 21] = [
         "tests/integration/catch-binding-function-scope/case.trn",
         "tests/integration/catch-finally-lexical-scopes/case.trn",
         "tests/integration/finally-control-flow/case.trn",
@@ -487,11 +497,19 @@ mod __terrane_trace {
         "tests/integration/function-scope-catch-value/case.trn",
         "tests/integration/loop-shadowing-scope/case.trn",
         "tests/integration/nested-collection-for-binding/case.trn",
+        "tests/integration/return-catch-class-in-loop/case.trn",
+        "tests/integration/return-catch-class-no-later-read/case.trn",
+        "tests/integration/return-catch-class-read-in-catch/case.trn",
+        "tests/integration/return-catch-class-then-read/case.trn",
+        "tests/integration/return-catch-list-then-read/case.trn",
+        "tests/integration/return-catch-string-then-read/case.trn",
+        "tests/integration/return-finally-class-read/case.trn",
+        "tests/integration/return-plain-return-in-try-class/case.trn",
         "tests/integration/return-tail-block-strings/case.trn",
         "tests/integration/static-call-throw-inference/case.trn",
         "core/time.trn",
     ];
-    pub static FUNCTIONS: [&str; 32] = [
+    pub static FUNCTIONS: [&str; 56] = [
         "/catch-binding-function-scope::test-scenario",
         "/catch-finally-lexical-scopes::typed-catch",
         "/catch-finally-lexical-scopes::catch-all",
@@ -508,6 +526,30 @@ mod __terrane_trace {
         "/function-scope-catch-value::caught-value",
         "/loop-shadowing-scope::test-scenario",
         "/nested-collection-for-binding::test-scenario",
+        "/return-catch-class-in-loop::bad",
+        "/return-catch-class-in-loop::eatk",
+        "/return-catch-class-in-loop::f",
+        "/return-catch-class-no-later-read::bad",
+        "/return-catch-class-no-later-read::eatk",
+        "/return-catch-class-no-later-read::f",
+        "/return-catch-class-read-in-catch::bad",
+        "/return-catch-class-read-in-catch::eatk",
+        "/return-catch-class-read-in-catch::f",
+        "/return-catch-class-then-read::bad",
+        "/return-catch-class-then-read::eatk",
+        "/return-catch-class-then-read::f",
+        "/return-catch-list-then-read::bad",
+        "/return-catch-list-then-read::eatl",
+        "/return-catch-list-then-read::f",
+        "/return-catch-string-then-read::bad",
+        "/return-catch-string-then-read::eats",
+        "/return-catch-string-then-read::f",
+        "/return-finally-class-read::bad",
+        "/return-finally-class-read::eatk",
+        "/return-finally-class-read::f",
+        "/return-finally-class-read::test-scenario",
+        "/return-plain-return-in-try-class::bad",
+        "/return-plain-return-in-try-class::f",
         "/return-tail-block-strings::render",
         "/return-tail-block-strings::test-scenario",
         "/static-call-throw-inference::make",
@@ -525,7 +567,7 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 40] = [
+    pub static SITES: [Site; 64] = [
         /* terrane-site-row: site 0: /catch-binding-function-scope::test-scenario (tests/integration/catch-binding-function-scope/case.trn:6:5-6:30) */
         { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 30 } },
         /* terrane-site-row: site 1: /catch-finally-lexical-scopes::typed-catch (tests/integration/catch-finally-lexical-scopes/case.trn:6:5-6:30) */
@@ -568,44 +610,92 @@ mod __terrane_trace {
         { Site { function: 15, file: 9, line: 7, column: 24, end_line: 7, end_column: 30 } },
         /* terrane-site-row: site 20: /nested-collection-for-binding::test-scenario (tests/integration/nested-collection-for-binding/case.trn:10:12-10:26) */
         { Site { function: 15, file: 9, line: 10, column: 12, end_line: 10, end_column: 26 } },
-        /* terrane-site-row: site 21: /return-tail-block-strings::render (tests/integration/return-tail-block-strings/case.trn:6:5-6:25) */
-        { Site { function: 16, file: 10, line: 6, column: 5, end_line: 6, end_column: 25 } },
-        /* terrane-site-row: site 22: /return-tail-block-strings::test-scenario (tests/integration/return-tail-block-strings/case.trn:15:11-15:20) */
-        { Site { function: 17, file: 10, line: 15, column: 11, end_line: 15, end_column: 20 } },
-        /* terrane-site-row: site 23: /static-call-throw-inference::make (tests/integration/static-call-throw-inference/case.trn:5:9-5:33) */
-        { Site { function: 18, file: 11, line: 5, column: 9, end_line: 5, end_column: 33 } },
-        /* terrane-site-row: site 24: /static-call-throw-inference::build (tests/integration/static-call-throw-inference/case.trn:10:13-10:37) */
-        { Site { function: 19, file: 11, line: 10, column: 13, end_line: 10, end_column: 37 } },
-        /* terrane-site-row: site 25: /static-call-throw-inference::argument (tests/integration/static-call-throw-inference/case.trn:17:12-17:20) */
-        { Site { function: 20, file: 11, line: 17, column: 12, end_line: 17, end_column: 20 } },
-        /* terrane-site-row: site 26: /static-call-throw-inference::forward-argument (tests/integration/static-call-throw-inference/case.trn:20:28-20:37) */
-        { Site { function: 21, file: 11, line: 20, column: 28, end_line: 20, end_column: 37 } },
-        /* terrane-site-row: site 27: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:24:17-24:25) */
-        { Site { function: 22, file: 11, line: 24, column: 17, end_line: 24, end_column: 25 } },
-        /* terrane-site-row: site 28: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:28:17-28:33) */
-        { Site { function: 22, file: 11, line: 28, column: 17, end_line: 28, end_column: 33 } },
-        /* terrane-site-row: site 29: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:32:17-32:34) */
-        { Site { function: 22, file: 11, line: 32, column: 17, end_line: 32, end_column: 34 } },
-        /* terrane-site-row: site 30: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:35:13-35:28) */
-        { Site { function: 22, file: 11, line: 35, column: 13, end_line: 35, end_column: 28 } },
-        /* terrane-site-row: site 31: /core/time::multiply (core/time.trn:62:13-62:45) */
-        { Site { function: 23, file: 12, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 32: /core/time::seconds (core/time.trn:38:13-38:45) */
-        { Site { function: 24, file: 12, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 33: /core/time::milliseconds (core/time.trn:43:13-43:45) */
-        { Site { function: 25, file: 12, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 34: /core/time::microseconds (core/time.trn:48:13-48:45) */
-        { Site { function: 26, file: 12, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 35: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
-        { Site { function: 27, file: 12, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 36: /core/time::duration-until (core/time.trn:76:13-76:45) */
-        { Site { function: 28, file: 12, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 37: /core/time::at (core/time.trn:105:13-105:45) */
-        { Site { function: 29, file: 12, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 38: /core/time::sleep-until (core/time.trn:161:13-161:45) */
-        { Site { function: 30, file: 12, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 39: /core/time::interval (core/time.trn:172:13-172:45) */
-        { Site { function: 31, file: 12, line: 172, column: 13, end_line: 172, end_column: 45 } },
+        /* terrane-site-row: site 21: /return-catch-class-in-loop::bad (tests/integration/return-catch-class-in-loop/case.trn:11:5-11:24) */
+        { Site { function: 16, file: 10, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 22: /return-catch-class-in-loop::eatk (tests/integration/return-catch-class-in-loop/case.trn:17:13-17:17) */
+        { Site { function: 17, file: 10, line: 17, column: 13, end_line: 17, end_column: 17 } },
+        /* terrane-site-row: site 23: /return-catch-class-in-loop::f (tests/integration/return-catch-class-in-loop/case.trn:23:21-23:28) */
+        { Site { function: 18, file: 10, line: 23, column: 21, end_line: 23, end_column: 28 } },
+        /* terrane-site-row: site 24: /return-catch-class-no-later-read::bad (tests/integration/return-catch-class-no-later-read/case.trn:11:5-11:24) */
+        { Site { function: 19, file: 11, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 25: /return-catch-class-no-later-read::eatk (tests/integration/return-catch-class-no-later-read/case.trn:17:13-17:17) */
+        { Site { function: 20, file: 11, line: 17, column: 13, end_line: 17, end_column: 17 } },
+        /* terrane-site-row: site 26: /return-catch-class-no-later-read::f (tests/integration/return-catch-class-no-later-read/case.trn:22:17-22:24) */
+        { Site { function: 21, file: 11, line: 22, column: 17, end_line: 22, end_column: 24 } },
+        /* terrane-site-row: site 27: /return-catch-class-read-in-catch::bad (tests/integration/return-catch-class-read-in-catch/case.trn:11:5-11:24) */
+        { Site { function: 22, file: 12, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 28: /return-catch-class-read-in-catch::eatk (tests/integration/return-catch-class-read-in-catch/case.trn:17:13-17:17) */
+        { Site { function: 23, file: 12, line: 17, column: 13, end_line: 17, end_column: 17 } },
+        /* terrane-site-row: site 29: /return-catch-class-read-in-catch::f (tests/integration/return-catch-class-read-in-catch/case.trn:22:17-22:24) */
+        { Site { function: 24, file: 12, line: 22, column: 17, end_line: 22, end_column: 24 } },
+        /* terrane-site-row: site 30: /return-catch-class-then-read::bad (tests/integration/return-catch-class-then-read/case.trn:11:5-11:24) */
+        { Site { function: 25, file: 13, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 31: /return-catch-class-then-read::eatk (tests/integration/return-catch-class-then-read/case.trn:17:13-17:17) */
+        { Site { function: 26, file: 13, line: 17, column: 13, end_line: 17, end_column: 17 } },
+        /* terrane-site-row: site 32: /return-catch-class-then-read::f (tests/integration/return-catch-class-then-read/case.trn:22:17-22:24) */
+        { Site { function: 27, file: 13, line: 22, column: 17, end_line: 22, end_column: 24 } },
+        /* terrane-site-row: site 33: /return-catch-list-then-read::bad (tests/integration/return-catch-list-then-read/case.trn:11:5-11:24) */
+        { Site { function: 28, file: 14, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 34: /return-catch-list-then-read::eatl (tests/integration/return-catch-list-then-read/case.trn:14:13-14:17) */
+        { Site { function: 29, file: 14, line: 14, column: 13, end_line: 14, end_column: 17 } },
+        /* terrane-site-row: site 35: /return-catch-list-then-read::f (tests/integration/return-catch-list-then-read/case.trn:19:17-19:24) */
+        { Site { function: 30, file: 14, line: 19, column: 17, end_line: 19, end_column: 24 } },
+        /* terrane-site-row: site 36: /return-catch-string-then-read::bad (tests/integration/return-catch-string-then-read/case.trn:11:5-11:24) */
+        { Site { function: 31, file: 15, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 37: /return-catch-string-then-read::eats (tests/integration/return-catch-string-then-read/case.trn:14:13-14:17) */
+        { Site { function: 32, file: 15, line: 14, column: 13, end_line: 14, end_column: 17 } },
+        /* terrane-site-row: site 38: /return-catch-string-then-read::f (tests/integration/return-catch-string-then-read/case.trn:19:17-19:24) */
+        { Site { function: 33, file: 15, line: 19, column: 17, end_line: 19, end_column: 24 } },
+        /* terrane-site-row: site 39: /return-finally-class-read::bad (tests/integration/return-finally-class-read/case.trn:11:5-11:24) */
+        { Site { function: 34, file: 16, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 40: /return-finally-class-read::eatk (tests/integration/return-finally-class-read/case.trn:17:13-17:17) */
+        { Site { function: 35, file: 16, line: 17, column: 13, end_line: 17, end_column: 17 } },
+        /* terrane-site-row: site 41: /return-finally-class-read::f (tests/integration/return-finally-class-read/case.trn:22:17-22:24) */
+        { Site { function: 36, file: 16, line: 22, column: 17, end_line: 22, end_column: 24 } },
+        /* terrane-site-row: site 42: /return-finally-class-read::test-scenario (tests/integration/return-finally-class-read/case.trn:28:17-28:33) */
+        { Site { function: 37, file: 16, line: 28, column: 17, end_line: 28, end_column: 33 } },
+        /* terrane-site-row: site 43: /return-plain-return-in-try-class::bad (tests/integration/return-plain-return-in-try-class/case.trn:11:5-11:24) */
+        { Site { function: 38, file: 17, line: 11, column: 5, end_line: 11, end_column: 24 } },
+        /* terrane-site-row: site 44: /return-plain-return-in-try-class::f (tests/integration/return-plain-return-in-try-class/case.trn:19:21-19:25) */
+        { Site { function: 39, file: 17, line: 19, column: 21, end_line: 19, end_column: 25 } },
+        /* terrane-site-row: site 45: /return-tail-block-strings::render (tests/integration/return-tail-block-strings/case.trn:6:5-6:25) */
+        { Site { function: 40, file: 18, line: 6, column: 5, end_line: 6, end_column: 25 } },
+        /* terrane-site-row: site 46: /return-tail-block-strings::test-scenario (tests/integration/return-tail-block-strings/case.trn:15:11-15:20) */
+        { Site { function: 41, file: 18, line: 15, column: 11, end_line: 15, end_column: 20 } },
+        /* terrane-site-row: site 47: /static-call-throw-inference::make (tests/integration/static-call-throw-inference/case.trn:5:9-5:33) */
+        { Site { function: 42, file: 19, line: 5, column: 9, end_line: 5, end_column: 33 } },
+        /* terrane-site-row: site 48: /static-call-throw-inference::build (tests/integration/static-call-throw-inference/case.trn:10:13-10:37) */
+        { Site { function: 43, file: 19, line: 10, column: 13, end_line: 10, end_column: 37 } },
+        /* terrane-site-row: site 49: /static-call-throw-inference::argument (tests/integration/static-call-throw-inference/case.trn:17:12-17:20) */
+        { Site { function: 44, file: 19, line: 17, column: 12, end_line: 17, end_column: 20 } },
+        /* terrane-site-row: site 50: /static-call-throw-inference::forward-argument (tests/integration/static-call-throw-inference/case.trn:20:28-20:37) */
+        { Site { function: 45, file: 19, line: 20, column: 28, end_line: 20, end_column: 37 } },
+        /* terrane-site-row: site 51: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:24:17-24:25) */
+        { Site { function: 46, file: 19, line: 24, column: 17, end_line: 24, end_column: 25 } },
+        /* terrane-site-row: site 52: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:28:17-28:33) */
+        { Site { function: 46, file: 19, line: 28, column: 17, end_line: 28, end_column: 33 } },
+        /* terrane-site-row: site 53: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:32:17-32:34) */
+        { Site { function: 46, file: 19, line: 32, column: 17, end_line: 32, end_column: 34 } },
+        /* terrane-site-row: site 54: /static-call-throw-inference::test-scenario (tests/integration/static-call-throw-inference/case.trn:35:13-35:28) */
+        { Site { function: 46, file: 19, line: 35, column: 13, end_line: 35, end_column: 28 } },
+        /* terrane-site-row: site 55: /core/time::multiply (core/time.trn:62:13-62:45) */
+        { Site { function: 47, file: 20, line: 62, column: 13, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 56: /core/time::seconds (core/time.trn:38:13-38:45) */
+        { Site { function: 48, file: 20, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 57: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        { Site { function: 49, file: 20, line: 43, column: 13, end_line: 43, end_column: 45 } },
+        /* terrane-site-row: site 58: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        { Site { function: 50, file: 20, line: 48, column: 13, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 59: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        { Site { function: 51, file: 20, line: 53, column: 13, end_line: 53, end_column: 45 } },
+        /* terrane-site-row: site 60: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        { Site { function: 52, file: 20, line: 76, column: 13, end_line: 76, end_column: 45 } },
+        /* terrane-site-row: site 61: /core/time::at (core/time.trn:105:13-105:45) */
+        { Site { function: 53, file: 20, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 62: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        { Site { function: 54, file: 20, line: 161, column: 13, end_line: 161, end_column: 45 } },
+        /* terrane-site-row: site 63: /core/time::interval (core/time.trn:172:13-172:45) */
+        { Site { function: 55, file: 20, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1251,10 +1341,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    31 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    55 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -1280,10 +1370,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    32 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    56 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -1308,10 +1398,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    33 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    57 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -1337,10 +1427,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    34 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    58 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -1366,10 +1456,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    35 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    59 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -1437,10 +1527,10 @@ impl MonotonicInstant {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    36 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    60 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -1543,10 +1633,10 @@ impl Deadline {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    37 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    61 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -1845,10 +1935,10 @@ impl Clock {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    38 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    62 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -1881,10 +1971,10 @@ impl Clock {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(0)),
+                    TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    39 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    63 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

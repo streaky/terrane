@@ -1,0 +1,3 @@
+package = "reference-reassign-alias-live-target"
+[namespaces]
+app = "src"

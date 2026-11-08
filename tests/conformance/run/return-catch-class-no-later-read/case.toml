@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "control-flow"
+test = "/return-catch-class-no-later-read::test-scenario"

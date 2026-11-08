@@ -2749,6 +2749,971 @@ fn test_scenario_terrane_nested_collection_for_binding() {
         );
     }
 }
+// Source: tests/integration/reference-reassign-reaching-assignments/case.trn
+// Namespace: reference-reassign-reaching-assignments
+fn test_scenario_terrane_reference_reassign_reaching_assignments() {
+    let mut a: terrane_int_support::Int;
+    let mut b: terrane_int_support::Int;
+    let mut c: terrane_int_support::Int;
+    let mut r: &terrane_int_support::Int;
+    let mutable_value: &mut terrane_int_support::Int;
+    a = terrane_int_support::Int::from(1_i128);
+    b = terrane_int_support::Int::from(2_i128);
+    c = terrane_int_support::Int::from(3_i128);
+    r = &a;
+    println!("{}", terrane_scalar_support::scalar_text(&* r));
+    r = &b;
+    a = terrane_int_support::Int::from(4_i128);
+    println!("{}", terrane_scalar_support::scalar_text(&* r));
+    r = &c;
+    b = terrane_int_support::Int::from(5_i128);
+    println!("{}", terrane_scalar_support::scalar_text(&b));
+    println!("{}", terrane_scalar_support::scalar_text(&* r));
+    r = &a;
+    println!("{}", terrane_scalar_support::scalar_text(&* r));
+    mutable_value = &mut c;
+    *mutable_value = terrane_int_support::Int::from(6_i128);
+    println!("{}", terrane_scalar_support::scalar_text(&c));
+}
+// Source: tests/integration/reference-return-reassigned-parameter/case.trn
+// Namespace: reference-return-reassigned-parameter
+fn pick<'a>(
+    a: &terrane_int_support::Int,
+    b: &'a terrane_int_support::Int,
+) -> &'a terrane_int_support::Int {
+    let r: &terrane_int_support::Int;
+    r = a;
+    let _ = &r;
+    let r = b;
+    return r;
+}
+fn pick_observed<'a>(
+    a: &terrane_int_support::Int,
+    b: &'a terrane_int_support::Int,
+) -> &'a terrane_int_support::Int {
+    let r: &terrane_int_support::Int;
+    r = a;
+    println!("{}", terrane_scalar_support::scalar_text(&* r));
+    let r = b;
+    return r;
+}
+fn test_scenario_terrane_reference_return_reassigned_parameter() {
+    let a: terrane_int_support::Int;
+    let b: terrane_int_support::Int;
+    let r: &terrane_int_support::Int;
+    let observed: &terrane_int_support::Int;
+    a = terrane_int_support::Int::from(1_i128);
+    b = terrane_int_support::Int::from(2_i128);
+    r = pick(&a, &b);
+    println!("{}", terrane_scalar_support::scalar_text(&* r));
+    observed = pick_observed(&a, &b);
+    println!("{}", terrane_scalar_support::scalar_text(&* observed));
+}
+// Source: tests/integration/return-catch-class-in-loop/case.trn
+// Namespace: return-catch-class-in-loop
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassInLoopErrIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F7000457272 {
+    pub message: String,
+}
+impl TerraneNsReturnCatchClassInLoopErrIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F7000457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_catch_class_in_loop() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnCatchClassInLoopErrIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F7000457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(0)),
+            message,
+            rendered,
+
+                21 /* terrane-site: tests/integration/return-catch-class-in-loop/case.trn:11:5-11:24 */,
+        )
+    });
+}
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B {
+    pub n: terrane_int_support::Int,
+}
+impl TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B {
+    pub fn terrane_construct() -> Self {
+        Self {
+            n: terrane_int_support::Int::from(4_i128),
+        }
+    }
+}
+fn eatk_terrane_return_catch_class_in_loop(
+    x: TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B,
+) -> Result<
+    TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B,
+    TerraneError,
+> {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(bad_terrane_return_catch_class_in_loop(),
+        22 /* terrane-site: tests/integration/return-catch-class-in-loop/case.trn:17:13-17:17 */) ?)
+    );
+    return Ok(x);
+}
+fn f_terrane_return_catch_class_in_loop(
+    o: TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B,
+) -> TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B {
+    let mut i: terrane_int_support::Int;
+    let __terrane_iterable_0 = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(1_i128),
+            terrane_int_support::Int::from(2_i128)
+        ],
+    );
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
+    );
+    loop {
+        i = match __terrane_iterator_0.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        let __terrane_completion_0: TerraneCompletion<
+            TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B,
+        > = (|| {
+            let __terrane_try_0: TerraneCompletion<
+                TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B,
+            > = (|| {
+                return TerraneCompletion::Return(
+                    __terrane_traced_completion!(
+                        eatk_terrane_return_catch_class_in_loop(o.clone()),
+                        23 /* terrane-site: tests/integration/return-catch-class-in-loop/case.trn:23:21-23:28 */
+                    ),
+                );
+            })();
+            match __terrane_try_0 {
+                TerraneCompletion::Return(value) => {
+                    return TerraneCompletion::Return(value);
+                }
+                TerraneCompletion::Break => return TerraneCompletion::Break,
+                TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                TerraneCompletion::Normal => {}
+                TerraneCompletion::Error(__terrane_error_0) => {
+                    let mut __terrane_handled_0 = false;
+                    if !__terrane_handled_0 {
+                        __terrane_handled_0 = true;
+                        println!("{}", terrane_scalar_support::scalar_text(&i));
+                    }
+                    if !__terrane_handled_0 {
+                        return TerraneCompletion::Error(__terrane_error_0);
+                    }
+                }
+            }
+            TerraneCompletion::Normal
+        })();
+        match __terrane_completion_0 {
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Return(value) => return value,
+            TerraneCompletion::Error(error) => __terrane_uncaught(error),
+            TerraneCompletion::Break => break,
+            TerraneCompletion::Continue => {
+                __terrane_generated_defect("non-continuing try produced continue")
+            }
+        }
+    }
+    return o;
+}
+fn test_scenario_terrane_return_catch_class_in_loop() {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f_terrane_return_catch_class_in_loop(TerraneNsReturnCatchClassInLoopKIdentity2F72657475726E2D63617463682D636C6173732D696E2D6C6F6F70004B::terrane_construct())
+        .n)
+    );
+}
+// Source: tests/integration/return-catch-class-no-later-read/case.trn
+// Namespace: return-catch-class-no-later-read
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassNoLaterReadErrIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D7265616400457272 {
+    pub message: String,
+}
+impl TerraneNsReturnCatchClassNoLaterReadErrIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D7265616400457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_catch_class_no_later_read() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnCatchClassNoLaterReadErrIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D7265616400457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(1)),
+            message,
+            rendered,
+
+                24 /* terrane-site: tests/integration/return-catch-class-no-later-read/case.trn:11:5-11:24 */,
+        )
+    });
+}
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B {
+    pub n: terrane_int_support::Int,
+}
+impl TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B {
+    pub fn terrane_construct() -> Self {
+        Self {
+            n: terrane_int_support::Int::from(4_i128),
+        }
+    }
+}
+fn eatk_terrane_return_catch_class_no_later_read(
+    x: TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B,
+) -> Result<
+    TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B,
+    TerraneError,
+> {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(bad_terrane_return_catch_class_no_later_read(),
+        25 /* terrane-site: tests/integration/return-catch-class-no-later-read/case.trn:17:13-17:17 */) ?)
+    );
+    return Ok(x);
+}
+fn f_terrane_return_catch_class_no_later_read(
+    o: TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B,
+    d: TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B,
+) -> TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B {
+    let __terrane_completion_0: TerraneCompletion<
+        TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B,
+    > = (|| {
+        let __terrane_try_0: TerraneCompletion<
+            TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B,
+        > = (|| {
+            return TerraneCompletion::Return(
+                __terrane_traced_completion!(
+                    eatk_terrane_return_catch_class_no_later_read(o),
+                    26 /* terrane-site: tests/integration/return-catch-class-no-later-read/case.trn:22:17-22:24 */
+                ),
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    __terrane_handled_0 = true;
+                    println!("{}", terrane_scalar_support::scalar_text(&0));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return d;
+}
+fn test_scenario_terrane_return_catch_class_no_later_read() {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f_terrane_return_catch_class_no_later_read(TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B::terrane_construct(),
+        TerraneNsReturnCatchClassNoLaterReadKIdentity2F72657475726E2D63617463682D636C6173732D6E6F2D6C617465722D72656164004B::terrane_construct())
+        .n)
+    );
+}
+// Source: tests/integration/return-catch-class-read-in-catch/case.trn
+// Namespace: return-catch-class-read-in-catch
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassReadInCatchErrIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D636174636800457272 {
+    pub message: String,
+}
+impl TerraneNsReturnCatchClassReadInCatchErrIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D636174636800457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_catch_class_read_in_catch() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnCatchClassReadInCatchErrIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D636174636800457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(2)),
+            message,
+            rendered,
+
+                27 /* terrane-site: tests/integration/return-catch-class-read-in-catch/case.trn:11:5-11:24 */,
+        )
+    });
+}
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassReadInCatchKIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D6361746368004B {
+    pub n: terrane_int_support::Int,
+}
+impl TerraneNsReturnCatchClassReadInCatchKIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D6361746368004B {
+    pub fn terrane_construct() -> Self {
+        Self {
+            n: terrane_int_support::Int::from(4_i128),
+        }
+    }
+}
+fn eatk_terrane_return_catch_class_read_in_catch(
+    x: TerraneNsReturnCatchClassReadInCatchKIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D6361746368004B,
+) -> Result<
+    TerraneNsReturnCatchClassReadInCatchKIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D6361746368004B,
+    TerraneError,
+> {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(bad_terrane_return_catch_class_read_in_catch(),
+        28 /* terrane-site: tests/integration/return-catch-class-read-in-catch/case.trn:17:13-17:17 */) ?)
+    );
+    return Ok(x);
+}
+fn f_terrane_return_catch_class_read_in_catch(
+    o: TerraneNsReturnCatchClassReadInCatchKIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D6361746368004B,
+) -> terrane_int_support::Int {
+    let __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
+        let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
+            return TerraneCompletion::Return(
+                __terrane_traced_completion!(
+                    eatk_terrane_return_catch_class_read_in_catch(o.clone()),
+                    29 /* terrane-site: tests/integration/return-catch-class-read-in-catch/case.trn:22:17-22:24 */
+                )
+                    .n
+                    .clone(),
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    __terrane_handled_0 = true;
+                    println!("{}", terrane_scalar_support::scalar_text(&o.n));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return terrane_int_support::Int::from(0_i128);
+}
+fn test_scenario_terrane_return_catch_class_read_in_catch() {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f_terrane_return_catch_class_read_in_catch(TerraneNsReturnCatchClassReadInCatchKIdentity2F72657475726E2D63617463682D636C6173732D726561642D696E2D6361746368004B::terrane_construct()))
+    );
+}
+// Source: tests/integration/return-catch-class-then-read/case.trn
+// Namespace: return-catch-class-then-read
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassThenReadErrIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D7265616400457272 {
+    pub message: String,
+}
+impl TerraneNsReturnCatchClassThenReadErrIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D7265616400457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_catch_class_then_read() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnCatchClassThenReadErrIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D7265616400457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(3)),
+            message,
+            rendered,
+
+                30 /* terrane-site: tests/integration/return-catch-class-then-read/case.trn:11:5-11:24 */,
+        )
+    });
+}
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B {
+    pub n: terrane_int_support::Int,
+}
+impl TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B {
+    pub fn terrane_construct() -> Self {
+        Self {
+            n: terrane_int_support::Int::from(4_i128),
+        }
+    }
+}
+fn eatk_terrane_return_catch_class_then_read(
+    x: TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B,
+) -> Result<
+    TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B,
+    TerraneError,
+> {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(bad_terrane_return_catch_class_then_read(),
+        31 /* terrane-site: tests/integration/return-catch-class-then-read/case.trn:17:13-17:17 */) ?)
+    );
+    return Ok(x);
+}
+fn f_terrane_return_catch_class_then_read(
+    o: TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B,
+) -> TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B {
+    let __terrane_completion_0: TerraneCompletion<
+        TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B,
+    > = (|| {
+        let __terrane_try_0: TerraneCompletion<
+            TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B,
+        > = (|| {
+            return TerraneCompletion::Return(
+                __terrane_traced_completion!(
+                    eatk_terrane_return_catch_class_then_read(o.clone()),
+                    32 /* terrane-site: tests/integration/return-catch-class-then-read/case.trn:22:17-22:24 */
+                ),
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    __terrane_handled_0 = true;
+                    println!("{}", terrane_scalar_support::scalar_text(&0));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return o;
+}
+fn test_scenario_terrane_return_catch_class_then_read() {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f_terrane_return_catch_class_then_read(TerraneNsReturnCatchClassThenReadKIdentity2F72657475726E2D63617463682D636C6173732D7468656E2D72656164004B::terrane_construct())
+        .n)
+    );
+}
+// Source: tests/integration/return-catch-list-then-read/case.trn
+// Namespace: return-catch-list-then-read
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchListThenReadErrIdentity2F72657475726E2D63617463682D6C6973742D7468656E2D7265616400457272 {
+    pub message: String,
+}
+impl TerraneNsReturnCatchListThenReadErrIdentity2F72657475726E2D63617463682D6C6973742D7468656E2D7265616400457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_catch_list_then_read() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnCatchListThenReadErrIdentity2F72657475726E2D63617463682D6C6973742D7468656E2D7265616400457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(4)),
+            message,
+            rendered,
+
+                33 /* terrane-site: tests/integration/return-catch-list-then-read/case.trn:11:5-11:24 */,
+        )
+    });
+}
+fn eatl(
+    x: terrane_collection_support::List<terrane_int_support::Int>,
+) -> Result<terrane_collection_support::List<terrane_int_support::Int>, TerraneError> {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(bad_terrane_return_catch_list_then_read(),
+        34 /* terrane-site: tests/integration/return-catch-list-then-read/case.trn:14:13-14:17 */) ?)
+    );
+    return Ok(x);
+}
+fn f_terrane_return_catch_list_then_read(
+    o: terrane_collection_support::List<terrane_int_support::Int>,
+) -> terrane_collection_support::List<terrane_int_support::Int> {
+    let __terrane_completion_0: TerraneCompletion<
+        terrane_collection_support::List<terrane_int_support::Int>,
+    > = (|| {
+        let __terrane_try_0: TerraneCompletion<
+            terrane_collection_support::List<terrane_int_support::Int>,
+        > = (|| {
+            return TerraneCompletion::Return(
+                __terrane_traced_completion!(
+                    eatl(o.clone()), 35 /* terrane-site: tests/integration/return-catch-list-then-read/case.trn:19:17-19:24 */
+                ),
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    __terrane_handled_0 = true;
+                    println!("{}", terrane_scalar_support::scalar_text(&0));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return o;
+}
+fn test_scenario_terrane_return_catch_list_then_read() {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(f_terrane_return_catch_list_then_read(terrane_collection_support::List::
+        < terrane_int_support::Int > ::new(vec![terrane_int_support::Int::from(1_i128),
+        terrane_int_support::Int::from(2_i128)])).length()))
+    );
+}
+// Source: tests/integration/return-catch-string-then-read/case.trn
+// Namespace: return-catch-string-then-read
+#[derive(Clone)]
+pub struct TerraneNsReturnCatchStringThenReadErrIdentity2F72657475726E2D63617463682D737472696E672D7468656E2D7265616400457272 {
+    pub message: String,
+}
+impl TerraneNsReturnCatchStringThenReadErrIdentity2F72657475726E2D63617463682D737472696E672D7468656E2D7265616400457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_catch_string_then_read() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnCatchStringThenReadErrIdentity2F72657475726E2D63617463682D737472696E672D7468656E2D7265616400457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(5)),
+            message,
+            rendered,
+
+                36 /* terrane-site: tests/integration/return-catch-string-then-read/case.trn:11:5-11:24 */,
+        )
+    });
+}
+fn eats(x: String) -> Result<String, TerraneError> {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(bad_terrane_return_catch_string_then_read(),
+        37 /* terrane-site: tests/integration/return-catch-string-then-read/case.trn:14:13-14:17 */) ?)
+    );
+    return Ok(x);
+}
+fn f_terrane_return_catch_string_then_read(o: String) -> String {
+    let __terrane_completion_0: TerraneCompletion<String> = (|| {
+        let __terrane_try_0: TerraneCompletion<String> = (|| {
+            return TerraneCompletion::Return(
+                __terrane_traced_completion!(
+                    eats(o.clone()), 38 /* terrane-site: tests/integration/return-catch-string-then-read/case.trn:19:17-19:24 */
+                ),
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    __terrane_handled_0 = true;
+                    println!("{}", terrane_scalar_support::scalar_text(&0));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return o;
+}
+fn test_scenario_terrane_return_catch_string_then_read() {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f_terrane_return_catch_string_then_read(String::from("a")))
+    );
+}
+// Source: tests/integration/return-finally-class-read/case.trn
+// Namespace: return-finally-class-read
+#[derive(Clone)]
+pub struct TerraneNsReturnFinallyClassReadErrIdentity2F72657475726E2D66696E616C6C792D636C6173732D7265616400457272 {
+    pub message: String,
+}
+impl TerraneNsReturnFinallyClassReadErrIdentity2F72657475726E2D66696E616C6C792D636C6173732D7265616400457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_finally_class_read() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnFinallyClassReadErrIdentity2F72657475726E2D66696E616C6C792D636C6173732D7265616400457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(6)),
+            message,
+            rendered,
+
+                39 /* terrane-site: tests/integration/return-finally-class-read/case.trn:11:5-11:24 */,
+        )
+    });
+}
+#[derive(Clone)]
+pub struct TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B {
+    pub n: terrane_int_support::Int,
+}
+impl TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B {
+    pub fn terrane_construct() -> Self {
+        Self {
+            n: terrane_int_support::Int::from(4_i128),
+        }
+    }
+}
+fn eatk_terrane_return_finally_class_read(
+    x: TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B,
+) -> Result<
+    TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B,
+    TerraneError,
+> {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced_err(bad_terrane_return_finally_class_read(),
+        40 /* terrane-site: tests/integration/return-finally-class-read/case.trn:17:13-17:17 */) ?)
+    );
+    return Ok(x);
+}
+fn f_terrane_return_finally_class_read(
+    o: TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B,
+) -> Result<
+    TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B,
+    TerraneError,
+> {
+    let mut __terrane_completion_0: TerraneCompletion<
+        TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B,
+    > = (|| {
+        let __terrane_try_0: TerraneCompletion<
+            TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B,
+        > = (|| {
+            return TerraneCompletion::Return(
+                __terrane_traced_completion!(
+                    eatk_terrane_return_finally_class_read(o.clone()),
+                    41 /* terrane-site: tests/integration/return-finally-class-read/case.trn:22:17-22:24 */
+                ),
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    let __terrane_finally_0: TerraneCompletion<
+        TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B,
+    > = (|| {
+        println!("{}", terrane_scalar_support::scalar_text(&o.n));
+        TerraneCompletion::Normal
+    })();
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {
+            __terrane_generated_defect("non-fallthrough try completed normally")
+        }
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
+fn test_scenario_terrane_return_finally_class_read() {
+    let __terrane_completion_1: TerraneCompletion<()> = (|| {
+        let __terrane_try_1: TerraneCompletion<()> = (|| {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(f_terrane_return_finally_class_read(TerraneNsReturnFinallyClassReadKIdentity2F72657475726E2D66696E616C6C792D636C6173732D72656164004B::terrane_construct()),
+                42 /* terrane-site: tests/integration/return-finally-class-read/case.trn:28:17-28:33 */) .n)
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_1 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_1) => {
+                let mut __terrane_handled_1 = false;
+                if !__terrane_handled_1 {
+                    __terrane_handled_1 = true;
+                    println!("{}", terrane_scalar_support::scalar_text(&0));
+                }
+                if !__terrane_handled_1 {
+                    return TerraneCompletion::Error(__terrane_error_1);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_1 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
+// Source: tests/integration/return-plain-return-in-try-class/case.trn
+// Namespace: return-plain-return-in-try-class
+#[derive(Clone)]
+pub struct TerraneNsReturnPlainReturnInTryClassErrIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C61737300457272 {
+    pub message: String,
+}
+impl TerraneNsReturnPlainReturnInTryClassErrIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C61737300457272 {
+    pub fn terrane_construct() -> Self {
+        Self { message: String::from("x") }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn bad_terrane_return_plain_return_in_try_class() -> Result<
+    terrane_int_support::Int,
+    TerraneError,
+> {
+    return Err({
+        let value = TerraneNsReturnPlainReturnInTryClassErrIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C61737300457272::terrane_construct();
+        let rendered = value.render();
+        let original = &value.message;
+        let (message, rendered) = if &rendered == original {
+            (rendered, None)
+        } else {
+            (original.clone(), Some(rendered))
+        };
+        TerraneError::raised_with_rendered_message(
+            TerraneErrorKind::Custom(DescriptorId(7)),
+            message,
+            rendered,
+
+                43 /* terrane-site: tests/integration/return-plain-return-in-try-class/case.trn:11:5-11:24 */,
+        )
+    });
+}
+#[derive(Clone)]
+pub struct TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B {
+    pub n: terrane_int_support::Int,
+}
+impl TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B {
+    pub fn terrane_construct() -> Self {
+        Self {
+            n: terrane_int_support::Int::from(4_i128),
+        }
+    }
+}
+fn f_terrane_return_plain_return_in_try_class(
+    o: TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B,
+    b: bool,
+) -> TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B {
+    let __terrane_completion_0: TerraneCompletion<
+        TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B,
+    > = (|| {
+        let __terrane_try_0: TerraneCompletion<
+            TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B,
+        > = (|| {
+            if b {
+                println!(
+                    "{}",
+                    terrane_scalar_support::scalar_text(&__terrane_traced_completion!(bad_terrane_return_plain_return_in_try_class(),
+                    44 /* terrane-site: tests/integration/return-plain-return-in-try-class/case.trn:19:21-19:25 */))
+                );
+            }
+            return TerraneCompletion::Return(o.clone());
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    __terrane_handled_0 = true;
+                    println!("{}", terrane_scalar_support::scalar_text(&0));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    return o;
+}
+fn test_scenario_terrane_return_plain_return_in_try_class() {
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f_terrane_return_plain_return_in_try_class(TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B::terrane_construct(),
+        true).n)
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&f_terrane_return_plain_return_in_try_class(TerraneNsReturnPlainReturnInTryClassKIdentity2F72657475726E2D706C61696E2D72657475726E2D696E2D7472792D636C617373004B::terrane_construct(),
+        false).n)
+    );
+}
 // Source: tests/integration/return-tail-block-strings/case.trn
 // Namespace: return-tail-block-strings
 fn render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
@@ -2757,7 +3722,7 @@ fn render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
             TerraneError::raised(
                 TerraneErrorKind::CoercionError,
 
-                    21 /* terrane-site: tests/integration/return-tail-block-strings/case.trn:6:5-6:25 */,
+                    45 /* terrane-site: tests/integration/return-tail-block-strings/case.trn:6:5-6:25 */,
             ),
         );
     }
@@ -2770,7 +3735,7 @@ fn test_scenario_terrane_return_tail_block_strings() -> Result<(), TerraneError>
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_traced_err(render(terrane_int_support::Int::from(1_i128)),
-        22 /* terrane-site: tests/integration/return-tail-block-strings/case.trn:15:11-15:20 */) ?)
+        46 /* terrane-site: tests/integration/return-tail-block-strings/case.trn:15:11-15:20 */) ?)
     );
     println!("{}", terrane_scalar_support::scalar_text(&render_lines()));
     Ok(())
@@ -2843,7 +3808,7 @@ fn make_terrane_static_call_throw_inference(
     d = __terrane_traced_err(
         Duration::terrane_static_seconds(value.clone()),
 
-            23 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:5:9-5:33 */,
+            47 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:5:9-5:33 */,
     )?;
     return Ok(d.total_nanoseconds.clone());
 }
@@ -2860,7 +3825,7 @@ impl Maker {
         d = __terrane_traced_err(
             Duration::terrane_static_seconds(value.clone()),
 
-                24 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:10:13-10:37 */,
+                48 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:10:13-10:37 */,
         )?;
         return Ok(d.total_nanoseconds.clone());
     }
@@ -2877,7 +3842,7 @@ fn argument() -> Result<terrane_int_support::Int, TerraneError> {
                 terrane_int_support::Int::from(-1_i128),
             ),
 
-                25 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:17:12-17:20 */,
+                49 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:17:12-17:20 */,
         )?,
     );
 }
@@ -2887,7 +3852,7 @@ fn forward_argument() -> Result<terrane_int_support::Int, TerraneError> {
             __terrane_traced_err(
                 argument(),
 
-                    26 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:20:28-20:37 */,
+                    50 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:20:28-20:37 */,
             )?,
         ),
     );
@@ -2898,7 +3863,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_traced_completion!(make_terrane_static_call_throw_inference(terrane_int_support::Int::from(-
-                1_i128)), 27 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:24:17-24:25 */))
+                1_i128)), 51 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:24:17-24:25 */))
             );
             TerraneCompletion::Normal
         })();
@@ -2911,7 +3876,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
                 let mut __terrane_handled_0 = false;
                 if !__terrane_handled_0
                     && __terrane_error_0.kind
-                        == TerraneErrorKind::Custom(DescriptorId(0))
+                        == TerraneErrorKind::Custom(DescriptorId(8))
                 {
                     __terrane_handled_0 = true;
                     println!("{}", String::from("caught-free"));
@@ -2936,7 +3901,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_traced_completion!(Maker::terrane_static_build(terrane_int_support::Int::from(-
-                1_i128)), 28 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:28:17-28:33 */))
+                1_i128)), 52 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:28:17-28:33 */))
             );
             TerraneCompletion::Normal
         })();
@@ -2949,7 +3914,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
                 let mut __terrane_handled_1 = false;
                 if !__terrane_handled_1
                     && __terrane_error_1.kind
-                        == TerraneErrorKind::Custom(DescriptorId(0))
+                        == TerraneErrorKind::Custom(DescriptorId(8))
                 {
                     __terrane_handled_1 = true;
                     println!("{}", String::from("caught-static"));
@@ -2974,7 +3939,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_traced_completion!(forward_argument(),
-                29 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:32:17-32:34 */))
+                53 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:32:17-32:34 */))
             );
             TerraneCompletion::Normal
         })();
@@ -2987,7 +3952,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
                 let mut __terrane_handled_2 = false;
                 if !__terrane_handled_2
                     && __terrane_error_2.kind
-                        == TerraneErrorKind::Custom(DescriptorId(0))
+                        == TerraneErrorKind::Custom(DescriptorId(8))
                 {
                     __terrane_handled_2 = true;
                     println!("{}", String::from("caught-argument"));
@@ -3010,7 +3975,7 @@ fn test_scenario_terrane_static_call_throw_inference() -> Result<(), TerraneErro
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_traced_err(Maker::terrane_static_build(terrane_int_support::Int::from(2_i128)),
-        30 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:35:13-35:28 */) ?)
+        54 /* terrane-site: tests/integration/static-call-throw-inference/case.trn:35:13-35:28 */) ?)
     );
     Ok(())
 }
@@ -3317,6 +4282,36 @@ fn main() {
             test_scenario_terrane_nested_collection_for_binding();
         }
         "31" => {
+            test_scenario_terrane_reference_reassign_reaching_assignments();
+        }
+        "32" => {
+            test_scenario_terrane_reference_return_reassigned_parameter();
+        }
+        "33" => {
+            test_scenario_terrane_return_catch_class_in_loop();
+        }
+        "34" => {
+            test_scenario_terrane_return_catch_class_no_later_read();
+        }
+        "35" => {
+            test_scenario_terrane_return_catch_class_read_in_catch();
+        }
+        "36" => {
+            test_scenario_terrane_return_catch_class_then_read();
+        }
+        "37" => {
+            test_scenario_terrane_return_catch_list_then_read();
+        }
+        "38" => {
+            test_scenario_terrane_return_catch_string_then_read();
+        }
+        "39" => {
+            test_scenario_terrane_return_finally_class_read();
+        }
+        "40" => {
+            test_scenario_terrane_return_plain_return_in_try_class();
+        }
+        "41" => {
             if let Err(error) = test_scenario_terrane_return_tail_block_strings() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -3326,10 +4321,10 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "32" => {
+        "42" => {
             test_scenario_terrane_returned_callable_local_loop();
         }
-        "33" => {
+        "43" => {
             if let Err(error) = test_scenario_terrane_static_call_throw_inference() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -3339,7 +4334,7 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "34" => {
+        "44" => {
             test_scenario_terrane_switch_boundaries();
         }
         _ => {

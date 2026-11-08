@@ -1,0 +1,5 @@
+package = "native-view-map-param-alias-escape"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-query-witness]
+version = "0.1.0"

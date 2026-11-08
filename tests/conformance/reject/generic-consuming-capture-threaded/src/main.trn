@@ -1,0 +1,10 @@
+namespace app
+function f of (T) T; o T|none, d T
+    callback = consuming function T;
+        if o != none
+            return o
+        return d
+    return callback;
+
+function main;
+    print; (f; 'a', 'b')

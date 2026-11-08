@@ -1,0 +1,10 @@
+namespace app
+
+function main;
+    a = 1
+    b = 2
+    r ref int = ref a
+    print; r
+    r = ref b
+    b = 3
+    print; r

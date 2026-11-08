@@ -1,0 +1,6 @@
+namespace owned-consuming-string-capture
+function test-scenario;
+    value = 'captured'
+    callback = consuming function string;
+        return value
+    print; (callback;)

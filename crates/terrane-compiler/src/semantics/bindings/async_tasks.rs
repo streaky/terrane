@@ -85,20 +85,38 @@ pub(in crate::semantics) enum AutoTraitObligation {
     Sync,
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "Recursive auto-trait proof cases stay aligned with the complete semantic value shape"
-)]
 pub(in crate::semantics) fn value_type_satisfies_auto_trait(
     package: &SemanticPackage,
     value_type: &ValueType,
     obligation: AutoTraitObligation,
+) -> bool {
+    value_type_satisfies_auto_trait_with_policy(package, value_type, obligation, false)
+}
+
+pub(in crate::semantics) fn value_type_satisfies_capture_auto_trait(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    obligation: AutoTraitObligation,
+) -> bool {
+    value_type_satisfies_auto_trait_with_policy(package, value_type, obligation, true)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive auto-trait proof cases stay aligned with the complete semantic value shape"
+)]
+fn value_type_satisfies_auto_trait_with_policy(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    obligation: AutoTraitObligation,
+    reject_unknown_generics: bool,
 ) -> bool {
     fn satisfies(
         package: &SemanticPackage,
         value_type: &ValueType,
         obligation: AutoTraitObligation,
         visiting: &mut BTreeSet<String>,
+        reject_unknown_generics: bool,
     ) -> bool {
         match value_type {
             ValueType::InvocationScopedNative {
@@ -118,6 +136,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 inner.value_type_ref(),
                 AutoTraitObligation::Sync,
                 visiting,
+                reject_unknown_generics,
             ),
             ValueType::Object(identity) => {
                 if let Some(capability) = package.native_capability(identity) {
@@ -167,6 +186,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                                             ),
                                             obligation,
                                             visiting,
+                                            reject_unknown_generics,
                                         )
                                 })
                         }
@@ -194,6 +214,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                                             ),
                                             obligation,
                                             visiting,
+                                            reject_unknown_generics,
                                         )
                                     })
                                 })
@@ -203,7 +224,13 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 visiting.remove(&key);
                 result
             }
-            ValueType::Optional(inner) => satisfies(package, inner, obligation, visiting),
+            ValueType::Optional(inner) => satisfies(
+                package,
+                inner,
+                obligation,
+                visiting,
+                reject_unknown_generics,
+            ),
             ValueType::MutableReference(inner)
             | ValueType::Iterator(inner)
             | ValueType::IterationStep(inner)
@@ -212,9 +239,13 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
             | ValueType::Tuple(inner, _)
             | ValueType::UnorderedSet(inner)
             | ValueType::TaskGroup(inner)
-            | ValueType::TaskOutcome(inner) => {
-                satisfies(package, inner.value_type_ref(), obligation, visiting)
-            }
+            | ValueType::TaskOutcome(inner) => satisfies(
+                package,
+                inner.value_type_ref(),
+                obligation,
+                visiting,
+                reject_unknown_generics,
+            ),
             ValueType::SharedReference(inner) => match obligation {
                 AutoTraitObligation::Send => {
                     satisfies(
@@ -222,22 +253,39 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                         inner.value_type_ref(),
                         AutoTraitObligation::Send,
                         visiting,
+                        reject_unknown_generics,
                     ) && satisfies(
                         package,
                         inner.value_type_ref(),
                         AutoTraitObligation::Sync,
                         visiting,
+                        reject_unknown_generics,
                     )
                 }
-                AutoTraitObligation::Sync => {
-                    satisfies(package, inner.value_type_ref(), obligation, visiting)
-                }
+                AutoTraitObligation::Sync => satisfies(
+                    package,
+                    inner.value_type_ref(),
+                    obligation,
+                    visiting,
+                    reject_unknown_generics,
+                ),
             },
             ValueType::Map(key, value)
             | ValueType::Entry(key, value)
             | ValueType::UnorderedMap(key, value) => {
-                satisfies(package, key.value_type_ref(), obligation, visiting)
-                    && satisfies(package, value.value_type_ref(), obligation, visiting)
+                satisfies(
+                    package,
+                    key.value_type_ref(),
+                    obligation,
+                    visiting,
+                    reject_unknown_generics,
+                ) && satisfies(
+                    package,
+                    value.value_type_ref(),
+                    obligation,
+                    visiting,
+                    reject_unknown_generics,
+                )
             }
             ValueType::AsyncFunction(_, _, transferability, _)
             | ValueType::Task(_, transferability)
@@ -245,11 +293,20 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 AutoTraitObligation::Send => *transferability != TaskTransferability::Local,
                 AutoTraitObligation::Sync => false,
             },
+            ValueType::ProjectedGeneric(_) | ValueType::TypeParameter(_) => {
+                !reject_unknown_generics
+            }
             _ => true,
         }
     }
 
-    satisfies(package, value_type, obligation, &mut BTreeSet::new())
+    satisfies(
+        package,
+        value_type,
+        obligation,
+        &mut BTreeSet::new(),
+        reject_unknown_generics,
+    )
 }
 
 pub(super) fn value_type_is_task_transferable(

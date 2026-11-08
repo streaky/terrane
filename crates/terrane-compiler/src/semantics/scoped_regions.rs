@@ -1219,7 +1219,7 @@ fn collection_stores_lender(
     unit: &SemanticUnit,
     region: Span,
     call: &SyntaxNode,
-    lenders: &[Span],
+    lenders: &mut Vec<Span>,
     acquired_type: Option<&ValueType>,
 ) -> Result<bool, SemanticFailure> {
     let [callee, arguments] = call.children.as_slice() else {
@@ -1231,7 +1231,7 @@ fn collection_stores_lender(
         return Ok(false);
     };
     let storing = matches!(
-        (receiver_type, operation.as_str()),
+        (&receiver_type, operation.as_str()),
         (ValueType::List(_), "append" | "set")
             | (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "set")
             | (ValueType::Set(_) | ValueType::UnorderedSet(_), "add")
@@ -1239,23 +1239,51 @@ fn collection_stores_lender(
     if !storing {
         return Ok(false);
     }
-    let receiver_scope = root_name(receiver)
+    let receiver_binding = root_name(receiver)
         .and_then(|name| binding_identity_at(unit, name))
         .and_then(|identity| {
             unit.typed_bindings
                 .iter()
                 .find(|binding| binding.span == identity)
+        });
+    let receiver_provenance = receiver_binding.and_then(|binding| {
+        unit.reference_provenance
+            .get(&(binding.span.start, binding.span.end))
+    });
+    let receiver_owner = receiver_provenance
+        .map(|provenance| provenance.owner)
+        .or_else(|| receiver_binding.map(|binding| binding.span));
+    let receiver_scope = receiver_owner
+        .and_then(|owner| {
+            unit.typed_bindings
+                .iter()
+                .find(|binding| binding.span == owner)
         })
         .and_then(|binding| binding.scope);
-    let destination_within_region = receiver_scope.is_some_and(|scope| {
-        scope.file == region.file && scope.start >= region.start && scope.end <= region.end
+    let externally_owned_mutable_reference = receiver_binding.is_some_and(|binding| {
+        matches!(&binding.value_type, ValueType::MutableReference(_))
+            && receiver_provenance.is_some_and(|provenance| provenance.external_lender)
     });
-    if destination_within_region {
-        return Ok(false);
-    }
-    for argument in &arguments.children {
+    let destination_within_region = !externally_owned_mutable_reference
+        && receiver_scope.is_some_and(|scope| {
+            scope.file == region.file && scope.start >= region.start && scope.end <= region.end
+        });
+    let stored_arguments: &[SyntaxNode] = match receiver_type {
+        ValueType::Map(_, _) | ValueType::UnorderedMap(_, _) => {
+            let Some(value) = arguments.children.get(1) else {
+                return Ok(false);
+            };
+            std::slice::from_ref(value)
+        }
+        _ => &arguments.children,
+    };
+    for argument in stored_arguments {
         let value = argument.children.last().unwrap_or(argument);
-        let Some(value_type) = infer_lender_related_value_type(unit, value, lenders)? else {
+        let value_type = match infer_lender_related_value_type(unit, value, lenders)? {
+            Some(value_type) => Some(value_type),
+            None => infer_value_type(unit, value, &unit.typed_bindings)?,
+        };
+        let Some(value_type) = value_type else {
             continue;
         };
         if scoped_region(&value_type) == Some((region.file, region.start, region.end))
@@ -1267,6 +1295,17 @@ fn collection_stores_lender(
                     || acquired_type
                         .is_some_and(|lender| contains_nested_type(&value_type, lender))))
         {
+            if destination_within_region {
+                if let Some(binding) = receiver_binding {
+                    let owner = receiver_owner.unwrap_or(binding.span);
+                    for identity in [binding.span, owner] {
+                        if !lenders.contains(&identity) {
+                            lenders.push(identity);
+                        }
+                    }
+                }
+                return Ok(false);
+            }
             return Ok(true);
         }
     }

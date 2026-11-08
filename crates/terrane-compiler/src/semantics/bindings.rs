@@ -1205,6 +1205,18 @@ pub(crate) fn binding_return_requires_preservation(
                             if clause.span.start <= span.start && span.end <= clause.span.end)
                     })
             });
+            preserve |= declaration.start < node.span.start
+                && node.children.iter().any(|clause| {
+                    matches!(
+                        clause.kind,
+                        SyntaxKind::Block | SyntaxKind::CatchClause | SyntaxKind::FinallyClause
+                    ) && clause.span.start <= read.start
+                        && read.end <= clause.span.end
+                        && events.iter().any(|event| {
+                            matches!(event, BindingEvent::Read { span, .. }
+                                if read.end <= span.start && clause.span.end < span.end)
+                        })
+                });
         }
         if node.kind == SyntaxKind::Name && node.span == read {
             return preserve;
@@ -1216,6 +1228,14 @@ pub(crate) fn binding_return_requires_preservation(
     let Some(events) = package.binding_events.get(&span_key(declaration)) else {
         return false;
     };
+    if let Some(return_span) = binding_read_return_span(package, read)
+        && events.iter().any(|event| {
+            matches!(event, BindingEvent::Read { span, .. }
+                if read.end <= span.start && span.end <= return_span.end)
+        })
+    {
+        return true;
+    }
     package
         .units
         .iter()
@@ -1246,12 +1266,8 @@ pub(crate) fn binding_read_value_is_reused(
     else {
         return false;
     };
-    if let Some(return_span) = binding_read_return_span(package, read_span) {
-        return binding_return_requires_preservation(package, declaration_span, read_span)
-            || events[read + 1..].iter().any(|event| {
-                matches!(event, BindingEvent::Read { span, .. }
-                    if return_span.start <= span.start && span.end <= return_span.end)
-            });
+    if binding_read_return_span(package, read_span).is_some() {
+        return binding_return_requires_preservation(package, declaration_span, read_span);
     }
     let mut intervening_stores: Vec<&[ControlRegion]> = Vec::new();
     for event in &events[read + 1..] {
@@ -1281,10 +1297,10 @@ pub(crate) fn binding_read_value_is_reused(
     binding_read_loops_again(package, read_span, read_loops, declaration_span)
 }
 
-/// Straight-line stores and unread nested stores of a Copy native view need
-/// independent Rust lifetime variables. Captured/address-observable and live
-/// joined storage retains its existing single-place representation.
-pub(crate) fn native_copy_stores_are_independent(
+/// Unread straight-line stores may use independent Rust bindings rather than
+/// tying distinct borrowed values to one Rust storage lifetime. Captured,
+/// address-observable, and live joined storage retain their existing place.
+pub(crate) fn binding_stores_are_independent(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     binding: &TypedBinding,
@@ -1326,8 +1342,12 @@ pub(crate) fn native_copy_stores_are_independent(
                 stores(package, unit, child, binding, false).map(|nested| count + nested)
             })
     }
-    if !matches!(binding.value_type, ValueType::InvocationScopedNative { .. })
-        || !package.native_value_is_copyable(&binding.value_type)
+    let independent_store_type = matches!(&binding.value_type, ValueType::Reference(_))
+        || (matches!(
+            &binding.value_type,
+            ValueType::InvocationScopedNative { .. }
+        ) && package.native_value_is_copyable(&binding.value_type));
+    if !independent_store_type
         || unit
             .reference_owner_spans
             .contains(&(binding.span.start, binding.span.end))

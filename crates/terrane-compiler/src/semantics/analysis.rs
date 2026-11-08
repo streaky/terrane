@@ -150,6 +150,7 @@ pub(super) fn parse_unit(
         required_init_proofs: BTreeMap::new(),
         reference_owner_spans: BTreeSet::new(),
         reference_provenance: BTreeMap::new(),
+        reference_assignment_provenance: Vec::new(),
         callable_drops_after: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),

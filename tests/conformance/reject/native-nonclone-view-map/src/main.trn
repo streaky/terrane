@@ -4,5 +4,6 @@ from /core/collections import map
 
 function main;
     holder = Holder::new;
+    view = holder.view;
     values map of string, View = map;
-    values.set; 'view', (holder.view;)
+    values.set; 'view', view

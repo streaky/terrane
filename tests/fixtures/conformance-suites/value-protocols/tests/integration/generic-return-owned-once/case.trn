@@ -1,0 +1,10 @@
+namespace generic-return-owned-once
+from /core/collections import list
+function take of (T) T; value T
+    return value
+function f of (T) T; value T
+    for item in (list; 1)
+        return take; value
+    return value
+function test-scenario;
+    print; (f; 'safe')

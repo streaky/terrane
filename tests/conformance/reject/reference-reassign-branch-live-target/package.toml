@@ -1,0 +1,3 @@
+package = "reference-reassign-branch-live-target"
+[namespaces]
+app = "src"

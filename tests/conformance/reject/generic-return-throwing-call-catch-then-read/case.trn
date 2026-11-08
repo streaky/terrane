@@ -1,0 +1,25 @@
+namespace generic-return-throwing-call-catch-then-read
+from /core/collections import list
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'x'
+    function render string;
+        return this.message
+
+function bad int;
+    throw instance Err;
+
+function eat of (T) T; x T
+    print; (bad;)
+    return x
+
+function f of (T) T; o T, d T
+    try
+        return (eat; o)
+    catch
+        print; 0
+    return o
+
+function main;
+    print; (f; (list; 1), (list; 2, 3)).length

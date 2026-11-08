@@ -944,7 +944,7 @@ impl Emitter<'_> {
                     self.line(&format!("let mut {name} = None;"));
                 }
             } else {
-                let requires_mutable = if crate::semantics::native_copy_stores_are_independent(
+                let requires_mutable = if crate::semantics::binding_stores_are_independent(
                     self.package,
                     unit,
                     binding,

@@ -457,7 +457,7 @@ impl Emitter<'_> {
         {
             self.line(&format!("let _ = {target}.insert({value});"));
         } else if assigned_binding.as_ref().is_some_and(|binding| {
-            crate::semantics::native_copy_stores_are_independent(self.package, self.unit, binding)
+            crate::semantics::binding_stores_are_independent(self.package, self.unit, binding)
         }) {
             self.line(&format!("let {target} = {value};"));
         } else {

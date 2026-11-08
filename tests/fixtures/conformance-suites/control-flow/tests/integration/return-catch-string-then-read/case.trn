@@ -1,0 +1,25 @@
+namespace return-catch-string-then-read
+from /core/collections import list
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'x'
+    function render string;
+        return this.message
+
+function bad int;
+    throw instance Err;
+
+function eats string; x string
+    print; (bad;)
+    return x
+
+function f string; o string
+    try
+        return (eats; o)
+    catch
+        print; 0
+    return o
+
+function test-scenario;
+    print; (f; 'a')

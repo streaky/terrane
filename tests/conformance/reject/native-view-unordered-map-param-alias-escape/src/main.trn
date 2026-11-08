@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-query-witness import Holder, CopyView
+from /core/collections import unordered-map
+function store; values mutable ref unordered-map of string, CopyView, holder Holder
+    alias = mutable ref values
+    alias.set; 'view', (holder.copy_view;)
+function main;

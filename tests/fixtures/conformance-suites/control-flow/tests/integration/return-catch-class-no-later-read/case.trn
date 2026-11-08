@@ -1,0 +1,28 @@
+namespace return-catch-class-no-later-read
+from /core/collections import list
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'x'
+    function render string;
+        return this.message
+
+function bad int;
+    throw instance Err;
+
+class K
+    n int = 4
+
+function eatk K; x K
+    print; (bad;)
+    return x
+
+function f K; o K, d K
+    try
+        return (eatk; o)
+    catch
+        print; 0
+    return d
+
+function test-scenario;
+    print; (f; (instance K;), (instance K;)).n

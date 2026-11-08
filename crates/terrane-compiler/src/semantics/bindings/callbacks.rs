@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     async_tasks::{
-        AutoTraitObligation, value_type_is_owned_static, value_type_satisfies_auto_trait,
+        AutoTraitObligation, value_type_is_owned_static, value_type_satisfies_capture_auto_trait,
     },
     span_key,
 };
@@ -102,6 +102,7 @@ fn captured_binding<'a>(
         .iter()
         .find(|binding| binding.span == declaration)
 }
+
 fn callback_capture_trait_failure(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -128,7 +129,11 @@ fn callback_capture_trait_failure(
         if required
             && contract.captures.iter().any(|capture| {
                 captured_binding(package, unit, contract, capture).is_some_and(|binding| {
-                    !value_type_satisfies_auto_trait(package, &binding.value_type, obligation)
+                    !value_type_satisfies_capture_auto_trait(
+                        package,
+                        &binding.value_type,
+                        obligation,
+                    )
                 })
             })
         {
