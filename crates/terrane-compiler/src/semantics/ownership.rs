@@ -3880,7 +3880,6 @@ pub(super) fn validate_referenced_replacements(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     for unit in &package.units {
-        validate_reassigned_reference_versions(package, unit)?;
         exclusive_loans::validate_shared_iteration_access(package, unit, &unit.tree.root)?;
         for (&observer_key, provenance) in &unit.reference_provenance {
             let Some(observer) = unit.typed_bindings.iter().find(|binding| {
@@ -3950,6 +3949,7 @@ pub(super) fn validate_referenced_replacements(
                 return Err(failure);
             }
         }
+        validate_reassigned_reference_versions(package, unit)?;
     }
     Ok(())
 }
