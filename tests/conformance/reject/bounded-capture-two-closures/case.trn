@@ -1,0 +1,19 @@
+namespace bounded-capture-two-closures
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named) int; item T
+    f = function int;
+        return item.name;
+    g = function int;
+        return item.name;
+    return (f;) + (g;)
+
+function main;
+    print; (go; (instance value;))

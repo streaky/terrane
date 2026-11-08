@@ -83,6 +83,7 @@ pub(super) fn reference_has_stable_lender(
 pub(in crate::semantics) enum AutoTraitObligation {
     Send,
     Sync,
+    Static,
 }
 
 pub(in crate::semantics) fn value_type_satisfies_auto_trait(
@@ -125,6 +126,11 @@ fn value_type_satisfies_auto_trait_with_policy(
         visiting: &mut BTreeSet<String>,
         context: Option<(&SemanticUnit, usize)>,
     ) -> bool {
+        if matches!(obligation, AutoTraitObligation::Static)
+            && !value_type_is_owned_static(value_type)
+        {
+            return false;
+        }
         match value_type {
             ValueType::InvocationScopedNative {
                 rust_type,
@@ -136,6 +142,7 @@ fn value_type_satisfies_auto_trait_with_policy(
                 .is_some_and(|capability| match obligation {
                     AutoTraitObligation::Send => capability.send,
                     AutoTraitObligation::Sync => capability.sync,
+                    AutoTraitObligation::Static => false,
                 }),
             ValueType::InvocationScopedNative { .. } => false,
             ValueType::Reference(inner) => satisfies(
@@ -150,6 +157,11 @@ fn value_type_satisfies_auto_trait_with_policy(
                     return match obligation {
                         AutoTraitObligation::Send => capability.send,
                         AutoTraitObligation::Sync => capability.sync,
+                        AutoTraitObligation::Static => {
+                            identity.type_arguments.iter().all(|argument| {
+                                satisfies(package, argument, obligation, visiting, context)
+                            })
+                        }
                     };
                 }
                 if let Some((send, sync)) = package
@@ -159,6 +171,11 @@ fn value_type_satisfies_auto_trait_with_policy(
                     return match obligation {
                         AutoTraitObligation::Send => send,
                         AutoTraitObligation::Sync => sync,
+                        AutoTraitObligation::Static => {
+                            identity.type_arguments.iter().all(|argument| {
+                                satisfies(package, argument, obligation, visiting, context)
+                            })
+                        }
                     };
                 }
                 let key = format!("{}::{}", identity.namespace, identity.name);
@@ -263,7 +280,7 @@ fn value_type_satisfies_auto_trait_with_policy(
                         context,
                     )
                 }
-                AutoTraitObligation::Sync => satisfies(
+                AutoTraitObligation::Sync | AutoTraitObligation::Static => satisfies(
                     package,
                     inner.value_type_ref(),
                     obligation,
@@ -288,13 +305,21 @@ fn value_type_satisfies_auto_trait_with_policy(
             | ValueType::ScopedTask(_, transferability) => match obligation {
                 AutoTraitObligation::Send => *transferability != TaskTransferability::Local,
                 AutoTraitObligation::Sync => false,
+                AutoTraitObligation::Static => true,
             },
-            ValueType::TypeParameter(name) => context.is_none_or(|(unit, position)| {
-                unit.type_parameter_at(position, name)
-                    .and_then(|parameter| parameter.bound.as_ref())
-                    .is_some_and(|bound| interface_bound_proves_trait(package, bound, obligation))
-            }),
-            ValueType::ProjectedGeneric(_) => context.is_none(),
+            ValueType::TypeParameter(name) => {
+                !matches!(obligation, AutoTraitObligation::Static)
+                    && context.is_none_or(|(unit, position)| {
+                        unit.type_parameter_at(position, name)
+                            .and_then(|parameter| parameter.bound.as_ref())
+                            .is_some_and(|bound| {
+                                interface_bound_proves_trait(package, bound, obligation)
+                            })
+                    })
+            }
+            ValueType::ProjectedGeneric(_) => {
+                !matches!(obligation, AutoTraitObligation::Static) && context.is_none()
+            }
             _ => true,
         }
     }
@@ -347,6 +372,7 @@ fn interface_bound_proves_trait(
     match obligation {
         AutoTraitObligation::Send => send,
         AutoTraitObligation::Sync => sync,
+        AutoTraitObligation::Static => false,
     }
 }
 

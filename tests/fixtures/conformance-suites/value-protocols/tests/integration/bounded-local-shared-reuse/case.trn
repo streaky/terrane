@@ -1,0 +1,17 @@
+namespace bounded-local-shared-reuse
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named) int; item T
+    g = function int;
+        return item.name;
+    return (g;) + (g;)
+
+function test-scenario;
+    print; (go; (instance value;))

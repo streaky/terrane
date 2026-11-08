@@ -1,0 +1,8 @@
+namespace mutable-receiver-owned-argument
+class item
+    value int = 1
+    mutable function take int; other item
+        return this.value + other.value
+function main;
+    value = instance item;
+    print; (value.take; value)

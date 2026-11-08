@@ -1,0 +1,14 @@
+namespace consuming-captures-short-shared
+interface named
+    function name int;
+class value implements named
+    function name int;
+        return 1
+function run of (T implements named) int; item T
+    f = function int;
+        return item.name;
+    g = consuming function int;
+        return f;
+    return g;
+function main;
+    print; (run; (instance value;))

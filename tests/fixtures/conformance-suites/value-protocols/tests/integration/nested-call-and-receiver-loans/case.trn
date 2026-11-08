@@ -1,0 +1,50 @@
+namespace nested-call-and-receiver-loans
+from /core/collections import list
+
+function identity string; value string
+    return value
+
+function identity-list list of int; value list of int
+    return value
+
+function inspect-string string; first ref string, second string
+    return first + second
+
+function inspect-list list of int; first ref list of int, second list of int
+    return second
+
+function inspect-ref int; value ref string
+    return value.length
+
+function inspect-string-length int; first ref string, second int
+    return first.length + second
+
+class item
+    value int = 4
+    function take int; other item
+        return this.value + other.value
+    consuming function take-owned int; other item
+        return this.value + other.value
+
+function receiver-parameter int; value item
+    return value.take; value
+
+function test-scenario;
+    text = 'abc'
+    print; (inspect-string-length; text, (inspect-ref; text))
+    print; (inspect-string; text, (identity; (identity; text)))
+    values = list; 1, 2
+    returned-values = inspect-list; values, (identity-list; (identity-list; values))
+    print; returned-values[0]
+    print; returned-values[1]
+    alias = ref text
+    print; (inspect-string; alias, (identity; alias))
+    print; (inspect-string; text, (identity; 'different'))
+    print; (inspect-string-length; text, (inspect-ref; text))
+    value = instance item;
+    print; (receiver-parameter; value)
+    local = instance item;
+    print; (local.take; local)
+    consuming-owner = instance item;
+    different-owner = instance item;
+    print; (consuming-owner.take-owned; different-owner)

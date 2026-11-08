@@ -1,0 +1,17 @@
+namespace concrete-returned-shared-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function mk function to int; item value
+    return function int;
+        return item.name;
+
+function test-scenario;
+    g = mk; (instance value;)
+    print; (g;)

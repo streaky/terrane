@@ -89,7 +89,7 @@ pub(crate) fn callback_contract<'a>(
         .find(|contract| contract.span == value.span)
 }
 
-fn captured_binding<'a>(
+pub(super) fn captured_binding<'a>(
     package: &'a SemanticPackage,
     unit: &'a SemanticUnit,
     contract: &FunctionContract,
@@ -1764,6 +1764,7 @@ pub(in crate::semantics) fn validate_projected_callback_arguments(
 ) -> Result<(), SemanticFailure> {
     for unit in &package.units {
         validate_owned_callable_captures(package, unit)?;
+        super::capture_lifetimes::validate_owned_capture_lifetimes(package, unit)?;
         let mut chain_receivers = BTreeSet::new();
         collect_chain_receivers(package, unit, &unit.tree.root, &mut chain_receivers);
         validate_projected_callback_node(

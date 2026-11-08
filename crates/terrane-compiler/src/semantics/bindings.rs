@@ -1,5 +1,6 @@
 mod async_tasks;
 mod callbacks;
+mod capture_lifetimes;
 
 use std::collections::{BTreeMap, BTreeSet};
 

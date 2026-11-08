@@ -1,0 +1,18 @@
+namespace bounded-consuming-move-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named) int; item T
+    g = consuming function T;
+        return item
+    x = g;
+    return x.name;
+
+function main;
+    print; (go; (instance value;))

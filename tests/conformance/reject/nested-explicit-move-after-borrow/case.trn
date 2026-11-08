@@ -1,0 +1,9 @@
+namespace nested-explicit-move-after-borrow
+from /core/collections import list
+function identity-list list of int; value list of int
+    return value
+function inspect int; first ref list of int, second list of int
+    return first.length + second.length
+function main;
+    value = list; 1
+    print; (inspect; value, (identity-list; move value))

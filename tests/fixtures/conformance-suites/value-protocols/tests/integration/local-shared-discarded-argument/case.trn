@@ -1,0 +1,16 @@
+namespace local-shared-discarded-argument
+interface named
+    function name int;
+class value implements named
+    function name int;
+        return 1
+function discard of (F) function to int; input F
+    return function int;
+        return 7
+function run of (T implements named) int; item T
+    f = function int;
+        return item.name;
+    g = discard; f
+    return g;
+function test-scenario;
+    print; (run; (instance value;))
