@@ -1189,12 +1189,30 @@ fn analyze_parsed_with_projection(
     super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);
-    // Validate constructor places before tracking transfers into them: a repeated
-    // required-field write is invalid independently of its RHS ownership.
-    super::initialization::validate(&mut semantic)?;
     // Exact callable captures can make an environment noncopyable. Validate
     // transfers only after effect inference has refreshed binding types.
-    validate_moves(&semantic)?;
+    if let Err(ownership) = validate_moves(&semantic) {
+        // A required destination's repeated write takes precedence over a moved
+        // operand of that same assignment. Keep unrelated initialization errors
+        // in their established phase after call and availability validation.
+        if let Err(initialization) = super::initialization::validate(&mut semantic)
+            && initialization.diagnostics.iter().any(|diagnostic| {
+                diagnostic.code == "T0222"
+                    && diagnostic.primary.is_some_and(|target| {
+                        ownership.diagnostics.iter().any(|diagnostic| {
+                            diagnostic.primary.is_some_and(|operand| {
+                                target.file == operand.file
+                                    && target.start <= operand.start
+                                    && operand.end <= target.end
+                            })
+                        })
+                    })
+            })
+        {
+            return Err(initialization);
+        }
+        return Err(ownership);
+    }
     super::ownership::validate_native_captures(&semantic)?;
     analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
@@ -1212,6 +1230,7 @@ fn analyze_parsed_with_projection(
     validate_referenced_replacements(&semantic)?;
     super::generic_recursion::validate(&semantic)?;
     validate_discarded_temporary_mutations(&semantic)?;
+    super::initialization::validate(&mut semantic)?;
     validate_suspension_ownership(&semantic)?;
     validate_task_consumption(&semantic)?;
     super::task_groups::validate_task_groups(&semantic)?;
