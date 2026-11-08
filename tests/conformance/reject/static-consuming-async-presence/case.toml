@@ -1,4 +1,3 @@
 phase = "check"
 status = "reject"
 code = "T0135"
-contains = "static consuming callable fields cannot be read or moved"

@@ -1341,7 +1341,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     unit,
                     child,
                     moved,
-                    index == 0,
+                    index == 0 && ungroup(child).kind == SyntaxKind::StaticMemberExpression,
                     resource_objects,
                     loop_exits,
                 )?;
