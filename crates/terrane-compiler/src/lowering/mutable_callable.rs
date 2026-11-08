@@ -17,13 +17,13 @@ pub(super) fn runtime(name: &str, types: &str, arguments: &str) -> String {
             body: std::sync::Mutex<std::boxed::Box<dyn {name}Body<{types}>>>,
         }}
         impl<{types}> {name}<{types}> {{
-            fn new<Function>(function: Function) -> Self
+            pub fn new<Function>(function: Function) -> Self
             where Function: FnMut({arguments}) -> Output + Clone + Send + 'static {{
                 Self {{ body: std::sync::Mutex::new(std::boxed::Box::new(function)) }}
             }}
             // Semantic mode checking provides exclusive invocation. Clone forks
             // the environment instead of sharing the callable's mutex/state.
-            fn call(&self, arguments: {arguments}) -> Output {{
+            pub fn call(&self, arguments: {arguments}) -> Output {{
                 self.body.lock().expect("mutable callable lock poisoned").call(arguments)
             }}
         }}
