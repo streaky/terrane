@@ -20,6 +20,17 @@ enum WithLayout {
     Complete,
 }
 
+#[derive(Clone, Copy)]
+struct ParenLayout {
+    baseline: usize,
+    indent_depth: usize,
+    active: bool,
+    function_header: bool,
+    call_line_indent: Option<usize>,
+    previous_line_indent: usize,
+    implicit_baseline: bool,
+}
+
 /// Tokenizes one UTF-8 Terrane source file.
 ///
 /// # Errors
@@ -56,6 +67,8 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut parenthesis_depth = 0usize;
     let mut with_layout = WithLayout::default();
     let mut parenthesis_kinds = Vec::new();
+    let mut layout_parens = Vec::<ParenLayout>::new();
+    let mut pending_layout_newline = None;
     // A field-operation block restores statement layout even inside an
     // otherwise layout-free parenthesized argument list.
     let mut brace_parentheses = Vec::new();
@@ -170,6 +183,58 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     &mut tokens,
                     &mut diagnostics,
                 );
+            } else if parenthesis_depth > 0
+                && let Some(code) = code_after_comments(line, indent, block_comment_start.is_some())
+                && let Some(scope) = layout_parens.last_mut()
+            {
+                let begins_chain = code.starts_with('.') && indent > scope.previous_line_indent;
+                let follows_call = scope.call_line_indent.is_some_and(|level| indent > level);
+                if !scope.active
+                    && !scope.function_header
+                    && indent > scope.baseline
+                    && (begins_chain || follows_call)
+                {
+                    scope.active = true;
+                    scope.baseline = scope.previous_line_indent;
+                    if indent_stack
+                        .last()
+                        .is_some_and(|level| *level < scope.baseline)
+                    {
+                        indent_stack.push(scope.baseline);
+                        scope.implicit_baseline = true;
+                    }
+                }
+                scope.call_line_indent = None;
+                scope.previous_line_indent = indent;
+                if scope.active {
+                    if let Some((start, end)) = pending_layout_newline.take() {
+                        push_token(
+                            source,
+                            &mut tokens,
+                            TokenKind::Newline,
+                            start,
+                            end,
+                            Attachment::Detached,
+                        );
+                    }
+                    if !code.starts_with(')') {
+                        check_indent(
+                            source,
+                            offset,
+                            &line.as_bytes()[..indent],
+                            &mut indent_style,
+                            &mut diagnostics,
+                        );
+                        emit_indentation(
+                            source,
+                            offset,
+                            indent,
+                            &mut indent_stack,
+                            &mut tokens,
+                            &mut diagnostics,
+                        );
+                    }
+                }
             }
             let token_count = tokens.len();
             lex_line(
@@ -218,6 +283,11 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                             with_layout = layout;
                         }
                     }
+                    TokenKind::Semicolon if parenthesis_depth > 0 => {
+                        if let Some(scope) = layout_parens.last_mut() {
+                            scope.call_line_indent = Some(indent);
+                        }
+                    }
                     TokenKind::Assign if parenthesis_depth == 0 => {
                         if matches!(with_layout, WithLayout::Modifiers) {
                             with_layout = WithLayout::Initializer;
@@ -231,6 +301,19 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                             with_layout = WithLayout::None;
                         } else {
                             parenthesis_depth += 1;
+                            layout_parens.push(ParenLayout {
+                                baseline: indent,
+                                indent_depth: indent_stack.len(),
+                                active: false,
+                                call_line_indent: None,
+                                previous_line_indent: indent,
+                                implicit_baseline: false,
+                                function_header: tokens[..index]
+                                    .iter()
+                                    .rev()
+                                    .take_while(|token| token.kind != TokenKind::Newline)
+                                    .any(|token| token.text == "function"),
+                            });
                             if matches!(with_layout, WithLayout::Initializer) {
                                 with_layout = WithLayout::Grouped(parenthesis_depth);
                             }
@@ -238,6 +321,29 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     }
                     TokenKind::CloseParen => {
                         if !parenthesis_kinds.pop().unwrap_or(false) {
+                            if let Some(scope) = layout_parens.pop() {
+                                let floor =
+                                    scope.indent_depth + usize::from(scope.implicit_baseline);
+                                while indent_stack.len() > floor {
+                                    indent_stack.pop();
+                                    let position = tokens[index].span.start;
+                                    tokens.insert(
+                                        index,
+                                        Token {
+                                            kind: TokenKind::Dedent,
+                                            span: Span::new(source.id(), position, position),
+                                            text: String::new(),
+                                            attachment: Attachment::Detached,
+                                        },
+                                    );
+                                    index += 1;
+                                }
+                                if scope.implicit_baseline
+                                    && indent_stack.len() > scope.indent_depth
+                                {
+                                    indent_stack.pop();
+                                }
+                            }
                             if matches!(with_layout, WithLayout::Grouped(depth) if depth == parenthesis_depth)
                             {
                                 with_layout = WithLayout::Complete;
@@ -262,20 +368,24 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 rust_block = Some((indent, None));
             }
         }
-        if raw.ends_with('\n') && parenthesis_depth == 0 {
-            if block_string.is_some() {
-                block_terminator = Some((offset + line.len(), offset + raw.len()));
+        if raw.ends_with('\n') {
+            if parenthesis_depth == 0 {
+                if block_string.is_some() {
+                    block_terminator = Some((offset + line.len(), offset + raw.len()));
+                } else {
+                    push_token(
+                        source,
+                        &mut tokens,
+                        TokenKind::Newline,
+                        offset + line.len(),
+                        offset + raw.len(),
+                        Attachment::Detached,
+                    );
+                }
+                with_layout = WithLayout::None;
             } else {
-                push_token(
-                    source,
-                    &mut tokens,
-                    TokenKind::Newline,
-                    offset + line.len(),
-                    offset + raw.len(),
-                    Attachment::Detached,
-                );
+                pending_layout_newline = Some((offset + line.len(), offset + raw.len()));
             }
-            with_layout = WithLayout::None;
         }
         offset += raw.len();
     }
@@ -1012,28 +1122,28 @@ fn emit_indentation(
 /// Reports whether a line contributes source outside comments, which is the only
 /// case where it participates in indentation.
 fn carries_code(line: &str, indent: usize, in_block_comment: bool) -> bool {
+    code_after_comments(line, indent, in_block_comment).is_some()
+}
+
+fn code_after_comments(line: &str, indent: usize, in_block_comment: bool) -> Option<&str> {
     let mut rest = if in_block_comment {
         line
     } else {
         &line[indent..]
     };
     if in_block_comment {
-        let Some(end) = rest.find("*/") else {
-            return false;
-        };
+        let end = rest.find("*/")?;
         rest = &rest[end + 2..];
     }
     loop {
         rest = rest.trim_start();
         if rest.is_empty() || rest.starts_with('#') || rest.starts_with("//") {
-            return false;
+            return None;
         }
         let Some(after) = rest.strip_prefix("/*") else {
-            return true;
+            return Some(rest);
         };
-        let Some(end) = after.find("*/") else {
-            return false;
-        };
+        let end = after.find("*/")?;
         rest = &after[end + 2..];
     }
 }

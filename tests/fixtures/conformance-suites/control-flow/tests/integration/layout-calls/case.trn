@@ -1,0 +1,59 @@
+namespace layout-calls
+
+function observed string; value string
+    print; value
+    return value
+
+function combine string; first string, second string
+    return first + ':' + second
+
+async function deferred string; value string
+    return value
+
+class scheduled-message
+    text string = ''
+
+    function construct; text string = ''
+        this.text = text
+
+    function with-text scheduled-message; text string
+        return instance scheduled-message; text
+
+    async function wait string;
+        return this.text
+
+async function test-scenario;
+    text = '  hello world  '
+    result = text
+        .trim;
+        .replace;
+            observed; 'world'
+            replacement = observed; 'Terrane'
+        .upper;
+    print; result
+    print; text
+    print; (combine;
+        observed; 'left'
+        observed; 'right')
+    print;
+        combine;
+            'nested'
+            'calls'
+    text-result = await deferred;
+        '  ready  '
+            .trim;
+            .upper;
+    print; text-result
+    literal = 'unused'
+        .replace;
+            'unused'
+            >>
+                .not-a-call;
+        .upper;
+    print; literal
+    message = instance scheduled-message;
+    ready = await message
+        .with-text;
+            'async-chain'
+        .wait;
+    print; ready

@@ -14,6 +14,9 @@ mod modifiers;
 #[path = "parser/structured_assignment.rs"]
 mod structured_assignment;
 
+#[path = "parser/call_layout.rs"]
+mod call_layout;
+
 /// The recovered syntax tree and any source-oriented syntax diagnostics.
 #[derive(Clone, Debug)]
 pub struct ParseOutput {
@@ -35,6 +38,7 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         class_body_depth: usize::MAX,
         associated_body_depth: usize::MAX,
         semicolon_boundary: false,
+        layout_header: false,
         diagnostics: Vec::new(),
     };
     let mut root = parser.parse_compilation_unit();
@@ -54,6 +58,7 @@ struct Parser<'source> {
     class_body_depth: usize,
     associated_body_depth: usize,
     semicolon_boundary: bool,
+    layout_header: bool,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -90,6 +95,11 @@ impl Parser<'_> {
             );
             self.skip_newlines();
         }
+        let previous_header = self.layout_header;
+        self.layout_header = matches!(
+            self.text(),
+            "if" | "while" | "for" | "switch" | "match" | "select"
+        );
         let mut declaration = self.parse_unannotated_statement();
         if !(annotations.is_empty()
             || matches!(
@@ -105,6 +115,7 @@ impl Parser<'_> {
             );
         }
         declaration.annotation_applications = annotations;
+        self.layout_header = previous_header;
         declaration
     }
 
@@ -1683,6 +1694,9 @@ impl Parser<'_> {
         {
             value = self.parse_initialization_block(start, value);
         }
+        if allow_call && !self.layout_header {
+            value = self.parse_call_layout(start, value);
+        }
         value
     }
 
@@ -1769,6 +1783,10 @@ impl Parser<'_> {
     fn parse_argument_list(&mut self) -> SyntaxNode {
         let start = self.position;
         let grouped = self.parenthesis_delimits_argument_list() && self.eat(TokenKind::OpenParen);
+        let previous_header = self.layout_header;
+        if grouped {
+            self.layout_header = false;
+        }
         let mut children = Vec::new();
         while !(self.at_expression_end() || grouped && self.at(TokenKind::CloseParen)) {
             let argument_start = self.position;
@@ -1777,7 +1795,10 @@ impl Parser<'_> {
                 parts.push(self.leaf(SyntaxKind::Name));
                 self.bump();
             }
+            let argument_header = self.layout_header;
+            self.layout_header |= !grouped;
             parts.push(self.parse_expression(0, grouped));
+            self.layout_header = argument_header;
             children.push(self.node(SyntaxKind::Argument, argument_start, self.position, parts));
             if !self.eat(TokenKind::Comma) {
                 break;
@@ -1790,6 +1811,10 @@ impl Parser<'_> {
                 "expected `)` after call arguments",
             );
         }
+        if !grouped && !self.layout_header {
+            self.parse_layout_arguments(&mut children);
+        }
+        self.layout_header = previous_header;
         self.node(SyntaxKind::ArgumentList, start, self.position, children)
     }
 
@@ -1869,7 +1894,10 @@ impl Parser<'_> {
             TokenKind::OpenParen => {
                 let start = self.position;
                 self.bump();
+                let previous_header = self.layout_header;
+                self.layout_header = false;
                 let expression = self.parse_expression(0, true);
+                self.layout_header = previous_header;
                 self.expect(
                     TokenKind::CloseParen,
                     "S1018",

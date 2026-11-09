@@ -25,7 +25,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear, consult the canonical
 | build-time tools and source generation | `BUILD_TIME_TOOLS` | Explicit package tools, consumers, freshness, and editor preparation; manual `tool.build-time-tools` |
 | declaration annotations/documentation metadata | `ANNOTATIONS` | Declaration annotations and documentation metadata; manual `lang.declarations.annotations`, milestone 31.0 |
 | compiler work | `COMPILER` | §§26–33, 36, 38 |
-| unsettled/deferred | `OPEN`, `DEFERRED` | §§40, 42 |
+| call/chain layout | `CALL LAYOUT` | Canonical authority: `lang.functions.call-layout`; lexer/parser mechanics: `internals.parser.call-layout` |
 | constitutional rules | `INVARIANT` | §41 |
 
 ## STATUS
@@ -208,7 +208,18 @@ buffer.clear;                  # zero-arg instance-member call
 widget::default;               # zero-arg static-member call
 instance widget;               # zero-arg class construction
 print; render                  # a bare name passes the object
-print; (render; report)        # nested call MUST be grouped
+print; (render; report)        # inline nested call is grouped
+outer;
+  inner;                       # nested call at argument-line root
+    'first'
+    label = 'second'
+  final = 3
+result = message
+  .with-text;
+    'ready'
+  .after;
+    (milliseconds; 1)
+  .wait;
 ```
 
 Rules:
@@ -222,9 +233,12 @@ construction: ordinary class construction is `instance class; arguments`; `throw
 member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
-arguments: one comma-separated list; optional '(' immediately after ';' delimits wrapping
-argument_layout: parentheses are general explicit expression continuation; newline/indent/comments and block strings inside remain non-structural; closing outermost ')' restores logical-line termination
-argument_calls: ungrouped calls forbidden; delimited argument list admits nested calls
+arguments: comma-separated inline list; deeper logical lines add one complete argument each; an indented argument-line root may be a nested call
+argument_layout: a deeper argument line follows a call-marker line in the same scope; in parentheses its indentation must also exceed the opener baseline; closing ')' bounds it
+argument_calls: nested calls inline require grouping; nested call at root of an indented argument line is supported
+chain_layout: first deeper line begins '.' and continues the receiver result; inside parentheses it must also be deeper than the preceding substantive line, then sibling stages align after argument dedent; call stages still require ';'; never an operator or implicit conjunction
+layout_trivia: blank/comment-only lines are neutral; > and >> text remains opaque; indentation follows consistent file prefix style, not editor tab stops
+layout_headers: block-bearing if/while/for/switch/match/select headers reserve following indentation for statement bodies; use explicit parentheses for layout calls/chains inside headers
 three_clause_for: its semicolons belong to for; calls in clauses parenthesized
 evaluation: left-to-right
 receiver: evaluated before selection
@@ -1447,7 +1461,7 @@ Must reject with source-oriented help:
 print render             -> adjacency is not invocation; suggest member attachment or `print; render`
 count-1                   -> lexical attached digits-only suffix; suggest `count - 1`
 a+ b                      -> undeclared left-attached/postfix operator
-nested; other; value      -> nested call must be parenthesized
+nested; other; value      -> inline nested call must be grouped; argument-line-root calls may use layout
 for x=(call; a);...       -> calls in for clauses grouped
 foo                       -> unresolved name when not imported or declared
 value .member             -> invalid; whitespace before a member dot
@@ -1542,8 +1556,8 @@ Before writing Terrane:
 3. Import explicitly; `as` renames. Imports bind ordinary names directly.
 4. Preserve compact punctuated identifiers; put spaces around infix operators.
 5. Use `;` for every call, including zero args.
-6. Prefer one call per statement. A single parenthesised call in an argument list is ordinary; two or more should be bound to named intermediates. Nesting is legal but obscures evaluation order, accumulates meaningless parentheses, and leaves diagnostics and traces pointing at an anonymous subexpression.
-6. Parenthesize nested calls and calls in three-clause `for` clauses.
+6. Prefer one call per statement when statements are independent. Use chain or argument layout for expressions that genuinely compose calls; avoid needless nesting and use named intermediates when their values are ordinary and storable.
+6. Parenthesize nested calls written inline and calls in three-clause `for` clauses; a nested call at the root of an indented argument line is the layout exception.
 7. Use indentation; empty block is legal.
 8. Write type after name; use `T|none`; canonical constructors use `of`.
 9. Let a single numeric destination perform its exact-or-throw conversion; write `coerce` or a rounding member when selecting a different policy. Never assume foreign conversion.
