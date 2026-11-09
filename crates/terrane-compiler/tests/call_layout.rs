@@ -350,3 +350,135 @@ fn anonymous_parameter_headers_do_not_consume_their_body_as_argument_wrapping() 
         "x = apply; (function string; value string = 'ready'\n    return value)\n",
     );
 }
+
+#[test]
+fn inline_call_columns_seal_same_level_arguments_and_separators() {
+    equivalent(
+        "x = wrap;\n    opt; 'a',\n    'b'\n",
+        "x = wrap; (opt; 'a'), 'b'\n",
+    );
+    equivalent(
+        "x = wrap;\n    opt; 'a', 'b'\n",
+        "x = wrap; (opt; 'a', 'b')\n",
+    );
+    equivalent(
+        "x = wrap;\n    opt; 'a', 'b',\n    'c'\n",
+        "x = wrap; (opt; 'a', 'b'), 'c'\n",
+    );
+    equivalent(
+        "x = wrap;\n    opt; 'a',\n        'b'\n",
+        "x = wrap; (opt; 'a', 'b')\n",
+    );
+    equivalent(
+        "x = wrap;\n    opt; 'a',\n        'b'\n    'c'\n",
+        "x = wrap; (opt; 'a', 'b'), 'c'\n",
+    );
+    equivalent(
+        "x = wrap;\n\topt; 'a',\n\t# next outer argument\n\n\t'b'\n",
+        "x = wrap; (opt; 'a'), 'b'\n",
+    );
+}
+
+#[test]
+fn explicit_parentheses_override_inline_call_columns() {
+    equivalent(
+        "x = wrap;\n    (opt; 'a',\n    'b'),\n    'c'\n",
+        "x = wrap; (opt; 'a', 'b'), 'c'\n",
+    );
+    equivalent(
+        "x = (wrap;\n    opt; 'a',\n    'b')\n",
+        "x = wrap; (opt; 'a', 'b')\n",
+    );
+    equivalent(
+        "x = wrap;\n    opt; ('a' +\n    'b'),\n    'c'\n",
+        "x = wrap; (opt; ('a' + 'b')), 'c'\n",
+    );
+}
+
+#[test]
+fn nested_separator_spans_belong_to_their_actual_argument_list() {
+    fn collect(node: &SyntaxNode, tree: &SyntaxTree, out: &mut Vec<(String, usize)>) {
+        if node.kind == SyntaxKind::CallExpression {
+            let name = &tree.lexed.tokens[node.children[0].token_range.start].text;
+            out.extend(
+                node.children[1]
+                    .argument_separators(&tree.lexed)
+                    .map(|span| (name.clone(), span.start)),
+            );
+        }
+        for child in &node.children {
+            collect(child, tree, out);
+        }
+    }
+    let source = "x = wrap;\n    opt; 'a', 'b',\n    'c'\n";
+    let tree = parsed(source);
+    let mut separators = Vec::new();
+    collect(&tree.root, &tree, &mut separators);
+    separators.sort_by_key(|(_, offset)| *offset);
+    assert_eq!(
+        separators,
+        [
+            ("opt".to_owned(), source.find(',').unwrap()),
+            ("wrap".to_owned(), source.rfind(',').unwrap()),
+        ]
+    );
+}
+
+#[test]
+fn column_sealing_still_requires_outer_separators() {
+    for source in [
+        "x = wrap;\n    opt; 'a'\n    'b'\n",
+        "x = outer;\n    inner;\n        1,\n        2,\n    3\n",
+        "x = wrap;\n    opt; 'a',\n",
+    ] {
+        let file = SourceFile::new(0, "layout.trn".into(), source.to_owned());
+        let output = parse(&file, lex(&file).unwrap());
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "S1122"),
+            "{source}: {:?}",
+            output.diagnostics
+        );
+        assert!(
+            !output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "S1016")
+        );
+    }
+}
+
+#[test]
+fn text_marker_mistakes_explain_the_call_argument_boundary() {
+    let source = SourceFile::new(
+        0,
+        "layout.trn".into(),
+        "x = outer;\n    inner; 'a'\n    >second text\n".to_owned(),
+    );
+    let output = parse(&source, lex(&source).unwrap());
+    let diagnostic = output
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "S1122")
+        .unwrap();
+    assert!(
+        diagnostic
+            .help
+            .as_ref()
+            .is_some_and(|help| help.contains("comparison") && help.contains("`,`"))
+    );
+    let ordinary = SourceFile::new(
+        0,
+        "layout.trn".into(),
+        "x = outer;\n    1\n    2\n".to_owned(),
+    );
+    let output = parse(&ordinary, lex(&ordinary).unwrap());
+    let diagnostic = output
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "S1122")
+        .unwrap();
+    assert_eq!(diagnostic.help, None);
+}

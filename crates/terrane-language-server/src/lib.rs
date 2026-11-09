@@ -22,8 +22,9 @@ use tower_lsp_server::ls_types::{
     DocumentChanges, DocumentFormattingParams, DocumentSymbol, DocumentSymbolParams,
     DocumentSymbolResponse, Documentation, GotoDefinitionParams, GotoDefinitionResponse, Hover,
     HoverContents, HoverParams, HoverProviderCapability, ImplementationProviderCapability,
-    InitializeParams, InitializeResult, InitializedParams, Location as LspLocation, MarkedString,
-    MessageType, NumberOrString, OneOf, OptionalVersionedTextDocumentIdentifier,
+    InitializeParams, InitializeResult, InitializedParams, InlayHint, InlayHintKind,
+    InlayHintOptions, InlayHintParams, InlayHintServerCapabilities, Location as LspLocation,
+    MarkedString, MessageType, NumberOrString, OneOf, OptionalVersionedTextDocumentIdentifier,
     ParameterInformation, ParameterLabel, Position, PositionEncodingKind, Range, ReferenceParams,
     RenameParams, SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
@@ -357,6 +358,9 @@ impl LanguageServer for Backend {
                     trigger_characters: Some(vec![";".to_owned()]),
                     ..Default::default()
                 }),
+                inlay_hint_provider: Some(OneOf::Right(InlayHintServerCapabilities::Options(
+                    InlayHintOptions::default(),
+                ))),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 rename_provider: Some(OneOf::Left(true)),
@@ -557,15 +561,23 @@ impl LanguageServer for Backend {
             .lock()
             .expect("position encoding lock")
             .clone();
-        if let Some(offset) = byte_offset(&document.text, position, &encoding)
-            && let Some(signature) = self
-                .tooling
-                .lock()
-                .expect("tooling engine lock")
-                .signature_help(&document.snapshot_id, &uri.to_string(), offset)
-                .ok()
-                .flatten()
-        {
+        let Some(offset) = byte_offset(&document.text, position, &encoding) else {
+            return Ok(None);
+        };
+        let (signature, context) = {
+            let tooling = self.tooling.lock().expect("tooling engine lock");
+            (
+                tooling
+                    .signature_help(&document.snapshot_id, &uri.to_string(), offset)
+                    .ok()
+                    .flatten(),
+                tooling
+                    .call_argument_context(&document.snapshot_id, &uri.to_string(), offset)
+                    .ok()
+                    .flatten(),
+            )
+        };
+        if let Some(signature) = signature {
             let active_parameter = signature
                 .active_parameter
                 .map(|active| u32::try_from(active).unwrap_or(u32::MAX));
@@ -589,7 +601,49 @@ impl LanguageServer for Backend {
                 active_parameter,
             }));
         }
-        Ok(projected_signature_help(&uri, &document.text, position).await)
+        let Some(context) = context else {
+            return Ok(None);
+        };
+        Ok(projected_signature_help(&uri, &document.text, &context).await)
+    }
+
+    async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
+        let uri = params.text_document.uri;
+        let Some(document) = self.semantic_document(&uri).await else {
+            return Ok(None);
+        };
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        let (Some(start), Some(end)) = (
+            byte_offset(&document.text, params.range.start, &encoding),
+            byte_offset(&document.text, params.range.end, &encoding),
+        ) else {
+            return Ok(None);
+        };
+        let hints = self
+            .tooling
+            .lock()
+            .expect("tooling engine lock")
+            .parameter_inlay_hints(&document.snapshot_id, &uri.to_string(), start, end)
+            .unwrap_or_default();
+        Ok(Some(
+            hints
+                .into_iter()
+                .map(|hint| InlayHint {
+                    position: position_for_offset(&document.text, hint.offset, &encoding),
+                    label: hint.label.into(),
+                    kind: Some(InlayHintKind::PARAMETER),
+                    text_edits: None,
+                    tooltip: None,
+                    padding_left: None,
+                    padding_right: None,
+                    data: None,
+                })
+                .collect(),
+        ))
     }
 
     async fn goto_definition(
@@ -1478,26 +1532,13 @@ fn imported_dependency_item<'a>(text: &'a str, name: &str) -> Option<(&'a str, &
     })
 }
 
-fn construction_call_before(text: &str, position: Position) -> bool {
-    line_prefix(text, position)
-        .and_then(|prefix| prefix.rsplit_once(';'))
-        .is_some_and(|(callee, _)| {
-            let mut words = callee
-                .rsplit(|character: char| {
-                    !(character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
-                })
-                .filter(|word| !word.is_empty());
-            words.next().is_some() && words.next() == Some("instance")
-        })
-}
-
 async fn projected_signature_help(
     uri: &Uri,
     text: &str,
-    position: Position,
+    context: &terrane_compiler::tooling::CallArgumentContext,
 ) -> Option<SignatureHelp> {
     use terrane_compiler::rust_interop::projection::{ProjectedKind, ProjectedType};
-    let name = call_name_before(text, position)?;
+    let name = context.callee_name.as_str();
     let projection = projection_for_uri(uri, text).await?;
     let imported = imported_dependency_item(text, name);
     let namespace = imported.map(|(namespace, _)| namespace);
@@ -1518,7 +1559,7 @@ async fn projected_signature_help(
             fields,
             constructor,
             ..
-        } if construction_call_before(text, position) => constructor.as_ref().map_or_else(
+        } if context.construction => constructor.as_ref().map_or_else(
             || {
                 fields
                     .iter()
@@ -1540,6 +1581,21 @@ async fn projected_signature_help(
             .collect(),
         _ => return None,
     };
+    let names = parameters
+        .iter()
+        .filter_map(|parameter| match &parameter.label {
+            ParameterLabel::Simple(label) => label.split_once(' ').map(|(name, _)| name),
+            ParameterLabel::LabelOffsets(_) => None,
+        })
+        .collect::<Vec<_>>();
+    let active_parameter = context
+        .argument_name
+        .as_deref()
+        .and_then(|name| names.iter().position(|candidate| *candidate == name))
+        .or_else(|| {
+            (!parameters.is_empty()).then_some(context.positional_index.min(parameters.len() - 1))
+        })
+        .map(|index| u32::try_from(index).unwrap_or(u32::MAX));
     let label = format!(
         "{name}; {}",
         parameters
@@ -1556,10 +1612,10 @@ async fn projected_signature_help(
             label,
             documentation: None,
             parameters: Some(parameters),
-            active_parameter: None,
+            active_parameter,
         }],
         active_signature: Some(0),
-        active_parameter: Some(0),
+        active_parameter,
     })
 }
 
@@ -1592,18 +1648,6 @@ fn word_at(text: &str, position: Position) -> Option<&str> {
         .find(|(_, character)| !is_name(*character))
         .map_or(line.len(), |(index, _)| byte + index);
     (start < end).then_some(&line[start..end])
-}
-
-fn call_name_before(text: &str, position: Position) -> Option<&str> {
-    let prefix = line_prefix(text, position)?;
-    let callee = prefix.rsplit_once(';')?.0.trim_end();
-    callee
-        .rsplit(|character: char| {
-            !(character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.'))
-        })
-        .next()?
-        .rsplit('.')
-        .next()
 }
 
 fn line_prefix(text: &str, position: Position) -> Option<&str> {

@@ -556,19 +556,28 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
     assert!(child.wait().unwrap().success());
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one server session verifies projected constructor navigation, signature help and parameter hints"
+)]
 #[test]
 fn projected_constructor_selection_serves_semantic_hover() {
     let source_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/conformance/run/projected-constructor-selected-native/src/main.trn")
         .canonicalize()
         .unwrap();
+    let uri = format!("file://{}", source_path.display());
     let text = std::fs::read_to_string(&source_path)
         .unwrap()
         .replace("Address, Envelope,", "Address, Envelope as Packet,")
         .replace("instance Envelope;", "instance Packet;")
         .replace("envelope Envelope =", "envelope Packet =")
-        .replace("Envelope of ", "Packet of ");
-    let uri = format!("file://{}", source_path.display());
+        .replace("Envelope of ", "Packet of ")
+        .replacen(
+            "print; (address_port; envelope)",
+            "print; (address_port;\n        envelope)",
+            1,
+        );
     let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -580,7 +589,11 @@ fn projected_constructor_selection_serves_semantic_hover() {
         &mut stdin,
         &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}),
     );
-    let _ = receive_response(&mut stdout, 1);
+    let initialized = receive_response(&mut stdout, 1);
+    assert!(
+        initialized["result"]["capabilities"]["inlayHintProvider"].is_object(),
+        "{initialized}"
+    );
     send(
         &mut stdin,
         &json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
@@ -622,7 +635,7 @@ fn projected_constructor_selection_serves_semantic_hover() {
         .enumerate()
         .find(|(_, line)| line.contains("address_port; envelope"))
         .unwrap();
-    let position = json!({"line":line,"character":usage.rfind("envelope").unwrap()+1});
+    let position = json!({"line":line,"character":usage.find("address_port").unwrap()+1});
     send(
         &mut stdin,
         &json!({
@@ -633,14 +646,217 @@ fn projected_constructor_selection_serves_semantic_hover() {
     let hover = receive_response(&mut stdout, 3);
     let content = hover["result"]["contents"].as_str().unwrap();
     assert!(
-        content.contains("Envelope") && content.contains("Address"),
+        content.contains("address_port") && content.contains("Envelope"),
         "{hover}"
+    );
+    let (argument_line, argument) = text
+        .lines()
+        .enumerate()
+        .find(|(_, line)| line.trim() == "envelope)")
+        .unwrap();
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":4,"method":"textDocument/signatureHelp",
+            "params":{"textDocument":{"uri":uri},"position":{"line":argument_line,"character":argument.find("envelope").unwrap()+1}}
+        }),
+    );
+    let projected_signature = receive_response(&mut stdout, 4);
+    assert!(
+        projected_signature["result"]["signatures"][0]["label"]
+            .as_str()
+            .is_some_and(|label| label.contains("address_port")),
+        "{projected_signature}"
+    );
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":6,"method":"textDocument/inlayHint",
+            "params":{"textDocument":{"uri":uri},"range":{"start":{"line":0,"character":0},"end":{"line":text.lines().count().saturating_sub(1),"character":text.lines().last().unwrap().encode_utf16().count()}}}
+        }),
+    );
+    let hints = receive_response(&mut stdout, 6);
+    assert!(
+        hints["result"].as_array().is_some_and(|hints| {
+            hints.iter().any(|hint| {
+                hint["kind"] == 2
+                    && hint["label"]
+                        .as_str()
+                        .is_some_and(|label| label.contains("address_port"))
+            })
+        }),
+        "{hints}"
     );
     send(
         &mut stdin,
         &json!({"jsonrpc":"2.0","id":5,"method":"shutdown","params":null}),
     );
     let _ = receive_response(&mut stdout, 5);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"exit","params":null}),
+    );
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one server session verifies signature and hint ownership across the call-layout matrix"
+)]
+#[test]
+fn call_layout_signature_and_hints_follow_separator_owner() {
+    let text = r"namespace call-layout
+
+function opt string; a string, b string = ''
+    return a
+
+function wrap string; a string, b string = ''
+    return a
+
+function main;
+    s1 = wrap;
+        opt; 'a',
+        'b'
+    s4 = wrap;
+        opt; 'a', 'b'
+    mixed = wrap;
+        opt; 'a',
+            'b'
+    e1 = wrap; (opt; 'a'), 'b'
+    named = wrap; b = 'outer', a = 'inner'
+";
+    let uri = "file:///tmp/call-layout-protocol.trn";
+    let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}),
+    );
+    let initialized = receive_response(&mut stdout, 1);
+    assert!(initialized["result"]["capabilities"]["inlayHintProvider"].is_object());
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
+    );
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","method":"textDocument/didOpen",
+            "params":{"textDocument":{"uri":uri,"languageId":"terrane","version":1,"text":text}}
+        }),
+    );
+    let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
+    assert_eq!(
+        diagnostics["params"]["diagnostics"],
+        json!([]),
+        "{diagnostics}"
+    );
+
+    let position = |offset: usize| {
+        let prefix = &text[..offset];
+        let line = prefix.bytes().filter(|byte| *byte == b'\n').count();
+        let character = prefix
+            .rsplit_once('\n')
+            .map_or(prefix.len(), |(_, line)| line.len());
+        json!({"line":line,"character":character})
+    };
+    let mut next_id = 2_u64;
+    let s1 = text.find("opt; 'a',").unwrap();
+    let s4 = text.find("s4 = wrap;").unwrap();
+    let s4 = s4 + text[s4..].find("opt; 'a', 'b'").unwrap();
+    let mixed = text.find("mixed = wrap;").unwrap();
+    let mixed = mixed + text[mixed..].find("opt; 'a',").unwrap();
+    let e1_comma = text.find("), 'b'").unwrap() + 1;
+    for (offset, callee, active) in [
+        (s1 + "opt; 'a',".rfind(',').unwrap(), "wrap", 0),
+        (s1 + "opt; 'a',".rfind(',').unwrap() + 1, "wrap", 1),
+        (s4 + "opt; 'a', 'b'".rfind(',').unwrap(), "opt", 0),
+        (s4 + "opt; 'a', 'b'".rfind(',').unwrap() + 1, "opt", 1),
+        (mixed + "opt; 'a',".rfind(',').unwrap(), "opt", 0),
+        (mixed + "opt; 'a',".rfind(',').unwrap() + 1, "opt", 1),
+        (e1_comma + 1, "wrap", 1),
+    ] {
+        send(
+            &mut stdin,
+            &json!({
+                "jsonrpc":"2.0","id":next_id,"method":"textDocument/signatureHelp",
+                "params":{"textDocument":{"uri":uri},"position":position(offset)}
+            }),
+        );
+        let response = receive_response(&mut stdout, next_id);
+        assert!(
+            response["result"]["signatures"][0]["label"]
+                .as_str()
+                .is_some_and(|label| label.starts_with(&format!("{callee}("))),
+            "{response}"
+        );
+        assert_eq!(response["result"]["activeParameter"], active, "{response}");
+        next_id += 1;
+    }
+    for (offset, active) in [
+        (e1_comma, 0),
+        (text.find("b = 'outer'").unwrap() + 1, 1),
+        (text.find("a = 'inner'").unwrap() + 1, 0),
+    ] {
+        send(
+            &mut stdin,
+            &json!({
+                "jsonrpc":"2.0","id":next_id,"method":"textDocument/signatureHelp",
+                "params":{"textDocument":{"uri":uri},"position":position(offset)}
+            }),
+        );
+        let response = receive_response(&mut stdout, next_id);
+        assert!(
+            response["result"]["signatures"][0]["label"]
+                .as_str()
+                .is_some_and(|label| label.starts_with("wrap(")),
+            "{response}"
+        );
+        assert_eq!(response["result"]["activeParameter"], active, "{response}");
+        next_id += 1;
+    }
+
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":next_id,"method":"textDocument/inlayHint",
+            "params":{"textDocument":{"uri":uri},"range":{"start":{"line":0,"character":0},"end":position(text.len().saturating_sub(1))}}
+        }),
+    );
+    let hints = receive_response(&mut stdout, next_id);
+    let hints = hints["result"].as_array().expect("inlay hints");
+    for (label, offset) in [
+        ("wrap.a:", text.find("opt;").unwrap()),
+        ("opt.a:", text.find("'a'").unwrap()),
+        ("wrap.b:", text.find("'b'").unwrap()),
+        (
+            "opt.b:",
+            text.find("opt; 'a', 'b'").unwrap() + "opt; 'a', ".len(),
+        ),
+        ("wrap.a:", text.find("(opt;").unwrap()),
+        ("opt.a:", text.find("'a')").unwrap()),
+        ("wrap.b:", text.find("b = 'outer'").unwrap()),
+        ("wrap.a:", text.find("a = 'inner'").unwrap()),
+    ] {
+        let expected = position(offset);
+        assert!(
+            hints
+                .iter()
+                .any(|hint| { hint["label"] == label && hint["position"] == expected }),
+            "missing {label} at {expected}: {hints:?}"
+        );
+    }
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":99,"method":"shutdown","params":null}),
+    );
+    let _ = receive_response(&mut stdout, 99);
     send(
         &mut stdin,
         &json!({"jsonrpc":"2.0","method":"exit","params":null}),

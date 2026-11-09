@@ -4,11 +4,74 @@ use super::{Parser, SyntaxKind, SyntaxNode, TokenKind};
 pub(super) struct ArgumentLayout {
     wrapping: usize,
     ended: bool,
+    column_calls: bool,
+    inline_column: Option<usize>,
 }
 
 impl Parser<'_> {
     pub(super) fn argument_ended(&self) -> bool {
         self.layout_argument.is_some_and(|layout| layout.ended)
+    }
+
+    pub(super) fn inline_call_column(&self) -> Option<usize> {
+        if self.argument_grouping != 0
+            || !self
+                .layout_argument
+                .is_some_and(|layout| layout.column_calls)
+        {
+            return None;
+        }
+        self.position
+            .checked_sub(1)
+            .and_then(|index| self.tokens.get(index))
+            .map(|token| self.source_indentation(token.span.start))
+    }
+
+    pub(super) fn set_inline_argument_column(&mut self, column: Option<usize>) -> Option<usize> {
+        self.layout_argument
+            .as_mut()
+            .and_then(|layout| std::mem::replace(&mut layout.inline_column, column))
+    }
+
+    pub(super) fn separator_ends_inline_call(&self) -> bool {
+        self.argument_grouping == 0
+            && self
+                .layout_argument
+                .and_then(|layout| layout.inline_column)
+                .is_some_and(|column| self.column_boundary_from(self.position + 1, column))
+    }
+
+    fn source_indentation(&self, offset: usize) -> usize {
+        let text = self.source.text();
+        let start = text[..offset].rfind('\n').map_or(0, |index| index + 1);
+        text.as_bytes()[start..]
+            .iter()
+            .take_while(|byte| matches!(byte, b' ' | b'\t'))
+            .count()
+    }
+
+    fn column_boundary_from(&self, from: usize, column: usize) -> bool {
+        let Some(previous) = from.checked_sub(1).and_then(|index| self.tokens.get(index)) else {
+            return false;
+        };
+        let mut wrapping = self.layout_argument.map_or(0, |layout| layout.wrapping);
+        for token in &self.tokens[from..] {
+            match token.kind {
+                TokenKind::Newline => {}
+                TokenKind::Indent => wrapping += 1,
+                TokenKind::Dedent if wrapping > 0 => wrapping -= 1,
+                TokenKind::Dedent
+                | TokenKind::Eof
+                | TokenKind::CloseParen
+                | TokenKind::CloseBracket
+                | TokenKind::CloseBrace => return false,
+                _ => {
+                    return self.source_indentation(token.span.start) <= column
+                        && self.source.text()[previous.span.end..token.span.start].contains('\n');
+                }
+            }
+        }
+        false
     }
 
     pub(super) fn parse_argument_name(&mut self) -> Option<SyntaxNode> {
@@ -58,6 +121,13 @@ impl Parser<'_> {
     pub(super) fn skip_argument_wrapping(&mut self) {
         while let Some(layout) = self.layout_argument {
             if layout.ended {
+                return;
+            }
+            if self.argument_grouping == 0
+                && layout
+                    .inline_column
+                    .is_some_and(|column| self.column_boundary_from(self.position, column))
+            {
                 return;
             }
             if self.at(TokenKind::Newline) {
@@ -119,6 +189,11 @@ impl Parser<'_> {
         Some((cursor, self.tokens.get(cursor)?.kind))
     }
 
+    pub(super) fn call_layout_start_is_arguments(&self) -> bool {
+        self.call_layout_start()
+            .is_some_and(|(_, kind)| kind != TokenKind::Dot)
+    }
+
     pub(super) fn parse_layout_arguments(
         &mut self,
         arguments: &mut Vec<SyntaxNode>,
@@ -134,7 +209,10 @@ impl Parser<'_> {
         if !arguments.is_empty() && preceding_comma.is_none() {
             self.error_here("S1122", "expected `,` between layout arguments");
         }
-        let outer = self.layout_argument.replace(ArgumentLayout::default());
+        let outer = self.layout_argument.replace(ArgumentLayout {
+            column_calls: true,
+            ..ArgumentLayout::default()
+        });
         while !matches!(
             self.current().kind,
             TokenKind::Dedent | TokenKind::Eof | TokenKind::CloseParen
@@ -166,6 +244,14 @@ impl Parser<'_> {
                 ) && !ended
                 {
                     self.error_here("S1122", "expected `,` between layout arguments");
+                    if arguments.last().is_some_and(|argument| {
+                        argument.has_line_leading_text_comparison(self.source.text())
+                    }) && let Some(diagnostic) = self.diagnostics.last_mut()
+                    {
+                        diagnostic.help = Some(
+                            "In a call argument, `>` after a completed operand is a comparison. Add `,` before a new text argument.".to_owned()
+                        );
+                    }
                     self.recover_line();
                     self.skip_newlines();
                 }

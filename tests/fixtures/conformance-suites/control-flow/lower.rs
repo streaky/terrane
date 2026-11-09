@@ -1758,6 +1758,25 @@ fn pick_terrane_layout_calls(
     );
     return None;
 }
+fn wrap(a: String, b: String) -> String {
+    return {
+        let mut __terrane_text = String::with_capacity(3);
+        __terrane_text.push_str("[");
+        terrane_scalar_support::ScalarDisplay::write_scalar(&a, &mut __terrane_text);
+        __terrane_text.push_str("|");
+        terrane_scalar_support::ScalarDisplay::write_scalar(&b, &mut __terrane_text);
+        __terrane_text.push_str("]");
+        __terrane_text
+    };
+}
+fn opt(v: String, w: String) -> String {
+    return {
+        let mut __terrane_text = String::with_capacity(0);
+        terrane_scalar_support::ScalarDisplay::write_scalar(&v, &mut __terrane_text);
+        terrane_scalar_support::ScalarDisplay::write_scalar(&w, &mut __terrane_text);
+        __terrane_text
+    };
+}
 fn test_scenario_terrane_layout_calls() {
     let text: String;
     let result: String;
@@ -1765,6 +1784,12 @@ fn test_scenario_terrane_layout_calls() {
     let wrapped_2: String;
     let wrapped_one: String;
     let picked: Option<std::sync::Arc<dyn Fn() -> String + Send + Sync>>;
+    let sealed: String;
+    let same_line: String;
+    let mixed: String;
+    let explicit: String;
+    let grouped: String;
+    let named: String;
     text = String::from("  hello world  ");
     result = {
         let __terrane_receiver_value_0 = &{
@@ -1862,6 +1887,18 @@ fn test_scenario_terrane_layout_calls() {
         String::with_capacity(2); __terrane_text.push_str("a"); __terrane_text
         .push_str("b"); __terrane_text }, String::from("b text")))
     );
+    sealed = wrap(opt(String::from("a"), String::from("")), String::from("b"));
+    println!("{}", terrane_scalar_support::scalar_text(&sealed));
+    same_line = wrap(opt(String::from("a"), String::from("b")), String::from("-"));
+    println!("{}", terrane_scalar_support::scalar_text(&same_line));
+    mixed = wrap(opt(String::from("a"), String::from("b")), String::from("-"));
+    println!("{}", terrane_scalar_support::scalar_text(&mixed));
+    explicit = wrap(opt(String::from("a"), String::from("b")), String::from("c"));
+    println!("{}", terrane_scalar_support::scalar_text(&explicit));
+    grouped = wrap(opt(String::from("a"), String::from("b")), String::from("-"));
+    println!("{}", terrane_scalar_support::scalar_text(&grouped));
+    named = wrap(opt(String::from("a"), String::from("")), String::from("b"));
+    println!("{}", terrane_scalar_support::scalar_text(&named));
 }
 // Source: tests/integration/lexical-replacement/case.trn
 // Namespace: lexical-replacement

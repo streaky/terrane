@@ -1900,6 +1900,41 @@ fn validate_argument_destination(
     )
 }
 
+fn argument_conversion_failure(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    contract: &FunctionContract,
+    parameter: &str,
+    types: (&ValueType, &ValueType),
+    mut failure: SemanticFailure,
+) -> SemanticFailure {
+    if matches!(
+        types,
+        (
+            ValueType::Scalar(ScalarType::String),
+            ValueType::Scalar(ScalarType::Bool)
+        )
+    ) && value.has_line_leading_text_comparison(unit.source.text())
+        && let Some(diagnostic) = failure.diagnostics.first_mut()
+    {
+        let help = format!(
+            "Argument for `{}.{parameter}` is a comparison, not a text literal: `>` after a completed operand continues that expression. Add a comma before `>` if you intended a new text argument.",
+            contract.name,
+        );
+        if let Some(existing) = &mut diagnostic.help {
+            existing.push(' ');
+            existing.push_str(&help);
+        } else {
+            diagnostic.help = Some(help);
+        }
+    }
+    failure
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "argument binding, generic constraints and borrow aliases share one ordered validation pass"
+)]
 pub(super) fn validate_call_arguments(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1989,7 +2024,17 @@ pub(super) fn validate_call_arguments(
                     (&expected, &actual),
                     native_callback,
                     &mut generic_bindings,
-                )?;
+                )
+                .map_err(|failure| {
+                    argument_conversion_failure(
+                        unit,
+                        value,
+                        contract,
+                        &parameter.name,
+                        (&expected, &actual),
+                        failure,
+                    )
+                })?;
             }
         }
     }

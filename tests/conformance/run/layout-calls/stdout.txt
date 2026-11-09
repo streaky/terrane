@@ -19,3 +19,9 @@ true
 wrappedarguments
 nesteddedentsibling
 ab:b text
+[a|b]
+[ab|-]
+[ab|-]
+[ab|c]
+[ab|-]
+[a|b]

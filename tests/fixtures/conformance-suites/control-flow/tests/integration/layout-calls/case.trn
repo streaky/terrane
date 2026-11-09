@@ -23,6 +23,12 @@ function pick (function to string)|none; first string, second string
     print; first + second
     return none
 
+function wrap string; a string, b string = '-'
+    return '[' + a + '|' + b + ']'
+
+function opt string; v string, w string = ''
+    return v + w
+
 function test-scenario;
     text = '  hello world  '
     result = text
@@ -86,3 +92,26 @@ function test-scenario;
             'a' +
                 'b',
             >b text
+    sealed = wrap;
+        opt; 'a',
+        'b'
+    print; sealed
+    same-line = wrap;
+        opt; 'a', 'b'
+    print; same-line
+    mixed = wrap;
+        opt; 'a',
+            'b'
+    print; mixed
+    explicit = wrap;
+        (opt; 'a', 'b'),
+        'c'
+    print; explicit
+    grouped = (wrap;
+        opt; 'a',
+        'b')
+    print; grouped
+    named = wrap;
+        a = opt; 'a',
+        b = 'b'
+    print; named

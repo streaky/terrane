@@ -1,0 +1,13 @@
+namespace layout-inline-missing-argument
+
+function wrap string; a string, b string = '-'
+    return a + b
+
+function required string; a string, b string
+    return a + b
+
+function main;
+    value = wrap;
+        required; 'a',
+        'b'
+    print; value

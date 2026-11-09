@@ -2225,3 +2225,19 @@ fn count_kind(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> 
             .map(|child| count_kind(child, kind))
             .sum::<usize>()
 }
+
+#[test]
+fn text_comparison_argument_error_identifies_parameter_and_comma() {
+    let source = "namespace app\nfunction wrap string; value string\n    return value\nfunction main;\n    text string = 'b'\n    wrong = wrap;\n        'a'\n        >text\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    let diagnostic = failure
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "T0012")
+        .unwrap();
+    let help = diagnostic.help.as_deref().unwrap();
+    assert!(
+        help.contains("wrap.value") && help.contains("comparison") && help.contains("comma"),
+        "{help}"
+    );
+}

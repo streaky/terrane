@@ -40,6 +40,7 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         semicolon_boundary: false,
         layout_header: false,
         layout_argument: None,
+        argument_grouping: 0,
         diagnostics: Vec::new(),
     };
     let mut root = parser.parse_compilation_unit();
@@ -61,6 +62,7 @@ struct Parser<'source> {
     semicolon_boundary: bool,
     layout_header: bool,
     layout_argument: Option<call_layout::ArgumentLayout>,
+    argument_grouping: usize,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -99,6 +101,7 @@ impl Parser<'_> {
         }
         let previous_header = self.layout_header;
         let previous_argument = self.layout_argument.take();
+        let previous_grouping = std::mem::replace(&mut self.argument_grouping, 0);
         self.layout_header = matches!(
             self.text(),
             "if" | "while" | "for" | "switch" | "match" | "select"
@@ -120,6 +123,7 @@ impl Parser<'_> {
         declaration.annotation_applications = annotations;
         self.layout_header = previous_header;
         self.layout_argument = previous_argument;
+        self.argument_grouping = previous_grouping;
         declaration
     }
 
@@ -1808,6 +1812,15 @@ impl Parser<'_> {
     fn parse_argument_list(&mut self) -> SyntaxNode {
         let start = self.position;
         let grouped = self.parenthesis_delimits_argument_list() && self.eat(TokenKind::OpenParen);
+        let column = if grouped {
+            None
+        } else {
+            self.inline_call_column()
+        };
+        let previous_column = self.set_inline_argument_column(column);
+        if grouped {
+            self.argument_grouping += 1;
+        }
         let previous_header = self.layout_header;
         if grouped {
             self.layout_header = false;
@@ -1829,8 +1842,14 @@ impl Parser<'_> {
             if self.argument_ended() || !self.at(TokenKind::Comma) {
                 break;
             }
+            if self.separator_ends_inline_call() {
+                break;
+            }
             pending_comma = Some(self.position);
             self.bump();
+            if column.is_some() && self.call_layout_start_is_arguments() {
+                break;
+            }
             self.skip_argument_wrapping();
         }
         if !grouped
@@ -1849,6 +1868,10 @@ impl Parser<'_> {
                 "expected `)` after call arguments",
             );
         }
+        if grouped {
+            self.argument_grouping -= 1;
+        }
+        self.set_inline_argument_column(previous_column);
         self.layout_header = previous_header;
         self.node(SyntaxKind::ArgumentList, start, self.position, children)
     }
@@ -1901,6 +1924,7 @@ impl Parser<'_> {
             TokenKind::OpenParen => {
                 let start = self.position;
                 self.bump();
+                self.argument_grouping += 1;
                 let previous_header = self.layout_header;
                 self.layout_header = false;
                 let expression = self.parse_expression(0, true);
@@ -1910,6 +1934,7 @@ impl Parser<'_> {
                     "S1018",
                     "expected `)` after grouped expression",
                 );
+                self.argument_grouping -= 1;
                 self.node(
                     SyntaxKind::GroupExpression,
                     start,
