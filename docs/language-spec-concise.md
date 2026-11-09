@@ -208,12 +208,10 @@ connect; host, port, timeout = 10
 buffer.clear;                  # zero-arg instance-member call
 widget::default;               # zero-arg static-member call
 instance widget;               # zero-arg class construction
-print; render                  # a bare name passes the object
 print; (render; report)        # inline nested call is grouped
 outer;
   inner;                       # nested call at argument-line root
-    'first'
-    label = 'second'
+    'first', label = 'second'
   final = 3
 result = message
   .with-text;
@@ -233,10 +231,10 @@ static_member: class::member selects a class/static member; '.' and '::' are nev
 construction: ordinary class construction is `instance class; arguments`; `throw throwable-class; arguments` and `throw throwable-class` are specialized constructor-and-throw forms. An optional nonempty `{ field = expression ... }` block follows constructor arguments and applies ordinary field writes in source order. The semicolon is always required for ordinary construction, including with zero arguments and a block. Field operations are newline-separated, with an optional single-field inline form. Initialization blocks are part of the construction expression, including in return values and arguments.
 member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
-call_extent: unwrapped call owns remainder of containing logical expression
-arguments: comma-separated inline list; deeper logical lines add one complete argument each; an indented argument-line root may be a nested call
-argument_layout: a deeper complete argument line follows a call-marker line in the same scope; incomplete operator/comma/delimiter lines and leading infix/comma continuations preserve free-form wrapping; in parentheses its indentation must also exceed the opener baseline; closing ')' bounds it
-argument_calls: nested calls inline require grouping; nested call at root of an indented argument line is supported
+arguments: comma-separated in inline, grouped, and layout calls; active-block newlines/indentation are whitespace, and a nested call-argument/chain dedent can implicitly end its containing argument
+argument_layout: deeper call-marker continuation activates a block; commas belong to that block and cannot be followed by dedent, ')', endstatement, or EOF (S1122 at comma); trailing commas are banned for every call form, not parameter lists; missing separator => S1122
+argument_calls: inline nested calls must be parenthesized if another outer argument follows (otherwise comma binds to inner call); nested call at argument-line root is supported
+argument_wrapping: operator continuation within arguments remains free-form, parenthesized or not; extra indentation is not an argument separator; ordinary parenthesized wrapping remains free-form
 chain_layout: first deeper line begins '.' and continues the receiver result; inside parentheses it must also be deeper than the preceding substantive line, then sibling stages align after argument dedent; call stages still require ';'; never an operator or implicit conjunction
 layout_trivia: blank/comment-only lines are neutral; > and >> text remains opaque; indentation follows consistent file prefix style, not editor tab stops
 layout_headers: block-bearing if/while/for/switch/match/select headers reserve following indentation for statement bodies; parameter layout is suppressed only for the '(' immediately following the header semicolon of a function declaration or anonymous-function header, not a function type in an annotation; use explicit parentheses for layout calls/chains inside statement headers
@@ -246,6 +244,7 @@ receiver: evaluated before selection
 and_or: short-circuit
 other_binary: both operands evaluated
 default_args: call site, after supplied args, parameter order
+call_arguments_error: missing commas and any trailing comma => S1122; comma followed by dedent/close/end boundaries reports at comma
 local_functions: named declarations are visible throughout their enclosing function scope, supporting later-sibling calls and mutual recursion; their names cannot be reassigned or replaced by same-function bindings, but may shadow outer declarations. Control-flow bodies add no scopes. Calls retain their own parameter/result contracts; returns are checked against the current callable. Enclosing callable bindings and instance receiver state cannot be captured (S2062); use an anonymous closure. Class-level self::member access needs no instance capture
 ```
 

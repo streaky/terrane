@@ -1,6 +1,105 @@
 use super::{Parser, SyntaxKind, SyntaxNode, TokenKind};
 
+#[derive(Clone, Copy, Default)]
+pub(super) struct ArgumentLayout {
+    wrapping: usize,
+    ended: bool,
+}
+
 impl Parser<'_> {
+    pub(super) fn argument_ended(&self) -> bool {
+        self.layout_argument.is_some_and(|layout| layout.ended)
+    }
+
+    pub(super) fn parse_argument_name(&mut self) -> Option<SyntaxNode> {
+        if !self.at(TokenKind::Identifier)
+            || !(self.peek_kind(1) == Some(TokenKind::Assign)
+                || self.layout_argument.is_some() && self.peek_kind(1) == Some(TokenKind::Newline))
+        {
+            return None;
+        }
+        let start = self.position;
+        let layout = self.layout_argument;
+        self.bump();
+        self.skip_argument_wrapping();
+        if self.eat(TokenKind::Assign) {
+            Some(self.node(SyntaxKind::Name, start, start + 1, Vec::new()))
+        } else {
+            self.position = start;
+            self.layout_argument = layout;
+            None
+        }
+    }
+
+    pub(super) fn argument_type_membership_ahead(&mut self) -> bool {
+        if self.peek_text(1) == Some("a") && self.type_starts_at(2) {
+            return true;
+        }
+        if self.layout_argument.is_none() {
+            return false;
+        }
+        let start = self.position;
+        let layout = self.layout_argument;
+        self.bump();
+        self.skip_argument_wrapping();
+        let found = if self.eat_text("a") {
+            self.skip_argument_wrapping();
+            self.type_starts_at(0)
+        } else {
+            false
+        };
+        self.position = start;
+        self.layout_argument = layout;
+        found
+    }
+
+    /// Only argument expressions treat physical wrapping as whitespace. Calls,
+    /// chains and callable bodies consume their own structural blocks first.
+    pub(super) fn skip_argument_wrapping(&mut self) {
+        while let Some(layout) = self.layout_argument {
+            if layout.ended {
+                return;
+            }
+            if self.at(TokenKind::Newline) {
+                let mut next = self.position;
+                while self
+                    .tokens
+                    .get(next)
+                    .is_some_and(|token| token.kind == TokenKind::Newline)
+                {
+                    next += 1;
+                }
+                let kind = self.tokens.get(next).map(|token| token.kind);
+                if matches!(kind, Some(TokenKind::Dedent)) && layout.wrapping == 0
+                    || matches!(kind, Some(TokenKind::CloseParen | TokenKind::Eof))
+                    || kind == Some(TokenKind::Indent)
+                        && self
+                            .tokens
+                            .get(next + 1)
+                            .is_some_and(|token| token.kind == TokenKind::Dot)
+                {
+                    return;
+                }
+                self.position = next;
+            } else if self.at(TokenKind::Indent) {
+                self.layout_argument.as_mut().unwrap().wrapping += 1;
+                self.bump();
+            } else if self.at(TokenKind::Dedent) && layout.wrapping > 0 {
+                self.layout_argument.as_mut().unwrap().wrapping -= 1;
+                self.bump();
+            } else {
+                return;
+            }
+        }
+    }
+
+    fn end_argument_block(&mut self, outer: Option<ArgumentLayout>) {
+        self.layout_argument = outer.map(|mut layout| {
+            layout.ended = true;
+            layout
+        });
+    }
+
     /// Find a structural child block without consuming the statement terminator.
     fn call_layout_start(&self) -> Option<(usize, TokenKind)> {
         let mut cursor = self.position;
@@ -20,44 +119,56 @@ impl Parser<'_> {
         Some((cursor, self.tokens.get(cursor)?.kind))
     }
 
-    pub(super) fn parse_layout_arguments(&mut self, arguments: &mut Vec<SyntaxNode>) {
+    pub(super) fn parse_layout_arguments(
+        &mut self,
+        arguments: &mut Vec<SyntaxNode>,
+        preceding_comma: Option<usize>,
+    ) -> bool {
         let Some((first, kind)) = self.call_layout_start() else {
-            return;
+            return false;
         };
         if kind == TokenKind::Dot {
-            return;
+            return false;
         }
         self.position = first;
+        if !arguments.is_empty() && preceding_comma.is_none() {
+            self.error_here("S1122", "expected `,` between layout arguments");
+        }
+        let outer = self.layout_argument.replace(ArgumentLayout::default());
         while !matches!(
             self.current().kind,
             TokenKind::Dedent | TokenKind::Eof | TokenKind::CloseParen
         ) {
             let start = self.position;
             let mut parts = Vec::new();
-            if self.at(TokenKind::Identifier) && self.peek_kind(1) == Some(TokenKind::Assign) {
-                parts.push(self.leaf(SyntaxKind::Name));
-                self.bump();
+            if let Some(name) = self.parse_argument_name() {
+                parts.push(name);
             }
             parts.push(self.parse_expression(0, true));
             arguments.push(self.node(SyntaxKind::Argument, start, self.position, parts));
-            if self.eat(TokenKind::Comma) {
+            let ended = self.argument_ended();
+            self.layout_argument.as_mut().unwrap().ended = false;
+            self.skip_argument_wrapping();
+            if self.at(TokenKind::Comma) {
+                let comma = self.position;
+                self.bump();
+                self.skip_argument_wrapping();
                 self.skip_newlines();
-                if self.at(TokenKind::Dedent) || self.at(TokenKind::CloseParen) {
-                    self.error_here("S1122", "expected an argument after `,`");
+                if self.at_expression_end() {
+                    self.error_at(comma, "S1122", "expected an argument after `,`");
+                    break;
                 }
-            } else if self.at(TokenKind::Newline) {
+            } else {
                 self.skip_newlines();
-            } else if self.position > start
-                && self.tokens[self.position - 1].kind == TokenKind::Dedent
-            {
-                // A nested call consumed its argument/chain block's terminator.
-            } else if !self.at(TokenKind::Dedent) {
-                self.error_here(
-                    "S1122",
-                    "expected a newline or `,` between layout arguments",
-                );
-                self.recover_line();
-                self.skip_newlines();
+                if !matches!(
+                    self.current().kind,
+                    TokenKind::Dedent | TokenKind::CloseParen | TokenKind::Eof
+                ) && !ended
+                {
+                    self.error_here("S1122", "expected `,` between layout arguments");
+                    self.recover_line();
+                    self.skip_newlines();
+                }
             }
             if self.position == start {
                 self.bump();
@@ -68,6 +179,8 @@ impl Parser<'_> {
             "S1122",
             "expected the end of the argument indentation block",
         );
+        self.end_argument_block(outer);
+        true
     }
 
     pub(super) fn parse_call_layout(
@@ -78,6 +191,7 @@ impl Parser<'_> {
         let Some((first, TokenKind::Dot)) = self.call_layout_start() else {
             return receiver;
         };
+        let outer = self.layout_argument.take();
         self.position = first;
         loop {
             if self.at(TokenKind::Dot)
@@ -104,7 +218,9 @@ impl Parser<'_> {
                 );
                 receiver = self.parse_postfix_operations(start, receiver);
                 if self.eat(TokenKind::Semicolon) {
+                    self.layout_argument = Some(ArgumentLayout::default());
                     let arguments = self.parse_argument_list();
+                    self.layout_argument = None;
                     receiver = self.node(
                         SyntaxKind::CallExpression,
                         start,
@@ -138,6 +254,7 @@ impl Parser<'_> {
             "S1123",
             "expected the end of the chain indentation block",
         );
+        self.end_argument_block(outer);
         receiver
     }
 }

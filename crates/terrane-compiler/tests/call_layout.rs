@@ -65,11 +65,11 @@ fn chains_complete_calls_before_selecting_members() {
 #[test]
 fn argument_levels_bound_nested_calls_and_named_arguments() {
     equivalent(
-        "x = outer;\n    inner;\n        'first'\n        label = 'second'\n    final = 3\ny = 4\n",
+        "x = outer;\n    (inner;\n        'first',\n        label = 'second'),\n    final = 3\ny = 4\n",
         "x = outer; (inner; 'first', label = 'second'), final = 3\ny = 4\n",
     );
     equivalent(
-        "x = outer; 1\n    2, 3\n    final = 4\n",
+        "x = outer; 1,\n    2, 3,\n    final = 4\n",
         "x = outer; 1, 2, 3, final = 4\n",
     );
 }
@@ -81,7 +81,7 @@ fn mixed_parentheses_bound_layout_without_changing_wrapping() {
         "x = (message.with-text; 'ready').wait;\n",
     );
     equivalent(
-        "x = outer; (inner;\n    'first'\n    label = 'second')\n",
+        "x = outer; (inner;\n    'first',\n    label = 'second')\n",
         "x = outer; (inner; 'first', label = 'second')\n",
     );
     equivalent("x = outer; (\n    1,\n    2\n)\n", "x = outer; (1, 2)\n");
@@ -95,10 +95,6 @@ fn mixed_parentheses_bound_layout_without_changing_wrapping() {
     );
     equivalent("x = (one; 'a' +\n        'b')\n", "x = one; 'a' + 'b'\n");
     equivalent(
-        "x = (one; true\n    and true)\n",
-        "x = one; true and true\n",
-    );
-    equivalent(
         "x = (service\n    .configure; 1 +\n        2\n    .finish;)\n",
         "x = (service.configure; 1 + 2).finish;\n",
     );
@@ -107,10 +103,99 @@ fn mixed_parentheses_bound_layout_without_changing_wrapping() {
     equivalent("x = (call;\n    -1)\n", "x = call; -1\n");
     equivalent("x = (call;\n    >text\n)\n", "x = call; >text\n");
 }
+
+#[test]
+fn negative_and_text_arguments_require_commas_in_both_layout_forms() {
+    equivalent("x = (sub;\n    5,\n    -2)\n", "x = sub; 5, -2\n");
+    equivalent(
+        "print;\n    sub;\n        5,\n        -2\n",
+        "print; (sub; 5, -2)\n",
+    );
+    equivalent("x = (sub;\n    5\n    -2)\n", "x = sub; 5 - 2\n");
+    equivalent("x = sub;\n    5\n    -2\n", "x = sub; 5 - 2\n");
+    equivalent(
+        "x = (combine;\n    'a' +\n        'b',\n    >b text\n)\n",
+        "x = combine; 'a' + 'b', >b text\n",
+    );
+    equivalent(
+        "x = combine;\n    'a' +\n        'b',\n    >b text\n",
+        "x = combine; 'a' + 'b', >b text\n",
+    );
+}
+
+#[test]
+fn comma_is_required_and_trailing_commas_are_rejected_at_the_comma() {
+    for text in [
+        "x = call; 1,",
+        "print; 'a',",
+        "x = (call; 1,)",
+        "x = (call; 1, 2,)",
+        "x = (call; 1,\n    2,\n)\n",
+        "x = call; (1,\n    2,\n)\n",
+        "x = outer; (inner; 1, 2,)",
+        "x = outer;\n    inner;\n        1,\n        2,\n    3\n",
+        "x = outer;\n    inner;\n        1,\n",
+    ] {
+        let source = SourceFile::new(0, "layout.trn".into(), text.to_owned());
+        let output = parse(&source, lex(&source).unwrap());
+        let diagnostic = output
+            .diagnostics
+            .iter()
+            .find(|d| d.code == "S1122")
+            .unwrap();
+        let span = diagnostic.primary.unwrap();
+        assert_eq!(&text[span.start..span.end], ",", "{text}");
+        assert_eq!(span.start, text.rfind(',').unwrap(), "{text}");
+    }
+}
+
+#[test]
+fn nested_layout_dedent_ends_argument_but_comma_cannot_cross_its_block() {
+    equivalent(
+        "x = outer;\n    inner;\n        1,\n        2\n    3\n",
+        "x = outer; (inner; 1, 2), 3\n",
+    );
+    equivalent(
+        "x = outer;\n    inner; 1, 2\n",
+        "x = outer; (inner; 1, 2)\n",
+    );
+    equivalent(
+        "x = outer;\n    service\n        .configure; 1\n        .finish;\n    2\n",
+        "x = outer; ((service.configure; 1).finish;), 2\n",
+    );
+    let text = "x = outer;\n    inner;\n        1,\n        2,\n    3\n";
+    let source = SourceFile::new(0, "layout.trn".into(), text.to_owned());
+    let output = parse(&source, lex(&source).unwrap());
+    let diagnostic = output
+        .diagnostics
+        .iter()
+        .find(|d| d.code == "S1122")
+        .unwrap();
+    let span = diagnostic.primary.unwrap();
+    assert_eq!(&text[span.start..span.end], ",");
+    assert_eq!(span.start, text.rfind(',').unwrap());
+}
+
+#[test]
+fn adjacent_complete_layout_arguments_need_a_comma() {
+    for text in ["x = call;\n    1\n    2\n", "x = (call;\n    1\n    2)\n"] {
+        let source = SourceFile::new(0, "layout.trn".into(), text.to_owned());
+        let output = parse(&source, lex(&source).unwrap());
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "S1122" && d.primary.unwrap().start == text.rfind('2').unwrap()),
+            "{text}: {:?}",
+            output.diagnostics
+        );
+    }
+}
+
 #[test]
 fn callable_type_annotations_do_not_suppress_parenthesized_layout() {
     equivalent(
-        "x (function to string)|none = (pick;\n        'a'\n        'b')\n",
+        "x (function to string)|none = (pick;\n        'a',\n        'b')\n",
         "x (function to string)|none = pick; 'a', 'b'\n",
     );
 }
@@ -182,20 +267,20 @@ fn layout_rejects_malformed_shapes_with_specific_diagnostics() {
 #[test]
 fn parentheses_close_layout_before_outer_arguments_and_operators() {
     equivalent(
-        "x = outer; (inner;\n    1\n    2), 3\n",
+        "x = outer; (inner;\n    1,\n    2), 3\n",
         "x = outer; (inner; 1, 2), 3\n",
     );
     equivalent(
-        "x = (inner;\n    1\n    2) + 3\n",
+        "x = (inner;\n    1,\n    2) + 3\n",
         "x = (inner; 1, 2) + 3\n",
     );
-    equivalent("x = (inner; 1\n    2)\n", "x = inner; 1, 2\n");
+    equivalent("x = (inner; 1,\n    2)\n", "x = inner; 1, 2\n");
     equivalent(
-        "x = outer;\n    (inner;\n        1\n        2)\n    3\n",
+        "x = outer;\n    (inner;\n        1,\n        2)\n    3\n",
         "x = outer; (inner; 1, 2), 3\n",
     );
     equivalent(
-        "function main;\n    x = (inner;\n        1\n        2\n)\n    y = 3\n",
+        "function main;\n    x = (inner;\n        1,\n        2\n)\n    y = 3\n",
         "function main;\n    x = inner; 1, 2\n    y = 3\n",
     );
     equivalent(
@@ -218,7 +303,7 @@ fn block_headers_keep_their_statement_bodies() {
     assert_eq!(loop_node.children[1].kind, SyntaxKind::Block);
     assert_eq!(loop_node.children[1].children.len(), 2);
     equivalent(
-        "while (predicate;\n    1\n    2)\n    work;\n        3\n",
+        "while (predicate;\n    1,\n    2)\n    work;\n        3\n",
         "while predicate; 1, 2\n    work; 3\n",
     );
     for header in ["if predicate;", "for item in items;"] {
@@ -227,4 +312,41 @@ fn block_headers_keep_their_statement_bodies() {
         assert_eq!(block.kind, SyntaxKind::Block);
         assert_eq!(block.children.len(), 1);
     }
+}
+
+#[test]
+fn wrapped_argument_expressions_preserve_names_and_type_tests() {
+    equivalent("x = call;\n    name\n        = 2\n", "x = call; name = 2\n");
+    equivalent(
+        "x = call;\n    value is\n        a int\n",
+        "x = call; value is a int\n",
+    );
+    equivalent(
+        "x = call;\n    value is a\n        list of\n            int\n",
+        "x = call; value is a list of int\n",
+    );
+    equivalent(
+        "x = call;\n    instance\n        example;\n",
+        "x = call; (instance example;)\n",
+    );
+    equivalent(
+        "x = call;\n    factory\n        of int;\n",
+        "x = call; (factory of int;)\n",
+    );
+}
+
+#[test]
+fn anonymous_parameter_headers_do_not_consume_their_body_as_argument_wrapping() {
+    equivalent(
+        "x = apply;\n    function string; value string\n        return value\n",
+        "x = apply; (function string; value string\n    return value)\n",
+    );
+    equivalent(
+        "x = (apply; function string; (value string)\n    return value)\n",
+        "x = apply; (function string; value string\n    return value)\n",
+    );
+    equivalent(
+        "x = (apply; function string; value string = 'ready'\n    return value)\n",
+        "x = apply; (function string; value string = 'ready'\n    return value)\n",
+    );
 }

@@ -1721,6 +1721,24 @@ fn combine(first: String, second: String) -> String {
         __terrane_text
     };
 }
+fn subtract(
+    left: terrane_int_support::Int,
+    right: terrane_int_support::Int,
+) -> terrane_int_support::Int {
+    return left.clone() - right.clone();
+}
+#[allow(dead_code)]
+fn wrapped(first: String, second: String) -> String {
+    return {
+        let mut __terrane_text = String::with_capacity(0);
+        terrane_scalar_support::ScalarDisplay::write_scalar(&first, &mut __terrane_text);
+        terrane_scalar_support::ScalarDisplay::write_scalar(
+            &second,
+            &mut __terrane_text,
+        );
+        __terrane_text
+    };
+}
 fn apply(callback: std::sync::Arc<dyn Fn() -> String + Send + Sync>) -> String {
     return callback();
 }
@@ -1744,7 +1762,7 @@ fn test_scenario_terrane_layout_calls() {
     let text: String;
     let result: String;
     let literal: String;
-    let wrapped: String;
+    let wrapped_2: String;
     let wrapped_one: String;
     let picked: Option<std::sync::Arc<dyn Fn() -> String + Send + Sync>>;
     text = String::from("  hello world  ");
@@ -1802,7 +1820,7 @@ fn test_scenario_terrane_layout_calls() {
         "{}", terrane_scalar_support::scalar_text(&apply({ std::sync::Arc::new(move | |
         -> String { return String::from("r"); }) }))
     );
-    wrapped = combine(
+    wrapped_2 = combine(
         {
             let mut __terrane_text = String::with_capacity(2);
             __terrane_text.push_str("a");
@@ -1811,7 +1829,7 @@ fn test_scenario_terrane_layout_calls() {
         },
         String::from("c"),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&wrapped));
+    println!("{}", terrane_scalar_support::scalar_text(&wrapped_2));
     println!(
         "{}", terrane_scalar_support::scalar_text(&combine(String::from("a"),
         String::from("b")))
@@ -1825,6 +1843,25 @@ fn test_scenario_terrane_layout_calls() {
     println!("{}", terrane_scalar_support::scalar_text(&wrapped_one));
     picked = pick_terrane_layout_calls(String::from("a"), String::from("b"));
     println!("{}", terrane_scalar_support::scalar_text(&picked.is_none()));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&subtract(terrane_int_support::Int::from(5_i128),
+        terrane_int_support::Int::from(- 2_i128)))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&wrapped(String::from("wrapped"),
+        String::from("arguments")))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&wrapped(wrapped(String::from("nested"),
+        String::from("dedent")), String::from("sibling")))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&combine({ let mut __terrane_text =
+        String::with_capacity(2); __terrane_text.push_str("a"); __terrane_text
+        .push_str("b"); __terrane_text }, String::from("b text")))
+    );
 }
 // Source: tests/integration/lexical-replacement/case.trn
 // Namespace: lexical-replacement

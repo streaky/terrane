@@ -39,6 +39,7 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         associated_body_depth: usize::MAX,
         semicolon_boundary: false,
         layout_header: false,
+        layout_argument: None,
         diagnostics: Vec::new(),
     };
     let mut root = parser.parse_compilation_unit();
@@ -59,6 +60,7 @@ struct Parser<'source> {
     associated_body_depth: usize,
     semicolon_boundary: bool,
     layout_header: bool,
+    layout_argument: Option<call_layout::ArgumentLayout>,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -96,6 +98,7 @@ impl Parser<'_> {
             self.skip_newlines();
         }
         let previous_header = self.layout_header;
+        let previous_argument = self.layout_argument.take();
         self.layout_header = matches!(
             self.text(),
             "if" | "while" | "for" | "switch" | "match" | "select"
@@ -116,6 +119,7 @@ impl Parser<'_> {
         }
         declaration.annotation_applications = annotations;
         self.layout_header = previous_header;
+        self.layout_argument = previous_argument;
         declaration
     }
 
@@ -1490,16 +1494,19 @@ impl Parser<'_> {
     }
 
     fn parse_expression(&mut self, minimum: u8, allow_call: bool) -> SyntaxNode {
+        self.skip_argument_wrapping();
         let start = self.position;
         let mut left = self.parse_prefix(allow_call);
         loop {
-            if minimum <= 3
-                && self.at_text("is")
-                && self.peek_text(1) == Some("a")
-                && self.type_starts_at(2)
-            {
+            self.skip_argument_wrapping();
+            if self.argument_ended() {
+                break;
+            }
+            if minimum <= 3 && self.at_text("is") && self.argument_type_membership_ahead() {
                 self.bump();
+                self.skip_argument_wrapping();
                 self.bump();
+                self.skip_argument_wrapping();
                 let type_expression = self.parse_type_expression();
                 left = self.node(
                     SyntaxKind::TypeMembershipExpression,
@@ -1570,6 +1577,7 @@ impl Parser<'_> {
     }
 
     fn parse_prefix(&mut self, allow_call: bool) -> SyntaxNode {
+        self.skip_argument_wrapping();
         if self.at_text("unsafe") && self.peek_text(1) != Some("rust") {
             let start = self.position;
             self.bump();
@@ -1660,6 +1668,7 @@ impl Parser<'_> {
             return value;
         }
         let mut value = self.parse_postfix_operations(start, value);
+        self.skip_argument_wrapping();
         if self.at(TokenKind::Semicolon) {
             if allow_call {
                 self.bump();
@@ -1702,6 +1711,22 @@ impl Parser<'_> {
 
     fn parse_postfix_operations(&mut self, start: usize, mut value: SyntaxNode) -> SyntaxNode {
         while value.kind != SyntaxKind::ConstructionExpression {
+            // Preserve structural newlines for the owning chain parser. Only a
+            // wrapped generic suffix belongs to this postfix operation.
+            if self.layout_argument.is_some()
+                && self.at(TokenKind::Newline)
+                && self.tokens[self.position..]
+                    .iter()
+                    .find(|token| {
+                        !matches!(
+                            token.kind,
+                            TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent
+                        )
+                    })
+                    .is_some_and(|token| token.text == "of")
+            {
+                self.skip_argument_wrapping();
+            }
             if self.eat_text("of") {
                 let mut arguments = vec![value];
                 let grouped = self.eat(TokenKind::OpenParen);
@@ -1788,21 +1813,34 @@ impl Parser<'_> {
             self.layout_header = false;
         }
         let mut children = Vec::new();
+        let mut pending_comma = None;
         while !(self.at_expression_end() || grouped && self.at(TokenKind::CloseParen)) {
+            pending_comma = None;
             let argument_start = self.position;
             let mut parts = Vec::new();
-            if self.at(TokenKind::Identifier) && self.peek_kind(1) == Some(TokenKind::Assign) {
-                parts.push(self.leaf(SyntaxKind::Name));
-                self.bump();
+            if let Some(name) = self.parse_argument_name() {
+                parts.push(name);
             }
             let argument_header = self.layout_header;
             self.layout_header |= !grouped;
             parts.push(self.parse_expression(0, grouped));
             self.layout_header = argument_header;
             children.push(self.node(SyntaxKind::Argument, argument_start, self.position, parts));
-            if !self.eat(TokenKind::Comma) {
+            if self.argument_ended() || !self.at(TokenKind::Comma) {
                 break;
             }
+            pending_comma = Some(self.position);
+            self.bump();
+            self.skip_argument_wrapping();
+        }
+        if !grouped
+            && !self.layout_header
+            && self.parse_layout_arguments(&mut children, pending_comma)
+        {
+            pending_comma = None;
+        }
+        if let Some(comma) = pending_comma {
+            self.error_at(comma, "S1122", "expected an argument after `,`");
         }
         if grouped {
             self.expect(
@@ -1810,9 +1848,6 @@ impl Parser<'_> {
                 "S1018",
                 "expected `)` after call arguments",
             );
-        }
-        if !grouped && !self.layout_header {
-            self.parse_layout_arguments(&mut children);
         }
         self.layout_header = previous_header;
         self.node(SyntaxKind::ArgumentList, start, self.position, children)
@@ -1824,40 +1859,12 @@ impl Parser<'_> {
                 self.leaf(SyntaxKind::Literal)
             }
             TokenKind::Identifier if self.looks_like_anonymous_function() => {
-                self.parse_anonymous_function()
+                let argument = self.layout_argument.take();
+                let function = self.parse_anonymous_function();
+                self.layout_argument = argument;
+                function
             }
-            TokenKind::Identifier if self.at_text("instance") => {
-                let start = self.position;
-                self.bump();
-                let mut class = if self.at(TokenKind::Identifier) || self.at(TokenKind::OpenParen) {
-                    self.parse_prefix_type()
-                } else {
-                    self.error_here(
-                        "S1094",
-                        "expected a class or enum designator after `instance`",
-                    );
-                    self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
-                };
-                if self.eat(TokenKind::DoubleColon) {
-                    if self.at(TokenKind::Identifier) {
-                        let variant = self.leaf(SyntaxKind::Name);
-                        class = self.node(
-                            SyntaxKind::StaticMemberExpression,
-                            start + 1,
-                            self.position,
-                            vec![class, variant],
-                        );
-                    } else {
-                        self.error_here("S1092", "expected a variant name after `::`");
-                    }
-                }
-                self.node(
-                    SyntaxKind::ConstructionExpression,
-                    start,
-                    self.position,
-                    vec![class],
-                )
-            }
+            TokenKind::Identifier if self.at_text("instance") => self.parse_construction(),
             TokenKind::Identifier if self.at_text("select") => {
                 let start = self.position;
                 self.error_here(
@@ -1921,6 +1928,40 @@ impl Parser<'_> {
         }
     }
 
+    fn parse_construction(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        self.skip_argument_wrapping();
+        let mut class = if self.at(TokenKind::Identifier) || self.at(TokenKind::OpenParen) {
+            self.parse_prefix_type()
+        } else {
+            self.error_here(
+                "S1094",
+                "expected a class or enum designator after `instance`",
+            );
+            self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
+        };
+        if self.eat(TokenKind::DoubleColon) {
+            if self.at(TokenKind::Identifier) {
+                let variant = self.leaf(SyntaxKind::Name);
+                class = self.node(
+                    SyntaxKind::StaticMemberExpression,
+                    start + 1,
+                    self.position,
+                    vec![class, variant],
+                );
+            } else {
+                self.error_here("S1092", "expected a variant name after `::`");
+            }
+        }
+        self.node(
+            SyntaxKind::ConstructionExpression,
+            start,
+            self.position,
+            vec![class],
+        )
+    }
+
     fn parse_type_expression(&mut self) -> SyntaxNode {
         let start = self.position;
         let mut left = self.parse_prefix_type();
@@ -1980,6 +2021,7 @@ impl Parser<'_> {
     }
 
     fn parse_prefix_type(&mut self) -> SyntaxNode {
+        self.skip_argument_wrapping();
         let start = self.position;
         if self.at_text("unsafe") && self.peek_text(1) != Some("function") {
             self.bump();
@@ -2041,6 +2083,7 @@ impl Parser<'_> {
             self.error_here("S1022", "expected a type expression");
             self.node(SyntaxKind::Error, start, self.position, Vec::new())
         };
+        self.skip_argument_wrapping();
         if self.eat_text("of") {
             let constructor = &self.source.text()[base.span.start..base.span.end];
             let ungrouped_arity = match constructor {

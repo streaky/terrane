@@ -608,8 +608,8 @@ fn call_wrapping_keeps_incomplete_expression_lines_nonstructural() {
 #[test]
 fn callable_type_annotations_do_not_disable_call_layout() {
     for source in [
-        "x (function to string)|none = (pick;\n    'a'\n    'b')\n",
-        "x = (builder.function;\n    'a'\n    'b')\n",
+        "x (function to string)|none = (pick;\n    'a',\n    'b')\n",
+        "x = (builder.function;\n    'a',\n    'b')\n",
     ] {
         let lexed = lex_source(source);
         let transitions = lexed
