@@ -1434,6 +1434,49 @@ Evidence:
 Excluded: new language features, changes to settled contracts, and performance work. Those
 belong in their own milestones.
 
+### Milestone 31.11 — Native inline assembly
+
+**Status:** planned. Add a relatively small, Terrane-native assembly surface so real usage can
+establish demand before investing in instruction validation or a richer safety model.
+
+Deliver:
+
+- Require `unsafe assembly` for every assembly operation initially; provide no safe spelling.
+  The acknowledgement marks an author-owned safety boundary, not a compiler guarantee about
+  instruction behaviour. Keep declaration-site `unsafe function` and caller acknowledgement
+  independent under the existing safety contract.
+- Provide structured Terrane operands around raw instruction text, lowering directly to Rust's
+  inline-assembly support rather than implementing a Terrane assembler or a runtime builder.
+  Finalise the operand syntax during implementation; the discussion sketches are not a settled
+  grammar.
+- Support typed inputs, outputs and input/output operands, register classes and fixed registers,
+  early/late output constraints, clobbers including ABI clobbers, and explicit backend-supported
+  effects/options. Preserve backend restrictions rather than silently approximating them.
+- Integrate operands with Terrane type, availability, ownership and mutation checking. Preserve
+  direct, allocation-free lowering and exact-once operand evaluation.
+- Make target requirements explicit and diagnose unsupported targets and invalid source-level
+  operand combinations at their Terrane spans. Retain useful backend diagnostics and source
+  mapping for instruction-level errors.
+- Document that Terrane does not verify arbitrary instruction text or the truth of authored
+  effect declarations. The author must uphold the backend's memory, register, stack and
+  control-flow safety obligations; an option such as `no-memory` is a promise, not proof.
+
+#### Exit criteria
+
+- Real CLI run cases exercise register-only arithmetic, input/output operands and constrained
+  registers on supported test targets; rejection cases cover missing unsafe acknowledgement,
+  invalid operands and unsupported target selections.
+- Inspect representative generated Rust and execute the generated programs, proving operand
+  evaluation, output assignment and backend constraints survive lowering without runtime
+  assembly machinery.
+- Publish the implemented syntax, target limitations and author-owned safety obligations in the
+  manual and concise specification, clearly separating them from compiler-checked guarantees.
+
+Excluded: a Terrane instruction parser/validator, portable instruction abstraction, safe raw
+assembly spelling, and a broad hardware-intrinsics library. Use experience from this milestone
+to decide whether stronger contracts or validated safe subsets are worthwhile. A later proven-safe
+subset may relax the unsafe requirement compatibly; this milestone does not promise one.
+
 ### Milestone 32 — First-version hardening and release gate
 
 Deliver:
@@ -1689,6 +1732,8 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
   (milestone 31.9);
 - fix small defects in existing contracts collected during review, starting with generic classes
   that implement an interface applied to their own type parameter (milestone 31.10);
+- add native inline assembly with mandatory unsafe acknowledgement and direct backend lowering,
+  using real usage to guide any later safety-contract investment (milestone 31.11);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 32.1).
