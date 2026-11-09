@@ -1,0 +1,6 @@
+namespace layout-chain-invalid-sibling
+
+function main;
+    result = service
+        .start;
+        unrelated;

@@ -187,8 +187,12 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 && let Some(code) = code_after_comments(line, indent, block_comment_start.is_some())
                 && let Some(scope) = layout_parens.last_mut()
             {
+                let expression_continues =
+                    tokens.last().is_some_and(requires_expression_continuation)
+                        || starts_infix_continuation(code, tokens.last());
                 let begins_chain = code.starts_with('.') && indent > scope.previous_line_indent;
-                let follows_call = scope.call_line_indent.is_some_and(|level| indent > level);
+                let follows_call = scope.call_line_indent.is_some_and(|level| indent > level)
+                    && !expression_continues;
                 if !scope.active
                     && !scope.function_header
                     && indent > scope.baseline
@@ -206,7 +210,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 }
                 scope.call_line_indent = None;
                 scope.previous_line_indent = indent;
-                if scope.active {
+                if scope.active && !expression_continues {
                     if let Some((start, end)) = pending_layout_newline.take() {
                         push_token(
                             source,
@@ -308,11 +312,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                                 call_line_indent: None,
                                 previous_line_indent: indent,
                                 implicit_baseline: false,
-                                function_header: tokens[..index]
-                                    .iter()
-                                    .rev()
-                                    .take_while(|token| token.kind != TokenKind::Newline)
-                                    .any(|token| token.text == "function"),
+                                function_header: opens_parameter_list(&tokens[..index]),
                             });
                             if matches!(with_layout, WithLayout::Initializer) {
                                 with_layout = WithLayout::Grouped(parenthesis_depth);
@@ -357,6 +357,11 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     _ => {}
                 }
                 index += 1;
+            }
+            if tokens.last().is_some_and(requires_expression_continuation)
+                && let Some(scope) = layout_parens.last_mut()
+            {
+                scope.call_line_indent = None;
             }
             if let Some(relative_index) = tokens[token_count..]
                 .iter()
@@ -446,6 +451,106 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
         },
         diagnostics,
     }
+}
+
+/// A parameter list is introduced by the semicolon of a callable header, not
+/// by a function type in an earlier binding annotation or argument.
+fn opens_parameter_list(tokens: &[Token]) -> bool {
+    if tokens
+        .last()
+        .is_none_or(|token| token.kind != TokenKind::Semicolon)
+    {
+        return false;
+    }
+    let mut depth = 0usize;
+    for (index, token) in tokens[..tokens.len() - 1].iter().enumerate().rev() {
+        match token.kind {
+            TokenKind::CloseParen | TokenKind::CloseBracket | TokenKind::CloseBrace => depth += 1,
+            TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace => {
+                if depth == 0 {
+                    return false;
+                }
+                depth -= 1;
+            }
+            _ if depth > 0 => {}
+            TokenKind::Assign
+            | TokenKind::Semicolon
+            | TokenKind::Newline
+            | TokenKind::Indent
+            | TokenKind::Dedent
+            | TokenKind::Comma => return false,
+            _ if token.text == "function"
+                && (index == 0
+                    || !matches!(
+                        tokens[index - 1].kind,
+                        TokenKind::Dot | TokenKind::DoubleColon
+                    )) =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn infix_word(text: &str) -> bool {
+    matches!(text, "and" | "or" | "is")
+}
+
+fn requires_expression_continuation(token: &Token) -> bool {
+    matches!(
+        token.kind,
+        TokenKind::Operator
+            | TokenKind::Comma
+            | TokenKind::Assign
+            | TokenKind::Dot
+            | TokenKind::DoubleColon
+            | TokenKind::OpenParen
+            | TokenKind::OpenBracket
+            | TokenKind::OpenBrace
+            | TokenKind::Pipe
+            | TokenKind::Colon
+    ) || token.kind == TokenKind::Identifier
+        && !matches!(token.attachment, Attachment::Left | Attachment::Both)
+        && (infix_word(&token.text)
+            || matches!(
+                token.text.as_str(),
+                "not"
+                    | "ref"
+                    | "move"
+                    | "await"
+                    | "shared"
+                    | "mutable"
+                    | "unsafe"
+                    | "instance"
+                    | "function"
+                    | "of"
+            ))
+}
+
+fn starts_infix_continuation(code: &str, previous: Option<&Token>) -> bool {
+    if code.starts_with([',', ';']) {
+        return true;
+    }
+    // With no preceding operand, `-` and `>` may instead introduce a negative
+    // argument or a text literal. Preserve those expression-start positions.
+    if previous.is_some_and(|token| token.kind == TokenKind::Semicolon) {
+        return false;
+    }
+    if code.as_bytes().first().is_some_and(|byte| {
+        matches!(
+            byte,
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^' | b'<' | b'>' | b'=' | b'!'
+        )
+    }) {
+        return true;
+    }
+    let word_end = code
+        .bytes()
+        .position(|byte| !byte.is_ascii_alphanumeric() && byte != b'_' && !is_joiner(byte))
+        .unwrap_or(code.len());
+    infix_word(&code[..word_end])
 }
 fn is_rust_block_marker(tokens: &[Token]) -> bool {
     match tokens {

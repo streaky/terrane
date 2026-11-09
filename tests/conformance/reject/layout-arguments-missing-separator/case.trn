@@ -1,0 +1,5 @@
+namespace layout-arguments-missing-separator
+
+function main;
+    result = call;
+        1 2

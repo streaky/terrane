@@ -25,7 +25,8 @@ SELF_HEAL_RULE: when this reference is missing or unclear, consult the canonical
 | build-time tools and source generation | `BUILD_TIME_TOOLS` | Explicit package tools, consumers, freshness, and editor preparation; manual `tool.build-time-tools` |
 | declaration annotations/documentation metadata | `ANNOTATIONS` | Declaration annotations and documentation metadata; manual `lang.declarations.annotations`, milestone 31.0 |
 | compiler work | `COMPILER` | §§26–33, 36, 38 |
-| call/chain layout | `CALL LAYOUT` | Canonical authority: `lang.functions.call-layout`; lexer/parser mechanics: `internals.parser.call-layout` |
+| call/chain layout | `CALL` | Argument and fluent-chain layout; canonical authority: `lang.functions.call-layout`; lexer/parser mechanics: `internals.parser.call-layout` |
+| unsettled/deferred | `OPEN`, `DEFERRED` | §§40, 42 |
 | constitutional rules | `INVARIANT` | §41 |
 
 ## STATUS
@@ -234,11 +235,11 @@ member_kind: semantic, never inferred from arity; property selection yields rece
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
 arguments: comma-separated inline list; deeper logical lines add one complete argument each; an indented argument-line root may be a nested call
-argument_layout: a deeper argument line follows a call-marker line in the same scope; in parentheses its indentation must also exceed the opener baseline; closing ')' bounds it
+argument_layout: a deeper complete argument line follows a call-marker line in the same scope; incomplete operator/comma/delimiter lines and leading infix/comma continuations preserve free-form wrapping; in parentheses its indentation must also exceed the opener baseline; closing ')' bounds it
 argument_calls: nested calls inline require grouping; nested call at root of an indented argument line is supported
 chain_layout: first deeper line begins '.' and continues the receiver result; inside parentheses it must also be deeper than the preceding substantive line, then sibling stages align after argument dedent; call stages still require ';'; never an operator or implicit conjunction
 layout_trivia: blank/comment-only lines are neutral; > and >> text remains opaque; indentation follows consistent file prefix style, not editor tab stops
-layout_headers: block-bearing if/while/for/switch/match/select headers reserve following indentation for statement bodies; use explicit parentheses for layout calls/chains inside headers
+layout_headers: block-bearing if/while/for/switch/match/select headers reserve following indentation for statement bodies; parameter layout is suppressed only for the '(' immediately following the header semicolon of a function declaration or anonymous-function header, not a function type in an annotation; use explicit parentheses for layout calls/chains inside statement headers
 three_clause_for: its semicolons belong to for; calls in clauses parenthesized
 evaluation: left-to-right
 receiver: evaluated before selection

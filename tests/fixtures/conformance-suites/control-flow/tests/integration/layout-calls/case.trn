@@ -7,22 +7,17 @@ function observed string; value string
 function combine string; first string, second string
     return first + ':' + second
 
-async function deferred string; value string
+function apply string; callback function to string
+    return callback;
+
+function one string; value string
     return value
 
-class scheduled-message
-    text string = ''
+function pick (function to string)|none; first string, second string
+    print; first + second
+    return none
 
-    function construct; text string = ''
-        this.text = text
-
-    function with-text scheduled-message; text string
-        return instance scheduled-message; text
-
-    async function wait string;
-        return this.text
-
-async function test-scenario;
+function test-scenario;
     text = '  hello world  '
     result = text
         .trim;
@@ -39,11 +34,6 @@ async function test-scenario;
         combine;
             'nested'
             'calls'
-    text-result = await deferred;
-        '  ready  '
-            .trim;
-            .upper;
-    print; text-result
     literal = 'unused'
         .replace;
             'unused'
@@ -51,9 +41,23 @@ async function test-scenario;
                 .not-a-call;
         .upper;
     print; literal
-    message = instance scheduled-message;
-    ready = await message
-        .with-text;
-            'async-chain'
-        .wait;
-    print; ready
+    print; (apply; (function string;
+        return 'r'))
+    print; (apply; function string;
+        return 'r')
+    print;
+        apply;
+            function string;
+                return 'r'
+    wrapped = (combine; 'a' +
+        'b', 'c')
+    print; wrapped
+    print; (combine; 'a'
+        , 'b')
+    wrapped-one = (one; 'a' +
+        'b')
+    print; wrapped-one
+    picked (function to string)|none = (pick;
+        'a'
+        'b')
+    print; picked is a none

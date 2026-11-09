@@ -1,0 +1,29 @@
+namespace layout-calls-async
+
+async function deferred string; value string
+    return value
+
+class scheduled-message
+    text string = ''
+
+    function construct; text string = ''
+        this.text = text
+
+    function with-text scheduled-message; text string
+        return instance scheduled-message; text
+
+    async function wait string;
+        return this.text
+
+async function test-scenario;
+    text-result = await deferred;
+        '  ready  '
+            .trim;
+            .upper;
+    print; text-result
+    message = instance scheduled-message;
+    ready = await message
+        .with-text;
+            'async-chain'
+        .wait;
+    print; ready

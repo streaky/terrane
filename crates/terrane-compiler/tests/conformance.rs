@@ -304,6 +304,7 @@ fn case_source_path(
     }
     let manifest = fs::read_to_string(case.join("case.toml")).unwrap();
     if field(&manifest, "projection-history").is_none() {
+        reset_incidental_projection_history(case);
         stage_native_tools(case, case);
         native_fixtures::stage(case, &case.join(".trn/dependencies"), &build.target);
         return case.join(entrypoint);
@@ -325,6 +326,82 @@ fn case_source_path(
     native_fixtures::stage(case, &staged, &build.target);
     native_fixtures::stage(case, &staged.join(".trn/dependencies"), &build.target);
     staged.join(entrypoint)
+}
+fn reset_incidental_projection_history(package_root: &Path) {
+    // Removed-member history affects diagnostics, unlike the retained build cache;
+    // it cannot be trusted across compiler/test runs even when cache identity matches.
+    let history = package_root.join(".trn/projection-cache.json");
+    if let Err(error) = fs::remove_file(&history)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        panic!(
+            "cannot discard incidental projection history {}: {error}",
+            history.display()
+        );
+    }
+}
+
+#[test]
+fn stale_removed_history_does_not_override_owned_callback_diagnostics() {
+    let build = ConformanceBuild::retained(&corpus());
+    for (case_name, member) in [
+        ("projected-owned-callback-result-alias", "retain_alias"),
+        ("projected-owned-trait-borrowed-result", "retain_trait"),
+        ("projected-owned-callback-type-argument", "retain_generic"),
+    ] {
+        let case = corpus().join("reject").join(case_name);
+        let _dependency_lock = FixtureDependencyLock::preserve(&case);
+        let history = case.join(".trn/projection-cache.json");
+        let original = match fs::read(&history) {
+            Ok(bytes) => Some(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => panic!("cannot read retained fixture history: {error}"),
+        };
+        let result = std::panic::catch_unwind(|| {
+            let source_path = case_source_path(&build, &case, "package.toml", case_name);
+            fs::create_dir_all(history.parent().unwrap()).unwrap();
+            let stale = serde_json::json!({
+                "format": 1,
+                "dependencies": [],
+                "removed": [{
+                    "name": member,
+                    "namespace": "/deps/terrane-boundary-reject-witness",
+                    "previous_version": "0.1.0",
+                    "current_version": "0.1.0"
+                }]
+            });
+            fs::write(&history, serde_json::to_vec(&stale).unwrap()).unwrap();
+            let package = terrane_compiler::Package::load(&source_path).unwrap();
+            let failure = terrane_compiler::compile_package(&package).unwrap_err();
+            assert!(
+                failure
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "S2031"),
+                "seeded history must affect the diagnostic before harness preparation: {failure:?}"
+            );
+            let refreshed = case_source_path(&build, &case, "package.toml", case_name);
+            let package = terrane_compiler::Package::load(&refreshed).unwrap();
+            let failure = terrane_compiler::compile_package(&package).unwrap_err();
+            let manifest = fs::read_to_string(case.join("case.toml")).unwrap();
+            let code = field(&manifest, "code").unwrap();
+            assert!(
+                reports(
+                    &failure.diagnostics,
+                    code,
+                    field(&manifest, "contains"),
+                    None
+                ),
+                "{case_name} should report its declared {code} rejection: {failure:?}"
+            );
+        });
+        if let Some(original) = original {
+            fs::write(&history, original).unwrap();
+        } else {
+            reset_incidental_projection_history(&case);
+        }
+        result.unwrap();
+    }
 }
 
 fn stage_native_tools(case: &Path, staged: &Path) {
@@ -349,6 +426,7 @@ fn stage_native_tools(case: &Path, staged: &Path) {
                     .spawn_scoped(scope, || {
                         let _dependency_lock =
                             FixtureDependencyLock::preserve(source.parent().unwrap());
+                        reset_incidental_projection_history(source.parent().unwrap());
                         let package = terrane_compiler::Package::load(&source).unwrap();
                         terrane_compiler::compile_package(&package).unwrap()
                     })

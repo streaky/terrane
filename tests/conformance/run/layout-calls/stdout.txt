@@ -6,6 +6,12 @@ left
 right
 left:right
 nested:calls
-READY
 .NOT-A-CALL;
-async-chain
+r
+r
+r
+ab:c
+a:b
+ab
+ab
+true

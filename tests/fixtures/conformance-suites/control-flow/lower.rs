@@ -1721,51 +1721,32 @@ fn combine(first: String, second: String) -> String {
         __terrane_text
     };
 }
-async fn deferred(value: String) -> String {
+fn apply(callback: std::sync::Arc<dyn Fn() -> String + Send + Sync>) -> String {
+    return callback();
+}
+fn one(value: String) -> String {
     return value;
 }
-#[derive(Clone)]
-pub struct ScheduledMessage {
-    pub text: String,
+fn pick_terrane_layout_calls(
+    first: String,
+    second: String,
+) -> Option<std::sync::Arc<dyn Fn() -> String + Send + Sync>> {
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
+        String::with_capacity(0);
+        terrane_scalar_support::ScalarDisplay::write_scalar(&first, &mut __terrane_text);
+        terrane_scalar_support::ScalarDisplay::write_scalar(&second, &mut
+        __terrane_text); __terrane_text })
+    );
+    return None;
 }
-impl ScheduledMessage {
-    pub fn terrane_construct(text: String) -> Self {
-        let mut __terrane_constructed_value = Self { text: String::from("") };
-        __terrane_constructed_value.construct(text);
-        __terrane_constructed_value
-    }
-    pub fn construct(&mut self, text: String) {
-        {
-            let __terrane_value: String = text;
-            self.text = __terrane_value;
-        }
-    }
-    pub fn with_text(&self, text: String) -> ScheduledMessage {
-        return ScheduledMessage::terrane_construct(text);
-    }
-    pub async fn wait(&self) -> String {
-        return self.text.clone();
-    }
-    pub async fn __terrane_shared_async_wait(
-        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
-    ) -> String {
-        return {
-            let __terrane_snapshot = __terrane_shared_handle
-                .lock()
-                .expect("shared async receiver lock poisoned")
-                .text
-                .clone();
-            __terrane_snapshot
-        };
-    }
-}
-async fn test_scenario_terrane_layout_calls() {
+fn test_scenario_terrane_layout_calls() {
     let text: String;
     let result: String;
-    let text_result: String;
     let literal: String;
-    let message: ScheduledMessage;
-    let ready: String;
+    let wrapped: String;
+    let wrapped_one: String;
+    let picked: Option<std::sync::Arc<dyn Fn() -> String + Send + Sync>>;
     text = String::from("  hello world  ");
     result = {
         let __terrane_receiver_value_0 = &{
@@ -1795,35 +1776,55 @@ async fn test_scenario_terrane_layout_calls() {
         "{}", terrane_scalar_support::scalar_text(&combine(String::from("nested"),
         String::from("calls")))
     );
-    text_result = __terrane_await(
-            deferred({
-                let __terrane_receiver_value_4 = &{
-                    let __terrane_receiver_value_5 = &String::from("  ready  ");
-                    terrane_string_support::trim(&__terrane_receiver_value_5)
-                };
-                terrane_string_support::upper(&__terrane_receiver_value_4)
-            }),
-        )
-        .await;
-    println!("{}", terrane_scalar_support::scalar_text(&text_result));
     literal = {
-        let __terrane_receiver_value_6 = &{
-            let __terrane_receiver_value_7 = &String::from("unused");
+        let __terrane_receiver_value_2 = &{
+            let __terrane_receiver_value_3 = &String::from("unused");
             let __terrane_string_argument_0 = "unused";
             let __terrane_string_argument_1 = ".not-a-call;";
             terrane_string_support::replace(
-                &__terrane_receiver_value_7,
+                &__terrane_receiver_value_3,
                 &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
                 &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_1),
             )
         };
-        terrane_string_support::upper(&__terrane_receiver_value_6)
+        terrane_string_support::upper(&__terrane_receiver_value_2)
     };
     println!("{}", terrane_scalar_support::scalar_text(&literal));
-    message = ScheduledMessage::terrane_construct(String::from(""));
-    ready = __terrane_await((&message.with_text(String::from("async-chain"))).wait())
-        .await;
-    println!("{}", terrane_scalar_support::scalar_text(&ready));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&apply({ std::sync::Arc::new(move | |
+        -> String { return String::from("r"); }) }))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&apply({ std::sync::Arc::new(move | |
+        -> String { return String::from("r"); }) }))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&apply({ std::sync::Arc::new(move | |
+        -> String { return String::from("r"); }) }))
+    );
+    wrapped = combine(
+        {
+            let mut __terrane_text = String::with_capacity(2);
+            __terrane_text.push_str("a");
+            __terrane_text.push_str("b");
+            __terrane_text
+        },
+        String::from("c"),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&wrapped));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&combine(String::from("a"),
+        String::from("b")))
+    );
+    wrapped_one = one({
+        let mut __terrane_text = String::with_capacity(2);
+        __terrane_text.push_str("a");
+        __terrane_text.push_str("b");
+        __terrane_text
+    });
+    println!("{}", terrane_scalar_support::scalar_text(&wrapped_one));
+    picked = pick_terrane_layout_calls(String::from("a"), String::from("b"));
+    println!("{}", terrane_scalar_support::scalar_text(&picked.is_none()));
 }
 // Source: tests/integration/lexical-replacement/case.trn
 // Namespace: lexical-replacement
@@ -2904,7 +2905,7 @@ fn test_scenario_terrane_reference_reassign_reaching_assignments() {
 }
 // Source: tests/integration/reference-return-reassigned-parameter/case.trn
 // Namespace: reference-return-reassigned-parameter
-fn pick<'a>(
+fn pick_terrane_reference_return_reassigned_parameter<'a>(
     a: &terrane_int_support::Int,
     b: &'a terrane_int_support::Int,
 ) -> &'a terrane_int_support::Int {
@@ -2931,7 +2932,7 @@ fn test_scenario_terrane_reference_return_reassigned_parameter() {
     let observed: &terrane_int_support::Int;
     a = terrane_int_support::Int::from(1_i128);
     b = terrane_int_support::Int::from(2_i128);
-    r = pick(&a, &b);
+    r = pick_terrane_reference_return_reassigned_parameter(&a, &b);
     println!("{}", terrane_scalar_support::scalar_text(&* r));
     observed = pick_observed(&a, &b);
     println!("{}", terrane_scalar_support::scalar_text(&* observed));
@@ -4370,9 +4371,7 @@ fn main() {
             test_scenario_terrane_identity_evaluation();
         }
         "18" => {
-            __terrane_run(async move {
-                test_scenario_terrane_layout_calls().await;
-            });
+            test_scenario_terrane_layout_calls();
         }
         "19" => {
             test_scenario_terrane_lexical_replacement();

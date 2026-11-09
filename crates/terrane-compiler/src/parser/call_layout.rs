@@ -81,6 +81,7 @@ impl Parser<'_> {
         self.position = first;
         loop {
             if self.at(TokenKind::Dot)
+                && self.peek_kind(1) == Some(TokenKind::Identifier)
                 && !matches!(
                     self.current().attachment,
                     super::Attachment::Right | super::Attachment::Both

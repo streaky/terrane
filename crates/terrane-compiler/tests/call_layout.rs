@@ -85,6 +85,34 @@ fn mixed_parentheses_bound_layout_without_changing_wrapping() {
         "x = outer; (inner; 'first', label = 'second')\n",
     );
     equivalent("x = outer; (\n    1,\n    2\n)\n", "x = outer; (1, 2)\n");
+    equivalent(
+        "x = (combine; 'a' +\n            'b', 'c')\n",
+        "x = combine; 'a' + 'b', 'c'\n",
+    );
+    equivalent(
+        "x = (combine; 'a'\n            , 'b')\n",
+        "x = combine; 'a', 'b'\n",
+    );
+    equivalent("x = (one; 'a' +\n        'b')\n", "x = one; 'a' + 'b'\n");
+    equivalent(
+        "x = (one; true\n    and true)\n",
+        "x = one; true and true\n",
+    );
+    equivalent(
+        "x = (service\n    .configure; 1 +\n        2\n    .finish;)\n",
+        "x = (service.configure; 1 + 2).finish;\n",
+    );
+    equivalent("x = (one; not\n    false)\n", "x = one; not false\n");
+    equivalent("x = (one; await\n    future)\n", "x = one; await future\n");
+    equivalent("x = (call;\n    -1)\n", "x = call; -1\n");
+    equivalent("x = (call;\n    >text\n)\n", "x = call; >text\n");
+}
+#[test]
+fn callable_type_annotations_do_not_suppress_parenthesized_layout() {
+    equivalent(
+        "x (function to string)|none = (pick;\n        'a'\n        'b')\n",
+        "x (function to string)|none = pick; 'a', 'b'\n",
+    );
 }
 
 #[test]
@@ -123,19 +151,31 @@ fn layout_does_not_create_implicit_operator_continuation() {
 }
 
 #[test]
-fn layout_rejects_incomplete_and_misaligned_stages() {
-    for text in [
-        "x = service\n    .\n",
-        "x = service\n    .start;\n    unrelated;\n",
-        "x = call;\n    1,\n",
-        "x = call;\n    1 2\n",
-        "x = service\n.start;\n",
-        "x = service\n    . start;\n",
-        "x = (\n    service\n    .start;)\n",
-    ] {
+fn layout_rejects_malformed_shapes_with_specific_diagnostics() {
+    let cases = [
+        ("x = service\n    .\n", &["S1014"][..]),
+        ("x = service\n    .start;\n    unrelated;\n", &["S1123"][..]),
+        ("x = call;\n    1,\n", &["S1122"][..]),
+        ("x = call;\n    1 2\n", &["S1122"][..]),
+        ("x = service\n.start;\n", &["S1017"][..]),
+        ("x = service\n    . start;\n", &["S1013"][..]),
+        ("x = (\n    service\n    .start;)\n", &["S1013"][..]),
+    ];
+    for (text, expected) in cases {
         let source = SourceFile::new(0, "layout.trn".into(), text.to_owned());
         let output = parse(&source, lex(&source).unwrap());
-        assert!(!output.diagnostics.is_empty(), "accepted {text}");
+        let codes = output
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_ref())
+            .collect::<Vec<_>>();
+        assert!(
+            expected.iter().all(|code| codes.contains(code)),
+            "{text}: {codes:?}"
+        );
+        if expected == ["S1014"] {
+            assert_eq!(codes, ["S1014"], "{text}: {codes:?}");
+        }
     }
 }
 
