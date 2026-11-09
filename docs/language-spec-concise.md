@@ -260,8 +260,8 @@ or
 - Unary `+` absent.
 - `shared ref` is one compound type/value prefix; bare prefix `shared`, `ref ref value`, `shared ref ref value`, and `move move value` rejected.
 - Parentheses override precedence and re-enable nested calls.
-- Assignment target: bare mutable binding or assignable member/index path only. Receiver/indices evaluate exactly once left-to-right before value.
-- Bare `name = expr`: declare where permitted if unresolved; otherwise rebind mutable resolved name.
+- Assignment target: a mutable name or assignable member/index path, optionally parenthesized. Receiver/indices evaluate exactly once left-to-right before value.
+- Plain `name = expr`, `(name) = expr` and nested grouping follow the same rules: declare where permitted if unresolved; otherwise rebind the mutable resolved name. A grouped first assignment inside a branch introduces an enclosing-function local, not a branch-local variable; ordinary availability checks still apply.
 - Qualified/uninitialized declarations use explicit binding grammar.
 - Structured assignment block: `target = { field = expression ... }` updates the existing simple binding in place; it neither copies nor replaces nor constructs the target, and omitted fields are unchanged. A simple local/parameter binding or `this` in a mutable instance method may be the target; member/index targets are not supported. Fields use ordinary member-write type, visibility, ownership, and closed-class rules; a later RHS failure does not roll back earlier writes.
 - Structured construction: `instance Type; constructor-args { field = expression ... }` constructs first, then applies field writes in source order. The normal construction semicolon is mandatory. Construction and update blocks must contain at least one field assignment (`S1121` for an empty block); omit the block when constructing without field writes, and omit an update with nothing to change. Blocks accept field assignments only, not arbitrary statements or nested update blocks. Right-hand sides retain ordinary lexical lookup, not an implicit receiver. Semicolon remains the invocation marker, not a statement separator.
