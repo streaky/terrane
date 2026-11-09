@@ -477,6 +477,60 @@ fn deeper_inline_comma_before_dedent_is_rejected_at_comma() {
         }
     }
 }
+
+#[test]
+fn call_line_commas_explain_layout_dedents() {
+    for (source, expected) in [
+        (
+            "x = wrap;\n    wrap;\n        opt; 'a',\n    'c'\n",
+            "x = wrap; (wrap; (opt; 'a')), 'c'\n",
+        ),
+        (
+            "x = wrap;\n    opt; 'a',\nprint; x\n",
+            "x = wrap; (opt; 'a')\nprint; x\n",
+        ),
+        (
+            "x = wrap;\n    'z',\n    opt; 'a',\nprint; x\n",
+            "x = wrap; 'z', (opt; 'a')\nprint; x\n",
+        ),
+        (
+            "x = wrap;\n    'a',\nprint; x\n",
+            "x = wrap; 'a'\nprint; x\n",
+        ),
+    ] {
+        let file = SourceFile::new(0, "layout.trn".into(), source.to_owned());
+        let output = parse(&file, lex(&file).unwrap());
+        let [diagnostic] = output.diagnostics.as_slice() else {
+            panic!("{source}: {:?}", output.diagnostics);
+        };
+        assert_eq!(diagnostic.code, "S1122", "{source}");
+        let span = diagnostic.primary.unwrap();
+        assert_eq!(span.start, source.rfind(',').unwrap(), "{source}");
+        assert_eq!(&source[span.start..span.end], ",", "{source}");
+        assert!(
+            diagnostic.help.as_ref().is_some_and(|help| {
+                help.contains("dedent") && help.contains("remove this comma")
+            }),
+            "{source}: {diagnostic:?}"
+        );
+        let mut repaired = source.to_owned();
+        repaired.replace_range(span.start..span.end, "");
+        equivalent(&repaired, expected);
+    }
+    for source in [
+        "x = (wrap; 'a', 'b',)\n",
+        "function main;\n    print; 'a',\n",
+    ] {
+        let file = SourceFile::new(0, "layout.trn".into(), source.to_owned());
+        let output = parse(&file, lex(&file).unwrap());
+        let [diagnostic] = output.diagnostics.as_slice() else {
+            panic!("{source}: {:?}", output.diagnostics);
+        };
+        assert_eq!(diagnostic.code, "S1122", "{source}");
+        assert_eq!(diagnostic.help, None, "{source}");
+    }
+}
+
 #[test]
 fn explicit_parentheses_override_inline_call_columns() {
     equivalent(

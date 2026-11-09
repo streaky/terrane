@@ -63,7 +63,14 @@ impl Parser<'_> {
     }
 
     pub(super) fn reject_trailing_argument_comma(&mut self, comma: usize) {
+        // Inline column sealing can leave the newline before the dedent unconsumed.
+        let pending_dedent = self.layout_argument.is_some()
+            && self.tokens[comma + 1..]
+                .iter()
+                .find(|token| token.kind != TokenKind::Newline)
+                .is_some_and(|token| token.kind == TokenKind::Dedent);
         let dedent = self.at(TokenKind::Dedent)
+            || pending_dedent
             || self.inline_argument_boundary()
                 && self
                     .layout_argument
