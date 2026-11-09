@@ -1182,6 +1182,88 @@ Excluded: exposing concrete payloads through catch-all bindings, reflective or s
 error inspection, changes to throwable matching or propagation, and indexing beyond the
 annotation and selection lookups named above.
 
+### Milestone 31.6 — Transparent class-wide field access interception
+
+**Status:** planned language design and implementation. The hook declarations, field-descriptor parameters and compile-time type branches shown below are illustrative proposed syntax, not currently supported Terrane. Finalize their spelling and the open contracts before implementation; do not record this capability as delivered in the language reference.
+
+**Outcome:** a class can define one typed getter or setter hook applying to multiple or all declared instance fields. Ordinary `object.field` reads and `object.field = value` writes transparently invoke the applicable hook. This is class-wide field middleware, not merely a collection of independently authored property accessors. Fields remain statically resolved, typed and subject to ordinary visibility and receiver-authority checks; misspelled or nonexistent fields remain errors.
+
+#### Typed field descriptors and direct target access
+
+- Supply a canonical field descriptor identifying the field name, declaring class, declared type (including optional or union alternatives), metadata and read/write capabilities. Reuse the existing declaration/reflection model rather than introduce a parallel field registry. Declared alternatives and the incoming value's active alternative are distinct facts.
+- Specialize the handler for the selected field type `T`. Compile-time descriptor inspection must permit type-specific code only in compatible branches; a runtime comparison of type names must not make otherwise ill-typed code valid. Unselected branches generate no runtime work. Do not introduce universal boxed values, per-access descriptor allocation or string-based field dispatch.
+- A setter receives the actual field target as `mutable ref T` and the incoming value as a read-only `ref T`. The compiler evaluates the receiver and incoming expression exactly once, retains the selected receiver identity, and keeps the incoming value stable for the hook's invocation. Existing value/COW semantics govern a write from the incoming value; the read-only argument must not imply an unconditional clone.
+- There is **no automatic assignment after the setter returns**. Writing through the supplied target reference performs the update. Returning without writing leaves the field unchanged; assigning `none` remains an ordinary optional-field write, not field removal. The target also permits observing the old value.
+- Access through the supplied target reference bypasses interception for that selected access, so reading or writing it does not recursively invoke the hook. This is a capability of the supplied reference, not a blanket disabling of hooks while a handler runs. Ordinary named accesses, including accesses through `this`, retain interception and ordinary alias/exclusive-borrow checks.
+- Throwing before any write leaves the field unchanged. Throwing after a write does not roll it back. Multiple explicit writes take effect in source order. These are ordinary mutation semantics, not an implicit transaction.
+
+#### Illustrative examples
+
+The following proposed declaration names the compiler-supplied descriptor parameter `target-field`, with proposed type `field T`, and the backing-storage reference `stored-value`. It uses `set` as a class-wide hook marker. The type and hook spellings are not settled. Reference parameters borrow implicitly at the call boundary; assignment through a mutable reference writes its referent.
+
+```terrane
+class Profile
+    name string
+    city string
+    enabled bool
+
+    mutable set function field-write of T;
+        target-field field T, stored-value mutable ref T, incoming ref T
+
+        if comptime target-field.value-type is string
+            stored-value = incoming.trim;
+        else
+            stored-value = incoming
+
+profile = instance Profile;
+profile.name = '  Ada  '
+profile.city = '  London  '
+profile.enabled = true
+print; profile.name
+```
+
+The same setter normalizes both string fields and forwards the boolean unchanged. The printed name is `Ada`. Its assignments to `stored-value` write the actual selected field without re-entering `field-write`. Removing the fallback assignment would leave non-string fields unchanged on intercepted writes; omission is meaningful, not an instruction to perform a default write.
+
+A getter needs a separate result contract rather than pretending that an ordinary read grants mutation authority. This second illustrative hook borrows the backing target read-only and explicitly returns the outgoing value:
+
+```terrane
+class Credentials
+    label string
+    token string
+
+    get function field-read of T T;
+        target-field field T, stored-value ref T
+
+        if comptime target-field.name == 'token' and target-field.value-type is string
+            return '[redacted]'
+        else
+            return stored-value
+
+credentials = instance Credentials;
+credentials.label = 'service'
+credentials.token = 'secret'
+print; credentials.label
+print; credentials.token
+```
+
+The reads produce `service` and `[redacted]`; the getter does not overwrite the stored token. This is an example of read transformation, not a security boundary: reflection, serialization, debugger inspection and explicit raw/native access each need their own documented policy. Returning an owned value must obey ordinary copy/ownership rules; the generic fallback is not permission to clone a noncopyable field or move it through a read-only reference.
+
+#### Contracts to settle before implementation
+
+- **Coverage and composition:** define all-fields default coverage, explicit selection/exclusion, inheritance and trait composition, override/conflict rules, and interaction with any future per-property accessors. Do not require a separate wrapper method per field to obtain shared policy.
+- **Getter results and authority:** settle owned versus borrowed results and their provenance, noncopyable fields, optional/union refinement, and whether an explicitly mutable getter is admitted. A normal getter must not gain implicit mutation authority or manufacture a mutable reference from a read-only receiver. Do not silently snapshot every field read to accommodate interception.
+- **Construction:** an uninitialized required field cannot supply `mutable ref T`. Specify a distinct initialization path or explicit hook bypass for initial construction writes, and preserve exact-once required-field initialization and incomplete-receiver restrictions. Do not silently skip an incoming initialization when a hook returns without writing. Post-construction assignment blocks must use ordinary intercepted writes in source order, with no rollback on later failure.
+- **Places and aliases:** define interception boundaries for explicit references, moves, compound/read-modify-write operations, nested member/index mutation and callable-field invocation. Intercepting replacement of `object.settings` must not be advertised as intercepting all mutations beneath it. Do not turn nested writes into hidden read-copy-write operations or allow escaping raw target references to silently bypass the promised policy.
+- **Effects and shared storage:** hooks participate in ordinary throwable inference and mutation checking. There is no hidden `await`. Preserve current receiver-before-RHS ordering and acquire shared mutation guards only after incoming evaluation; hooks and their direct target borrows must respect exclusive acquisition, reentry checks and bounded lifetimes. Coordinate with 31.7 without assuming a different synchronization contract.
+- **Tooling and generated consumers:** expose hook declarations, field descriptors and implicit invocation sites to source intelligence, diagnostics and debugging. Decide explicitly whether reflection-driven serialization/deserialization invokes hooks; enumerating metadata or inspecting a value must not accidentally execute arbitrary user getters. Preserve secret-field handling independently of hook output.
+
+#### Exit criteria
+
+- Final syntax and all contracts above are documented, distinguishing stored fields, access hooks and any future computed-property surface.
+- Real CLI run witnesses prove one class-wide handler covers multiple field types, type-specific normalization, unchanged targets when no write occurs, old-value inspection, getter transformation, nonrecursive direct target access, and exact-once receiver/RHS evaluation.
+- Run/reject witnesses cover throwing before/after writes, visibility and mutation authority, incompatible incoming types, construction, inheritance/composition, ordinary internal accesses, noncopyable/borrowed results, optional fields, nested mutation/alias boundaries and shared-storage conflicts. Ordinary assignment compatibility is checked before interception; the hook is not an implicit arbitrary-input conversion facility.
+- Inspect representative generated Rust and run the emitted programs: direct typed operations, bounded borrows, no avoidable cloning, boxing, descriptor allocation or runtime name dispatch. Update the authoritative manual, concise specification and affected tooling contracts only alongside implemented evidence.
+
 ### Milestone 31.7 — Revisit implicit shared-state synchronization semantics
 
 **Status:** planned design review. The current checked shared-storage contract is correct
@@ -1722,6 +1804,7 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - give typed `catch` bindings their concrete payload type, retire the consumer protocol's static
   error origin, and measure (then index, if justified) annotation descriptor/node lookups
   (milestone 31.2);
+- add transparent class-wide field get/set hooks with typed reflection descriptors and direct mutable setter targets (milestone 31.6);
 - revisit implicit shared-state synchronization: async atomicity granularity, visible critical
   sections, non-reentrant guards, and the parallel default executor (milestone 31.7);
 - investigate efficient borrowed reads and source/native composition, including avoidable
