@@ -1790,6 +1790,9 @@ fn test_scenario_terrane_layout_calls() {
     let explicit: String;
     let grouped: String;
     let named: String;
+    let parenthesized: String;
+    let parenthesized_nested: String;
+    let parenthesized_deeper: String;
     text = String::from("  hello world  ");
     result = {
         let __terrane_receiver_value_0 = &{
@@ -1895,10 +1898,22 @@ fn test_scenario_terrane_layout_calls() {
     println!("{}", terrane_scalar_support::scalar_text(&mixed));
     explicit = wrap(opt(String::from("a"), String::from("b")), String::from("c"));
     println!("{}", terrane_scalar_support::scalar_text(&explicit));
-    grouped = wrap(opt(String::from("a"), String::from("b")), String::from("-"));
+    grouped = wrap(opt(String::from("a"), String::from("")), String::from("b"));
     println!("{}", terrane_scalar_support::scalar_text(&grouped));
     named = wrap(opt(String::from("a"), String::from("")), String::from("b"));
     println!("{}", terrane_scalar_support::scalar_text(&named));
+    parenthesized = wrap(opt(String::from("a"), String::from("b")), String::from("-"));
+    println!("{}", terrane_scalar_support::scalar_text(&parenthesized));
+    parenthesized_nested = wrap(
+        opt(String::from("a"), String::from("b")),
+        String::from("c"),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&parenthesized_nested));
+    parenthesized_deeper = wrap(
+        opt(String::from("a"), String::from("")),
+        String::from("b"),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&parenthesized_deeper));
 }
 // Source: tests/integration/lexical-replacement/case.trn
 // Namespace: lexical-replacement

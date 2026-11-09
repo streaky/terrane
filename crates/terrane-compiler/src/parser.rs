@@ -1556,7 +1556,15 @@ impl Parser<'_> {
                 }
                 let operator = self.text().to_owned();
                 self.bump();
+                // Recover the unfinished operand as one expression after diagnosing its
+                // column boundary, rather than cascading into missing-expression/comma errors.
+                let recovery_column = self
+                    .diagnose_inline_operand_boundary()
+                    .then(|| self.set_inline_argument_column(None));
                 let right = self.parse_expression(precedence + 1, allow_call);
+                if let Some(column) = recovery_column {
+                    self.set_inline_argument_column(column);
+                }
                 left = self.node(
                     SyntaxKind::BinaryExpression,
                     start,
@@ -1859,7 +1867,7 @@ impl Parser<'_> {
             pending_comma = None;
         }
         if let Some(comma) = pending_comma {
-            self.error_at(comma, "S1122", "expected an argument after `,`");
+            self.reject_trailing_argument_comma(comma);
         }
         if grouped {
             self.expect(

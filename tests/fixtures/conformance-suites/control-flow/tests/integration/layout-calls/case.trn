@@ -115,3 +115,16 @@ function test-scenario;
         a = opt; 'a',
         b = 'b'
     print; named
+    parenthesized = (wrap;
+        opt; 'a', 'b')
+    print; parenthesized
+    parenthesized-nested = (wrap;
+        (opt; 'a',
+        'b'),
+        'c')
+    print; parenthesized-nested
+    parenthesized-deeper = (wrap;
+        opt;
+            'a'
+        'b')
+    print; parenthesized-deeper

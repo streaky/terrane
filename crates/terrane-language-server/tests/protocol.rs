@@ -724,6 +724,9 @@ function main;
         opt; 'a',
             'b'
     e1 = wrap; (opt; 'a'), 'b'
+    parenthesized = (wrap;
+        opt; 'a',
+        'b')
     named = wrap; b = 'outer', a = 'inner'
 ";
     let uri = "file:///tmp/call-layout-protocol.trn";
@@ -781,6 +784,23 @@ function main;
         (mixed + "opt; 'a',".rfind(',').unwrap(), "opt", 0),
         (mixed + "opt; 'a',".rfind(',').unwrap() + 1, "opt", 1),
         (e1_comma + 1, "wrap", 1),
+        (
+            text.find("parenthesized =").unwrap()
+                + text[text.find("parenthesized =").unwrap()..]
+                    .find(',')
+                    .unwrap(),
+            "wrap",
+            0,
+        ),
+        (
+            text.find("parenthesized =").unwrap()
+                + text[text.find("parenthesized =").unwrap()..]
+                    .find(',')
+                    .unwrap()
+                + 1,
+            "wrap",
+            1,
+        ),
     ] {
         send(
             &mut stdin,
@@ -843,6 +863,13 @@ function main;
         ("opt.a:", text.find("'a')").unwrap()),
         ("wrap.b:", text.find("b = 'outer'").unwrap()),
         ("wrap.a:", text.find("a = 'inner'").unwrap()),
+        (
+            "wrap.b:",
+            text.find("parenthesized =").unwrap()
+                + text[text.find("parenthesized =").unwrap()..]
+                    .find("'b'")
+                    .unwrap(),
+        ),
     ] {
         let expected = position(offset);
         assert!(

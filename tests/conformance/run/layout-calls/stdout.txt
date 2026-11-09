@@ -23,5 +23,8 @@ ab:b text
 [ab|-]
 [ab|-]
 [ab|c]
+[a|b]
+[a|b]
 [ab|-]
+[ab|c]
 [a|b]

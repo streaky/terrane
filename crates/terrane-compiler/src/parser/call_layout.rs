@@ -6,6 +6,7 @@ pub(super) struct ArgumentLayout {
     ended: bool,
     column_calls: bool,
     inline_column: Option<usize>,
+    grouping_depth: usize,
 }
 
 impl Parser<'_> {
@@ -14,11 +15,9 @@ impl Parser<'_> {
     }
 
     pub(super) fn inline_call_column(&self) -> Option<usize> {
-        if self.argument_grouping != 0
-            || !self
-                .layout_argument
-                .is_some_and(|layout| layout.column_calls)
-        {
+        if !self.layout_argument.is_some_and(|layout| {
+            layout.column_calls && self.argument_grouping == layout.grouping_depth
+        }) {
             return None;
         }
         self.position
@@ -34,11 +33,50 @@ impl Parser<'_> {
     }
 
     pub(super) fn separator_ends_inline_call(&self) -> bool {
-        self.argument_grouping == 0
-            && self
-                .layout_argument
-                .and_then(|layout| layout.inline_column)
-                .is_some_and(|column| self.column_boundary_from(self.position + 1, column))
+        self.layout_argument.is_some_and(|layout| {
+            self.argument_grouping == layout.grouping_depth
+                && layout
+                    .inline_column
+                    .is_some_and(|column| self.column_boundary_from(self.position + 1, column))
+        })
+    }
+
+    fn inline_argument_boundary(&self) -> bool {
+        self.layout_argument.is_some_and(|layout| {
+            self.argument_grouping == layout.grouping_depth
+                && layout
+                    .inline_column
+                    .is_some_and(|column| self.column_boundary_from(self.position, column))
+        })
+    }
+
+    pub(super) fn diagnose_inline_operand_boundary(&mut self) -> bool {
+        if !self.inline_argument_boundary() {
+            return false;
+        }
+        self.error_here_with_help(
+            "S1122",
+            "operator continuation crosses the inline call's argument boundary",
+            "The next line is not deeper than the inline call; indent the continuation or parenthesize the operand.",
+        );
+        true
+    }
+
+    pub(super) fn reject_trailing_argument_comma(&mut self, comma: usize) {
+        let dedent = self.at(TokenKind::Dedent)
+            || self.inline_argument_boundary()
+                && self
+                    .layout_argument
+                    .and_then(|layout| layout.inline_column)
+                    .is_some_and(|column| {
+                        self.source_indentation(self.tokens[comma].span.start) > column
+                    });
+        self.error_at(comma, "S1122", "expected an argument after `,`");
+        if dedent && let Some(diagnostic) = self.diagnostics.last_mut() {
+            diagnostic.help = Some(
+                "The dedent already ends this call's arguments; remove this comma.".to_owned(),
+            );
+        }
     }
 
     fn source_indentation(&self, offset: usize) -> usize {
@@ -123,11 +161,7 @@ impl Parser<'_> {
             if layout.ended {
                 return;
             }
-            if self.argument_grouping == 0
-                && layout
-                    .inline_column
-                    .is_some_and(|column| self.column_boundary_from(self.position, column))
-            {
+            if self.inline_argument_boundary() {
                 return;
             }
             if self.at(TokenKind::Newline) {
@@ -211,6 +245,7 @@ impl Parser<'_> {
         }
         let outer = self.layout_argument.replace(ArgumentLayout {
             column_calls: true,
+            grouping_depth: self.argument_grouping,
             ..ArgumentLayout::default()
         });
         while !matches!(
@@ -233,7 +268,7 @@ impl Parser<'_> {
                 self.skip_argument_wrapping();
                 self.skip_newlines();
                 if self.at_expression_end() {
-                    self.error_at(comma, "S1122", "expected an argument after `,`");
+                    self.reject_trailing_argument_comma(comma);
                     break;
                 }
             } else {

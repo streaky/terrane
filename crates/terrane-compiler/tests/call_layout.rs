@@ -380,6 +380,104 @@ fn inline_call_columns_seal_same_level_arguments_and_separators() {
 }
 
 #[test]
+fn outer_parentheses_preserve_layout_column_ownership_at_nonzero_baselines() {
+    equivalent(
+        "x = (wrap;\n    (opt; 'a',\n    'b'),\n    'c')\n",
+        "x = wrap; (opt; 'a', 'b'), 'c'\n",
+    );
+    equivalent(
+        "function main;\n    x = (wrap;\n        opt; 'a',\n        'b')\n",
+        "function main;\n    x = wrap; (opt; 'a'), 'b'\n",
+    );
+    equivalent(
+        "x = ((wrap;\n    opt; 'a',\n    'b'))\n",
+        "x = wrap; (opt; 'a'), 'b'\n",
+    );
+    equivalent(
+        "x = (wrap;\n    opt; 'a', 'b')\n",
+        "x = wrap; (opt; 'a', 'b')\n",
+    );
+    equivalent(
+        "x = (wrap;\n    opt;\n        'a'\n    'b')\n",
+        "x = wrap; (opt; 'a'), 'b'\n",
+    );
+}
+
+#[test]
+fn deeper_and_grouped_binary_continuations_are_valid_but_shallow_is_not() {
+    for source in [
+        "x = wrap;\n    opt; 1 +\n        2,\n    3\n",
+        "x = wrap;\n    opt; (1 +\n    2),\n    3\n",
+        "x = wrap;\n    opt; 1 +\n        (2),\n    3\n",
+    ] {
+        let file = SourceFile::new(0, "layout.trn".into(), source.to_owned());
+        let output = parse(&file, lex(&file).unwrap());
+        assert!(
+            output.diagnostics.is_empty(),
+            "{source}: {:?}",
+            output.diagnostics
+        );
+    }
+    let source = "x = wrap;\n    opt; 1 +\n    2,\n    3\n";
+    let file = SourceFile::new(0, "layout.trn".into(), source.to_owned());
+    let output = parse(&file, lex(&file).unwrap());
+    assert_eq!(
+        output
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.as_ref())
+            .collect::<Vec<_>>(),
+        ["S1122"],
+        "{:?}",
+        output.diagnostics
+    );
+    let diagnostics = output
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code == "S1122")
+        .collect::<Vec<_>>();
+    assert_eq!(diagnostics.len(), 1, "{:?}", output.diagnostics);
+    assert!(
+        diagnostics[0]
+            .help
+            .as_ref()
+            .is_some_and(|help| help.contains("indent") && help.contains("parenthes")),
+        "{:?}",
+        diagnostics[0]
+    );
+}
+
+#[test]
+fn deeper_inline_comma_before_dedent_is_rejected_at_comma() {
+    for source in [
+        "x = wrap;\n    opt; 'a',\n        'b',\n    'c'\n",
+        "x = wrap;\n    opt; 'a',\n        'b',\n            'c',\n    'd'\n",
+    ] {
+        let file = SourceFile::new(0, "layout.trn".into(), source.to_owned());
+        let output = parse(&file, lex(&file).unwrap());
+        let diagnostics = output
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "S1122")
+            .collect::<Vec<_>>();
+        assert!(
+            !diagnostics.is_empty(),
+            "{source}: {:?}",
+            output.diagnostics
+        );
+        for diagnostic in diagnostics {
+            let span = diagnostic.primary.unwrap();
+            assert_eq!(&source[span.start..span.end], ",", "{source}");
+            assert!(
+                diagnostic.help.as_ref().is_some_and(|help| {
+                    help.contains("dedent") && help.contains("remove this comma")
+                }),
+                "{source}: {diagnostic:?}"
+            );
+        }
+    }
+}
+#[test]
 fn explicit_parentheses_override_inline_call_columns() {
     equivalent(
         "x = wrap;\n    (opt; 'a',\n    'b'),\n    'c'\n",
@@ -387,7 +485,7 @@ fn explicit_parentheses_override_inline_call_columns() {
     );
     equivalent(
         "x = (wrap;\n    opt; 'a',\n    'b')\n",
-        "x = wrap; (opt; 'a', 'b')\n",
+        "x = wrap; (opt; 'a'), 'b'\n",
     );
     equivalent(
         "x = wrap;\n    opt; ('a' +\n    'b'),\n    'c'\n",
