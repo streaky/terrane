@@ -1,0 +1,30 @@
+world
+Terrane
+HELLO TERRANE
+  hello world  
+left
+right
+left:right
+nested:calls
+.NOT-A-CALL;
+r
+r
+r
+ab:c
+a:b
+ab
+ab
+true
+7
+wrappedarguments
+nesteddedentsibling
+ab:b text
+[a|b]
+[ab|-]
+[ab|-]
+[ab|c]
+[a|b]
+[a|b]
+[ab|-]
+[ab|c]
+[a|b]

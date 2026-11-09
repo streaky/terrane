@@ -14,10 +14,12 @@ use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree};
 use crate::tokens::{TokenKind, TriviaKind};
 use crate::{Diagnostic, SourceFile, Span};
 
+mod call_arguments;
 mod consumer_preparation;
 mod import_rename;
 mod rename;
 
+pub use call_arguments::{CallArgumentContext, ParameterInlayHint};
 pub const SCHEMA_VERSION: &str = "1.0";
 const DEFAULT_MAX_SNAPSHOTS: usize = 32;
 const DEFAULT_MAX_BYTES: usize = 64 * 1024 * 1024;
@@ -1063,41 +1065,15 @@ impl ToolingEngine {
         uri: &str,
         offset: usize,
     ) -> Result<Option<CallableSignature>, ProtocolError> {
-        fn enclosing_call(node: &SyntaxNode, offset: usize) -> Option<&SyntaxNode> {
-            if !(node.span.start <= offset && offset <= node.span.end) {
-                return None;
-            }
-            node.children
-                .iter()
-                .find_map(|child| enclosing_call(child, offset))
-                .or_else(|| (node.kind == SyntaxKind::CallExpression).then_some(node))
-        }
         let snapshot = self.snapshot(snapshot_id)?;
         let document = snapshot.document(uri)?;
-        if offset > document.source.text().len() || !document.source.text().is_char_boundary(offset)
-        {
-            return Err(ProtocolError::new(
-                "invalid-position",
-                "position must be a UTF-8 byte boundary within the source",
-            ));
-        }
-        let Some(semantic) = snapshot.semantic.as_ref() else {
-            return Ok(None);
-        };
-        let Some(unit) = semantic
-            .units
-            .iter()
-            .find(|unit| unit.source.id() == document.source.id())
-        else {
-            return Ok(None);
-        };
-        let Some(call) = enclosing_call(&unit.tree.root, offset) else {
+        let Some(context) = self.call_argument_context(snapshot_id, uri, offset)? else {
             return Ok(None);
         };
         let Some(contract) =
-            crate::semantics::selected_callable_contract(semantic, unit, call, call.is_unsafe_call)
+            ToolingEngine::selected_contract_for_context(snapshot, document, &context)
         else {
-            return Ok(None);
+            return Ok(call_arguments::source_signature(document, &context));
         };
         let parameters = contract
             .parameters
@@ -1120,21 +1096,17 @@ impl ToolingEngine {
             .as_ref()
             .map_or_else(|| "none".to_owned(), ToString::to_string);
         let active_parameter = (!parameters.is_empty()).then(|| {
-            call.children
-                .last()
-                .filter(|arguments| arguments.kind == SyntaxKind::ArgumentList)
-                .and_then(|arguments| {
-                    arguments
-                        .children
-                        .iter()
-                        .enumerate()
-                        .rev()
-                        .find(|(_, argument)| argument.span.start <= offset)
-                })
-                .map_or(0, |(index, _)| index.min(parameters.len() - 1))
+            call_arguments::parameter_index(&contract, &context).min(parameters.len() - 1)
         });
         Ok(Some(CallableSignature {
-            label: format!("{}({}) -> {result}", contract.name, parameters.join(", ")),
+            label: format!(
+                "{}({}) -> {result}",
+                contract.owner.as_ref().map_or_else(
+                    || contract.name.clone(),
+                    |owner| format!("{owner}::{}", contract.name)
+                ),
+                parameters.join(", ")
+            ),
             parameters,
             active_parameter,
         }))
@@ -3300,7 +3272,13 @@ fn format_source(document: &ParsedDocument) -> String {
     for (start, end, replacement) in edits.into_iter().rev() {
         output.replace_range(start..end, replacement);
     }
-    output
+    if call_arguments::preserves_call_structure(document, &output) {
+        output
+    } else {
+        output.clear();
+        output.push_str(source);
+        output
+    }
 }
 
 fn collect_raw_rust_spans(
@@ -3970,6 +3948,32 @@ mod tests {
             formatted.text,
             "/**\n * A paragraph with a hard break.  \n *\n *     indented example  \n */\nfunction main;\n    value int = 1\n"
         );
+    }
+
+    #[test]
+    fn formatter_keeps_nested_call_structure_and_is_idempotent() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/call-format-guard.trn";
+        let source = "namespace call-format-guard\nfunction main;   \n    value=wrap;\n        opt; 'a',\n        'b'   \n";
+        let snapshot = open(&mut engine, uri, source, SnapshotOptions::default());
+        let first = engine.format(&snapshot.snapshot_id, uri).unwrap();
+        let first_document = engine
+            .snapshot(&snapshot.snapshot_id)
+            .unwrap()
+            .document(uri)
+            .unwrap();
+        assert!(call_arguments::preserves_call_structure(
+            first_document,
+            &first.text
+        ));
+        let changed_ownership = source.replace("        'b'", "            'b'");
+        assert!(!call_arguments::preserves_call_structure(
+            first_document,
+            &changed_ownership
+        ));
+        let second_snapshot = open(&mut engine, uri, &first.text, SnapshotOptions::default());
+        let second = engine.format(&second_snapshot.snapshot_id, uri).unwrap();
+        assert_eq!(second.text, first.text);
     }
     #[test]
     fn formatter_preserves_raw_rust_bodies() {

@@ -314,6 +314,69 @@ impl SyntaxNode {
         }
     }
 
+    /// Commas owned directly by this argument list, excluding nested argument
+    /// expressions. Ownership comes from parser ranges, never inferred columns.
+    pub fn argument_separators<'a>(
+        &'a self,
+        lexed: &'a LexedSource,
+    ) -> impl Iterator<Item = Span> + 'a {
+        let start = self.token_range.start;
+        let mut arguments = self.children.iter().peekable();
+        lexed
+            .tokens
+            .get(self.token_range.clone())
+            .into_iter()
+            .flatten()
+            .enumerate()
+            .filter_map(move |(offset, token)| {
+                if self.kind != SyntaxKind::ArgumentList
+                    || token.kind != crate::tokens::TokenKind::Comma
+                {
+                    return None;
+                }
+                let index = start + offset;
+                while arguments
+                    .peek()
+                    .is_some_and(|argument| argument.token_range.end <= index)
+                {
+                    arguments.next();
+                }
+                if arguments
+                    .peek()
+                    .is_some_and(|argument| argument.token_range.contains(&index))
+                {
+                    None
+                } else {
+                    Some(token.span)
+                }
+            })
+    }
+
+    pub(crate) fn has_line_leading_text_comparison(&self, source: &str) -> bool {
+        if self.kind == SyntaxKind::BinaryExpression
+            && let [left, right] = self.children.as_slice()
+            && let Some(gap) = source.get(left.span.end..right.span.start)
+            && gap.trim() == ">"
+            && let Some(relative) = gap.find('>')
+        {
+            let operator = left.span.end + relative;
+            let line = source[..operator].rfind('\n').map_or(0, |index| index + 1);
+            if source[line..operator]
+                .bytes()
+                .all(|byte| matches!(byte, b' ' | b'\t'))
+            {
+                return true;
+            }
+        }
+        matches!(
+            self.kind,
+            SyntaxKind::Argument | SyntaxKind::GroupExpression
+        ) && self
+            .children
+            .last()
+            .is_some_and(|child| child.has_line_leading_text_comparison(source))
+    }
+
     /// The written place, never a name found in the assignment's value.
     pub(crate) fn assignment_target(&self) -> Option<&Self> {
         match self.kind {

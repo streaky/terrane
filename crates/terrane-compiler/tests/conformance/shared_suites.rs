@@ -145,6 +145,7 @@ fn compile_shared_suite(
     registered: &[PathBuf],
 ) -> terrane_compiler::testing::TestTierCompilation {
     let _dependency_lock = FixtureDependencyLock::preserve(suite_root);
+    super::reset_incidental_projection_history(suite_root);
     let package =
         terrane_compiler::testing::TestPackage::load(suite_root).unwrap_or_else(|errors| {
             panic!(

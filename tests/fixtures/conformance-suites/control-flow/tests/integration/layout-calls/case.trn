@@ -1,0 +1,130 @@
+namespace layout-calls
+
+function observed string; value string
+    print; value
+    return value
+
+function combine string; first string, second string
+    return first + ':' + second
+
+function subtract int; left int, right int
+    return left - right
+
+function wrapped string; first string, second string
+    return first + second
+
+function apply string; callback function to string
+    return callback;
+
+function one string; value string
+    return value
+
+function pick (function to string)|none; first string, second string
+    print; first + second
+    return none
+
+function wrap string; a string, b string = '-'
+    return '[' + a + '|' + b + ']'
+
+function opt string; v string, w string = ''
+    return v + w
+
+function test-scenario;
+    text = '  hello world  '
+    result = text
+        .trim;
+        .replace;
+            (observed; 'world'),
+            replacement = (observed; 'Terrane')
+        .upper;
+    print; result
+    print; text
+    print; (combine;
+        (observed; 'left'),
+        (observed; 'right'))
+    print;
+        combine;
+            'nested',
+            'calls'
+    literal = 'unused'
+        .replace;
+            'unused',
+            >>
+                .not-a-call;
+        .upper;
+    print; literal
+    print; (apply; (function string;
+        return 'r'))
+    print; (apply; function string;
+        return 'r')
+    print;
+        apply;
+            function string;
+                return 'r'
+    wrapped = (combine; 'a' +
+        'b', 'c')
+    print; wrapped
+    print; (combine; 'a'
+        , 'b')
+    wrapped-one = (one; 'a' +
+        'b')
+    print; wrapped-one
+    picked (function to string)|none = (pick;
+        'a',
+        'b')
+    print; picked is a none
+    print;
+        subtract;
+            5,
+            -2
+    print;
+        wrapped;
+            'wrapped',
+            'arguments'
+    print;
+        wrapped;
+            wrapped;
+                'nested',
+                'dedent'
+            'sibling'
+    print;
+        combine;
+            'a' +
+                'b',
+            >b text
+    sealed = wrap;
+        opt; 'a',
+        'b'
+    print; sealed
+    same-line = wrap;
+        opt; 'a', 'b'
+    print; same-line
+    mixed = wrap;
+        opt; 'a',
+            'b'
+    print; mixed
+    explicit = wrap;
+        (opt; 'a', 'b'),
+        'c'
+    print; explicit
+    grouped = (wrap;
+        opt; 'a',
+        'b')
+    print; grouped
+    named = wrap;
+        a = opt; 'a',
+        b = 'b'
+    print; named
+    parenthesized = (wrap;
+        opt; 'a', 'b')
+    print; parenthesized
+    parenthesized-nested = (wrap;
+        (opt; 'a',
+        'b'),
+        'c')
+    print; parenthesized-nested
+    parenthesized-deeper = (wrap;
+        opt;
+            'a'
+        'b')
+    print; parenthesized-deeper

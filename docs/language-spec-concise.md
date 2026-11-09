@@ -25,6 +25,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear, consult the canonical
 | build-time tools and source generation | `BUILD_TIME_TOOLS` | Explicit package tools, consumers, freshness, and editor preparation; manual `tool.build-time-tools` |
 | declaration annotations/documentation metadata | `ANNOTATIONS` | Declaration annotations and documentation metadata; manual `lang.declarations.annotations`, milestone 31.0 |
 | compiler work | `COMPILER` | §§26–33, 36, 38 |
+| call/chain layout | `CALL` | Argument and fluent-chain layout; canonical authority: `lang.functions.call-layout`; lexer/parser mechanics: `internals.parser.call-layout` |
 | unsettled/deferred | `OPEN`, `DEFERRED` | §§40, 42 |
 | constitutional rules | `INVARIANT` | §41 |
 
@@ -207,8 +208,17 @@ connect; host, port, timeout = 10
 buffer.clear;                  # zero-arg instance-member call
 widget::default;               # zero-arg static-member call
 instance widget;               # zero-arg class construction
-print; render                  # a bare name passes the object
-print; (render; report)        # nested call MUST be grouped
+print; (render; report)        # inline nested call is grouped
+outer;
+  inner;                       # nested call at argument-line root
+    'first', label = 'second'
+  final = 3
+result = message
+  .with-text;
+    'ready'
+  .after;
+    (milliseconds; 1)
+  .wait;
 ```
 
 Rules:
@@ -221,16 +231,22 @@ static_member: class::member selects a class/static member; '.' and '::' are nev
 construction: ordinary class construction is `instance class; arguments`; `throw throwable-class; arguments` and `throw throwable-class` are specialized constructor-and-throw forms. An optional nonempty `{ field = expression ... }` block follows constructor arguments and applies ordinary field writes in source order. The semicolon is always required for ordinary construction, including with zero arguments and a block. Field operations are newline-separated, with an optional single-field inline form. Initialization blocks are part of the construction expression, including in return values and arguments.
 member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
-call_extent: unwrapped call owns remainder of containing logical expression
-arguments: one comma-separated list; optional '(' immediately after ';' delimits wrapping
-argument_layout: parentheses are general explicit expression continuation; newline/indent/comments and block strings inside remain non-structural; closing outermost ')' restores logical-line termination
-argument_calls: ungrouped calls forbidden; delimited argument list admits nested calls
+arguments: comma-separated in inline, grouped, and layout calls; active-block newlines/indentation are whitespace, and a nested call-argument/chain dedent can implicitly end its containing argument
+argument_layout: deeper call-marker continuation activates a block; commas belong to that block and cannot be followed by dedent, ')', endstatement, or EOF (S1122 at comma); trailing commas are banned for every call form, not parameter lists; missing separator => S1122
+argument_calls: ordinary inline nested calls remain S1016; a nested inline call at argument-line root owns same-line arguments and deeper continuation lines, but is sealed before a following substantive line whose indentation is <= its call line. Its end-of-call-line comma belongs to the outer list if that line is not deeper. Thus `wrap;\n    opt; 'a',\n    'b'` means `wrap(opt('a'), 'b')`; same-line or deeper `b` stays inside `opt`. Outer parentheses around an active layout call preserve that ownership; only parentheses opened within it, around a nested call/list or operand, suppress sealing for their contents. A dangling binary operator cannot take a same-column or shallower operand after an inline nested call: one S1122, with help to indent more deeply or parenthesize, no separator cascade. Structural argument-block commas cannot cross dedent; remove a comma before deeper inline continuation dedents because dedent already ends the list.
+call_extent: within a parenthesized call, an argument continues until ',' or the matching ')'; ordinary unparenthesized calls end at the statement/layout boundary. Nested inline calls inside argument layout are additionally sealed by the column boundary above. Outer grouping around active layout preserves its ownership; internal grouping suppresses that column rule only within its contents.
+parameter_inlays: editor parameter hints qualify every label by owning callee (for example `opt.value:`); signature help binds named arguments and selects the separator owner when the cursor is after a separator
+formatter_calls: formatting preserves call structure and ownership
+chain_layout: first deeper line begins '.' and continues the receiver result; inside parentheses it must also be deeper than the preceding substantive line, then sibling stages align after argument dedent; call stages still require ';'; never an operator or implicit conjunction
+layout_trivia: blank/comment-only lines are neutral; > and >> text remains opaque; indentation follows consistent file prefix style, not editor tab stops
+layout_headers: block-bearing if/while/for/switch/match/select headers reserve following indentation for statement bodies; parameter layout is suppressed only for the '(' immediately following the header semicolon of a function declaration or anonymous-function header, not a function type in an annotation; use explicit parentheses for layout calls/chains inside statement headers
 three_clause_for: its semicolons belong to for; calls in clauses parenthesized
 evaluation: left-to-right
 receiver: evaluated before selection
 and_or: short-circuit
 other_binary: both operands evaluated
 default_args: call site, after supplied args, parameter order
+call_arguments_error: missing commas and any trailing comma => S1122; comma followed by dedent/close/end boundaries reports at comma
 local_functions: named declarations are visible throughout their enclosing function scope, supporting later-sibling calls and mutual recursion; their names cannot be reassigned or replaced by same-function bindings, but may shadow outer declarations. Control-flow bodies add no scopes. Calls retain their own parameter/result contracts; returns are checked against the current callable. Enclosing callable bindings and instance receiver state cannot be captured (S2062); use an anonymous closure. Class-level self::member access needs no instance capture
 ```
 
@@ -314,7 +330,7 @@ function connect connection; host string, port int, timeout int = 10
 - An inferred binding does not widen when a later unannotated assignment has a different type; that assignment reports `T0002`. Independently typed branch declarations can form local flow unions. This is distinct from runtime uncertainty about whether a binding has a value.
 - [function-scope] Named and anonymous function bodies create lexical scopes; explicit `with scoped-access` regions additionally bound acquisition and body-local declarations. Ordinary `if`/`else`, `select`, `while`, and `for` share their enclosing function's scope: each executed declaration, identical-type assignment, and new-type replacement behaves exactly as the same lines written straight through. A `for` target is an ordinary function variable, added if absent and visible afterward. Release occurs on replacement or function exit, not ordinary control-block exit. At joins, the type is the ordinary union of every reaching type, including loop-entry and back-edge types; the join itself is valid, while each use must accept all alternatives or narrow them. Availability is a separate flow fact: only uncertain variables need runtime uncertainty, and only uncertain uses check it.
 - A declaration initializer's expected type and contextual element type apply in every control-flow location. Collection builders belong to the owning function's storage plan, not to a loop-body iteration; each execution must still create an independent logical value.
-- Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. For multiline parameters, `(` must be the first non-trivia token after the semicolon on the declaration line; newlines and indentation are non-structural until its matching `)`, commas alone divide parameters, and `)` may share the final parameter's line. Preferred form: one parameter per line with `)` on its own line; other layouts inside the delimiters remain legal.
+- Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. For multiline parameters, `(` must be the first non-trivia token after the semicolon on the declaration line; newlines and indentation are non-structural until its matching `)`, commas alone divide parameters, and `)` may share the final parameter's line. Preferred form: one parameter per line with `)` on its own line; other layouts inside the delimiters remain legal. A function declaration may use a loop body.
 - Named and anonymous callable bodies, including async closures, validate their own reachable returns and fall-through against their declared result (`T0015`). Nested callable returns do not satisfy an outer result contract; loop control cannot cross a callable boundary.
 - A final `name T ...` parameter captures zero or more remaining positional arguments as an ordinary `list of T`; it cannot have a default or be bound by name. Fixed required and optional parameters may precede it. Calls evaluate and convert arguments left-to-right, and fixed versus variadic arity is part of callable types (`function from T ... to R`), interface/trait conformance, and deterministic identity. An omitted `T` follows ordinary finite inference/defaulting and never creates an unbounded universal value. Rust `Fn` projection remains fixed arity; C ABI variadics require an explicit foreign adapter.
 - Named arguments require stable exposed parameter names.
@@ -1447,7 +1463,7 @@ Must reject with source-oriented help:
 print render             -> adjacency is not invocation; suggest member attachment or `print; render`
 count-1                   -> lexical attached digits-only suffix; suggest `count - 1`
 a+ b                      -> undeclared left-attached/postfix operator
-nested; other; value      -> nested call must be parenthesized
+nested; other; value      -> inline nested call must be grouped; argument-line-root calls may use layout
 for x=(call; a);...       -> calls in for clauses grouped
 foo                       -> unresolved name when not imported or declared
 value .member             -> invalid; whitespace before a member dot
@@ -1542,8 +1558,8 @@ Before writing Terrane:
 3. Import explicitly; `as` renames. Imports bind ordinary names directly.
 4. Preserve compact punctuated identifiers; put spaces around infix operators.
 5. Use `;` for every call, including zero args.
-6. Prefer one call per statement. A single parenthesised call in an argument list is ordinary; two or more should be bound to named intermediates. Nesting is legal but obscures evaluation order, accumulates meaningless parentheses, and leaves diagnostics and traces pointing at an anonymous subexpression.
-6. Parenthesize nested calls and calls in three-clause `for` clauses.
+6. Prefer one call per statement when statements are independent. Use chain or argument layout for expressions that genuinely compose calls; avoid needless nesting and use named intermediates when their values are ordinary and storable.
+6. Parenthesize nested calls written inline and calls in three-clause `for` clauses; a nested call at the root of an indented argument line is the layout exception.
 7. Use indentation; empty block is legal.
 8. Write type after name; use `T|none`; canonical constructors use `of`.
 9. Let a single numeric destination perform its exact-or-throw conversion; write `coerce` or a rounding member when selecting a different policy. Never assume foreign conversion.

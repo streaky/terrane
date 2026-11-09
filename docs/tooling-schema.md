@@ -295,12 +295,17 @@ edits for the editor to apply. Rename engine errors surface as JSON-RPC invalid-
 ## Language-server surface
 
 The language server advertises the standard diagnostics, completion, hover, definition, references,
-implementation, rename, document-symbol, formatting, code-action, signature-help, and semantic-token
-capabilities. Its source code action formats the current document. Ordinary `didOpen` and `didChange`
+implementation, rename, document-symbol, formatting, code-action, signature-help, parameter-inlay-hint,
+and semantic-token capabilities. Its source code action formats the current document. Ordinary `didOpen` and `didChange`
 analysis snapshots do not compile generated Rust. The custom `terrane/generatedRust` request accepts
 a text-document position, lazily opens a short-lived generated snapshot from the exact current package
 and editor overlays, returns the same availability-tagged exact-build generated locations as
 `generated-rust`, and closes that generated snapshot before responding.
+
+Parameter hints name both the owning callable and parameter (for example `opt.value:`). Signature
+help uses compiler-owned argument and separator ranges: after a comma, the active parameter belongs
+to the call owning that comma, with named arguments bound by name. Projected-callable fallback uses
+the same parsed call context rather than searching a source line for its last call marker.
 
 ## Formatting
 
@@ -308,6 +313,8 @@ and editor overlays, returns the same availability-tagged exact-build generated 
 zero or one replacement. It removes safe trailing whitespace and canonicalises parser-proven
 assignment and infix gaps. It does not split operator-bearing identifiers, alter newline style,
 rewrite comments or multiline strings, or modify malformed source that cannot safely be formatted.
+Formatting also reparses its result and rejects changes to the call/argument tree or separator
+ownership. This guard applies to mixed inline, indented, and explicitly parenthesized calls.
 
 The CLI exposes the operation as `terrane fmt [--check] <file-or-manifest>`. Check mode prints each
 drifting path, returns exit status 1, and performs no write.

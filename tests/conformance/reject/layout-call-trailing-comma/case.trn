@@ -1,0 +1,4 @@
+namespace layout-call-trailing-comma
+
+function main;
+    result = (call; 1,)

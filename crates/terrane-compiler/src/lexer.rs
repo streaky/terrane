@@ -20,6 +20,39 @@ enum WithLayout {
     Complete,
 }
 
+#[derive(Clone, Copy)]
+struct ParenLayout {
+    baseline: usize,
+    indent_depth: usize,
+    active: bool,
+    function_header: bool,
+    call_line_indent: Option<usize>,
+    previous_line_indent: usize,
+    implicit_baseline: bool,
+}
+
+#[derive(Clone, Copy)]
+enum BlockLayout {
+    Statement,
+    Arguments,
+    Chain,
+    Continuation,
+}
+
+impl BlockLayout {
+    fn argument(self) -> bool {
+        matches!(self, Self::Arguments | Self::Continuation)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct LineContext<'a> {
+    text: &'a str,
+    base: usize,
+    argument: bool,
+    argument_boundary: bool,
+}
+
 /// Tokenizes one UTF-8 Terrane source file.
 ///
 /// # Errors
@@ -53,9 +86,12 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut block_comment_start = None;
     let mut indent_style = None;
     let mut indent_stack = vec![0];
+    let mut block_layouts = vec![BlockLayout::Statement];
     let mut parenthesis_depth = 0usize;
     let mut with_layout = WithLayout::default();
     let mut parenthesis_kinds = Vec::new();
+    let mut layout_parens = Vec::<ParenLayout>::new();
+    let mut pending_layout_newline = None;
     // A field-operation block restores statement layout even inside an
     // otherwise layout-free parenthesized argument list.
     let mut brace_parentheses = Vec::new();
@@ -142,6 +178,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             None => false,
         };
         if !in_block_string {
+            let mut argument_boundary = false;
             if parenthesis_depth == 0
                 && let Some((start, end)) = block_terminator.take()
             {
@@ -154,7 +191,10 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     Attachment::Detached,
                 );
             }
-            if parenthesis_depth == 0 && carries_code(line, indent, block_comment_start.is_some()) {
+            if parenthesis_depth == 0
+                && let Some(code) = code_after_comments(line, indent, block_comment_start.is_some())
+            {
+                let preceding_tokens = tokens.len();
                 check_indent(
                     source,
                     offset,
@@ -170,12 +210,82 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     &mut tokens,
                     &mut diagnostics,
                 );
+                argument_boundary = sync_block_layouts(
+                    &tokens[..preceding_tokens],
+                    code,
+                    indent_stack.len(),
+                    &mut block_layouts,
+                );
+            } else if parenthesis_depth > 0
+                && let Some(code) = code_after_comments(line, indent, block_comment_start.is_some())
+                && let Some(scope) = layout_parens.last_mut()
+            {
+                let begins_chain = code.starts_with('.') && indent > scope.previous_line_indent;
+                let follows_call = scope.call_line_indent.is_some_and(|level| indent > level);
+                if !scope.active
+                    && !scope.function_header
+                    && indent > scope.baseline
+                    && (begins_chain || follows_call)
+                {
+                    scope.active = true;
+                    scope.baseline = scope.previous_line_indent;
+                    if indent_stack
+                        .last()
+                        .is_some_and(|level| *level < scope.baseline)
+                    {
+                        indent_stack.push(scope.baseline);
+                        block_layouts.extend(block_layouts.last().copied());
+                        scope.implicit_baseline = true;
+                    }
+                }
+                scope.call_line_indent = None;
+                scope.previous_line_indent = indent;
+                if scope.active {
+                    if let Some((start, end)) = pending_layout_newline.take() {
+                        push_token(
+                            source,
+                            &mut tokens,
+                            TokenKind::Newline,
+                            start,
+                            end,
+                            Attachment::Detached,
+                        );
+                    }
+                    if !code.starts_with(')') {
+                        let preceding_tokens = tokens.len();
+                        check_indent(
+                            source,
+                            offset,
+                            &line.as_bytes()[..indent],
+                            &mut indent_style,
+                            &mut diagnostics,
+                        );
+                        emit_indentation(
+                            source,
+                            offset,
+                            indent,
+                            &mut indent_stack,
+                            &mut tokens,
+                            &mut diagnostics,
+                        );
+                        argument_boundary = sync_block_layouts(
+                            &tokens[..preceding_tokens],
+                            code,
+                            indent_stack.len(),
+                            &mut block_layouts,
+                        );
+                    }
+                }
             }
             let token_count = tokens.len();
             lex_line(
                 source,
-                line,
-                offset,
+                LineContext {
+                    text: line,
+                    base: offset,
+                    argument: block_layouts.last().is_some_and(|mode| mode.argument()),
+                    argument_boundary,
+                },
                 &mut tokens,
                 &mut trivia,
                 &mut diagnostics,
@@ -202,6 +312,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                             // the enclosing function or parenthesized expression.
                             while indent_stack.len() > indentation {
                                 indent_stack.pop();
+                                block_layouts.pop();
                                 let position = tokens[index].span.start;
                                 tokens.insert(
                                     index,
@@ -218,6 +329,11 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                             with_layout = layout;
                         }
                     }
+                    TokenKind::Semicolon if parenthesis_depth > 0 => {
+                        if let Some(scope) = layout_parens.last_mut() {
+                            scope.call_line_indent = Some(indent);
+                        }
+                    }
                     TokenKind::Assign if parenthesis_depth == 0 => {
                         if matches!(with_layout, WithLayout::Modifiers) {
                             with_layout = WithLayout::Initializer;
@@ -231,6 +347,15 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                             with_layout = WithLayout::None;
                         } else {
                             parenthesis_depth += 1;
+                            layout_parens.push(ParenLayout {
+                                baseline: indent,
+                                indent_depth: indent_stack.len(),
+                                active: false,
+                                call_line_indent: None,
+                                previous_line_indent: indent,
+                                implicit_baseline: false,
+                                function_header: opens_parameter_list(&tokens[..index]),
+                            });
                             if matches!(with_layout, WithLayout::Initializer) {
                                 with_layout = WithLayout::Grouped(parenthesis_depth);
                             }
@@ -238,6 +363,31 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     }
                     TokenKind::CloseParen => {
                         if !parenthesis_kinds.pop().unwrap_or(false) {
+                            if let Some(scope) = layout_parens.pop() {
+                                let floor =
+                                    scope.indent_depth + usize::from(scope.implicit_baseline);
+                                while indent_stack.len() > floor {
+                                    indent_stack.pop();
+                                    block_layouts.pop();
+                                    let position = tokens[index].span.start;
+                                    tokens.insert(
+                                        index,
+                                        Token {
+                                            kind: TokenKind::Dedent,
+                                            span: Span::new(source.id(), position, position),
+                                            text: String::new(),
+                                            attachment: Attachment::Detached,
+                                        },
+                                    );
+                                    index += 1;
+                                }
+                                if scope.implicit_baseline
+                                    && indent_stack.len() > scope.indent_depth
+                                {
+                                    indent_stack.pop();
+                                    block_layouts.pop();
+                                }
+                            }
                             if matches!(with_layout, WithLayout::Grouped(depth) if depth == parenthesis_depth)
                             {
                                 with_layout = WithLayout::Complete;
@@ -252,6 +402,15 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 }
                 index += 1;
             }
+            if tokens
+                .last()
+                .is_none_or(|token| token.kind != TokenKind::Semicolon)
+                && let Some(scope) = layout_parens.last_mut()
+                && scope.call_line_indent.is_some()
+                && !callable_header(&tokens)
+            {
+                scope.call_line_indent = None;
+            }
             if let Some(relative_index) = tokens[token_count..]
                 .iter()
                 .position(|token| token.kind == TokenKind::BlockString)
@@ -262,20 +421,24 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 rust_block = Some((indent, None));
             }
         }
-        if raw.ends_with('\n') && parenthesis_depth == 0 {
-            if block_string.is_some() {
-                block_terminator = Some((offset + line.len(), offset + raw.len()));
+        if raw.ends_with('\n') {
+            if parenthesis_depth == 0 {
+                if block_string.is_some() {
+                    block_terminator = Some((offset + line.len(), offset + raw.len()));
+                } else {
+                    push_token(
+                        source,
+                        &mut tokens,
+                        TokenKind::Newline,
+                        offset + line.len(),
+                        offset + raw.len(),
+                        Attachment::Detached,
+                    );
+                }
+                with_layout = WithLayout::None;
             } else {
-                push_token(
-                    source,
-                    &mut tokens,
-                    TokenKind::Newline,
-                    offset + line.len(),
-                    offset + raw.len(),
-                    Attachment::Detached,
-                );
+                pending_layout_newline = Some((offset + line.len(), offset + raw.len()));
             }
-            with_layout = WithLayout::None;
         }
         offset += raw.len();
     }
@@ -337,6 +500,142 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
         diagnostics,
     }
 }
+
+/// A parameter list is introduced by the semicolon of a callable header, not
+/// by a function type in an earlier binding annotation or argument.
+fn opens_parameter_list(tokens: &[Token]) -> bool {
+    if tokens
+        .last()
+        .is_none_or(|token| token.kind != TokenKind::Semicolon)
+    {
+        return false;
+    }
+    let mut depth = 0usize;
+    for (index, token) in tokens[..tokens.len() - 1].iter().enumerate().rev() {
+        match token.kind {
+            TokenKind::CloseParen | TokenKind::CloseBracket | TokenKind::CloseBrace => depth += 1,
+            TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace => {
+                if depth == 0 {
+                    return false;
+                }
+                depth -= 1;
+            }
+            _ if depth > 0 => {}
+            TokenKind::Assign
+            | TokenKind::Semicolon
+            | TokenKind::Newline
+            | TokenKind::Indent
+            | TokenKind::Dedent
+            | TokenKind::Comma => return false,
+            _ if token.text == "function"
+                && (index == 0
+                    || !matches!(
+                        tokens[index - 1].kind,
+                        TokenKind::Dot | TokenKind::DoubleColon
+                    )) =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn sync_block_layouts(
+    tokens: &[Token],
+    code: &str,
+    depth: usize,
+    layouts: &mut Vec<BlockLayout>,
+) -> bool {
+    let boundary = layouts.get(depth..).is_some_and(|closed| {
+        closed
+            .iter()
+            .any(|layout| matches!(layout, BlockLayout::Arguments | BlockLayout::Chain))
+    });
+    if depth <= layouts.len() {
+        layouts.truncate(depth);
+        return boundary;
+    }
+    let end = tokens
+        .iter()
+        .rposition(|token| {
+            !matches!(
+                token.kind,
+                TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent
+            )
+        })
+        .map_or(0, |index| index + 1);
+    let start = tokens[..end]
+        .iter()
+        .rposition(|token| {
+            matches!(
+                token.kind,
+                TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent
+            )
+        })
+        .map_or(0, |index| index + 1);
+    let header = &tokens[start..end];
+    let callable = callable_header(&tokens[..end]);
+    let statement = header.first().is_some_and(|token| {
+        matches!(
+            token.text.as_str(),
+            "if" | "while" | "for" | "switch" | "match" | "select"
+        )
+    }) || callable
+        || opens_parameter_list(&tokens[..end])
+        || header
+            .last()
+            .is_some_and(|token| token.kind == TokenKind::OpenBrace);
+    let layout = if code.starts_with('.') {
+        BlockLayout::Chain
+    } else if statement {
+        BlockLayout::Statement
+    } else if header
+        .iter()
+        .any(|token| token.kind == TokenKind::Semicolon)
+    {
+        BlockLayout::Arguments
+    } else if layouts.last().is_some_and(|layout| layout.argument()) {
+        BlockLayout::Continuation
+    } else {
+        BlockLayout::Statement
+    };
+    layouts.push(layout);
+    boundary
+}
+
+fn callable_header(tokens: &[Token]) -> bool {
+    let mut depth = 0usize;
+    for (index, token) in tokens.iter().enumerate().rev() {
+        match token.kind {
+            TokenKind::CloseParen | TokenKind::CloseBracket | TokenKind::CloseBrace => depth += 1,
+            TokenKind::OpenParen | TokenKind::OpenBracket | TokenKind::OpenBrace => {
+                if depth == 0 {
+                    return false;
+                }
+                depth -= 1;
+            }
+            _ if depth > 0 => {}
+            TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent => return false,
+            _ if token.text == "function"
+                && (index == 0
+                    || !matches!(
+                        tokens[index - 1].kind,
+                        TokenKind::Dot | TokenKind::DoubleColon
+                    ))
+                && !tokens
+                    .get(index + 1)
+                    .is_some_and(|next| matches!(next.text.as_str(), "from" | "to")) =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 fn is_rust_block_marker(tokens: &[Token]) -> bool {
     match tokens {
         [rust] => rust.text == "rust",
@@ -362,13 +661,19 @@ fn is_rust_block_marker(tokens: &[Token]) -> bool {
 )]
 fn lex_line(
     source: &SourceFile,
-    line: &str,
-    base: usize,
+    context: LineContext<'_>,
     tokens: &mut Vec<Token>,
     trivia: &mut Vec<Trivia>,
     diagnostics: &mut Vec<Diagnostic>,
     block_comment_start: &mut Option<(usize, bool)>,
 ) {
+    let LineContext {
+        text: line,
+        base,
+        argument,
+        argument_boundary,
+    } = context;
+    let initial_tokens = tokens.len();
     let bytes = line.as_bytes();
     let mut index = 0;
     while index < bytes.len() {
@@ -759,7 +1064,9 @@ fn lex_line(
                     ));
                 }
             }
-            b'>' if expression_start(tokens) => {
+            b'>' if argument_boundary && tokens.len() == initial_tokens
+                || expression_start(tokens, argument) =>
+            {
                 if bytes.get(index + 1) == Some(&b'>') {
                     index += 2;
                     if index != bytes.len() {
@@ -1009,31 +1316,25 @@ fn emit_indentation(
     }
 }
 
-/// Reports whether a line contributes source outside comments, which is the only
-/// case where it participates in indentation.
-fn carries_code(line: &str, indent: usize, in_block_comment: bool) -> bool {
+fn code_after_comments(line: &str, indent: usize, in_block_comment: bool) -> Option<&str> {
     let mut rest = if in_block_comment {
         line
     } else {
         &line[indent..]
     };
     if in_block_comment {
-        let Some(end) = rest.find("*/") else {
-            return false;
-        };
+        let end = rest.find("*/")?;
         rest = &rest[end + 2..];
     }
     loop {
         rest = rest.trim_start();
         if rest.is_empty() || rest.starts_with('#') || rest.starts_with("//") {
-            return false;
+            return None;
         }
         let Some(after) = rest.strip_prefix("/*") else {
-            return true;
+            return Some(rest);
         };
-        let Some(end) = after.find("*/") else {
-            return false;
-        };
+        let end = after.find("*/")?;
         rest = &after[end + 2..];
     }
 }
@@ -1086,8 +1387,19 @@ fn indentation_len(line: &str) -> usize {
         .count()
 }
 
-fn expression_start(tokens: &[Token]) -> bool {
-    tokens.last().is_none_or(|token| {
+fn expression_start(tokens: &[Token], argument: bool) -> bool {
+    let end = if argument {
+        tokens.iter().rposition(|token| {
+            !matches!(
+                token.kind,
+                TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent
+            )
+        })
+    } else {
+        tokens.len().checked_sub(1)
+    };
+    end.is_none_or(|index| {
+        let token = &tokens[index];
         matches!(
             token.kind,
             TokenKind::Newline
@@ -1102,7 +1414,7 @@ fn expression_start(tokens: &[Token]) -> bool {
                 | TokenKind::Operator
         ) || token.kind == TokenKind::Identifier
             && token.text == "return"
-            && tokens[..tokens.len() - 1].last().is_none_or(|previous| {
+            && tokens[..index].last().is_none_or(|previous| {
                 matches!(
                     previous.kind,
                     TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent

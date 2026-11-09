@@ -572,3 +572,56 @@ fn escaped_quote_does_not_terminate_a_quoted_string() {
             .any(|diagnostic| diagnostic.code == "L0007")
     );
 }
+
+#[test]
+fn call_wrapping_keeps_incomplete_expression_lines_nonstructural() {
+    for source in [
+        "x = (combine; 'a' +\n    'b', 'c')\n",
+        "x = (combine; 'a'\n    , 'b')\n",
+        "x = (one; 'a' +\n    'b')\n",
+        "x = (combine; 'a',\n    'b')\n",
+        "x = (predicate; true\n    and false)\n",
+        "x = (number; 1\n    + 2)\n",
+        "x = (predicate; not\n    false)\n",
+        "x = (value; await\n    future)\n",
+    ] {
+        let lexed = lex_source(source);
+        assert!(
+            lexed
+                .tokens
+                .iter()
+                .all(|token| !matches!(token.kind, TokenKind::Indent | TokenKind::Dedent)),
+            "wrapped expression acquired a structural block: {source}"
+        );
+        assert_eq!(
+            lexed
+                .tokens
+                .iter()
+                .filter(|token| token.kind == TokenKind::Newline)
+                .count(),
+            1,
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn callable_type_annotations_do_not_disable_call_layout() {
+    for source in [
+        "x (function to string)|none = (pick;\n    'a',\n    'b')\n",
+        "x = (builder.function;\n    'a',\n    'b')\n",
+    ] {
+        let lexed = lex_source(source);
+        let transitions = lexed
+            .tokens
+            .iter()
+            .filter(|token| matches!(token.kind, TokenKind::Indent | TokenKind::Dedent))
+            .map(|token| token.kind)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            transitions,
+            [TokenKind::Indent, TokenKind::Dedent],
+            "{source}"
+        );
+    }
+}
