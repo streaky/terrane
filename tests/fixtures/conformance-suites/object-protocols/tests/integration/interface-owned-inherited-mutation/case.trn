@@ -1,0 +1,23 @@
+namespace interface-owned-inherited-mutation
+interface base
+    function b int;
+    mutable function m int;
+
+interface sub implements base
+    function other int;
+
+class S implements sub
+    k int = 1
+    function b int;
+        return 1
+    mutable function m int;
+        this.k = this.k + 1
+        return this.k
+    function other int;
+        return 2
+
+function go int; x sub
+    return x.m;
+
+function test-scenario;
+    print; (go; (instance S;))

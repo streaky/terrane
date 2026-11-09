@@ -109,15 +109,15 @@ impl DecodeResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.value = __terrane_value;
         }
     }
@@ -153,7 +153,7 @@ impl Base64Codec {
     }
     pub fn construct(&mut self, url_safe: bool) {
         {
-            let __terrane_value = url_safe;
+            let __terrane_value: bool = url_safe;
             self.url_safe = __terrane_value;
         }
     }

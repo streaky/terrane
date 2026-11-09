@@ -1,0 +1,8 @@
+namespace inferred-binding-no-union-widening
+
+function main;
+    c = true
+    x = 1
+    if c
+        x = 'a'
+    print; (x is a string)

@@ -11,7 +11,51 @@ fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emi
             .children
             .last()
             .is_some_and(|operand| operand.span == target);
+    let consumes_here = if node.kind == SyntaxKind::CallExpression {
+        node.children
+            .first()
+            .map(|mut callee| {
+                while callee.kind == SyntaxKind::GroupExpression {
+                    let Some(grouped) = callee.children.first() else {
+                        break;
+                    };
+                    callee = grouped;
+                }
+                callee
+            })
+            .filter(|callee| callee.kind == SyntaxKind::MemberExpression)
+            .and_then(|callee| {
+                let mut receiver = callee.children.first()?;
+                while receiver.kind == SyntaxKind::GroupExpression {
+                    receiver = receiver.children.first()?;
+                }
+                let member = callee.children.last()?;
+                Some(
+                    receiver.span == target
+                        && crate::semantics::field_access_transfers(
+                            emitter.package,
+                            emitter.unit,
+                            receiver,
+                            true,
+                        )
+                        .expect("field transfer must be validated before lowering")
+                        && emitter.value_type(receiver).is_some_and(|ty| {
+                            crate::semantics::member_invocation_mode_at(
+                                emitter.package,
+                                emitter.unit,
+                                receiver,
+                                &ty,
+                                emitter.text(member),
+                            ) == InvocationMode::Consuming
+                        }),
+                )
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    };
     move_here
+        || consumes_here
         || node
             .children
             .iter()
@@ -184,7 +228,7 @@ impl Emitter<'_> {
                 if matches!(
                     item.value_type_ref(),
                     ValueType::InvocationScopedNative { .. }
-                ) =>
+                ) && !self.package.native_value_is_copyable(item.value_type_ref()) =>
             {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
                     let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
@@ -266,6 +310,14 @@ impl Emitter<'_> {
                     self.expression(receiver)
                 )
             }
+            Some(ValueType::MutableReference(_)) => {
+                format!("(*({})).clone()", self.expression(receiver))
+            }
+            Some(ValueType::Reference(item))
+                if matches!(item.value_type_ref(), ValueType::TypeParameter(_)) =>
+            {
+                self.expression(receiver)
+            }
             Some(ValueType::Reference(_)) => format!("({}).clone()", self.expression(receiver)),
             _ => self.expression(receiver),
         }
@@ -277,9 +329,21 @@ impl Emitter<'_> {
         {
             return self.consuming_native_receiver_expression(grouped);
         }
+        if let Some(ValueType::Reference(item) | ValueType::MutableReference(item)) =
+            self.value_type(receiver)
+            && matches!(
+                item.value_type_ref(),
+                ValueType::InvocationScopedNative { .. }
+            )
+            && self.package.native_value_is_copyable(item.value_type_ref())
+        {
+            return self.native_receiver_expression(receiver, false);
+        }
         if receiver.kind == SyntaxKind::Name
             && self.value_type(receiver).is_some_and(|value_type| {
                 self.value_type_owns_resource(&value_type)
+                    || (matches!(value_type, ValueType::InvocationScopedNative { .. })
+                        && !self.package.native_value_is_copyable(&value_type))
                     || matches!(value_type, ValueType::Object(identity)
                         if self.package.projection.item(&identity.namespace, &identity.name).is_none())
             })
@@ -313,6 +377,30 @@ impl Emitter<'_> {
             let holder = self.native_receiver_expression(holder, mutable);
             return format!("({holder}).{field}");
         }
+        if let [holder, member] = receiver.children.as_slice()
+            && receiver.kind == SyntaxKind::MemberExpression
+            && self
+                .receiver_value_type(holder)
+                .is_some_and(|value_type| matches!(value_type, ValueType::Object(_)))
+            && !self.is_throwable_value(holder)
+            && !self.receiver_needs_live_guard(holder)
+            && self
+                .receiver_value_type(receiver)
+                .is_some_and(|value_type| {
+                    matches!(
+                        value_type,
+                        ValueType::Object(_) | ValueType::TypeParameter(_)
+                    )
+                })
+        {
+            let holder_value = self.native_receiver_expression(holder, mutable);
+            let (place, borrowed) = self.object_field_place(holder, member, mutable, &holder_value);
+            return if borrowed {
+                format!("*({place})")
+            } else {
+                place
+            };
+        }
         if matches!(
             self.value_type(receiver),
             Some(ValueType::Reference(_) | ValueType::MutableReference(_))
@@ -325,8 +413,11 @@ impl Emitter<'_> {
             return narrowed;
         }
         if receiver.kind == SyntaxKind::Name
-            && matches!(self.value_type(receiver), Some(ValueType::Object(_)))
-            && self.reference_backed_name(receiver).is_none()
+            && matches!(
+                self.value_type(receiver),
+                Some(ValueType::Object(_) | ValueType::InvocationScopedNative { .. })
+            )
+            && !self.receiver_needs_live_guard(receiver)
         {
             if let Some(binding) = self.local_typed_binding(receiver)
                 && self.binding_may_be_unassigned(binding)
@@ -544,6 +635,17 @@ impl Emitter<'_> {
             return None;
         }
         let (setup, holder_value) = self.receiver_place_parts(holder, mutable, scope);
+        let (value, borrowed) = self.object_field_place(holder, member, mutable, &holder_value);
+        Some((setup, value, borrowed))
+    }
+
+    pub(super) fn object_field_place(
+        &self,
+        holder: &SyntaxNode,
+        member: &SyntaxNode,
+        mutable: bool,
+        holder_value: &str,
+    ) -> (String, bool) {
         let field =
             self.native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
         let wrapped = self.wrapped_object_field(holder, self.text(member));
@@ -559,7 +661,7 @@ impl Emitter<'_> {
             ),
             (false, false) => format!("({holder_value}).{field}"),
         };
-        Some((setup, value, wrapped || required))
+        (value, wrapped || required)
     }
 
     pub(super) fn receiver_place_parts(
@@ -651,7 +753,10 @@ impl Emitter<'_> {
         };
         (String::new(), value)
     }
-    fn borrowed_index_place_parts(&mut self, receiver: &SyntaxNode) -> Option<(String, String)> {
+    pub(super) fn borrowed_index_place_parts(
+        &mut self,
+        receiver: &SyntaxNode,
+    ) -> Option<(String, String)> {
         let [collection, index] = receiver.children.as_slice() else {
             return None;
         };
@@ -884,9 +989,11 @@ impl Emitter<'_> {
                 "{{ let __terrane_value = {storage}.lock().expect(\"static field lock poisoned\").clone(); __terrane_value }}"
             );
         }
+        let owner = crate::semantics::class_designator_identity(self.unit, receiver)
+            .unwrap_or_else(|| object.identity.clone());
         format!(
             "{}::terrane_static_{}",
-            rust_object_type_name(self.package, &object.identity),
+            rust_source_type_application(self.package, &owner).replacen('<', "::<", 1),
             rust_name(member_name)
         )
     }
@@ -1158,7 +1265,11 @@ impl Emitter<'_> {
             } else {
                 owned_snapshot
             };
-            let guard = self.receiver_guard_expression(receiver);
+            let (guard_setup, guard) = if explicit_field_move {
+                self.receiver_place_parts(receiver, true, GuardScope::Expression)
+            } else {
+                (String::new(), self.receiver_guard_expression(receiver))
+            };
             let field = self.native_field_name(receiver_type.as_ref(), self.text(member));
             let copy_suffix = if owned_snapshot.is_some() {
                 ""
@@ -1219,12 +1330,24 @@ impl Emitter<'_> {
             if self.assignment_target {
                 return access;
             }
-            // Rust extends inline lock temporaries to the surrounding statement.
-            // Materialize the read here so sibling expressions cannot relock it.
-            return format!("({{ let __terrane_snapshot = {access}; __terrane_snapshot }})");
+            return if guard_setup.is_empty() {
+                format!("({{ let __terrane_snapshot = {access}; __terrane_snapshot }})")
+            } else {
+                format!("{{ {guard_setup} let __terrane_snapshot = {access}; __terrane_snapshot }}")
+            };
         }
         let receiver_node = receiver;
-        let receiver = self.receiver_expression(receiver_node);
+        let receiver = if explicit_field_move && required_field {
+            let (setup, place) =
+                self.receiver_place_parts(receiver_node, true, GuardScope::Expression);
+            if setup.is_empty() {
+                place
+            } else {
+                format!("{{ {setup}{place} }}")
+            }
+        } else {
+            self.receiver_expression(receiver_node)
+        };
         if self.text(member) == "length"
             && matches!(
                 self.value_type(node),
@@ -1343,7 +1466,12 @@ impl Emitter<'_> {
                 )
             }
             name if wrapped_field && required_field => {
-                format!("({receiver}).terrane_field_{}()", rust_name(name))
+                let access = format!("({receiver}).terrane_field_{}()", rust_name(name));
+                if owned_snapshot.is_some() && !explicit_field_move {
+                    format!("({access}).clone()")
+                } else {
+                    access
+                }
             }
             name if wrapped_field => {
                 format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
@@ -1366,6 +1494,17 @@ impl Emitter<'_> {
                 } else {
                     format!("{receiver}.{field}")
                 };
+                let access = if owned_snapshot.is_some()
+                    && required_field
+                    && !explicit_field_move
+                    && matches!(
+                        required_field_type,
+                        Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+                    ) {
+                    format!("({access}).clone()")
+                } else {
+                    access
+                };
                 if !self.assignment_target
                     && let Some(projected) = self.native_field_type(node)
                     && !projected.has_identity_representation()
@@ -1379,6 +1518,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn member_materializes_owned_value(&self, node: &SyntaxNode) -> bool {
+        if contains_move_of(&self.unit.tree.root, node.span, self) {
+            return true;
+        }
         let [receiver, member] = node.children.as_slice() else {
             return false;
         };
@@ -1453,9 +1595,10 @@ impl Emitter<'_> {
         if self.value_type(node).is_some_and(|value_type| {
             crate::semantics::value_type_contains_nonclone_foreign(self.unit, &value_type)
         }) {
-            return projected_result_expression(value, ty);
+            projected_result_expression(value, ty)
+        } else {
+            Self::borrowed_field_result(&format!("&({value})"), ty)
         }
-        Self::borrowed_field_result(&format!("&({value})"), ty)
     }
 
     fn borrowed_field_result(

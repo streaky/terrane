@@ -52,11 +52,15 @@ fn main() {
         __terrane_text); }, None => __terrane_text.push_str("none"), } __terrane_text }
     );
     {
-        let __terrane_value = Some(terrane_int_support::Int::from(5_i128));
+        let __terrane_value: Option<terrane_int_support::Int> = Some(
+            terrane_int_support::Int::from(5_i128),
+        );
         first.slot = __terrane_value;
     }
     {
-        let __terrane_value = Some(terrane_int_support::Int::from(7_i128));
+        let __terrane_value: Option<terrane_int_support::Int> = Some(
+            terrane_int_support::Int::from(7_i128),
+        );
         second.slot = __terrane_value;
     }
     println!(

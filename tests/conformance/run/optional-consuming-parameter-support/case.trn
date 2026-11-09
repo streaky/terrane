@@ -1,0 +1,5 @@
+namespace optional-consuming-parameter-support
+function absent bool; callback (consuming function to int)|none
+    return callback == none
+function main;
+    print; (absent; none)

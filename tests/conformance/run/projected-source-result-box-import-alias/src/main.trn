@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+from /helpers import Box as Carrier, unbox as open
+
+function main;
+    value = open; (instance (Carrier of Holder); (Holder::new;))
+    print; (value.label_len;)

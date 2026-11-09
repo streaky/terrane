@@ -1,0 +1,23 @@
+namespace app
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+class Box of (T implements named)
+    value T
+    other int = 9
+    function construct; value T
+        this.value = move value
+    consuming function finish int;
+        result = this.value.finish;
+        print; this.other
+        print; (this.value.name;)
+        return result
+function main;
+    box = instance (Box of Item); (instance Item;)
+    print; (box.finish;)

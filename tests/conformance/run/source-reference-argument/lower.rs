@@ -35,7 +35,7 @@ impl IntegerHolder {
     }
     pub fn construct(&mut self, value: &terrane_int_support::Int) {
         {
-            let __terrane_value = value.clone();
+            let __terrane_value: terrane_int_support::Int = value.clone();
             self.value = __terrane_value;
         }
     }

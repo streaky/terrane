@@ -40,6 +40,25 @@ pub(super) fn validate_string_member_expression(
     Ok(())
 }
 
+fn assigned_value_expression(node: &SyntaxNode) -> Option<&SyntaxNode> {
+    match node.kind {
+        SyntaxKind::Binding | SyntaxKind::Assignment => {
+            let target_span = node.children.first()?.span;
+            node.children.iter().rev().find(|child| {
+                child.span != target_span
+                    && !matches!(
+                        child.kind,
+                        SyntaxKind::Visibility
+                            | SyntaxKind::DeclarationQualifier
+                            | SyntaxKind::TypeExpression
+                    )
+            })
+        }
+        SyntaxKind::ReturnStatement => node.children.first(),
+        _ => None,
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "call validation remains one traversal so every call form shares lexical scope and contracts"
@@ -59,6 +78,7 @@ pub(super) fn validate_call_nodes<'a>(
             | SyntaxKind::ImportSelection
             | SyntaxKind::ImportAlias
             | SyntaxKind::NamespaceDeclaration
+            | SyntaxKind::TypeExpression
     ) {
         return Ok(());
     }
@@ -73,6 +93,7 @@ pub(super) fn validate_call_nodes<'a>(
     let function_bindings =
         entered_function.map(|contract| call_site_bindings(unit, Some(contract)));
     let scoped_bindings = function_bindings.as_deref().unwrap_or(scoped_bindings);
+    super::expressions::validate_static_owner(unit, node)?;
     if node.kind == SyntaxKind::Name && projected_macro_for_call(package, unit, node).is_some() {
         return Err(failure(
             &unit.source,
@@ -102,6 +123,10 @@ pub(super) fn validate_call_nodes<'a>(
                     argument.span,
                 ));
             }
+            super::expressions::validate_applied_collection_type_value(
+                unit,
+                argument.children.last().unwrap_or(argument),
+            )?;
             validate_call_nodes(
                 package,
                 unit,
@@ -125,6 +150,26 @@ pub(super) fn validate_call_nodes<'a>(
         ));
     }
 
+    if let Some(value) = assigned_value_expression(node) {
+        super::expressions::validate_applied_collection_type_value(unit, value)?;
+    }
+    if matches!(
+        node.kind,
+        SyntaxKind::IfStatement | SyntaxKind::WhileStatement
+    ) && let Some(condition) = node.children.first()
+    {
+        super::expressions::validate_applied_collection_type_value(unit, condition)?;
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(arguments) = node.children.get(1)
+    {
+        for argument in &arguments.children {
+            super::expressions::validate_applied_collection_type_value(
+                unit,
+                argument.children.last().unwrap_or(argument),
+            )?;
+        }
+    }
     validate_resolved_assignment(package, unit, node, contracts)?;
     validate_numeric_coercion_call(unit, node, scoped_bindings)?;
     if node.kind == SyntaxKind::CallExpression
@@ -233,13 +278,32 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && callee.kind == SyntaxKind::Name
-        && let Some(binding) = scoped_bindings.iter().rev().find(|binding| {
+        && scoped_bindings.iter().any(|binding| {
             binding.name == node_text(&unit.source, callee)
                 && binding.is_visible_at(unit.source.id(), callee.span.start)
+                && matches!(
+                    match &binding.value_type {
+                        ValueType::Optional(inner) => inner.as_ref(),
+                        value_type => value_type,
+                    },
+                    ValueType::Function(_, _, _) | ValueType::AsyncFunction(_, _, _, _)
+                )
         })
-        && let ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _) =
-            &binding.value_type
     {
+        let Some(
+            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
+        ) = infer_value_type(unit, callee, scoped_bindings)?
+        else {
+            return Err(failure(
+                &unit.source,
+                "T0039",
+                format!(
+                    "`{}` is a value and cannot be called",
+                    node_text(&unit.source, callee)
+                ),
+                callee.span,
+            ));
+        };
         let variadic = parameters
             .last()
             .is_some_and(CallableParameterType::is_variadic);
@@ -302,7 +366,9 @@ pub(super) fn validate_call_nodes<'a>(
                 "callable argument",
                 false,
             )?;
-            if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
+            if let Some(actual) =
+                super::expressions::infer_boundary_value_type(unit, value, scoped_bindings)?
+            {
                 if matches!(expected.value_type(), ValueType::MutableReference(_)) {
                     validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }
@@ -740,7 +806,7 @@ fn validate_projected_generic_arguments(
         let effective_interfaces =
             crate::semantics::effective_object_interfaces(package, implementor);
         let implemented = required.as_ref().and_then(|required| {
-            effective_interfaces.into_iter().find(|implemented| {
+            effective_interfaces.iter().find(|implemented| {
                 implemented.namespace == required.namespace && implemented.name == required.name
             })
         });
@@ -900,6 +966,10 @@ pub(super) fn validate_coercion_family_expression(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Resolved assignments validate destination, callable specialization, and transfer contracts together"
+)]
 pub(super) fn validate_resolved_assignment(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -909,15 +979,9 @@ pub(super) fn validate_resolved_assignment(
     if !matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
         return Ok(());
     }
-    let name_node = if node.kind == SyntaxKind::Assignment {
-        node.children
-            .first()
-            .filter(|child| child.kind == SyntaxKind::Name)
-    } else {
-        node.children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
-    };
+    let name_node = node
+        .assignment_target()
+        .filter(|child| child.kind == SyntaxKind::Name);
     let Some(name_node) = name_node else {
         return Ok(());
     };
@@ -935,6 +999,17 @@ pub(super) fn validate_resolved_assignment(
     let mut actual = if let Some(actual) = resolved_call_type(package, unit, initializer, contracts)
     {
         actual
+    } else if let Some(expected) =
+        contextual_collection_destination(unit, initializer, &unit.typed_bindings)?
+    {
+        validate_collection_constructor_value(
+            unit,
+            initializer,
+            &expected,
+            node_text(&unit.source, name_node),
+            &unit.typed_bindings,
+        )?;
+        expected
     } else if let Some(actual) =
         infer_collection_call_type(unit, initializer, &unit.typed_bindings)?
     {
@@ -960,7 +1035,20 @@ pub(super) fn validate_resolved_assignment(
                     binding.is_visible_at(unit.source.id(), node.span.start)
                 }
         })
-        .map(|binding| binding.value_type.clone())
+        .map(|binding| {
+            if binding.destination_arms.len() <= 1 {
+                binding.value_type.clone()
+            } else {
+                ValueType::Union(
+                    binding
+                        .destination_arms
+                        .iter()
+                        .copied()
+                        .map(ValueType::Scalar)
+                        .collect(),
+                )
+            }
+        })
     else {
         return Ok(());
     };
@@ -986,11 +1074,25 @@ pub(super) fn validate_resolved_assignment(
     };
     if initializer.kind == SyntaxKind::Name
         && let Some(contract) = function_contract_for_call(package, unit, initializer)
-        && !contract.generic_parameters.is_empty()
-        && let Some(closed) =
-            super::generics::close_generic_callable_value(unit, contract, &actual, &expected)
     {
-        actual = closed;
+        match super::generics::close_generic_callable_value(
+            unit,
+            contract,
+            &actual,
+            &expected,
+            initializer.span.start,
+        ) {
+            Ok(Some(closed)) => actual = closed,
+            Err(()) => {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "generic callable type arguments do not satisfy their bounds",
+                    initializer.span,
+                ));
+            }
+            Ok(None) => {}
+        }
     }
     validate_value_destination(
         &unit.source,
@@ -1526,7 +1628,7 @@ fn validate_mutable_reference_argument(
     ))
 }
 
-fn call_reference_origin(
+pub(super) fn call_reference_origin(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
@@ -1552,6 +1654,14 @@ fn call_reference_origin(
             Some((owner, path))
         }
         SyntaxKind::UnaryExpression => call_reference_origin(package, unit, value.children.last()?),
+        SyntaxKind::CallExpression => super::ownership::expression_provenance(
+            package,
+            unit,
+            value,
+            &unit.reference_provenance,
+            &unit.reference_return_lenders,
+        )
+        .map(|origin| (origin.owner, origin.path)),
         SyntaxKind::Name => {
             let declaration = package
                 .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))?
@@ -1579,7 +1689,10 @@ fn call_reference_origin(
     }
 }
 
-fn reference_paths_overlap(left: &[ReferenceProjection], right: &[ReferenceProjection]) -> bool {
+pub(super) fn reference_paths_overlap(
+    left: &[ReferenceProjection],
+    right: &[ReferenceProjection],
+) -> bool {
     for (left, right) in left.iter().zip(right) {
         match (left, right) {
             (ReferenceProjection::Field(left), ReferenceProjection::Field(right))
@@ -1601,7 +1714,13 @@ fn receiver_call_borrow(
     contract: &FunctionContract,
 ) -> Option<(Span, Vec<ReferenceProjection>, bool, Span)> {
     let (receiver, value_type, member) = typed_member_call(unit, callee)?;
-    let mode = member_invocation_mode(package, unit, &value_type, &member);
+    let mode = super::diagnostics::member_invocation_mode_at(
+        package,
+        unit,
+        receiver,
+        &value_type,
+        &member,
+    );
     if mode == InvocationMode::Consuming
         || !contract.parameters.iter().any(|parameter| {
             parameter.element_value_type().is_some_and(|ty| {
@@ -1643,6 +1762,34 @@ fn validate_call_borrow_aliases(
     Ok(())
 }
 
+fn validate_union_generic_argument(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    expected: &ValueType,
+    actual: &ValueType,
+) -> Result<(), SemanticFailure> {
+    let mut has_union_argument = false;
+    super::capabilities::walk_value_type(actual, &mut |value_type| {
+        has_union_argument |= matches!(value_type, ValueType::Union(_));
+    });
+    let mut selects_generic = false;
+    super::capabilities::walk_value_type(expected, &mut |value_type| {
+        selects_generic |= matches!(
+            value_type,
+            ValueType::TypeParameter(_) | ValueType::ProjectedGeneric(_)
+        );
+    });
+    if has_union_argument && selects_generic {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "a local union cannot select a generic argument representation",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 fn validate_argument_destination(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1660,6 +1807,7 @@ fn validate_argument_destination(
             value.span,
         )
     };
+    validate_union_generic_argument(unit, value, expected, actual)?;
     if bind_destination_selected_callback(expected, actual, generic_bindings)
         .map_err(generic_failure)?
     {
@@ -1728,7 +1876,13 @@ fn validate_argument_destination(
             // Alias facades can name the same proven native storage differently.
             actual.clone()
         }
-        (ValueType::MutableReference(inner) | ValueType::SharedReference(inner), _) => {
+        (ValueType::MutableReference(inner) | ValueType::SharedReference(inner), _)
+            if super::types::reference_target_types_equal(
+                package,
+                inner.value_type_ref(),
+                actual,
+            ) =>
+        {
             inner.value_type()
         }
         _ => expected.clone(),
@@ -1821,7 +1975,9 @@ pub(super) fn validate_call_arguments(
                     &parameter.name,
                     bindings,
                 )?;
-            } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            } else if let Some(actual) =
+                super::expressions::infer_boundary_value_type(unit, value, bindings)?
+            {
                 if matches!(expected, ValueType::MutableReference(_)) {
                     validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }
@@ -1955,6 +2111,8 @@ pub(crate) fn selected_callable_contract(
             .then(|| super::native_constructors::implicit_record_constructor(package, unit, call))
             .flatten();
     };
+    let owner_specialized = specialize_static_owner(package, unit, designator, contract);
+    let contract = owner_specialized.as_ref().unwrap_or(contract);
     if contract.generic_parameters.is_empty() {
         if callee.kind == SyntaxKind::AppliedType {
             return None;
@@ -1974,6 +2132,14 @@ pub(crate) fn selected_callable_contract(
         let Some(bound) = &parameter.bound else {
             continue;
         };
+        // Unit selection already proved an enclosing parameter's declared bound.
+        // Only concrete implementors need the package-wide interface lookup.
+        if matches!(
+            substitutions.get(&parameter.name),
+            Some(ValueType::TypeParameter(_))
+        ) {
+            continue;
+        }
         let Some(ValueType::Object(actual)) = substitutions.get(&parameter.name) else {
             return None;
         };
@@ -1991,13 +2157,52 @@ pub(crate) fn selected_callable_contract(
         if !implements_bound(actual)
             && !effective_object_interfaces(package, implementor)
                 .iter()
-                .any(|interface| implements_bound(interface))
+                .any(implements_bound)
         {
             return None;
         }
     }
     canonicalize_selected_contract(package, &mut selected);
     Some(selected)
+}
+
+fn specialize_static_owner(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    designator: &SyntaxNode,
+    contract: &FunctionContract,
+) -> Option<FunctionContract> {
+    if !contract.is_static || designator.kind != SyntaxKind::StaticMemberExpression {
+        return None;
+    }
+    let receiver = designator.children.first()?;
+    let identity = super::namespaces::class_designator_identity(unit, receiver)?;
+    if identity.type_arguments.is_empty() {
+        return None;
+    }
+    let descriptor = package
+        .units
+        .iter()
+        .flat_map(|owner| &owner.descriptors)
+        .find(|descriptor| descriptor.identity.base() == identity.base())?;
+    let substitutions = descriptor
+        .generic_parameters
+        .iter()
+        .zip(&identity.type_arguments)
+        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+        .collect();
+    let mut specialized = contract.clone();
+    for parameter in &mut specialized.parameters {
+        parameter.value_type = parameter
+            .value_type
+            .as_ref()
+            .map(|value_type| substitute_value_type(value_type, &substitutions));
+    }
+    specialized.return_type = specialized
+        .return_type
+        .as_ref()
+        .map(|value_type| substitute_value_type(value_type, &substitutions));
+    Some(specialized)
 }
 
 fn close_non_generic_contract(

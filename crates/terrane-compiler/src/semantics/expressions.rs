@@ -1,4 +1,70 @@
 use super::prelude::*;
+pub(super) fn validate_applied_collection_type_value(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let mut value = value;
+    while matches!(
+        value.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+    ) && let Some(inner) = value.children.first()
+    {
+        value = inner;
+    }
+    if value.kind == SyntaxKind::CallExpression
+        && let Some(mut callee) = value.children.first()
+    {
+        while matches!(
+            callee.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+        ) && let Some(inner) = callee.children.first()
+        {
+            callee = inner;
+        }
+        if callee.kind == SyntaxKind::AppliedType
+            && callee.children.first().is_some_and(|constructor| {
+                class_designator_identity(unit, constructor).is_some()
+                    || collection_constructor_identity(unit, constructor, &unit.typed_bindings)
+                        .is_some()
+            })
+        {
+            value = callee;
+        }
+    }
+    if value.kind != SyntaxKind::AppliedType {
+        return Ok(());
+    }
+    let constructor = value.children.first().unwrap_or(value);
+    let is_applied_collection =
+        collection_constructor_identity(unit, constructor, &unit.typed_bindings).is_some();
+    let is_applied_class = class_designator_identity(unit, constructor).is_some();
+    if !is_applied_collection && !is_applied_class {
+        return Ok(());
+    }
+    Err(failure(
+        &unit.source,
+        "T0012",
+        "an applied type is not a value; use its constructor or an explicit generic callable application",
+        value.span,
+    ))
+}
+
+/// Boundary checks use the reaching value type, not the binding's wider carrier.
+pub(super) fn infer_boundary_value_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let mut value = node;
+    while (value.kind == SyntaxKind::GroupExpression
+        || value.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, value).as_deref() == Some("move"))
+        && let Some(inner) = value.children.last()
+    {
+        value = inner;
+    }
+    infer_value_type(unit, value, bindings)
+}
 
 pub(super) fn call_base_designator(mut callee: &SyntaxNode) -> Option<&SyntaxNode> {
     while matches!(
@@ -8,6 +74,44 @@ pub(super) fn call_base_designator(mut callee: &SyntaxNode) -> Option<&SyntaxNod
         callee = callee.children.first()?;
     }
     Some(callee)
+}
+
+pub(super) fn validate_static_owner(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if node.kind != SyntaxKind::StaticMemberExpression {
+        return Ok(());
+    }
+    let Some(mut receiver) = node.children.first() else {
+        return Ok(());
+    };
+    while matches!(
+        receiver.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+    ) && let Some(inner) = receiver.children.first()
+    {
+        receiver = inner;
+    }
+    if receiver.kind == SyntaxKind::Name
+        && node_text(&unit.source, receiver) != "self"
+        && let Some(identity) = class_designator_identity(unit, receiver)
+        && identity.native_projection.is_none()
+        && !identity.namespace.starts_with("/deps/")
+        && unit.descriptors.iter().any(|object| {
+            object.identity.base() == identity.base()
+                && matches!(object.kind, ObjectKind::Class)
+                && !object.generic_parameters.is_empty()
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "static member on a generic class requires an applied owner type",
+            receiver.span,
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn call_base_contract<'a>(
@@ -43,6 +147,26 @@ pub(super) fn call_base_contract<'a>(
                         family: identity, ..
                     },
                 ) => Some(identity),
+                Some(ValueType::TypeParameter(parameter)) => {
+                    super::generics::type_parameter_bound_at(unit, receiver.span.start, &parameter)
+                        .cloned()
+                }
+                Some(
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item),
+                ) => match item.value_type_ref() {
+                    ValueType::Object(identity) => Some(identity.clone()),
+                    ValueType::TypeParameter(parameter) => {
+                        super::generics::type_parameter_bound_at(
+                            unit,
+                            receiver.span.start,
+                            parameter,
+                        )
+                        .cloned()
+                    }
+                    _ => None,
+                },
                 _ => None,
             }
         };
@@ -176,6 +300,15 @@ pub(super) fn infer_value_type(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
+    if matches!(node.kind, SyntaxKind::Name | SyntaxKind::CallExpression)
+        && collection_constructor_identity(unit, node, bindings).is_some()
+        && let Some(expected) =
+            super::collections::contextual_collection_destination(unit, node, bindings)?
+    {
+        validate_collection_constructor_value(unit, node, &expected, "collection value", bindings)?;
+        return super::collections::contextual_constructor_type(unit, node, expected, bindings)
+            .map(Some);
+    }
     // Keep operator recursion outside the large non-operator inference frame.
     match node.kind {
         SyntaxKind::BinaryExpression => infer_binary_type(unit, node, bindings),
@@ -351,6 +484,7 @@ fn infer_nonbinary_value_type(
             unit,
             &contract.generic_parameters,
             &substitutions,
+            node.span.start,
         ) {
             return Err(failure(
                 &unit.source,
@@ -420,9 +554,16 @@ fn infer_nonbinary_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if let Some(value_type) =
-            unit.flow_types
-                .get(&(node.span.file, node.span.start, node.span.end))
+        if let Some(value_type) = unit
+            .flow_types
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .or_else(|| {
+                unit.selected_expression_types.get(&(
+                    node.span.file,
+                    node.span.start,
+                    node.span.end,
+                ))
+            })
         {
             return Ok(Some(
                 narrowed_value_type(unit, node, bindings).unwrap_or_else(|| value_type.clone()),
@@ -789,7 +930,8 @@ fn infer_nonbinary_value_type(
                             let Some(value) = argument.children.last() else {
                                 continue;
                             };
-                            if let Some(actual) = infer_value_type(unit, value, bindings)? {
+                            if let Some(actual) = infer_boundary_value_type(unit, value, bindings)?
+                            {
                                 bind_generic_type(&field.value_type, &actual, &mut substitutions)
                                     .map_err(|message| {
                                     failure(&unit.source, "T0218", message, argument.span)
@@ -856,7 +998,37 @@ fn infer_nonbinary_value_type(
                     }
                     return Ok(Some(ValueType::Object(identity)));
                 }
-                if descriptor.generic_parameters.is_empty() || !identity.type_arguments.is_empty() {
+                let selected_arguments = identity
+                    .type_arguments
+                    .iter()
+                    .chain(identity.application.iter().map(Box::as_ref))
+                    .collect::<Vec<_>>();
+                let has_application = !selected_arguments.is_empty();
+                if has_application {
+                    let substitutions = descriptor
+                        .generic_parameters
+                        .iter()
+                        .zip(selected_arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                        .collect::<BTreeMap<_, _>>();
+                    if !super::generics::generic_bounds_satisfied(
+                        unit,
+                        &descriptor.generic_parameters,
+                        &substitutions,
+                        class.span.start,
+                    ) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0012",
+                            format!(
+                                "application of class `{}` does not satisfy its type parameter bounds",
+                                descriptor.name
+                            ),
+                            class.span,
+                        ));
+                    }
+                }
+                if descriptor.generic_parameters.is_empty() || has_application {
                     return Ok(Some(ValueType::Object(identity)));
                 }
                 let mut substitutions = BTreeMap::new();
@@ -895,7 +1067,7 @@ fn infer_nonbinary_value_type(
                             continue;
                         };
                         let value = argument.children.last().unwrap_or(argument);
-                        let Some(actual) = infer_value_type(unit, value, bindings)? else {
+                        let Some(actual) = infer_boundary_value_type(unit, value, bindings)? else {
                             continue;
                         };
                         bind_generic_type(&expected, &actual, &mut substitutions).map_err(
@@ -921,6 +1093,22 @@ fn infer_nonbinary_value_type(
                                 .map(|name| format!("`{name}`"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
+                        ),
+                        class.span,
+                    ));
+                }
+                if !super::generics::generic_bounds_satisfied(
+                    unit,
+                    &descriptor.generic_parameters,
+                    &substitutions,
+                    class.span.start,
+                ) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0012",
+                        format!(
+                            "application of class `{}` does not satisfy its type parameter bounds",
+                            descriptor.name
                         ),
                         class.span,
                     ));
@@ -1799,6 +1987,25 @@ fn infer_nonbinary_value_type(
                 receiver.span,
             ));
         }
+        if let Some(contract) = call_base_contract(unit, node, bindings)?
+            && !contract.generic_parameters.is_empty()
+        {
+            return Ok(super::generics::select_unit_callable_contract(
+                None, unit, node, contract, bindings,
+            )
+            .map(|(selected, _)| {
+                let result = ElementType::new(
+                    selected
+                        .return_type
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                if selected.is_async {
+                    ValueType::Task(result, selected.task_transferability)
+                } else {
+                    result.value_type()
+                }
+            }));
+        }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
             && let Some(member_type) = infer_member_call_type(unit, callee, bindings)?
@@ -1896,7 +2103,9 @@ fn infer_nonbinary_value_type(
                 })
                 .max_by_key(|binding| binding.visible_from)
             {
-                return match &binding.value_type {
+                let value_type = infer_value_type(unit, callee, bindings)?
+                    .unwrap_or_else(|| binding.value_type.clone());
+                return match &value_type {
                     ValueType::Function(_, result, _) => Ok(Some(result.value_type())),
                     ValueType::AsyncFunction(_, result, transferability, _) => {
                         Ok(Some(ValueType::Task(result.clone(), *transferability)))

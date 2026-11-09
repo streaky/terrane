@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+function make Holder|none; present bool
+  if present
+    return Holder::new;
+  return none
+
+function main;
+  y = make; true
+  if y != none
+    print; (y.label_len;)

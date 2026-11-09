@@ -1,0 +1,19 @@
+namespace recursive-generic-phantom
+from /core/collections import list
+
+class N of (T)
+    next list of (N of T) = list;
+    n int = 1
+
+class A of (T)
+    next list of (B of T) = list;
+
+class B of (T)
+    next list of (A of T) = list;
+
+function test-scenario;
+    g = instance N of int;
+    print; g.n
+    print; g.next.length
+    a = instance A of int;
+    print; a.next.length

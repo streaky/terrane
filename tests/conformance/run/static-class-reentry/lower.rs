@@ -14,7 +14,7 @@ impl Inner {
     }
     pub fn bump(&mut self) {
         {
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = {
                     let __terrane_result = TERRANE_STATIC_HOLDER_SLOT
                         .handle()

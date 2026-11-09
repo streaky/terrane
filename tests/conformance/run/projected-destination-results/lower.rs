@@ -17,7 +17,7 @@ impl Record {
             0 /* terrane-site: src/main.trn:8:14-8:18 */,
         );
         {
-            let __terrane_value = __terrane_raised(
+            let __terrane_value: String = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {
                         let value = match std::panic::catch_unwind(

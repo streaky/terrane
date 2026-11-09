@@ -726,7 +726,7 @@ pub trait ApplicationProtocol: Send {
 }
 impl Clone for Box<dyn ApplicationProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        ApplicationProtocol::clone_box(&**self)
     }
 }
 pub struct Application(Box<dyn ApplicationProtocol>);

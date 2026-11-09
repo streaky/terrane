@@ -29,7 +29,8 @@ async fn work(
     offset: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
     {
-        let __terrane_value = item.value.clone() + offset.clone();
+        let __terrane_value: terrane_int_support::Int = item.value.clone()
+            + offset.clone();
         item.value = __terrane_value;
     }
     return item.value.clone();
@@ -80,8 +81,8 @@ fn main() {
                     .await;
                 total = terrane_int_support::Int::from(0_i128);
                 let __terrane_iterable_0 = outcomes;
-                let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-                    &__terrane_iterable_0,
+                let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+                    __terrane_iterable_0.as_slice(),
                 );
                 loop {
                     outcome = match __terrane_iterator_0.next() {
@@ -91,11 +92,10 @@ fn main() {
                     value = outcome.value.clone();
                     if (&value).is_some() {
                         total = total.clone()
-                            + match &value {
+                            + match value {
                                 Some(value) => value,
                                 _ => unreachable!("flow-proven storage refinement"),
-                            }
-                                .clone();
+                            };
                     }
                 }
                 println!(

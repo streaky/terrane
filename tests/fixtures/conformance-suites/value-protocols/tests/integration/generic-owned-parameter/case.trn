@@ -1,0 +1,8 @@
+namespace generic-owned-parameter
+function own of (T) T; value T
+    callback = consuming function T; input T
+        return input
+    return callback; value
+
+function test-scenario;
+    print; (own; 'owned')

@@ -938,7 +938,11 @@ impl Worker {
                                     return TerraneCompletion::Error(error);
                                 }
                                 TerraneCompletion::Break => break,
-                                TerraneCompletion::Continue => continue,
+                                TerraneCompletion::Continue => {
+                                    __terrane_generated_defect(
+                                        "non-continuing try produced continue",
+                                    )
+                                }
                             }
                         }
                         TerraneCompletion::Normal
@@ -1076,7 +1080,11 @@ impl Worker {
                                     return TerraneCompletion::Error(error);
                                 }
                                 TerraneCompletion::Break => break,
-                                TerraneCompletion::Continue => continue,
+                                TerraneCompletion::Continue => {
+                                    __terrane_generated_defect(
+                                        "non-continuing try produced continue",
+                                    )
+                                }
                             }
                         }
                         TerraneCompletion::Normal

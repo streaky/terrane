@@ -1,0 +1,7 @@
+namespace a
+
+function bump;
+    global calls = calls + 1
+
+function bump-typed;
+    global calls int = calls + 1

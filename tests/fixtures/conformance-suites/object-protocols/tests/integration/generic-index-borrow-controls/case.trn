@@ -1,0 +1,17 @@
+namespace generic-index-borrow-controls
+from /core/collections import list
+interface named
+    function report int;
+class Item implements named
+    function report int;
+        return 7
+function first of (T implements named) int; items list of T
+    return items[0].report;
+function observe of (T) int; value ref T
+    return 9
+function borrowed-first of (T) int; items list of T
+    return observe; items[0]
+function test-scenario;
+    items list of Item = list; (instance Item;)
+    print; (first; items)
+    print; (borrowed-first; items)

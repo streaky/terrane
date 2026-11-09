@@ -21,7 +21,7 @@ pub trait ReadableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn ReadableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        ReadableProtocol::clone_box(&**self)
     }
 }
 pub struct Readable(Box<dyn ReadableProtocol>);
@@ -43,7 +43,7 @@ pub unsafe trait ReadableUnsafeContractProtocol: Send + Sync {
 }
 impl Clone for Box<dyn ReadableUnsafeContractProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        ReadableUnsafeContractProtocol::clone_box(&**self)
     }
 }
 pub struct ReadableUnsafeContract(Box<dyn ReadableUnsafeContractProtocol>);
@@ -118,7 +118,7 @@ pub trait CommandsProtocol: Send + Sync {
 }
 impl Clone for Box<dyn CommandsProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        CommandsProtocol::clone_box(&**self)
     }
 }
 pub struct Commands(Box<dyn CommandsProtocol>);

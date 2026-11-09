@@ -1,0 +1,17 @@
+namespace escaping-bounded-shared-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function mk of (T implements named) function to int; item T
+    return function int;
+        return item.name;
+
+function main;
+    g = mk; (instance value;)
+    print; (g;)

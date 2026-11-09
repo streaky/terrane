@@ -1,0 +1,14 @@
+namespace generic-optional-return-closure
+from /core/collections import list
+function make of (T) function from int to T; value T|none, fallback T
+    g = function T; ignored int
+        index = 0
+        while index < 1
+            index++
+            if value != none
+                return value
+        return fallback
+    return g
+function main;
+    g = make; 'present', 'fallback'
+    print; (g; 0)

@@ -1,6 +1,7 @@
 use super::{
-    GenericArg, GenericArgs, GenericBound, HashMap, Id, Impl, Item, ItemEnum, ItemSummary,
-    ProjectedBoundaryCapabilities, ProjectedEnumPayloadConversion, Receiver, RustdocPath, Type,
+    GenericArg, GenericArgs, GenericBound, GenericParamDefKind, HashMap, Id, Impl, Item, ItemEnum,
+    ItemSummary, ProjectedBoundaryCapabilities, ProjectedEnumPayloadConversion, Receiver,
+    RustdocPath, Type,
 };
 pub(super) fn descriptive_rust_identity(identity: &str) -> String {
     let mut words = identity
@@ -89,6 +90,72 @@ pub(super) fn implements_trait(
         paths
             .get(&trait_.id)
             .is_some_and(|summary| summary.path.join("::") == expected)
+    })
+}
+
+pub(super) fn implements_unconditionally_copy(
+    impls: &[Id],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    owner: Id,
+    owner_parameters: &[rustdoc_types::GenericParamDef],
+) -> bool {
+    if owner_parameters.iter().any(|parameter| {
+        !matches!(
+            &parameter.kind,
+            GenericParamDefKind::Lifetime { outlives } if outlives.is_empty()
+        )
+    }) {
+        return false;
+    }
+    impls.iter().any(|id| {
+        let Some(Item {
+            inner:
+                ItemEnum::Impl(implementation @ Impl {
+                    trait_: Some(trait_),
+                    ..
+                }),
+            ..
+        }) = index.get(id)
+        else {
+            return false;
+        };
+        let Type::ResolvedPath(path) = &implementation.for_ else {
+            return false;
+        };
+        if implementation.is_negative || path.id != owner {
+            return false;
+        }
+        // Every owner lifetime must stay independent: `View<'static>` or
+        // `Pair<'a, 'a>` is a specialization, not evidence for the whole family.
+        let parameters = &implementation.generics.params;
+        let arguments_are_lifetimes = match path.args.as_deref() {
+            None => owner_parameters.is_empty() && parameters.is_empty(),
+            Some(GenericArgs::AngleBracketed { args, constraints }) => {
+                constraints.is_empty()
+                    && args.len() == owner_parameters.len()
+                    && parameters.len() == owner_parameters.len()
+                    && args.iter().enumerate().all(|(index, argument)| {
+                        let GenericArg::Lifetime(name) = argument else { return false };
+                        parameters.iter().any(|parameter| parameter.name == *name)
+                            && !args[..index].iter().any(|previous| {
+                                matches!(previous, GenericArg::Lifetime(previous) if previous == name)
+                            })
+                    })
+            }
+            _ => false,
+        };
+        arguments_are_lifetimes
+            && implementation.generics.where_predicates.is_empty()
+            && implementation.generics.params.iter().all(|parameter| {
+                matches!(
+                    &parameter.kind,
+                    GenericParamDefKind::Lifetime { outlives } if outlives.is_empty()
+                )
+            })
+            && paths
+                .get(&trait_.id)
+                .is_some_and(|summary| summary.path.join("::") == "core::marker::Copy")
     })
 }
 

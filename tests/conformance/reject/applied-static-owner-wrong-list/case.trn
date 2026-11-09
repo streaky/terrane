@@ -1,0 +1,9 @@
+namespace app
+from /core/collections import list
+class Q of (T)
+    static function count int; values list of T
+        return values.length
+
+function main;
+    values = list; 'wrong'
+    print; ((Q of (int))::count; values)

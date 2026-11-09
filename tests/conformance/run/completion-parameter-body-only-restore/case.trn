@@ -1,0 +1,16 @@
+namespace completion-parameter-body-only-restore
+from /core/collections import list
+
+function eat int; value list of int
+    return value.length
+
+function restored int; value list of int
+    try
+        print; (eat; value)
+        value = list; 2
+    catch
+        print; 9
+    return value[0]
+
+function main;
+    print; (restored; (list; 1))

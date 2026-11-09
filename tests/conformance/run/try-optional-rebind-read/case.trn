@@ -1,0 +1,13 @@
+namespace app
+from /core/collections import list, tuple
+function eat int; k string|none
+    return 1
+
+function main;
+    o string|none = 'a'
+    try
+        print; (eat; o)
+        o = 'b'
+    finally
+        print; 2
+    print; (o is a none)

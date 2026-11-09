@@ -1,0 +1,7 @@
+namespace static-optional-widening
+class holder
+    static n int|none = none
+function main;
+    y int = 4
+    holder::n = y
+    print; holder::n

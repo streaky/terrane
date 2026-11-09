@@ -1,0 +1,17 @@
+namespace app
+from /deps/terrane-query-witness import Holder, View, query
+from /core/collections import list
+class W
+    inner Holder
+    other Holder
+    function construct; inner Holder, other Holder
+        this.inner = move inner
+        this.other = move other
+function main;
+    sqls list of string = list; 'insert'
+    q = query; sqls[0]
+    i int = 0
+    while i < 2
+        print; (q.size;)
+        sqls[0] = 'changed'
+        i = i + 1

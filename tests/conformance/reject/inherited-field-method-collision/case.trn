@@ -1,0 +1,15 @@
+namespace inherited-field-method-collision
+from /core/collections import list
+function first string;
+    return 'a'
+
+class base
+    f function to string = first
+
+class child extends base
+    function f int;
+        return 9
+
+function main;
+    c = instance child;
+    print; (c.f;)

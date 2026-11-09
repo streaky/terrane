@@ -62,7 +62,7 @@ impl Marker {
     }
     pub fn construct(&mut self, name: String) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
     }
@@ -96,6 +96,7 @@ fn replace_old() {
         __terrane_text.push_str("-replacement");
         __terrane_text
     });
+    let _ = &value;
     println!("{}", terrane_scalar_support::scalar_text(&value.name));
 }
 fn moved_replacement() {
@@ -103,6 +104,7 @@ fn moved_replacement() {
     value = Marker::terrane_construct(String::from("moved-once"));
     let __terrane_replacement = value;
     value = __terrane_replacement;
+    let _ = &value;
     println!("{}", terrane_scalar_support::scalar_text(&value.name));
 }
 fn conditional_resource(choose: bool) {
@@ -128,8 +130,9 @@ fn union_resource(choose: bool) {
         );
     } else {
         item = TerraneUnionF0S881::Arm1(terrane_int_support::Int::from(12_i128));
+        let _ = &item;
     }
-    if matches!(&item, TerraneUnionF0S881::Arm1(_)) {
+    if matches!(&&item, TerraneUnionF0S881::Arm1(_)) {
         item = TerraneUnionF0S881::Arm1(
             match item {
                 TerraneUnionF0S881::Arm1(value) => value,
@@ -138,6 +141,7 @@ fn union_resource(choose: bool) {
         );
     } else {
         item = TerraneUnionF0S881::Arm2(String::from("union-replacement"));
+        let _ = &item;
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &item {
@@ -157,8 +161,9 @@ fn move_union_resource(choose: bool) -> String {
         );
     } else {
         item = TerraneUnionF0S1151::Arm1(String::from("plain"));
+        let _ = &item;
     }
-    if matches!(&item, TerraneUnionF0S1151::Arm1(_)) {
+    if matches!(&&item, TerraneUnionF0S1151::Arm1(_)) {
         return match item {
             TerraneUnionF0S1151::Arm1(value) => value,
             _ => unreachable!("flow-proven storage refinement"),

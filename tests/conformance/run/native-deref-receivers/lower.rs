@@ -119,7 +119,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                     std::panic::AssertUnwindSafe(|| -> Result<
                         _,
                         crate::TerraneForeignError,
-                    > { Ok(copied.nested()) }),
+                    > { Ok((&copied).nested()) }),
                 ) {
                     Ok(result) => result?,
                     Err(payload) => {
@@ -144,7 +144,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                     std::panic::AssertUnwindSafe(|| -> Result<
                         _,
                         crate::TerraneForeignError,
-                    > { Ok(nested.value()) }),
+                    > { Ok((&nested).value()) }),
                 ) {
                     Ok(result) => result?,
                     Err(payload) => {
@@ -325,7 +325,7 @@ async fn suspended_view() -> terrane_int_support::Int {
                     std::panic::AssertUnwindSafe(|| -> Result<
                         _,
                         crate::TerraneForeignError,
-                    > { Ok(view.value()) }),
+                    > { Ok((&view).value()) }),
                 ) {
                     Ok(result) => result?,
                     Err(payload) => {
@@ -437,7 +437,7 @@ fn named_view() -> terrane_int_support::Int {
                     std::panic::AssertUnwindSafe(|| -> Result<
                         _,
                         crate::TerraneForeignError,
-                    > { Ok(view.value()) }),
+                    > { Ok((&view).value()) }),
                 ) {
                     Ok(result) => result?,
                     Err(payload) => {
@@ -634,28 +634,30 @@ fn pointers_and_guards() {
         32 /* terrane-site: src/main.trn:47:13-47:24 */))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
-        crate ::TerraneForeignError > { { let value = match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
-        ::TerraneForeignError > { Ok(< receiver_api::Record > ::boxed({ let
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 = { let
         __terrane_conversion_input_0 = terrane_int_support::Int::from(13_i128);
-        __terrane_raised(boxed(__terrane_conversion_input_0), 33 /* terrane-site: src/main.trn:48:14-48:23 */) })) })) { Ok(result) => result ?, Err(payload) =>
+        __terrane_raised(boxed(__terrane_conversion_input_0), 33 /* terrane-site: src/main.trn:48:14-48:23 */) }; __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(< receiver_api::Record >
+        ::boxed(__terrane_native_input_0)) })) { Ok(result) => result ?, Err(payload) =>
         return Err(crate ::__terrane_dependency_panic(payload, "receiver_api",
         "receiver_api::Record::boxed")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
-        34 /* terrane-site: src/main.trn:48:13-48:31 */))
+        34 /* terrane-site: src/main.trn:48:13-48:31 */) })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
-        crate ::TerraneForeignError > { { let value = match
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 = * * {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(14_i128);
+        __terrane_raised(nested_box(__terrane_conversion_input_0), 35 /* terrane-site: src/main.trn:49:14-49:28 */) }; __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
-        ::TerraneForeignError > { Ok(< receiver_api::Record > ::take(* * { let
-        __terrane_conversion_input_0 = terrane_int_support::Int::from(14_i128);
-        __terrane_raised(nested_box(__terrane_conversion_input_0), 35 /* terrane-site: src/main.trn:49:14-49:28 */) })) })) { Ok(result) => result ?, Err(payload) =>
+        ::TerraneForeignError > { Ok(< receiver_api::Record >
+        ::take(__terrane_native_input_0)) })) { Ok(result) => result ?, Err(payload) =>
         return Err(crate ::__terrane_dependency_panic(payload, "receiver_api",
         "receiver_api::Record::take")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
-        36 /* terrane-site: src/main.trn:49:13-49:35 */))
+        36 /* terrane-site: src/main.trn:49:13-49:35 */) })
     );
     custom = {
         let __terrane_conversion_input_0 = terrane_int_support::Int::from(15_i128);
@@ -1037,11 +1039,12 @@ fn pointers_and_guards() {
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
             _, crate ::TerraneForeignError > { { let value = match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
-            crate ::TerraneForeignError > { Ok(copied.value()) })) { Ok(result) => result
-            ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "receiver_api", "receiver_api::RecordView::value")) }; Ok:: < _, crate
-            ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) }
-            } (), 57 /* terrane-site: src/main.trn:75:17-75:30 */))
+            crate ::TerraneForeignError > { Ok((&copied).value()) })) { Ok(result) =>
+            result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "receiver_api",
+            "receiver_api::RecordView::value")) }; Ok:: < _, crate ::TerraneForeignError
+            > (terrane_int_support::Int::from(i128::from(value))) } } (),
+            57 /* terrane-site: src/main.trn:75:17-75:30 */))
         );
         {
             let nested: receiver_api::RecordView<'_> = __terrane_raised(
@@ -1051,7 +1054,7 @@ fn pointers_and_guards() {
                             std::panic::AssertUnwindSafe(|| -> Result<
                                 _,
                                 crate::TerraneForeignError,
-                            > { Ok(view.nested()) }),
+                            > { Ok((&view).nested()) }),
                         ) {
                             Ok(result) => result?,
                             Err(payload) => {
@@ -1076,7 +1079,7 @@ fn pointers_and_guards() {
                             std::panic::AssertUnwindSafe(|| -> Result<
                                 _,
                                 crate::TerraneForeignError,
-                            > { Ok(nested.value()) }),
+                            > { Ok((&nested).value()) }),
                         ) {
                             Ok(result) => result?,
                             Err(payload) => {

@@ -241,12 +241,9 @@ fn main() {
                     );
                 }
                 1 => {
-                    let _ = value
-                        .insert(
-                            __terrane_select_result_432_1
-                                .take()
-                                .expect("selected case owns its ready result"),
-                        );
+                    let _ = __terrane_select_result_432_1
+                        .take()
+                        .expect("selected case owns its ready result");
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&value.as_ref()
                         .expect("flow-proven available binding"))

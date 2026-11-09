@@ -1,0 +1,14 @@
+namespace native-noncopy-view-loop-append
+from /deps/terrane-query-witness import Holder, View
+from /core/collections import list
+
+function test-scenario;
+    holder = Holder::new;
+    view = holder.view;
+    values list of View = list;
+    for index in (list; 1, 2, 3)
+        values.append; view
+        view = holder.view;
+    print; values.length
+    for value in ref values
+        print; (value.size;)

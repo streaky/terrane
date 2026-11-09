@@ -1,0 +1,14 @@
+namespace typed-float-output
+from /core/documents/json import encode-typed-json, decode-typed-json, default-json-options
+function test-scenario;
+    large float64 = rust
+        1.0e300_f64
+    small float64 = rust
+        f64::from_bits(1)
+    options = default-json-options;
+    encoded-large = encode-typed-json; large, options
+    decoded-large = decode-typed-json; encoded-large.value, large, options, false
+    print; encoded-large.failed, '|', encoded-large.value.length < 32, '|', decoded-large.failed, '|', decoded-large.value == large
+    encoded-small = encode-typed-json; small, options
+    decoded-small = decode-typed-json; encoded-small.value, small, options, false
+    print; encoded-small.failed, '|', encoded-small.value.length < 32, '|', decoded-small.failed, '|', decoded-small.value == small

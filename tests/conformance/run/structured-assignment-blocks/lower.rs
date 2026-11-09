@@ -20,7 +20,7 @@ impl Settings {
     }
     pub fn construct(&mut self, width: terrane_int_support::Int) {
         {
-            let __terrane_value = width.clone();
+            let __terrane_value: terrane_int_support::Int = width.clone();
             self.width = __terrane_value;
         }
     }
@@ -95,7 +95,8 @@ fn make(width: terrane_int_support::Int) -> Settings {
     return {
         let mut instance = Settings::terrane_construct(width.clone());
         {
-            let __terrane_value = width.clone() + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = width.clone()
+                + terrane_int_support::Int::from(1_i128);
             instance.height = __terrane_value;
         }
         instance
@@ -122,11 +123,13 @@ fn main() {
                 terrane_int_support::Int::from(3_i128),
             );
             {
-                let __terrane_value = terrane_int_support::Int::from(height as i128);
+                let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                    height as i128,
+                );
                 instance.height = __terrane_value;
             }
             {
-                let __terrane_value = String::from("made");
+                let __terrane_value: String = String::from("made");
                 instance.title = __terrane_value;
             }
             instance
@@ -146,7 +149,7 @@ fn main() {
     alias = request.clone();
     {
         let __terrane_owner_0 = request.clone();
-        let __terrane_value = {
+        let __terrane_value: terrane_int_support::Int = {
             let __terrane_snapshot = {
                 let __terrane_result = request
                     .lock()
@@ -161,7 +164,7 @@ fn main() {
     }
     {
         let __terrane_owner_1 = request.clone();
-        let __terrane_value = {
+        let __terrane_value: terrane_int_support::Int = {
             let __terrane_snapshot = {
                 let __terrane_result = request
                     .lock()
@@ -192,7 +195,9 @@ fn main() {
     observed = plain.clone();
     {
         let __terrane_owner_2 = plain.clone();
-        let __terrane_value = terrane_int_support::Int::from(3_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            3_i128,
+        );
         __terrane_owner_2.lock().expect("reference lock poisoned").value = __terrane_value;
     }
     println!(
@@ -210,7 +215,9 @@ fn main() {
             terrane_int_support::Int::from(9_i128),
         );
         {
-            let __terrane_value = terrane_int_support::Int::from(11_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                11_i128,
+            );
             instance.height = __terrane_value;
         }
         instance
@@ -219,12 +226,14 @@ fn main() {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             {
                 let __terrane_owner_3 = request.clone();
-                let __terrane_value = terrane_int_support::Int::from(42_i128);
+                let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                    42_i128,
+                );
                 __terrane_owner_3.lock().expect("reference lock poisoned").width = __terrane_value;
             }
             {
                 let __terrane_owner_4 = request.clone();
-                let __terrane_value = __terrane_traced_completion!(
+                let __terrane_value: terrane_int_support::Int = __terrane_traced_completion!(
                     fail(), 1 /* terrane-site: case.trn:59:22-59:27 */
                 );
                 __terrane_owner_4.lock().expect("reference lock poisoned").height = __terrane_value;
@@ -274,7 +283,7 @@ fn main() {
                 let _: Token = {
                     let mut instance = Token::terrane_construct();
                     {
-                        let __terrane_value = __terrane_traced_completion!(
+                        let __terrane_value: terrane_int_support::Int = __terrane_traced_completion!(
                             fail(), 2 /* terrane-site: case.trn:64:39-64:44 */
                         );
                         instance.value = __terrane_value;

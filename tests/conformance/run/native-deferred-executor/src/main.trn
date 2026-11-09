@@ -2,11 +2,19 @@ namespace app
 
 from /deps/sqlx-core/query import query_with as native-query
 from /deps/sqlx-core/sql-str import SqlStr as native-sql
-from /deps/sqlx-sqlite import SqliteConnectOptions as native-options, SqliteConnection as native-connection, SqliteArguments as native-arguments, SqliteRow as native-row
+from /deps/sqlx-sqlite import SqliteConnectOptions as native-options, SqliteConnection as native-connection, SqliteArguments as native-arguments, SqliteRow as native-row, SqliteQueryResult as native-query-result
 
 function query-text native-sql;
     return rust
         ::sqlx::SqlSafeStr::into_sql_str(::sqlx::AssertSqlSafe("SELECT 77"))
+
+function create-text native-sql;
+    return rust
+        ::sqlx::SqlSafeStr::into_sql_str(::sqlx::AssertSqlSafe("CREATE TABLE regression_probe (id INTEGER)"))
+
+function insert-text native-sql;
+    return rust
+        ::sqlx::SqlSafeStr::into_sql_str(::sqlx::AssertSqlSafe("INSERT INTO regression_probe VALUES (1)"))
 
 function row-value int64; record ref native-row
     return rust
@@ -24,6 +32,13 @@ async function main;
     try
         native native-connection = await options.connect;
         try
+            arguments = native-arguments::default;
+            sql = create-text;
+            await ((native-query; sql, move arguments).persistent; false).execute; native
+            arguments = native-arguments::default;
+            sql = insert-text;
+            result native-query-result = await ((native-query; sql, move arguments).persistent; false).execute; native
+            print; (result.rows_affected;)
             arguments = native-arguments::default;
             sql = query-text;
             record native-row = await (native-query; sql, move arguments).fetch_one; native

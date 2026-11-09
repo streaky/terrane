@@ -1,0 +1,15 @@
+namespace static-explicit-generic
+
+class N
+    static function g of (T) int;
+        return 1
+
+class G of (T)
+    static function g of (U) int;
+        return 2
+
+function test-scenario;
+    print; (N::g of int;)
+    f = N::g of string
+    print; (f;)
+    print; (G of int::g of string;)

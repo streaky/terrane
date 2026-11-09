@@ -1,0 +1,24 @@
+namespace native-view-loop-binders
+from /deps/terrane-query-witness import Holder
+from /core/collections import list
+
+function test-scenario;
+    holder = Holder::new;
+    values = list; (holder.copy_view;)
+    for value in ref values
+        print; (value.size;)
+    for value in values
+        print; (value.size;)
+    for value in ref values
+        print; (value.size;)
+    for value in ref values
+        print; (value.size;)
+    for outer in values
+        for value in ref values
+            print; (value.size;)
+        print; (outer.size;)
+    numbers = list; 1
+    for number in ref numbers
+        print; number
+    for number in numbers
+        print; number

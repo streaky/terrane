@@ -1,0 +1,5 @@
+package = "projected-index-demand-parameter"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-query-witness]
+version = "0.1.0"

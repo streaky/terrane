@@ -746,15 +746,15 @@ impl ConcurrencyOperationResult {
         detail: String,
     ) {
         {
-            let __terrane_value = did_fail;
+            let __terrane_value: bool = did_fail;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = exceeded_deadline;
+            let __terrane_value: bool = exceeded_deadline;
             self.deadline_exceeded = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -795,23 +795,23 @@ impl ConcurrencyIntResult {
         result_value: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = did_fail;
+            let __terrane_value: bool = did_fail;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = exceeded_deadline;
+            let __terrane_value: bool = exceeded_deadline;
             self.deadline_exceeded = __terrane_value;
         }
         {
-            let __terrane_value = has_value;
+            let __terrane_value: bool = has_value;
             self.available = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = result_value.clone();
+            let __terrane_value: terrane_int_support::Int = result_value.clone();
             self.value = __terrane_value;
         }
     }
@@ -836,15 +836,17 @@ impl IntMutex {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_mutex(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -903,15 +905,17 @@ impl IntReadWriteLock {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_rw_lock(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -950,7 +954,7 @@ impl MemoryOrder {
     }
     pub fn construct(&mut self, ordering_name: String) {
         {
-            let __terrane_value = ordering_name;
+            let __terrane_value: String = ordering_name;
             self.name = __terrane_value;
         }
     }
@@ -990,15 +994,17 @@ impl AtomicInt64 {
         let raw: TerranePlatformResult;
         raw = terrane_platform_atomic_int64(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -1062,15 +1068,17 @@ impl ThreadLocalInt {
         let raw: TerranePlatformResult;
         raw = terrane_platform_thread_local_int(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }

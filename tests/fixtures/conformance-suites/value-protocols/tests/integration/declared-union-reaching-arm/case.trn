@@ -1,0 +1,23 @@
+namespace declared-union-reaching-arm
+from /core/collections import list
+function text string; value string
+    return value
+function number int; value int
+    return value + 1
+function observe; flag bool
+    value int|string = 'alpha'
+    if flag
+        value = 4
+    if value is a string
+        alias string = value
+        values = list; value
+        print; (text; alias)
+        print; values[0]
+    else
+        print; (number; value)
+    value = 8
+    if value is a int
+        print; (number; value)
+function test-scenario;
+    observe; false
+    observe; true

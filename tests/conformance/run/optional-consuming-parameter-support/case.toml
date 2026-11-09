@@ -1,0 +1,4 @@
+# Isolated: another scenario constructing a callable would mask missing runtime support.
+phase = "run"
+status = "accept"
+canonical-rust = true

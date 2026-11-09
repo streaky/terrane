@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "value-protocols"
+test = "/bounded-shared-capture::test-scenario"

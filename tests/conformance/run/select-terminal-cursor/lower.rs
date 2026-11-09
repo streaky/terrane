@@ -241,7 +241,9 @@ fn main() {
                 TerraneCompletion::Return(value) => return value,
                 TerraneCompletion::Error(error) => __terrane_uncaught(error),
                 TerraneCompletion::Break => break,
-                TerraneCompletion::Continue => continue,
+                TerraneCompletion::Continue => {
+                    __terrane_generated_defect("non-continuing try produced continue")
+                }
             }
             iteration = iteration.clone() + terrane_int_support::Int::from(1_i128);
         }

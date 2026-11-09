@@ -1,0 +1,19 @@
+namespace escaping-collection-parameter-map
+from /core/collections import map
+
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named); m mutable ref map of string, function to int, item T
+    m.set; 'a', function int;
+        return item.name;
+
+function main;
+    m map of string, function to int = map;
+    go; m, (instance value;)
+    print; m.length

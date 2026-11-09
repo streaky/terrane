@@ -1,0 +1,8 @@
+namespace local-union-scalar-argument
+
+function take; value int
+    print; value
+
+function main;
+    value int|string = 1
+    take; value

@@ -14,7 +14,8 @@ impl Counter {
     }
     pub fn add(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value = self.value.clone() + amount.clone();
+            let __terrane_value: terrane_int_support::Int = self.value.clone()
+                + amount.clone();
             self.value = __terrane_value;
         }
     }
@@ -34,7 +35,7 @@ fn main() {
         std::sync::Arc::new(move || -> terrane_int_support::Int {
             {
                 let __terrane_owner_0 = state.clone();
-                let __terrane_value = {
+                let __terrane_value: terrane_int_support::Int = {
                     let __terrane_snapshot = state
                         .lock()
                         .expect("shared reference lock poisoned")

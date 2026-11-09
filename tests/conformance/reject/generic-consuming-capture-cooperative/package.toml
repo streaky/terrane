@@ -1,0 +1,5 @@
+package = "generic-consuming-capture-cooperative"
+executor = "cooperative"
+
+[namespaces]
+app = "src"

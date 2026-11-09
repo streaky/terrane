@@ -1,0 +1,9 @@
+package = "native-view-loop-declared-mut-ref"
+executor = "threaded"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-query-witness]
+version = "=0.1.0"
+effects = ["build"]

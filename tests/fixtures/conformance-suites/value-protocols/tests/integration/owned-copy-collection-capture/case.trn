@@ -1,0 +1,21 @@
+namespace owned-copy-collection-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named); fs list of function to int, item T
+    local = fs
+    local.append; function int;
+        return item.name;
+    callback = local[0]
+    print; (callback;)
+
+function test-scenario;
+    fs list of function to int = list;
+    go; fs, (instance value;)
+    print; fs.length

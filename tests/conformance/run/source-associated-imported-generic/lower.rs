@@ -57,7 +57,7 @@ pub trait RequestProtocol<
 impl<TerraneType496E707574, TerraneType726573706F6E7365> Clone
 for Box<dyn RequestProtocol<TerraneType496E707574, TerraneType726573706F6E7365>> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        RequestProtocol::clone_box(&**self)
     }
 }
 pub struct Request<TerraneType496E707574, TerraneType726573706F6E7365>(

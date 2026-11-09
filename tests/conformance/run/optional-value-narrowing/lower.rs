@@ -20,7 +20,8 @@ impl CounterStorage {
     }
     pub fn bump(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value = self.total.clone() + amount.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + amount.clone();
             self.total = __terrane_value;
         }
     }
@@ -101,7 +102,8 @@ impl DerivedCounter {
     }
     pub fn bump(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value = self.total.clone() + amount.clone();
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
+                + amount.clone();
             self.total = __terrane_value;
         }
     }
@@ -175,7 +177,9 @@ fn mutate_counter(value: Option<Counter>) {
         );
         {
             let __terrane_owner_4 = value.clone();
-            let __terrane_value = terrane_int_support::Int::from(10_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                10_i128,
+            );
             *match &mut *__terrane_owner_4.lock().expect("reference lock poisoned") {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
@@ -184,7 +188,7 @@ fn mutate_counter(value: Option<Counter>) {
         }
         {
             let __terrane_owner_5 = value.clone();
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = {
                     let __terrane_result = match &mut *(&value)
                         .lock()
@@ -307,7 +311,7 @@ fn mutate_counter(value: Option<Counter>) {
         );
         {
             let __terrane_owner_12 = value.clone();
-            let __terrane_value = None;
+            let __terrane_value: Option<String> = None;
             *match &mut *__terrane_owner_12.lock().expect("reference lock poisoned") {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
@@ -653,7 +657,7 @@ fn main() {
                     9,
                 ))
                 .clone();
-            let __terrane_value = {
+            let __terrane_value: terrane_int_support::Int = {
                 let __terrane_snapshot = {
                     let __terrane_result = match &mut *latecounter
                         .as_ref()

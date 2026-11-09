@@ -114,7 +114,9 @@ fn main() {
             terrane_int_support::Int::from(-1_i128),
         );
         {
-            let __terrane_value = terrane_int_support::Int::from(-1_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                -1_i128,
+            );
             settings.backlog = __terrane_value;
         }
         second = __terrane_await(

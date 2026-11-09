@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "value-protocols"
+test = "/call-string-named-borrow::test-scenario"

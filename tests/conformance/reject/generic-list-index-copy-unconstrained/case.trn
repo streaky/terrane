@@ -1,0 +1,6 @@
+namespace app
+
+function first of (T) T; values list of T
+    return values[0]
+
+function main;

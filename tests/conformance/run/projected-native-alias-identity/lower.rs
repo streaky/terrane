@@ -15,6 +15,9 @@ fn main() {
     let facade_input: u8;
     let provider_value: PublicValue;
     let facade_value: PublicValue;
+    let borrowed: owner::Holder<u8>;
+    let borrowed_string: owner::Holder<String>;
+    let holder: StringHolder;
     defaulted = __terrane_raised(
         make_default(),
         0 /* terrane-site: src/main.trn:8:23-8:36 */,
@@ -125,5 +128,166 @@ fn main() {
         "owner", "owner::PublicValue::into_value")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 14 /* terrane-site: src/main.trn:33:13-33:37 */))
+    );
+    borrowed = __terrane_raised(
+        make_owner(),
+        15 /* terrane-site: src/main.trn:34:37-34:48 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&consume_borrowed(&borrowed)));
+    borrowed_string = __terrane_raised(
+        make_string(),
+        16 /* terrane-site: src/main.trn:36:39-36:51 */,
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&consume_borrowed_string(&borrowed_string))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&consume_aliased_ref(&borrowed_string))
+    );
+    holder = StringHolder::terrane_construct(
+        __terrane_raised(
+            make_string(),
+            17 /* terrane-site: src/main.trn:39:38-39:50 */,
+        ),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&consume_holder_field(&holder)));
+}
+fn consume_borrowed(value: &owner::Holder<u8>) -> u8 {
+    return __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(value.clone().into_value()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "owner",
+                                "owner::Holder::into_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+        18 /* terrane-site: src/main.trn:43:12-43:29 */,
+    );
+}
+fn consume_borrowed_string(value: &owner::Holder<String>) -> String {
+    return __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(value.clone().into_value()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "api",
+                                "api::Alias::into_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+        19 /* terrane-site: src/main.trn:45:12-45:29 */,
+    );
+}
+fn consume_aliased_ref(value: &owner::Holder<String>) -> String {
+    let alias: &owner::Holder<String>;
+    alias = value;
+    return __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(alias.clone().into_value()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "api",
+                                "api::Alias::into_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+        20 /* terrane-site: src/main.trn:48:12-48:29 */,
+    );
+}
+pub struct StringHolder {
+    pub item: Option<owner::Holder<String>>,
+}
+impl StringHolder {
+    pub fn terrane_construct(item: owner::Holder<String>) -> Self {
+        let mut __terrane_constructed_value = Self { item: None };
+        __terrane_constructed_value.construct(item);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, item: owner::Holder<String>) {
+        {
+            let __terrane_value: owner::Holder<String> = item;
+            self.item = Some(__terrane_value);
+        }
+    }
+}
+fn consume_holder_field(holder: &StringHolder) -> String {
+    return __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            {
+                                let __terrane_snapshot = holder
+                                    .item
+                                    .as_ref()
+                                    .expect("required field initialized")
+                                    .clone();
+                                __terrane_snapshot
+                            }
+                                .into_value(),
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "api",
+                                "api::Alias::into_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
+            }
+        }(),
+        21 /* terrane-site: src/main.trn:54:12-54:35 */,
     );
 }

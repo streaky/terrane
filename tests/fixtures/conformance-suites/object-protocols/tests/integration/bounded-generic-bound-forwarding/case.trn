@@ -1,0 +1,39 @@
+namespace bounded-generic-bound-forwarding
+
+interface named
+    function name int;
+
+interface other
+    function other int;
+
+class value implements named
+    function name int;
+        return 7
+
+class unrelated implements other
+    function other int;
+        return 3
+
+function target of (T implements named) int; item T
+    return item.name;
+
+function inferred-forward of (U implements named) int; item U
+    return target; (move item)
+
+function explicit-forward of (U implements named) int; item U
+    return (target of U); (move item)
+
+class generic-holder of (T implements named)
+    item T
+    function construct; item T
+        this.item = move item
+    consuming function class-forward int;
+        return target; (move this.item)
+
+function test-scenario;
+    item = instance value;
+    print; (inferred-forward; item)
+    item = instance value;
+    print; (explicit-forward; item)
+    holder = instance (generic-holder of value); (instance value;)
+    print; (holder.class-forward;)

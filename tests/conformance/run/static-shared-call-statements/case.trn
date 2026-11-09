@@ -1,0 +1,18 @@
+namespace static-shared-call-statements
+function say int;
+    print; 3
+    return 3
+function echo int; value int
+    print; value
+    return value
+class holder
+    static f function to int = say
+    static g function from int to int = echo
+    static function invoke;
+        holder::f;
+        holder::g; 4
+function main;
+    holder::f;
+    holder::g; 4
+    holder::invoke;
+    print; 1

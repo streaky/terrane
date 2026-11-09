@@ -1,0 +1,7 @@
+namespace canonical-union-alias
+from /core/types import int as whole, int as number
+function accept whole; value whole|number
+  return value
+function test-scenario;
+  value whole|number = 7
+  print; (accept; value)

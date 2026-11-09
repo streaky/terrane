@@ -1,0 +1,8 @@
+namespace applied-collection-type-field-assignment
+from /core/collections import list
+class Holder
+    values list of int = list
+
+function main;
+    holder = instance Holder;
+    holder.values = list of int

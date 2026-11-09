@@ -1,0 +1,16 @@
+namespace native-ref-clone-repeat
+from /deps/terrane-query-witness import CloneEnum, Token
+function twice uint64; value mutable ref CloneEnum
+    first = value.code;
+    second = value.code;
+    return first + second
+function copied uint64; value mutable ref Token
+    first = value.value;
+    return first + (value.value;)
+function test-scenario;
+    value = CloneEnum::A;
+    print; (twice; value)
+    print; (value.code;)
+    token = Token::new;
+    print; (copied; token)
+    print; (token.value;)

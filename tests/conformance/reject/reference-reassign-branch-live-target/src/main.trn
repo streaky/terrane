@@ -1,0 +1,13 @@
+namespace app
+
+function main;
+    choose = true
+    left = 1
+    right = 2
+    r ref int = ref left
+    if choose
+        r = ref left
+    else
+        r = ref right
+    right = 3
+    print; r

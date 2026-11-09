@@ -1,0 +1,61 @@
+namespace native-view-list-rebind
+from /deps/terrane-query-witness import Holder, View
+from /core/collections import list
+from /core/collections import list as view-list
+from /core/errors import throwable
+class Err implements throwable
+    message string = 'failure'
+    function render string;
+        return this.message
+
+function test-scenario;
+    h = Holder::new;
+    v = h.view;
+    values = list; (h.view;)
+    values.append; v
+    v = h.view;
+    print; (v.size;)
+    print; values.length
+    no_read_holder = Holder::new;
+    no_read = no_read_holder.view;
+    no_read_list = list; (no_read_holder.view;)
+    no_read_list.append; no_read
+    no_read = no_read_holder.view;
+    a = Holder::new;
+    old = a.view;
+    other_values = list; (a.view;)
+    other_values.append; old
+    other = Holder::new;
+    old = other.view;
+    print; other_values.length
+    fresh = a.view;
+    literal = list; fresh
+    fresh = a.view;
+    print; literal.length
+    alias_value = a.view;
+    alias_values = view-list; alias_value
+    alias_value = other.view;
+    print; alias_values.length
+    catch_holder = Holder::new;
+    other_lender = Holder::new;
+    unrelated = Holder::new;
+    catch_view = catch_holder.copy_view;
+    catch_alias = catch_holder.copy_view;
+    try
+        catch_view = other_lender.copy_view;
+        throw instance Err;
+    catch Err
+        catch_alias = catch_view
+    unrelated.bump;
+    print; (catch_alias.size;)
+    safe_holder = Holder::new;
+    safe_k = Holder::new;
+    safe_other = Holder::new;
+    safe_view = safe_holder.copy_view;
+    safe_alias = safe_holder.copy_view;
+    try
+        safe_view = safe_k.copy_view;
+    catch
+        safe_alias = safe_view
+    safe_other.bump;
+    print; (safe_alias.size;)

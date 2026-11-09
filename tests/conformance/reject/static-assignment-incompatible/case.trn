@@ -1,0 +1,7 @@
+namespace static-assignment-incompatible
+class holder
+    static n int = 3
+function main;
+    y int|none = none
+    holder::n = y
+    print; holder::n

@@ -1,0 +1,6 @@
+namespace static-consuming-presence
+class holder
+    static f (consuming function to int)|none = none
+function main;
+    if holder::f == none
+        print; 0

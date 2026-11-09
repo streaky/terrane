@@ -1,0 +1,5 @@
+namespace grouped-namespace-constant-replacement
+constant g int = 1
+function main;
+    ((g)) = 4
+    print; g

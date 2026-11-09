@@ -1,0 +1,6 @@
+namespace explicit-generic-unused
+function constant of (T) int;
+    return 1
+
+function test-scenario;
+    print; (constant of int;)

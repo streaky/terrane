@@ -1,0 +1,14 @@
+namespace inherited-interface-mutable-receiver
+interface base
+    mutable function increment int;
+interface sub implements base
+class Counter implements sub
+    value int = 4
+    mutable function increment int;
+        this.value = this.value + 1
+        return this.value
+function update of (T implements sub) int; value mutable ref T
+    return value.increment;
+function test-scenario;
+    counter = instance Counter;
+    print; (update; counter)

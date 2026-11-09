@@ -592,7 +592,7 @@ pub struct TerraneMutableCallable<Arguments, Output> {
     >,
 }
 impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
     {
@@ -600,7 +600,7 @@ impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
             body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
-    fn call(&self, arguments: Arguments) -> Output {
+    pub fn call(&self, arguments: Arguments) -> Output {
         self.body.lock().expect("mutable callable lock poisoned").call(arguments)
     }
 }
@@ -699,15 +699,15 @@ impl NativeString {
     }
     pub fn construct(&mut self, encoded: String) {
         {
-            let __terrane_value = terrane_platform_value_is_text(&encoded);
+            let __terrane_value: bool = terrane_platform_value_is_text(&encoded);
             self.is_text = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_value_text(&encoded);
+            let __terrane_value: String = terrane_platform_value_text(&encoded);
             self.text = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_value_bytes(&encoded);
+            let __terrane_value: Vec<u8> = terrane_platform_value_bytes(&encoded);
             self.raw = __terrane_value;
         }
     }
@@ -728,11 +728,11 @@ impl EnvironmentEntry {
     }
     pub fn construct(&mut self, name: NativeString, entry_value: NativeString) {
         {
-            let __terrane_value = name;
+            let __terrane_value: NativeString = name;
             self.name = __terrane_value;
         }
         {
-            let __terrane_value = entry_value;
+            let __terrane_value: NativeString = entry_value;
             self.value = __terrane_value;
         }
     }
@@ -769,19 +769,19 @@ impl ProcessHostNameResult {
         result_value: NativeString,
     ) {
         {
-            let __terrane_value = did_fail;
+            let __terrane_value: bool = did_fail;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = is_available;
+            let __terrane_value: bool = is_available;
             self.available = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = result_value;
+            let __terrane_value: NativeString = result_value;
             self.value = __terrane_value;
         }
     }
@@ -912,7 +912,7 @@ impl CliSchema {
     }
     pub fn construct(&mut self, declared: terrane_collection_support::List<String>) {
         {
-            let __terrane_value = declared;
+            let __terrane_value: terrane_collection_support::List<String> = declared;
             self.entries = __terrane_value;
         }
     }
@@ -949,8 +949,8 @@ impl CommandLine {
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
     let mut entry: String;
     let __terrane_iterable_0 = schema.entries.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         entry = match __terrane_iterator_0.next() {
@@ -1114,27 +1114,29 @@ pub fn parse_command_line(
     }
     result = CommandLine::terrane_construct();
     {
-        let __terrane_value = flags;
+        let __terrane_value: terrane_collection_support::List<String> = flags;
         result.flags = __terrane_value;
     }
     {
-        let __terrane_value = option_names;
+        let __terrane_value: terrane_collection_support::List<String> = option_names;
         result.option_names = __terrane_value;
     }
     {
-        let __terrane_value = option_values;
+        let __terrane_value: terrane_collection_support::List<NativeString> = option_values;
         result.option_values = __terrane_value;
     }
     {
-        let __terrane_value = positionals;
+        let __terrane_value: terrane_collection_support::List<NativeString> = positionals;
         result.positionals = __terrane_value;
     }
     {
-        let __terrane_value = diagnostic_arguments;
+        let __terrane_value: terrane_collection_support::List<
+            terrane_int_support::Int,
+        > = diagnostic_arguments;
         result.diagnostic_arguments = __terrane_value;
     }
     {
-        let __terrane_value = diagnostic_messages;
+        let __terrane_value: terrane_collection_support::List<String> = diagnostic_messages;
         result.diagnostic_messages = __terrane_value;
     }
     return result;
@@ -1159,16 +1161,18 @@ pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
         || requested > terrane_int_support::Int::from(255_i128)
     {
         {
-            let __terrane_value = terrane_int_support::Int::from(255_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                255_i128,
+            );
             result.code = __terrane_value;
         }
         {
-            let __terrane_value = false;
+            let __terrane_value: bool = false;
             result.valid = __terrane_value;
         }
     } else {
         {
-            let __terrane_value = requested.clone();
+            let __terrane_value: terrane_int_support::Int = requested.clone();
             result.code = __terrane_value;
         }
     }

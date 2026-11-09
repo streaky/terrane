@@ -1,0 +1,30 @@
+namespace app
+from /core/collections import list
+function eat int; o list of int
+    return o.length
+
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'x'
+    function render string;
+        return this.message
+
+function bad int;
+    throw instance Err;
+
+function mk list of int;
+    print; (bad;)
+    return list; 1
+
+function main;
+    o list of int = list; 1
+    try
+        try
+            print; (eat; move o)
+        finally
+            o = mk;
+    catch
+        print; o.length
+    print; 0
+

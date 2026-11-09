@@ -58,7 +58,7 @@ impl DataTag {
     }
     pub fn construct(&mut self, target: Descriptor) {
         {
-            let __terrane_value = target;
+            let __terrane_value: Descriptor = target;
             self.target = Some(__terrane_value);
         }
     }

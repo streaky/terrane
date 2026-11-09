@@ -25,7 +25,9 @@ impl Holder {
             child: {
                 let mut instance = Item::terrane_construct();
                 {
-                    let __terrane_value = terrane_int_support::Int::from(5_i128);
+                    let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                        5_i128,
+                    );
                     instance.value = __terrane_value;
                 }
                 instance
@@ -52,11 +54,13 @@ fn make() -> Item {
     return {
         let mut instance = Item::terrane_construct();
         {
-            let __terrane_value = terrane_int_support::Int::from(2_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                2_i128,
+            );
             instance.value = __terrane_value;
         }
         {
-            let __terrane_value = String::from("returned");
+            let __terrane_value: String = String::from("returned");
             instance.title = __terrane_value;
         }
         instance
@@ -84,7 +88,9 @@ fn main() {
     first = {
         let mut instance = Item::terrane_construct();
         {
-            let __terrane_value = choose(terrane_int_support::Int::from(3_i128));
+            let __terrane_value: terrane_int_support::Int = choose(
+                terrane_int_support::Int::from(3_i128),
+            );
             instance.value = __terrane_value;
         }
         instance
@@ -92,7 +98,9 @@ fn main() {
     second = {
         let mut instance = Item::terrane_construct();
         {
-            let __terrane_value = terrane_int_support::Int::from(4_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                4_i128,
+            );
             instance.value = __terrane_value;
         }
         instance
@@ -109,17 +117,19 @@ fn main() {
     keyword = {
         let mut instance = KeywordFields::terrane_construct();
         {
-            let __terrane_value = Some(terrane_int_support::Int::from(2_i128));
+            let __terrane_value: Option<terrane_int_support::Int> = Some(
+                terrane_int_support::Int::from(2_i128),
+            );
             instance.__trn_726566 = __terrane_value;
         }
         instance
     };
     {
-        let __terrane_value = Some(true);
+        let __terrane_value: Option<bool> = Some(true);
         keyword.not = __terrane_value;
     }
     {
-        let __terrane_value = Some(String::from("named"));
+        let __terrane_value: Option<String> = Some(String::from("named"));
         keyword.__trn_6d6f7665 = __terrane_value;
     }
     println!(

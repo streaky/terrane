@@ -1338,8 +1338,8 @@ fn main() {
         std::sync::Arc<dyn Fn(&HeaderValue) -> bool + Send + Sync>,
     >::new(vec![std::sync::Arc::new(read_sensitive)]);
     let __terrane_iterable_0 = observers.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         observer = match __terrane_iterator_0.next() {
@@ -1380,8 +1380,8 @@ fn main() {
         );
     }
     let __terrane_iterable_1 = observers;
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_1,
+    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_1.as_slice(),
     );
     loop {
         observer = match __terrane_iterator_1.next() {

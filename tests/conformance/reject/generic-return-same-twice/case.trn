@@ -1,0 +1,13 @@
+namespace generic-return-same-twice
+from /core/collections import list
+function both of (T) T; a T, b T
+    return a
+
+function f of (T) T; o T|none, d T
+    for i in (list; 1)
+        if o != none
+            return (both; o, o)
+    return d
+
+function main;
+    print; (f; (list; 1), (list; 2, 3)).length

@@ -1,0 +1,9 @@
+namespace mutable-receiver-field-snapshot
+class counter
+    value int = 4
+    mutable function bump int; amount int
+        this.value = this.value + amount
+        return this.value
+function test-scenario;
+    value = instance counter;
+    print; (value.bump; value.value)

@@ -1,0 +1,20 @@
+namespace authored-generic-finite-recursion
+
+function count-down of (T) int; value T, count int
+    if count == 0
+        return 0
+    return count-down; value, count - 1
+
+class box of (T)
+    value T
+    function construct; input T
+        this.value = input
+    function count-down int; count int
+        if count == 0
+            return 0
+        return this.count-down; count - 1
+
+function test-scenario;
+    print; (count-down of string; 'same', 3)
+    boxed = instance box; 'same'
+    print; (boxed.count-down; 3)

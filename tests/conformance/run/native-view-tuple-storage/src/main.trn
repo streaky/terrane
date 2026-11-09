@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+from /core/collections import list, tuple
+
+function main;
+    h = Holder::new;
+    c = h.copy_view;
+    t = tuple; c
+    print; (c.size;)
+    print; (t[0].size;)
+    nested = list; (tuple; (h.copy_view;))
+    print; (nested[0][0].size;)

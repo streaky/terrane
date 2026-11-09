@@ -1,0 +1,11 @@
+namespace app
+from /deps/terrane-supertrait-witness import SyncBound
+class concrete implements SyncBound
+    function value int;
+        return 7
+function go of (T implements SyncBound) int; item T
+    callback = function int;
+        return item.value;
+    return callback;
+function main;
+    print; (go; (instance concrete;))

@@ -1,0 +1,12 @@
+namespace app
+from /core/collections import list
+interface named
+    mutable function increment int;
+class value implements named
+    mutable function increment int;
+        return 1
+function mutate of (T implements named) int; items mutable ref list of T
+    return items[0].increment;
+function main;
+    values list of value = list; (instance value;)
+    mutate; values

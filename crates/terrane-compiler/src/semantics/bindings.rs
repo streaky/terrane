@@ -1,10 +1,11 @@
 mod async_tasks;
 mod callbacks;
+mod capture_lifetimes;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    SourceFile, Span,
+    InvocationMode, SourceFile, Span,
     syntax::{SyntaxKind, SyntaxNode},
 };
 
@@ -23,9 +24,9 @@ pub(super) use async_tasks::{
     value_type_is_owned_static, value_type_satisfies_auto_trait,
 };
 pub(crate) use callbacks::{callback_contract, projected_macro_for_call};
-pub(super) use callbacks::{
-    projected_argument_for_parameter, projected_function_for_call,
-    validate_projected_callback_arguments,
+pub(in crate::semantics) use callbacks::{
+    projected_argument_for_parameter, projected_function_for_call, projected_receiver_chain_role,
+    validate_native_expression_lender, validate_projected_callback_arguments,
 };
 
 pub(super) fn validate_constant_reassignment(
@@ -44,9 +45,8 @@ pub(super) fn validate_constant_reassignment(
             && let Some(target) = first_write_to(package, unit, node.span, &unit.tree.root)
         {
             let name = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
                 .map_or("constant", |child| node_text(&unit.source, child));
             return Err(failure(
                 &unit.source,
@@ -61,9 +61,8 @@ pub(super) fn validate_constant_reassignment(
                     && node_text(&unit.source, child) == "global"
             })
             && let Some(target) = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
             && let Some(symbol) =
                 package.resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
             && symbol
@@ -128,7 +127,7 @@ pub(super) fn validate_namespace_storage(package: &SemanticPackage) -> Result<()
                 child.kind == SyntaxKind::DeclarationQualifier
                     && node_text(&unit.source, child) == "global"
             }))
-            && let Some(name) = node.children.iter().find(|child| child.kind == SyntaxKind::Name)
+            && let Some(name) = node.assignment_target().filter(|child| child.kind == SyntaxKind::Name)
             && let Some(symbol) =
                 package.resolve_name_at(unit, name.span.start, node_text(&unit.source, name))
             && symbol.declaration_span == Some(node.span)
@@ -186,9 +185,8 @@ pub(super) fn validate_global_definite_assignment(
     }
 
     fn global_name<'a>(unit: &'a SemanticUnit, node: &'a SyntaxNode) -> Option<&'a str> {
-        node.children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
+        node.assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
             .map(|child| node_text(&unit.source, child))
     }
 
@@ -228,9 +226,8 @@ pub(super) fn validate_global_definite_assignment(
             && has_qualifier(unit, node, "global")
         {
             let name_node = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name);
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name);
             for child in &node.children {
                 if Some(child.span) != name_node.map(|name| name.span) {
                     validate_node(package, unit, child, relevant, assigned)?;
@@ -505,6 +502,7 @@ pub(super) fn first_write_to<'a>(
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
     ) && node.span != declaration_span
         && let Some(target) = node.children.first()
+        && let target = super::types::ungrouped_expression(target)
         && target.kind == SyntaxKind::Name
         && package
             .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
@@ -598,6 +596,17 @@ pub(super) fn span_key(span: Span) -> (u32, usize, usize) {
 }
 
 pub(super) fn binding_event_child_repeats(node: &SyntaxNode, index: usize) -> bool {
+    if matches!(
+        node.kind,
+        SyntaxKind::WhileStatement | SyntaxKind::ForStatement
+    ) && let Some(body) = node
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::Block)
+        && !super::scope_validation::loop_body_may_repeat(body)
+    {
+        return false;
+    }
     if node.kind == SyntaxKind::ForStatement
         && node
             .children
@@ -708,16 +717,15 @@ pub(super) fn record_declared_binding_writes(
     if node.kind == SyntaxKind::ForTarget {
         let mut recorded = false;
         for name in &node.children {
+            // Events describe reaching source values, not the Rust carrier
+            // that may be shared by several loop declarations. Match the
+            // target origin recorded by flow_iteration_entry and its reads.
             let identity = unit
-                .flow_binding_ids
-                .get(&span_key(name.span))
-                .copied()
-                .or_else(|| {
-                    unit.typed_bindings
-                        .iter()
-                        .find(|binding| binding.span == name.span)
-                        .map(|binding| binding.span)
-                })
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == name.span)
+                .map(|binding| binding.span)
+                .or_else(|| unit.flow_binding_ids.get(&span_key(name.span)).copied())
                 .or_else(|| {
                     unit.typed_bindings
                         .iter()
@@ -830,18 +838,25 @@ pub(super) fn collect_binding_events(
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
     ) && !declares_binding
     {
-        node.children.first().filter(|target| {
-            target.kind == SyntaxKind::Name
-                && !matches!(
-                    unit.inferred_value_type(target),
-                    Some(ValueType::MutableReference(_))
-                )
-        })
+        node.children
+            .first()
+            .map(super::types::ungrouped_expression)
+            .filter(|target| {
+                target.kind == SyntaxKind::Name
+                    && !matches!(
+                        unit.inferred_value_type(target),
+                        Some(ValueType::MutableReference(_))
+                    )
+            })
     } else {
         None
     };
 
     for (index, child) in node.children.iter().enumerate() {
+        // A member selector is not a lexical read of a same-named binding.
+        if node.kind == SyntaxKind::MemberExpression && index == 1 {
+            continue;
+        }
         let declares_child = child.kind == SyntaxKind::Name
             && if node.kind == SyntaxKind::ForTarget {
                 true
@@ -851,8 +866,9 @@ pub(super) fn collect_binding_events(
                         .iter()
                         .any(|prior| prior.kind == SyntaxKind::Name)
             };
-        let plain_assignment_target =
-            assignment_target.is_some() && node.kind == SyntaxKind::Assignment && index == 0;
+        let plain_assignment_target = (assignment_target.is_some() || declares_binding)
+            && node.kind == SyntaxKind::Assignment
+            && index == 0;
         if !plain_assignment_target {
             let repeats = binding_event_child_repeats(node, index);
             let region = binding_event_child_region(node, child, index);
@@ -885,18 +901,10 @@ pub(super) fn collect_binding_events(
                     regions: regions.clone(),
                 });
         };
-        if let Some(identity) = unit.flow_binding_ids.get(&span_key(target.span))
-            && unit.typed_bindings.iter().any(|binding| {
-                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
-            })
-        {
-            // Task reaching origins track the current future's construction. The
-            // write event still mutates the canonical Rust storage, not that origin.
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(target.span)) {
+            // Writes mutate canonical storage. Reaching value origins identify
+            // producers and need not introduce a TypedBinding of their own.
             record(*identity);
-        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(target.span)) {
-            for origin in origins {
-                record(*origin);
-            }
         } else if let Some(declaration_span) = package
             .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
             .and_then(|symbol| symbol.declaration_span)
@@ -1087,11 +1095,202 @@ pub(crate) fn descriptor_binding_is_materialized(
         })
 }
 
+fn binding_read_crosses_completion_capture(
+    package: &SemanticPackage,
+    declaration: Span,
+    read: Span,
+    later: &[BindingEvent],
+) -> bool {
+    fn visit(node: &SyntaxNode, declaration: Span, read: Span, later: &[BindingEvent]) -> bool {
+        if node.span.start > read.start || read.end > node.span.end {
+            return false;
+        }
+        if node.kind == SyntaxKind::TryStatement
+            && declaration.start < node.span.start
+            && let Some(clause) = node.children.iter().find(|child| {
+                matches!(
+                    child.kind,
+                    SyntaxKind::Block | SyntaxKind::CatchClause | SyntaxKind::FinallyClause
+                ) && child.span.start <= read.start
+                    && read.end <= child.span.end
+            })
+            && later.iter().any(|event| {
+                matches!(event, BindingEvent::Read { span, .. }
+                    if span.start < clause.span.start || clause.span.end < span.end)
+            })
+        {
+            // Rebinding inside a lowered closure does not return ownership of
+            // a moved capture to its outer storage. Preserve that storage when
+            // another completion clause or a later statement still reads it.
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| visit(child, declaration, read, later))
+    }
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .is_some_and(|unit| visit(&unit.tree.root, declaration, read, later))
+}
+fn binding_read_return_span(package: &SemanticPackage, read: Span) -> Option<Span> {
+    fn visit(node: &SyntaxNode, read: Span, return_span: Option<Span>) -> Option<Span> {
+        if node.span.start > read.start || read.end > node.span.end {
+            return None;
+        }
+        let return_span = match node.kind {
+            SyntaxKind::AnonymousFunction => None,
+            SyntaxKind::ReturnStatement => Some(node.span),
+            _ => return_span,
+        };
+        if node.kind == SyntaxKind::Name && node.span == read {
+            return return_span;
+        }
+        node.children
+            .iter()
+            .find_map(|child| visit(child, read, return_span))
+    }
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .and_then(|unit| visit(&unit.tree.root, read, None))
+}
+
+fn binding_read_loops_again(
+    package: &SemanticPackage,
+    read: Span,
+    loops: &[Span],
+    declaration: Span,
+) -> bool {
+    loops.last().is_some_and(|loop_span| {
+        declaration.file != loop_span.file
+            || declaration.start < loop_span.start
+            || loop_span.end < declaration.end
+    }) && binding_read_return_span(package, read).is_none()
+}
+
+pub(crate) fn binding_return_requires_preservation(
+    package: &SemanticPackage,
+    declaration: Span,
+    read: Span,
+) -> bool {
+    fn visit(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        declaration: Span,
+        read: Span,
+        events: &[BindingEvent],
+        mut preserve: bool,
+    ) -> bool {
+        if node.span.start > read.start || read.end > node.span.end {
+            return false;
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        ) {
+            preserve = node.kind == SyntaxKind::AnonymousFunction
+                && !(node.span.start <= declaration.start && declaration.end <= node.span.end)
+                && unit.functions.iter().any(|function| {
+                    function.span == node.span
+                        && function.written_invocation_mode != InvocationMode::Consuming
+                });
+        }
+        if node.kind == SyntaxKind::TryStatement {
+            preserve |= node.children.iter().any(|clause| {
+                clause.kind == SyntaxKind::FinallyClause
+                    && !(clause.span.start <= read.start && read.end <= clause.span.end)
+                    && events.iter().any(|event| {
+                        matches!(event, BindingEvent::Read { span, .. }
+                            if clause.span.start <= span.start && span.end <= clause.span.end)
+                    })
+            });
+            preserve |= declaration.start < node.span.start
+                && node.children.iter().any(|clause| {
+                    matches!(
+                        clause.kind,
+                        SyntaxKind::Block | SyntaxKind::CatchClause | SyntaxKind::FinallyClause
+                    ) && clause.span.start <= read.start
+                        && read.end <= clause.span.end
+                        && events.iter().any(|event| {
+                            matches!(event, BindingEvent::Read { span, .. }
+                                if read.end <= span.start && clause.span.end < span.end)
+                        })
+                });
+        }
+        if node.kind == SyntaxKind::Name && node.span == read {
+            return preserve;
+        }
+        node.children
+            .iter()
+            .any(|child| visit(unit, child, declaration, read, events, preserve))
+    }
+    let Some(events) = package.binding_events.get(&span_key(declaration)) else {
+        return false;
+    };
+    if let Some(return_span) = binding_read_return_span(package, read)
+        && events.iter().any(|event| {
+            matches!(event, BindingEvent::Read { span, .. }
+                if read.end <= span.start && span.end <= return_span.end)
+        })
+    {
+        return true;
+    }
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .is_some_and(|unit| visit(unit, &unit.tree.root, declaration, read, events, false))
+}
+
+fn binding_read_borrows_earlier_argument(package: &SemanticPackage, read: Span) -> bool {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        read: Span,
+    ) -> bool {
+        if node.span.start > read.start || read.end > node.span.end {
+            return false;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(arguments) = node.children.get(1)
+            && arguments.children.iter().any(|argument| {
+                let value = argument.children.last().unwrap_or(argument);
+                let mut place = value;
+                while place.kind == SyntaxKind::GroupExpression
+                    && let [inner] = place.children.as_slice()
+                {
+                    place = inner;
+                }
+                place.span == read
+                    && super::ownership::call_argument_borrow_authority(package, unit, node, value)
+                        .is_some()
+            })
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| visit(package, unit, child, read))
+    }
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == read.file)
+        .is_some_and(|unit| visit(package, unit, &unit.tree.root, read))
+}
+
 pub(crate) fn binding_read_value_is_reused(
     package: &SemanticPackage,
     declaration_span: Span,
     read_span: Span,
 ) -> bool {
+    if binding_read_borrows_earlier_argument(package, read_span) {
+        return true;
+    }
     let Some(events) = package.binding_events.get(&span_key(declaration_span)) else {
         return false;
     };
@@ -1110,6 +1309,9 @@ pub(crate) fn binding_read_value_is_reused(
     else {
         return false;
     };
+    if binding_read_return_span(package, read_span).is_some() {
+        return binding_return_requires_preservation(package, declaration_span, read_span);
+    }
     let mut intervening_stores: Vec<&[ControlRegion]> = Vec::new();
     for event in &events[read + 1..] {
         match event {
@@ -1123,18 +1325,98 @@ pub(crate) fn binding_read_value_is_reused(
             }
             BindingEvent::Write { regions, .. } => {
                 if later_store_replaces(read_regions, regions) {
-                    return false;
+                    return binding_read_crosses_completion_capture(
+                        package,
+                        declaration_span,
+                        read_span,
+                        &events[read + 1..],
+                    );
                 }
                 intervening_stores.push(regions.as_slice());
             }
             BindingEvent::Read { .. } => {}
         }
     }
-    read_loops.last().is_some_and(|loop_span| {
-        declaration_span.file != loop_span.file
-            || declaration_span.start < loop_span.start
-            || loop_span.end < declaration_span.end
-    })
+    binding_read_loops_again(package, read_span, read_loops, declaration_span)
+}
+
+/// Unread straight-line stores may use independent Rust bindings rather than
+/// tying distinct borrowed values to one Rust storage lifetime. Captured,
+/// address-observable, and live joined storage retain their existing place.
+pub(crate) fn binding_stores_are_independent(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    binding: &TypedBinding,
+) -> bool {
+    fn body(node: &SyntaxNode, scope: Span) -> Option<&SyntaxNode> {
+        if node.span == scope {
+            return node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Block);
+        }
+        node.children.iter().find_map(|child| body(child, scope))
+    }
+    fn stores(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        binding: Span,
+        direct: bool,
+    ) -> Option<usize> {
+        let writes = matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+            && (node.span == binding
+                || node.assignment_target().is_some_and(|target| {
+                    target.kind == SyntaxKind::Name
+                        && package
+                            .resolve_name_at(
+                                unit,
+                                target.span.start,
+                                node_text(&unit.source, target),
+                            )
+                            .is_some_and(|symbol| symbol.declaration_span == Some(binding))
+                }));
+        if writes && !direct && binding_store_value_is_read(package, binding, node.span) {
+            return None;
+        }
+        node.children
+            .iter()
+            .try_fold(usize::from(writes), |count, child| {
+                stores(package, unit, child, binding, false).map(|nested| count + nested)
+            })
+    }
+    let independent_store_type = matches!(&binding.value_type, ValueType::Reference(_))
+        || (matches!(
+            &binding.value_type,
+            ValueType::InvocationScopedNative { .. }
+        ) && package.native_value_is_copyable(&binding.value_type));
+    if !independent_store_type
+        || unit
+            .reference_owner_spans
+            .contains(&(binding.span.start, binding.span.end))
+        || unit.completion_capture_slots.contains(&binding.span)
+        || unit
+            .functions
+            .iter()
+            .any(|function| function.captures.contains(&binding.name))
+        || super::diagnostics::binding_span_has_interior_mutation(
+            package,
+            unit,
+            binding.span,
+            ClosureWrites::Include,
+        )
+    {
+        return false;
+    }
+    let Some(body) = binding.scope.and_then(|scope| body(&unit.tree.root, scope)) else {
+        return false;
+    };
+    body.children
+        .iter()
+        .try_fold(0, |count, statement| {
+            stores(package, unit, statement, binding.span, true).map(|writes| count + writes)
+        })
+        .is_some_and(|stores| stores > 1)
 }
 
 pub(crate) fn binding_store_value_is_read(
@@ -1235,18 +1517,10 @@ fn record_binding_reads(
                     regions: regions.to_vec(),
                 });
         };
-        if let Some(identity) = unit.flow_binding_ids.get(&span_key(node.span))
-            && unit.typed_bindings.iter().any(|binding| {
-                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
-            })
-        {
-            // Match task writes' storage identity. Reaching construction origins
-            // belong to effect analysis, not the storage's ordered liveness events.
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(node.span)) {
+            // Pair reads with writes on the same storage identity; value
+            // provenance is tracked independently by flow_read_bindings.
             record(*identity);
-        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(node.span)) {
-            for origin in origins {
-                record(*origin);
-            }
         } else if let Some(declaration_span) = declaration_span {
             record(declaration_span);
         }

@@ -1,0 +1,12 @@
+namespace consuming-callable-field-take
+from /core/collections import list
+class holder
+    f consuming function to int
+    function construct; f consuming function to int
+        this.f = f
+
+function test-scenario;
+    h = instance holder; consuming function int;
+        return 5
+    g = move h.f
+    print; (g;)

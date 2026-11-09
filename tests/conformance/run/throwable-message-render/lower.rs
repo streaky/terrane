@@ -23,17 +23,17 @@ impl SplitError {
     }
     pub fn construct(&mut self, message: String, display: String) {
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = display;
+            let __terrane_value: String = display;
             self.display = __terrane_value;
         }
     }
     pub fn render(&self) -> String {
         {
-            let __terrane_static_value = {
+            let __terrane_static_value: terrane_int_support::Int = {
                 let __terrane_value = TERRANE_STATIC_SPLITERROR_RENDERS
                     .lock()
                     .expect("static field lock poisoned")

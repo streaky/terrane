@@ -1,0 +1,10 @@
+namespace app
+
+function main;
+    a = 1
+    b = 2
+    r ref int = ref a
+    if false
+        r = ref b
+    a = 3
+    print; r

@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "value-protocols"
+test = "/list-ref-then-owned-local::test-scenario"

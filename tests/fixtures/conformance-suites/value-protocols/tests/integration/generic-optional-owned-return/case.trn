@@ -1,0 +1,97 @@
+namespace generic-optional-owned-return
+from /core/collections import list
+function choose of (T) T; value T|none, fallback T
+    if value is a none
+        return fallback
+    return value
+function choose-present of (T) T; value T|none, fallback T
+    if value != none
+        return value
+    return fallback
+function return-for of (T) T; value T|none, fallback T
+    items = list; 1
+    for item in items
+        if value != none
+            return value
+    return fallback
+function return-while of (T) T; value T|none, fallback T
+    index = 0
+    while index < 1
+        index++
+        if not (value is a none)
+            return value
+    return fallback
+function return-for-membership of (T) T; value T|none, fallback T
+    items = list; 1
+    for item in items
+        if value is a none
+            return fallback
+        return value
+    return fallback
+function preserve-after-loop of (T) T; value T|none, fallback T
+    items = list; 1
+    for item in items
+        if value != none
+            print; item
+    return choose; value, fallback
+function return-finally of (T) T; value T|none, fallback T
+    try
+        for item in (list; 1, 2)
+            if value != none
+                return value
+    finally
+        print; 'finished'
+    return fallback
+function return-finally-clone string; value string|none, fallback string
+    try
+        for item in (list; 1, 2)
+            if value != none
+                return value
+    finally
+        print; (value is a none)
+    return fallback
+function read-before-return of (T) T; value T|none, fallback T
+    for item in (list; 1, 2)
+        if item == 2
+            if value != none
+                return value
+        print; (value is a none)
+    return fallback
+function read-before-return-continue of (T) T; value T|none, fallback T
+    for item in (list; 1, 2, 3)
+        print; (value is a none)
+        if item == 1
+            continue
+        if item == 3
+            if value != none
+                return value
+    return fallback
+function closure-parameter of (T) T; value T
+    callback = function T; input T
+        for item in (list; 1)
+            return input
+        return input
+    return (callback; value)
+function combine string; left string, right string
+    return left + right
+function return-expression string; value string
+    return combine; value, (value.concat; '!')
+function test-scenario;
+    print; (choose; 7, 9)
+    print; (choose; none, 9)
+    print; (choose-present; 'present', 'fallback')
+    print; (choose-present; none, 'fallback')
+    print; (choose of (int); 11, 12)
+    print; (return-for; (list; 2, 3), (list; 8)).length
+    print; (return-while; (list; 4, 5), (list; 9)).length
+    print; (return-for-membership; (list; 6, 7), (list; 9)).length
+    print; (preserve-after-loop; 'kept', 'fallback')
+    print; (return-finally; 'generic-present', 'generic-fallback')
+    print; (return-finally of (string); none, 'generic-fallback')
+    print; (return-finally-clone; 'clone-present', 'clone-fallback')
+    print; (return-finally-clone; none, 'clone-fallback')
+    print; (read-before-return; (list; 20), (list; 30)).length
+    print; (read-before-return; none, (list; 40)).length
+    print; (read-before-return-continue; (list; 50), (list; 60)).length
+    print; (closure-parameter; 'parameter')
+    print; (return-expression; 'left')

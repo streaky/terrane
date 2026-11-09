@@ -74,6 +74,12 @@ impl Emitter<'_> {
 
     fn consuming_method_needs_mutable_self(&self, node: &SyntaxNode) -> bool {
         fn rooted_in_this(emitter: &Emitter<'_>, node: &SyntaxNode) -> bool {
+            if node.kind == SyntaxKind::GroupExpression {
+                return node
+                    .children
+                    .first()
+                    .is_some_and(|child| rooted_in_this(emitter, child));
+            }
             if node.kind == SyntaxKind::Name {
                 return emitter.text(node) == "this";
             }
@@ -102,11 +108,54 @@ impl Emitter<'_> {
         }
         if node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
-                callee.kind == SyntaxKind::MemberExpression
-                    && callee
-                        .children
-                        .first()
-                        .is_some_and(|receiver| rooted_in_this(self, receiver))
+                let mut callee = callee;
+                while matches!(
+                    callee.kind,
+                    SyntaxKind::GroupExpression
+                        | SyntaxKind::TypeExpression
+                        | SyntaxKind::AppliedType
+                ) {
+                    let Some(inner) = callee.children.first() else {
+                        return false;
+                    };
+                    callee = inner;
+                }
+                let [receiver, member] = callee.children.as_slice() else {
+                    return false;
+                };
+                if callee.kind != SyntaxKind::MemberExpression || !rooted_in_this(self, receiver) {
+                    return false;
+                }
+                let mut receiver = receiver;
+                while receiver.kind == SyntaxKind::GroupExpression {
+                    let Some(inner) = receiver.children.first() else {
+                        return false;
+                    };
+                    receiver = inner;
+                }
+                let Some(value_type) = self.value_type(receiver) else {
+                    return false;
+                };
+                match crate::semantics::member_invocation_mode_at(
+                    self.package,
+                    self.unit,
+                    receiver,
+                    &value_type,
+                    self.text(member),
+                ) {
+                    InvocationMode::Mutable => true,
+                    InvocationMode::Consuming => {
+                        receiver.kind == SyntaxKind::MemberExpression
+                            && crate::semantics::field_access_transfers(
+                                self.package,
+                                self.unit,
+                                receiver,
+                                true,
+                            )
+                            .expect("field transfer must be validated before lowering")
+                    }
+                    InvocationMode::Shared => false,
+                }
             })
         {
             return true;
@@ -222,6 +271,57 @@ impl Emitter<'_> {
                 "let mut __terrane_select_cursor_{selection_start} = 0usize;"
             ));
         }
+    }
+
+    fn native_lender_signature_type(&self, value_type: &ValueType) -> Option<String> {
+        let ValueType::Object(identity) = value_type else {
+            return None;
+        };
+        let item = self
+            .package
+            .projection
+            .item(&identity.namespace, &identity.name)?;
+        let crate::rust_interop::projection::ProjectedKind::ForeignType {
+            native_view_type,
+            generic_parameters,
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        let native = identity
+            .native_projection
+            .as_deref()
+            .filter(|native| {
+                crate::rust_ir::rust_lifetimes(native)
+                    .iter()
+                    .any(|lifetime| lifetime != "'static")
+            })
+            .or(native_view_type.as_deref())?;
+        let lifetimes = crate::rust_ir::rust_lifetimes(native);
+        if !lifetimes.iter().any(|lifetime| lifetime != "'static") {
+            return None;
+        }
+        let replacements = generic_parameters
+            .iter()
+            .map(|parameter| &parameter.name)
+            .zip(&identity.type_arguments)
+            .chain(identity.native_arguments.iter())
+            .map(|(name, ty)| (name.clone(), rust_value_type(self.package, ty.clone())))
+            .collect();
+        let mut native = crate::rust_ir::instantiate_rust_generics(native, &replacements);
+        for lifetime in lifetimes
+            .iter()
+            .filter(|lifetime| lifetime.as_str() != "'static")
+        {
+            native = native.replace(lifetime, "'a");
+        }
+        Some(
+            self.package
+                .projection
+                .canonical_native_type(&native)
+                .into_owned(),
+        )
     }
 
     pub(in crate::lowering::emitter) fn invocation_scoped_type_generics(
@@ -367,9 +467,7 @@ impl Emitter<'_> {
         for parameter in &contract.parameters {
             let shared = self.parameter_needs_shared_storage(parameter);
             let flow_type = self.unit.flow_binding_types.get(&parameter.span);
-            if !shared && !matches!(flow_type, Some(ValueType::Union(_))) {
-                continue;
-            }
+            let slot = self.unit.completion_capture_slots.contains(&parameter.span);
             let Some(source_type) = parameter.binding_value_type() else {
                 continue;
             };
@@ -377,6 +475,49 @@ impl Emitter<'_> {
                 Some(ValueType::Union(arms)) => arms.iter().position(|arm| arm == &source_type),
                 _ => None,
             };
+            if slot {
+                let name = self.storage_name_at(&parameter.name, parameter.span);
+                let source = self.parameter_source_name(&parameter.name, parameter.span);
+                let carrier = if let Some(index) = union_arm {
+                    format!(
+                        "{}::Arm{index}({source})",
+                        union_type_name_for_span(parameter.span)
+                    )
+                } else {
+                    source
+                };
+                let binding = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == parameter.span);
+                let ty = binding.map_or_else(
+                    || rust_value_type(self.package, source_type.clone()),
+                    |binding| {
+                        self.binding_rust_type(
+                            binding,
+                            self.binding_scalar_storage_type(binding),
+                            false,
+                        )
+                    },
+                );
+                let ty = if union_arm.is_some() {
+                    union_type_name_for_span(parameter.span)
+                } else {
+                    ty
+                };
+                if shared {
+                    self.line(&format!(
+                        "let mut {name}: Option<std::sync::Arc<TerraneSharedCell<{ty}>>> = Some(std::sync::Arc::new(TerraneSharedCell::new({carrier})));"
+                    ));
+                } else {
+                    self.line(&format!("let mut {name}: Option<{ty}> = Some({carrier});"));
+                }
+                continue;
+            }
+            if !shared && !matches!(flow_type, Some(ValueType::Union(_))) {
+                continue;
+            }
             let name = self.storage_name_at(&parameter.name, parameter.span);
             let source = self.parameter_source_name(&parameter.name, parameter.span);
             if shared {
@@ -419,6 +560,7 @@ impl Emitter<'_> {
             if contract.is_static
                 && let ValueType::Object(returned) = &return_type
                 && contract.owner.as_deref() == Some(returned.name.as_str())
+                && returned.type_arguments.is_empty()
                 && let Some(effective) = &self.current_object
             {
                 ValueType::Object(effective.clone())
@@ -439,24 +581,32 @@ impl Emitter<'_> {
                 .get(&(contract.span.file, contract.span.start, contract.span.end))
                 .cloned();
         }
+        let reference_lender = self
+            .unit
+            .reference_return_lenders
+            .get(&(contract.span.file, contract.span.start, contract.span.end))
+            .copied();
         let scoped_lifetime = if let Some(ValueType::InvocationScopedNative {
             rust_type,
             lifetimes,
             ..
         }) = &mut return_type
         {
-            for lifetime in lifetimes.iter() {
-                *rust_type = rust_type.replace(lifetime, "'view");
+            let result_lifetime = if reference_lender.is_some() {
+                "'a"
+            } else {
+                "'view"
+            };
+            for lifetime in lifetimes
+                .iter()
+                .filter(|lifetime| lifetime.as_str() != "'static")
+            {
+                *rust_type = rust_type.replace(lifetime, result_lifetime);
             }
-            Some("'view")
+            Some(result_lifetime)
         } else {
             None
         };
-        let reference_lender = self
-            .unit
-            .reference_return_lenders
-            .get(&(contract.span.file, contract.span.start, contract.span.end))
-            .copied();
         let scoped_type_generics = return_type
             .as_ref()
             .and_then(|return_type| match return_type {
@@ -468,10 +618,11 @@ impl Emitter<'_> {
                 _ => None,
             })
             .unwrap_or_default();
-        let function_generics = if reference_lender.is_some() {
-            "<'a>".to_owned()
-        } else {
+        let function_generics = {
             let mut generics = Vec::new();
+            if reference_lender.is_some() {
+                generics.push("'a".to_owned());
+            }
             if scoped_lifetime == Some("'view") {
                 generics.push("'view".to_owned());
             }
@@ -534,6 +685,7 @@ impl Emitter<'_> {
                 matches!(binding_type, Some(ValueType::MutableReference(_)));
             let mutable_storage = parameter.mutable
                 && !self.parameter_needs_shared_storage(parameter)
+                && !self.unit.completion_capture_slots.contains(&parameter.span)
                 && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
                     || binding_storage_is_replaced(
                         self.package,
@@ -562,6 +714,9 @@ impl Emitter<'_> {
                 (Some(ValueType::Reference(item)), false) if scoped_lifetime == Some("'view") => {
                     format!("&'view {}", rust_reference_element_type(self.package, item))
                 }
+                (Some(value_type), true) => self
+                    .native_lender_signature_type(value_type)
+                    .unwrap_or_else(|| rust_value_type(self.package, value_type.clone())),
                 _ => binding_type.map_or_else(
                     || "i128".to_owned(),
                     |value_type| rust_value_type(self.package, value_type),
@@ -591,6 +746,9 @@ impl Emitter<'_> {
                         )
                     }
                     ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
+                    value_type if reference_lender.is_some() => self
+                        .native_lender_signature_type(&value_type)
+                        .unwrap_or_else(|| rust_value_type(self.package, value_type)),
                     value_type => rust_value_type(self.package, value_type),
                 },
             );
@@ -609,6 +767,9 @@ impl Emitter<'_> {
                     )
                 }
                 ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
+                value_type if reference_lender.is_some() => self
+                    .native_lender_signature_type(&value_type)
+                    .unwrap_or_else(|| rust_value_type(self.package, value_type)),
                 return_type => rust_value_type(self.package, return_type),
             };
             write!(self.output, " -> {return_type}").unwrap();
@@ -680,7 +841,8 @@ impl Emitter<'_> {
             if matches!(
                 self.unit.flow_binding_types.get(&parameter.span),
                 Some(ValueType::Union(_))
-            ) {
+            ) || self.unit.completion_capture_slots.contains(&parameter.span)
+            {
                 self.active_function_bindings.insert(parameter.span);
             }
         }
@@ -782,7 +944,13 @@ impl Emitter<'_> {
                     self.line(&format!("let mut {name} = None;"));
                 }
             } else {
-                let requires_mutable = if self.reference_backed(binding) {
+                let requires_mutable = if crate::semantics::binding_stores_are_independent(
+                    self.package,
+                    unit,
+                    binding,
+                ) {
+                    false
+                } else if self.reference_backed(binding) {
                     binding_storage_is_replaced(
                         self.package,
                         unit,
@@ -829,6 +997,7 @@ impl Emitter<'_> {
                     matches!(binding_type, Some(ValueType::MutableReference(_)));
                 let mutable_storage = parameter.mutable
                     && !self.parameter_needs_shared_storage(parameter)
+                    && !self.unit.completion_capture_slots.contains(&parameter.span)
                     && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
                         || binding_storage_is_replaced(
                             self.package,
@@ -895,6 +1064,11 @@ impl Emitter<'_> {
             rust_value_type(self.package, result.clone())
         };
         let outer_output = std::mem::take(&mut self.output);
+        let outer_completion = std::mem::replace(&mut self.try_completion, false);
+        let outer_loop = std::mem::replace(&mut self.in_loop, false);
+        let outer_continue = self.continue_label.take();
+        let outer_break = self.break_label.take();
+        let outer_error = self.current_error.take();
         let outer_indent = self.indent;
         let outer_return_type = self.return_type.replace(result.clone());
         let outer_function_errors = std::mem::replace(&mut self.function_errors, contract.throws);
@@ -945,7 +1119,8 @@ impl Emitter<'_> {
                 if matches!(
                     self.unit.flow_binding_types.get(&parameter.span),
                     Some(ValueType::Union(_))
-                ) {
+                ) || self.unit.completion_capture_slots.contains(&parameter.span)
+                {
                     self.active_function_bindings.insert(parameter.span);
                 }
             }
@@ -967,6 +1142,11 @@ impl Emitter<'_> {
             }
         }
         self.closure_depth -= 1;
+        self.try_completion = outer_completion;
+        self.in_loop = outer_loop;
+        self.continue_label = outer_continue;
+        self.break_label = outer_break;
+        self.current_error = outer_error;
         let body = std::mem::replace(&mut self.output, outer_output);
         self.indent = outer_indent;
         self.return_type = outer_return_type;

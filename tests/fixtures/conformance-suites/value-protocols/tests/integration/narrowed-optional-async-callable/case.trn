@@ -1,0 +1,6 @@
+namespace narrowed-optional-async-callable
+async function test-scenario;
+    callback (async function to int)|none = async function int;
+        return 9
+    if callback != none
+        print; (await (callback;))

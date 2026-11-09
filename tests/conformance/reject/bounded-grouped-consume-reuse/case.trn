@@ -1,0 +1,15 @@
+namespace app
+interface named
+    function name int;
+    consuming function finish int;
+class Item implements named
+    amount int = 7
+    function name int;
+        return this.amount
+    consuming function finish int;
+        return this.amount
+function probe of (T implements named); value T
+    print; ((value).finish;)
+    print; (value.name;)
+function main;
+    probe; (instance Item;)

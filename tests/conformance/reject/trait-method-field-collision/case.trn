@@ -1,0 +1,9 @@
+namespace trait-method-field-collision
+trait behavior
+    function f int;
+        return 9
+class holder uses behavior
+    f int = 3
+function main;
+    h = instance holder;
+    print; h.f

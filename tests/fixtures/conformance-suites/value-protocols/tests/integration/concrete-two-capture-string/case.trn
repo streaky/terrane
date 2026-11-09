@@ -1,0 +1,11 @@
+namespace concrete-two-capture-string
+from /core/collections import list
+function go int; s string
+    f = function int;
+        return s.length
+    g = function int;
+        return s.length
+    return (f;) + (g;)
+
+function test-scenario;
+    print; (go; 'ab')

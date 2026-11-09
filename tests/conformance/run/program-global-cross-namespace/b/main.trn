@@ -1,0 +1,9 @@
+namespace b
+function main;
+  print; calls
+  value = calls
+  print; value
+  typed int = calls
+  print; typed
+  global calls = calls + 1
+  print; calls

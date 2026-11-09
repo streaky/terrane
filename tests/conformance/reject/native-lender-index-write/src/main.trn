@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+function main;
+    sqls list of string = list; 'insert'
+    q = query; sqls[0]
+    sqls[0] = 'y'
+    print; (q.size;)

@@ -1,0 +1,26 @@
+namespace shared-loop-read-control
+from /deps/terrane-query-witness import Holder
+from /core/collections import list
+
+function test-scenario;
+    values = list; 1
+    alias = ref values
+    for value in ref alias
+        print; value
+        print; values.length
+        for nested in ref values
+            print; nested
+    values.append; 2
+    for value in values
+        values.append; 3
+        print; value
+    print; values.length
+    holder = Holder::new;
+    views = list; (holder.copy_view;)
+    for view in ref views
+        print; (view.size;)
+        print; views.length
+        for nested in ref views
+            print; (nested.size;)
+    views.append; (holder.copy_view;)
+    print; views.length

@@ -1,0 +1,10 @@
+namespace conformance/loop-body-backedge-for
+
+
+function test-scenario;
+    first = true
+    for item in 'abc'
+        if not first
+            print; previous
+        previous = item
+        first = false

@@ -1,0 +1,5 @@
+package = "generic-consuming-capture-threaded"
+executor = "threaded"
+
+[namespaces]
+app = "src"

@@ -1,0 +1,17 @@
+namespace app
+from /deps/terrane-query-witness import Holder, View, query
+from /core/collections import list
+class W
+    inner Holder
+    other Holder
+    function construct; inner Holder, other Holder
+        this.inner = move inner
+        this.other = move other
+function main;
+    w = instance W; (Holder::new;), (Holder::new;)
+    v = w.inner.view;
+    i int = 0
+    while i < 2
+        print; (v.size;)
+        w.inner = Holder::new;
+        i = i + 1

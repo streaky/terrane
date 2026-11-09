@@ -1,0 +1,13 @@
+namespace app
+from /deps/terrane-query-witness import Holder, View
+function main;
+    h = Holder::new;
+    i int = 0
+    while i < 2
+        try
+            print; (h.into_label_len;)
+            h = Holder::new;
+        finally
+            print; 9
+        i = i + 1
+    print; (h.label_len;)

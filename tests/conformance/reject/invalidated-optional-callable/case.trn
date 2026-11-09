@@ -1,0 +1,8 @@
+namespace invalidated-optional-callable
+function first int;
+    return 1
+function main;
+    callback (function to int)|none = first
+    if callback != none
+        callback = none
+        callback;

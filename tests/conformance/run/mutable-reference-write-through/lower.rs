@@ -91,14 +91,18 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&scalar));
     owner = Point::terrane_construct();
     {
-        let __terrane_value = terrane_int_support::Int::from(4_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            4_i128,
+        );
         owner.value = __terrane_value;
     }
     reset(&mut owner.value);
     println!("{}", terrane_scalar_support::scalar_text(&owner.value));
     field_alias = &mut owner.value;
     {
-        let __terrane_value = terrane_int_support::Int::from(5_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            5_i128,
+        );
         owner.other = __terrane_value;
     }
     *field_alias = terrane_int_support::Int::from(6_i128);
@@ -138,18 +142,24 @@ fn main() {
     owner_alias = &mut owner;
     replace(&mut *owner_alias, replacement.clone());
     {
-        let __terrane_value = terrane_int_support::Int::from(12_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            12_i128,
+        );
         replacement.value = __terrane_value;
     }
     println!("{}", terrane_scalar_support::scalar_text(&owner.value));
     old_payload = Payload::terrane_construct();
     {
-        let __terrane_value = terrane_int_support::Int::from(6_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            6_i128,
+        );
         old_payload.value = __terrane_value;
     }
     new_payload = Payload::terrane_construct();
     {
-        let __terrane_value = terrane_int_support::Int::from(12_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            12_i128,
+        );
         new_payload.value = __terrane_value;
     }
     replace_payload(&mut old_payload, new_payload);

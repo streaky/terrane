@@ -1,0 +1,27 @@
+namespace return-plain-return-in-try-class
+from /core/collections import list
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'x'
+    function render string;
+        return this.message
+
+function bad int;
+    throw instance Err;
+
+class K
+    n int = 4
+
+function f K; o K, b bool
+    try
+        if b
+            print; (bad;)
+        return o
+    catch
+        print; 0
+    return o
+
+function test-scenario;
+    print; (f; (instance K;), true).n
+    print; (f; (instance K;), false).n

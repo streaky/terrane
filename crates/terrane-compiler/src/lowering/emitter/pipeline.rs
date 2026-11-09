@@ -23,6 +23,7 @@ pub(super) fn value_type_contains_callable(
                 value_type_contains_callable(parameter.value_type_ref(), predicate)
             }) || value_type_contains_callable(result.value_type_ref(), predicate)
         }
+        ValueType::Optional(inner) => value_type_contains_callable(inner, predicate),
         ValueType::Union(arms) => arms
             .iter()
             .any(|arm| value_type_contains_callable(arm, predicate)),
@@ -671,7 +672,7 @@ fn lower_with_tests(
     if simple_standard_streams {
         uses_time = false;
     }
-    if uses_time {
+    if uses_time || tests.is_some() {
         let (source_file, source) = if tests.is_some() {
             (
                 "time_testing.rs",

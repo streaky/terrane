@@ -18,11 +18,11 @@ impl ConfigError {
     }
     pub fn construct(&mut self, path: String, message: String) {
         {
-            let __terrane_value = path;
+            let __terrane_value: String = path;
             self.path = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }

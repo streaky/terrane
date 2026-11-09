@@ -18,7 +18,7 @@ impl TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D677561726
     }
     pub fn update(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value = amount.clone();
+            let __terrane_value: terrane_int_support::Int = amount.clone();
             self.count = __terrane_value;
         }
     }
@@ -28,7 +28,7 @@ impl TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D677561726
         right: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = left.clone() + right.clone();
+            let __terrane_value: terrane_int_support::Int = left.clone() + right.clone();
             self.count = __terrane_value;
         }
     }
@@ -43,7 +43,7 @@ fn argument(
 ) -> terrane_int_support::Int {
     {
         let __terrane_owner_0 = owner.clone();
-        let __terrane_value = {
+        let __terrane_value: terrane_int_support::Int = {
             let __terrane_snapshot = owner
                 .lock()
                 .expect("shared reference lock poisoned")

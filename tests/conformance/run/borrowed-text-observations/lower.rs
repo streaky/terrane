@@ -40,7 +40,9 @@ impl Holder {
     }
     pub async fn indexed_read(&mut self) -> String {
         {
-            let __terrane_value = terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                1_i128,
+            );
             self.n = __terrane_value;
         }
         return __terrane_raised(
@@ -59,7 +61,9 @@ impl Holder {
         __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
     ) -> String {
         {
-            let __terrane_value = terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                1_i128,
+            );
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -94,7 +98,9 @@ impl Holder {
     }
     pub async fn indexed_contains(&mut self) -> bool {
         {
-            let __terrane_value = terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                1_i128,
+            );
             self.n = __terrane_value;
         }
         return {
@@ -137,7 +143,9 @@ impl Holder {
         __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
     ) -> bool {
         {
-            let __terrane_value = terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                1_i128,
+            );
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -200,7 +208,7 @@ impl Holder {
     }
     pub async fn keyed_read(&mut self) -> String {
         {
-            let __terrane_value = String::from("second");
+            let __terrane_value: String = String::from("second");
             self.key = __terrane_value;
         }
         return __terrane_raised(
@@ -212,7 +220,7 @@ impl Holder {
         __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
     ) -> String {
         {
-            let __terrane_value = String::from("second");
+            let __terrane_value: String = String::from("second");
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -244,7 +252,7 @@ impl Holder {
 fn replace_shared(owner: std::sync::Arc<TerraneSharedCell<Holder>>) -> String {
     {
         let __terrane_owner_12 = owner.clone();
-        let __terrane_value = String::from("xyz");
+        let __terrane_value: String = String::from("xyz");
         __terrane_owner_12.lock().expect("shared reference lock poisoned").text = __terrane_value;
     }
     return String::from("x");
@@ -254,7 +262,7 @@ fn shrink_shared(
 ) -> terrane_int_support::Int {
     {
         let __terrane_owner_13 = owner.clone();
-        let __terrane_value = terrane_collection_support::List::<
+        let __terrane_value: terrane_collection_support::List<String> = terrane_collection_support::List::<
             String,
         >::new(vec![String::from("z")]);
         __terrane_owner_13.lock().expect("shared reference lock poisoned").items = __terrane_value;
@@ -264,7 +272,7 @@ fn shrink_shared(
 fn counted_key(owner: std::sync::Arc<TerraneSharedCell<Holder>>, key: String) -> String {
     {
         let __terrane_owner_14 = owner.clone();
-        let __terrane_value = {
+        let __terrane_value: terrane_int_support::Int = {
             let __terrane_snapshot = owner
                 .lock()
                 .expect("shared reference lock poisoned")
@@ -360,7 +368,7 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&scan_input(&item.text)));
         copy = item.clone();
         {
-            let __terrane_value = String::from("changed");
+            let __terrane_value: String = String::from("changed");
             item.text = __terrane_value;
         }
         println!("{}", terrane_scalar_support::scalar_text(&copy.text));
@@ -528,7 +536,7 @@ fn main() {
             ::as_ref(&__terrane_string_argument_0)) })
         );
         {
-            let __terrane_value = terrane_collection_support::List::<
+            let __terrane_value: terrane_collection_support::List<String> = terrane_collection_support::List::<
                 String,
             >::new(vec![String::from("al"), String::from("alpha")]);
             item.items = __terrane_value;
@@ -553,7 +561,7 @@ fn main() {
         );
         {
             let __terrane_owner_35 = shared.clone();
-            let __terrane_value = terrane_collection_support::List::<
+            let __terrane_value: terrane_collection_support::List<String> = terrane_collection_support::List::<
                 String,
             >::new(vec![String::from("al"), String::from("alpha")]);
             __terrane_owner_35.lock().expect("shared reference lock poisoned").items = __terrane_value;
@@ -864,7 +872,7 @@ fn main() {
         }
         {
             let __terrane_owner_82 = shared.clone();
-            let __terrane_value = String::from("alpha");
+            let __terrane_value: String = String::from("alpha");
             __terrane_owner_82.lock().expect("shared reference lock poisoned").text = __terrane_value;
         }
         println!(

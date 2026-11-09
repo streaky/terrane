@@ -14,7 +14,7 @@ impl Accumulator {
     }
     pub fn increment(&mut self) {
         {
-            let __terrane_value = self.total.clone()
+            let __terrane_value: terrane_int_support::Int = self.total.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.total = __terrane_value;
         }

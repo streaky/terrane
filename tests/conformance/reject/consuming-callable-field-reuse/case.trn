@@ -8,5 +8,6 @@ class holder
 
 function main;
   value holder = instance holder;
-  value.finish;
-  value.finish;
+  finish = move value.finish
+  finish;
+  finish;

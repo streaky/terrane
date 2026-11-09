@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "object-protocols"
+test = "/grouped-consuming-field-and-nested-generic::test-scenario"

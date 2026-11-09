@@ -1,0 +1,22 @@
+namespace bounded-class-field-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+class B of (T implements named)
+    x T
+    function construct; x T
+        this.x = move x
+
+function go of (T implements named) int; b B of T
+    f = function int;
+        return b.x.name;
+    return f;
+
+function test-scenario;
+    print; (go; (instance B of value; (instance value;)))

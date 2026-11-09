@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "value-protocols"
+test = "/bounded-local-shared-alias::test-scenario"

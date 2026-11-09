@@ -1,0 +1,14 @@
+namespace applied-class-type-control
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+
+function identity of (T) T; value T
+    return value
+
+function test-scenario;
+    box = instance Box of int; 1
+    print; box.value
+    selected = identity of int
+    print; (selected; 2)

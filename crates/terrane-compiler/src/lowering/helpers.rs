@@ -307,7 +307,8 @@ pub(super) fn object_descendants<'a>(
     unit: &'a SemanticUnit,
     object: &DescriptorContract,
 ) -> Vec<&'a DescriptorContract> {
-    unit.descriptors
+    let mut descendants = unit
+        .descriptors
         .iter()
         .filter(|candidate| {
             let mut base = candidate.base.as_ref();
@@ -323,7 +324,12 @@ pub(super) fn object_descendants<'a>(
             }
             false
         })
-        .collect()
+        .collect::<Vec<_>>();
+    // Imports may expose the same class under several names. Runtime variants
+    // represent canonical classes, not those lexical aliases.
+    descendants.sort_unstable_by(|left, right| left.identity.cmp(&right.identity));
+    descendants.dedup_by(|left, right| left.identity == right.identity);
+    descendants
 }
 
 pub(super) fn object_destructor_chain<'a>(
@@ -430,27 +436,6 @@ pub(super) fn rust_type(ty: ScalarType) -> &'static str {
     ty.lowering_type()
 }
 
-pub(super) const fn rust_value_is_copy(ty: &ValueType) -> bool {
-    matches!(
-        ty,
-        ValueType::Scalar(
-            ScalarType::Bool
-                | ScalarType::Int8
-                | ScalarType::Int16
-                | ScalarType::Int32
-                | ScalarType::Int64
-                | ScalarType::Int128
-                | ScalarType::Uint8
-                | ScalarType::Uint16
-                | ScalarType::Uint32
-                | ScalarType::Uint64
-                | ScalarType::Uint128
-                | ScalarType::Float32
-                | ScalarType::Float64
-                | ScalarType::None
-        )
-    )
-}
 #[expect(
     clippy::needless_pass_by_value,
     reason = "element lowering owns the recursively described value type"

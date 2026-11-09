@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "object-protocols"
+test = "/generic-required-field-consuming::test-scenario"

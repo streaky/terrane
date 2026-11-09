@@ -1,0 +1,7 @@
+namespace call-typed-callable
+function look string; a ref string, b string
+    return a + b
+function apply string; f function from ref string, string to string, o string
+    return f; o, o
+function test-scenario;
+    print; (apply; look, 'x')

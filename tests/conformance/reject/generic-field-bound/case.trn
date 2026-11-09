@@ -1,0 +1,15 @@
+namespace generic-field-bound
+interface named
+    function name string;
+class Wrapped of (T implements named)
+    value T
+    function construct; value T
+        this.value = move value
+class Plain
+    value int = 1
+class Holder
+    value Wrapped of Plain
+    function construct; value Wrapped of Plain
+        this.value = move value
+function main;
+    print; 0

@@ -64,6 +64,41 @@ pub(super) fn analyze_binding_node(
     };
     if node.kind == SyntaxKind::Assignment
         && let [target, value] = node.children.as_slice()
+        && let target = ungrouped_expression(target)
+        && target.kind == SyntaxKind::StaticMemberExpression
+        && let [receiver, member] = target.children.as_slice()
+        && let Some(identity) = class_designator_identity(unit, receiver)
+    {
+        infer_value_type(unit, target, bindings)?;
+        let Some(expected) =
+            object_field_type(unit, &identity, node_text(&unit.source, member), true)
+        else {
+            return Err(failure(
+                &unit.source,
+                "T0072",
+                format!(
+                    "member `{}` is read-only and cannot be assigned",
+                    node_text(&unit.source, member)
+                ),
+                member.span,
+            ));
+        };
+        if let Some(actual) = super::expressions::infer_boundary_value_type(unit, value, bindings)?
+        {
+            validate_value_destination(
+                &unit.source,
+                &unit.descriptors,
+                node_text(&unit.source, member),
+                &expected,
+                &actual,
+                value,
+                "T0077",
+            )?;
+        }
+        return Ok(());
+    }
+    if node.kind == SyntaxKind::Assignment
+        && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = target.children.as_slice()
     {
@@ -89,7 +124,8 @@ pub(super) fn analyze_binding_node(
                 member.span,
             ));
         };
-        if let Some(actual) = infer_value_type(unit, value, bindings)? {
+        if let Some(actual) = super::expressions::infer_boundary_value_type(unit, value, bindings)?
+        {
             validate_value_destination(
                 &unit.source,
                 &unit.descriptors,
@@ -130,7 +166,7 @@ pub(super) fn analyze_binding_node(
                 ));
             }
         };
-        let actual = infer_value_type(unit, value, bindings)?;
+        let actual = super::expressions::infer_boundary_value_type(unit, value, bindings)?;
         if let (Some(expected), Some(actual)) = (expected, actual) {
             validate_value_destination(
                 &unit.source,
@@ -145,9 +181,8 @@ pub(super) fn analyze_binding_node(
         return Ok(());
     }
     let Some(name_node) = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)
+        .assignment_target()
+        .filter(|child| child.kind == SyntaxKind::Name)
     else {
         return Ok(());
     };
@@ -156,6 +191,14 @@ pub(super) fn analyze_binding_node(
         .children
         .iter()
         .find(|child| child.kind == SyntaxKind::TypeExpression);
+    if let Some(type_node) = declared {
+        let aliases = visible_descriptor_aliases(
+            &unit.descriptor_aliases,
+            unit.source.id(),
+            type_node.span.start,
+        );
+        validate_nested_scalar_union_storage(unit, type_node, &aliases)?;
+    }
     let initializer = node.children.iter().rev().find(|child| {
         child.span != name_node.span
             && !matches!(
@@ -180,7 +223,8 @@ pub(super) fn analyze_binding_node(
             })
             .max_by_key(|binding| binding.visible_from)
         && let Some(initializer) = initializer
-        && let Some(actual) = infer_value_type(unit, initializer, bindings)?
+        && let Some(actual) =
+            super::expressions::infer_boundary_value_type(unit, initializer, bindings)?
     {
         if previous.destination_arms.is_empty() {
             if let ValueType::Scalar(expected) = previous.value_type.clone() {
@@ -201,6 +245,23 @@ pub(super) fn analyze_binding_node(
                     "T0002",
                 )?;
             }
+        } else if matches!(actual, ValueType::Union(_)) {
+            validate_value_destination(
+                &unit.source,
+                &unit.descriptors,
+                &name,
+                &ValueType::Union(
+                    previous
+                        .destination_arms
+                        .iter()
+                        .copied()
+                        .map(ValueType::Scalar)
+                        .collect(),
+                ),
+                &actual,
+                initializer,
+                "T0002",
+            )?;
         } else {
             select_union_candidates(
                 &unit.source,
@@ -281,16 +342,22 @@ pub(super) fn analyze_binding_node(
     let inferred = initializer
         .map(|value| {
             if let Some(declared_value) = declared_value.clone()
-                && collection_constructor_matches(unit, value, &declared_value, bindings)
+                && contextual_collection_constructor_matches(unit, value, &declared_value, bindings)
             {
-                validate_collection_constructor_items(
+                validate_collection_constructor_value(
                     unit,
                     value,
                     &declared_value,
                     &name,
                     bindings,
                 )?;
-                Ok(Some(declared_value))
+                super::collections::contextual_constructor_type(
+                    unit,
+                    value,
+                    declared_value,
+                    bindings,
+                )
+                .map(Some)
             } else if let (
                 Some(
                     expected
@@ -304,10 +371,23 @@ pub(super) fn analyze_binding_node(
                     value.span.start,
                 )
                 && let Some(actual) = infer_value_type(unit, value, bindings)?
-                && let Some(closed) =
-                    super::generics::close_generic_callable_value(unit, contract, &actual, expected)
             {
-                Ok(Some(closed))
+                match super::generics::close_generic_callable_value(
+                    unit,
+                    contract,
+                    &actual,
+                    expected,
+                    value.span.start,
+                ) {
+                    Ok(Some(closed)) => Ok(Some(closed)),
+                    Err(()) => Err(failure(
+                        &unit.source,
+                        "T0012",
+                        "generic callable type arguments do not satisfy their bounds",
+                        value.span,
+                    )),
+                    Ok(None) => infer_value_type(unit, value, bindings),
+                }
             } else {
                 infer_value_type(unit, value, bindings)
             }
@@ -336,17 +416,21 @@ pub(super) fn analyze_binding_node(
             ValueType::Object(actual.clone())
         } else if matches!(declared_type, ValueType::Optional(_)) {
             declared_type
-        } else if let (Some(inferred), Some(initializer), Ok(_)) = (
+        } else if let (Some(inferred), Some(initializer), Ok(arms)) = (
             inferred.clone(),
             initializer,
             union_destination_candidates(unit, type_node),
         ) {
-            ValueType::Scalar(select_union_destination(
-                unit,
-                type_node,
-                initializer,
-                inferred,
-            )?)
+            if matches!(inferred, ValueType::Union(_)) {
+                ValueType::Union(arms.into_iter().map(ValueType::Scalar).collect())
+            } else {
+                ValueType::Scalar(select_union_destination(
+                    unit,
+                    type_node,
+                    initializer,
+                    inferred,
+                )?)
+            }
         } else {
             declared_type
         };
@@ -361,6 +445,10 @@ pub(super) fn analyze_binding_node(
             _ => {}
         }
         if let (Some(inferred), Some(initializer)) = (inferred.clone(), initializer) {
+            let inferred =
+                super::expressions::infer_boundary_value_type(unit, initializer, bindings)?
+                    .filter(|value| matches!(value, ValueType::Union(_)))
+                    .unwrap_or(inferred);
             validate_value_destination(
                 &unit.source,
                 &unit.descriptors,
@@ -370,6 +458,7 @@ pub(super) fn analyze_binding_node(
                 initializer,
                 "T0002",
             )?;
+            retain_native_origins(&mut value_type, &inferred);
         }
         inferred.as_ref().map_or(value_type.clone(), |actual| {
             merge_callable_destination_effects(value_type, actual)
@@ -764,51 +853,46 @@ pub(super) fn declared_value_type_with_visible_objects(
                     })
                 })
                 .unwrap_or(0);
+            let resolved_arguments = || {
+                arguments
+                    .iter()
+                    .map(resolve_argument)
+                    .collect::<Result<Vec<_>, _>>()
+            };
+            if expected != 0 && arguments.len() != expected {
+                return Err(failure(
+                    &unit.source,
+                    if identity.namespace.starts_with("/deps/") {
+                        "T0117"
+                    } else {
+                        "T0001"
+                    },
+                    format!(
+                        "`{base_name}` requires {expected} type arguments, found {}",
+                        arguments.len()
+                    ),
+                    shape.span,
+                ));
+            }
             if unit
                 .projected_interfaces_requiring_application
                 .contains(&identity.base())
                 && let [argument] = arguments
             {
-                return Ok(ValueType::Object(
-                    identity.with_application(resolve_argument(argument)?),
-                ));
+                let argument = resolve_argument(argument)?;
+                return Ok(ValueType::Object(identity.with_application(argument)));
             }
-            if identity.namespace.starts_with("/deps/") && !arguments.is_empty() {
-                return Ok(ValueType::Object(
-                    identity.with_type_arguments(
-                        arguments
-                            .iter()
-                            .map(resolve_argument)
-                            .collect::<Result<Vec<_>, _>>()?,
-                    ),
-                ));
-            }
-            if expected != 0 {
-                if arguments.len() != expected {
-                    return Err(failure(
-                        &unit.source,
-                        "T0001",
-                        format!(
-                            "`{base_name}` requires {expected} type arguments, found {}",
-                            arguments.len()
-                        ),
-                        shape.span,
-                    ));
-                }
-                return Ok(ValueType::Object(
-                    identity.with_type_arguments(
-                        arguments
-                            .iter()
-                            .map(resolve_argument)
-                            .collect::<Result<Vec<_>, _>>()?,
-                    ),
-                ));
+            if !arguments.is_empty() && (expected != 0 || identity.namespace.starts_with("/deps/"))
+            {
+                let resolved = resolved_arguments()?;
+                return Ok(ValueType::Object(identity.with_type_arguments(resolved)));
             }
             if let [argument] = arguments {
                 return Ok(ValueType::Object(
                     identity.with_application(resolve_argument(argument)?),
                 ));
             }
+            return Ok(ValueType::Object(identity));
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -1044,6 +1128,81 @@ pub(super) fn parse_declared_value_type(
         }
     }
     None
+}
+
+pub(super) fn validate_scalar_union_declaration(
+    unit: &SemanticUnit,
+    type_node: &SyntaxNode,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Result<(), SemanticFailure> {
+    fn visit(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        aliases: &BTreeMap<String, ScalarType>,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::UnionType {
+            let mut arms = Vec::new();
+            let mut scalar_only = true;
+            for arm in &node.children {
+                let name = node_text(&unit.source, arm).trim();
+                match aliases
+                    .get(name)
+                    .copied()
+                    .or_else(|| unit.descriptor_alias_at(name, arm.span.start))
+                {
+                    Some(value) => {
+                        if !arms.contains(&value) {
+                            arms.push(value);
+                        }
+                    }
+                    None => scalar_only = false,
+                }
+            }
+            if scalar_only
+                && arms.len() > 1
+                && !(arms.len() == 2 && arms.contains(&ScalarType::None))
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "heterogeneous scalar unions are supported only as local binding destinations",
+                    node.span,
+                ));
+            }
+        }
+        for child in &node.children {
+            visit(unit, child, aliases)?;
+        }
+        Ok(())
+    }
+
+    visit(unit, type_node, aliases)
+}
+pub(super) fn validate_nested_scalar_union_storage(
+    unit: &SemanticUnit,
+    type_node: &SyntaxNode,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Result<(), SemanticFailure> {
+    fn visit(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        top_level_union: Option<crate::Span>,
+        aliases: &BTreeMap<String, ScalarType>,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::UnionType && Some(node.span) != top_level_union {
+            validate_scalar_union_declaration(unit, node, aliases)?;
+        }
+        for child in &node.children {
+            visit(unit, child, top_level_union, aliases)?;
+        }
+        Ok(())
+    }
+    let top_level_union = type_node
+        .children
+        .first()
+        .filter(|child| child.kind == SyntaxKind::UnionType)
+        .map(|union| union.span);
+    visit(unit, type_node, top_level_union, aliases)
 }
 
 pub(super) fn union_destination_candidates(
@@ -1296,6 +1455,50 @@ pub(super) fn diagnostic_value_type(
         _ => value_type.to_string(),
     }
 }
+/// Preserve inferred native lifetime metadata after destination compatibility
+/// succeeds; written native names alone may denote a static projection alias.
+pub(super) fn retain_native_origins(expected: &mut ValueType, actual: &ValueType) {
+    match (expected, actual) {
+        (
+            expected @ (ValueType::Object(_) | ValueType::InvocationScopedNative { .. }),
+            actual @ ValueType::InvocationScopedNative { .. },
+        ) => {
+            expected.clone_from(actual);
+        }
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            retain_native_origins(expected, actual);
+        }
+        (ValueType::Optional(expected), actual) => retain_native_origins(expected, actual),
+        (ValueType::List(expected), ValueType::List(actual))
+        | (ValueType::Tuple(expected, _), ValueType::Tuple(actual, _))
+        | (ValueType::Set(expected), ValueType::Set(actual))
+        | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
+        | (ValueType::Reference(expected), ValueType::Reference(actual))
+        | (ValueType::MutableReference(expected), ValueType::MutableReference(actual))
+        | (ValueType::SharedReference(expected), ValueType::SharedReference(actual)) => {
+            retain_native_origins(expected.value_type_mut(), actual.value_type_ref());
+        }
+        (
+            ValueType::Map(expected_key, expected_value),
+            ValueType::Map(actual_key, actual_value),
+        )
+        | (
+            ValueType::UnorderedMap(expected_key, expected_value),
+            ValueType::UnorderedMap(actual_key, actual_value),
+        )
+        | (
+            ValueType::Entry(expected_key, expected_value),
+            ValueType::Entry(actual_key, actual_value),
+        ) => {
+            retain_native_origins(expected_key.value_type_mut(), actual_key.value_type_ref());
+            retain_native_origins(
+                expected_value.value_type_mut(),
+                actual_value.value_type_ref(),
+            );
+        }
+        _ => {}
+    }
+}
 
 fn merge_callable_destination_effects(expected: ValueType, actual: &ValueType) -> ValueType {
     match (expected, actual) {
@@ -1365,6 +1568,10 @@ fn callable_effects_compatible(
         .all(|identity| throwable_identity_type(identity).is_some_and(|actual| accepts(&actual)))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "destination compatibility and native lifetime mismatch diagnostics share one ordered validation path"
+)]
 pub(super) fn validate_value_destination(
     source: &SourceFile,
     objects: &[DescriptorContract],
@@ -1416,6 +1623,59 @@ pub(super) fn validate_value_destination(
     }
     if value_types_compatible(objects, destination, supplied) {
         return Ok(());
+    }
+    if let (
+        ValueType::InvocationScopedNative {
+            family: expected_family,
+            rust_type: expected_rust,
+            lifetimes: expected_lifetimes,
+            region: expected_region,
+            ..
+        },
+        ValueType::InvocationScopedNative {
+            family: actual_family,
+            rust_type: actual_rust,
+            lifetimes: actual_lifetimes,
+            region: actual_region,
+            ..
+        },
+    ) = (destination, supplied)
+        && expected_family == actual_family
+        && (expected_rust != actual_rust
+            || expected_lifetimes != actual_lifetimes
+            || expected_region != actual_region)
+    {
+        return Err(failure(
+            source,
+            "T0119",
+            format!(
+                "cannot replace `{name}` with a native value using an incompatible lifetime or region representation: existing `{expected_rust}` ({expected_lifetimes:?}, region {expected_region:?}), supplied `{actual_rust}` ({actual_lifetimes:?}, region {actual_region:?}); bind the helper result to a new local instead"
+            ),
+            value.span,
+        ));
+    }
+    if let (
+        ValueType::InvocationScopedNative {
+            family,
+            rust_type,
+            lifetimes,
+            region,
+            ..
+        },
+        ValueType::Object(actual),
+    ) = (destination, supplied)
+        && family.namespace == actual.namespace
+        && family.name == actual.name
+    {
+        return Err(failure(
+            source,
+            "T0119",
+            format!(
+                "cannot replace `{name}`: existing native `{rust_type}` (lifetimes {lifetimes:?}, region {region:?}) and helper result `{}` have incompatible scoped lifetime representations; bind the helper result to a new local instead",
+                actual.name
+            ),
+            value.span,
+        ));
     }
     Err(failure(
         source,
@@ -1526,7 +1786,7 @@ fn callable_types_compatible(
                     )
             })
         && value_types_compatible(
-            objects,
+            &[],
             expected_result.value_type_ref(),
             actual_result.value_type_ref(),
         )
@@ -1546,7 +1806,12 @@ pub(super) fn object_types_compatible(
                     left.namespace == right.namespace
                         && left.name == right.name
                         && left.application == right.application
-                        && left.type_arguments == right.type_arguments
+                        && left.type_arguments.len() == right.type_arguments.len()
+                        && left
+                            .type_arguments
+                            .iter()
+                            .zip(&right.type_arguments)
+                            .all(|(left, right)| reference_storage_types_equal(left, right))
                         && left.native_arguments == right.native_arguments
                 }
                 (Some(_), None) | (None, Some(_)) => {
@@ -1582,31 +1847,85 @@ pub(super) fn object_types_compatible(
         }
         declaration
     };
-    descriptor_for(actual).is_some_and(|object| {
-        if object
-            .interfaces
-            .iter()
-            .any(|interface| same_applied_nominal(expected, interface))
-        {
-            return true;
+    let mut pending = vec![actual.clone()];
+    let mut visited = BTreeSet::new();
+    while let Some(identity) = pending.pop() {
+        if !visited.insert(identity.clone()) {
+            continue;
         }
-        let mut base = object.base.as_ref();
-        while let Some(identity) = base {
-            let Some(base_object) = descriptor_for(identity) else {
-                break;
+        let Some(object) = descriptor_for(&identity) else {
+            continue;
+        };
+        let substitutions = object
+            .generic_parameters
+            .iter()
+            .zip(&identity.type_arguments)
+            .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+            .collect();
+        for relation in object.interfaces.iter().chain(object.base.iter()) {
+            let ValueType::Object(applied) =
+                substitute_value_type(&ValueType::Object(relation.clone()), &substitutions)
+            else {
+                unreachable!("nominal substitution retains nominal identity")
             };
-            if same_applied_nominal(expected, &base_object.identity)
-                || base_object
-                    .interfaces
-                    .iter()
-                    .any(|interface| same_applied_nominal(expected, interface))
-            {
+            if same_applied_nominal(expected, &applied) {
                 return true;
             }
-            base = base_object.base.as_ref();
+            pending.push(applied);
         }
-        false
-    })
+    }
+    false
+}
+
+fn canonicalize_scoped_native_families(package: &SemanticPackage, value_type: &mut ValueType) {
+    match value_type {
+        ValueType::InvocationScopedNative { family, .. } => {
+            let mut canonical = ValueType::Object(family.clone());
+            super::objects::canonicalize_native_value_type(package, &mut canonical);
+            if let ValueType::Object(canonical) = canonical {
+                *family = canonical;
+            }
+        }
+        ValueType::Optional(inner) => {
+            canonicalize_scoped_native_families(package, inner);
+        }
+        ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
+        | ValueType::SharedReference(inner)
+        | ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::AsyncIterationStep(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::Task(inner, _)
+        | ValueType::ScopedTask(inner, _)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
+        | ValueType::ChannelPair(inner)
+        | ValueType::ChannelSender(inner)
+        | ValueType::ChannelReceiver(inner)
+        | ValueType::ChannelSendOutcome(inner)
+        | ValueType::ChannelReceiveOutcome(inner)
+        | ValueType::DocumentDecodeOutcome(inner) => {
+            canonicalize_scoped_native_families(package, inner.value_type_mut());
+        }
+        ValueType::Map(key, value)
+        | ValueType::UnorderedMap(key, value)
+        | ValueType::Entry(key, value) => {
+            canonicalize_scoped_native_families(package, key.value_type_mut());
+            canonicalize_scoped_native_families(package, value.value_type_mut());
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            for parameter in parameters {
+                canonicalize_scoped_native_families(package, parameter.value_type_mut());
+            }
+            canonicalize_scoped_native_families(package, result.value_type_mut());
+        }
+        _ => {}
+    }
 }
 
 /// Loan classification permits native aliases/provenance of the same storage,
@@ -1623,6 +1942,8 @@ pub(crate) fn reference_target_types_equal(
     let mut actual = actual.clone();
     super::objects::canonicalize_native_value_type(package, &mut expected);
     super::objects::canonicalize_native_value_type(package, &mut actual);
+    canonicalize_scoped_native_families(package, &mut expected);
+    canonicalize_scoped_native_families(package, &mut actual);
     reference_storage_types_equal(&expected, &actual)
 }
 
@@ -1631,9 +1952,13 @@ fn reference_storage_types_equal(expected: &ValueType, actual: &ValueType) -> bo
         return true;
     }
     match (expected, actual) {
-        (ValueType::Object(expected), ValueType::Object(actual)) => {
-            object_types_compatible(&[], expected, actual)
-        }
+        (
+            ValueType::Object(expected)
+            | ValueType::InvocationScopedNative {
+                family: expected, ..
+            },
+            ValueType::Object(actual) | ValueType::InvocationScopedNative { family: actual, .. },
+        ) => object_types_compatible(&[], expected, actual),
         (ValueType::Optional(expected), ValueType::Optional(actual)) => {
             reference_storage_types_equal(expected, actual)
         }
@@ -1721,11 +2046,7 @@ pub(super) fn value_types_compatible(
             value_types_compatible(objects, expected, actual)
         }
         (ValueType::Tuple(expected_item, None), ValueType::Tuple(actual_item, _)) => {
-            value_types_compatible(
-                objects,
-                &expected_item.value_type(),
-                &actual_item.value_type(),
-            )
+            value_types_compatible(&[], &expected_item.value_type(), &actual_item.value_type())
         }
         (
             ValueType::Tuple(expected_item, Some(expected_length)),
@@ -1733,16 +2054,18 @@ pub(super) fn value_types_compatible(
         ) => {
             expected_length == actual_length
                 && value_types_compatible(
-                    objects,
+                    &[],
                     &expected_item.value_type(),
                     &actual_item.value_type(),
                 )
         }
         (ValueType::Object(expected), ValueType::InvocationScopedNative { family: actual, .. })
-            if expected.name == actual.name =>
-        {
-            true
-        }
+        | (
+            ValueType::InvocationScopedNative {
+                family: expected, ..
+            },
+            ValueType::Object(actual),
+        ) => object_types_compatible(&[], expected, actual),
         (
             ValueType::InvocationScopedNative {
                 concrete: false, ..
@@ -1785,7 +2108,9 @@ pub(super) fn value_types_compatible(
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))
         | (ValueType::IterationStep(expected), ValueType::IterationStep(actual))
         | (ValueType::AsyncIterationStep(expected), ValueType::AsyncIterationStep(actual)) => {
-            value_types_compatible(objects, &expected.value_type(), &actual.value_type())
+            // Containers retain their element storage; nominal upcasts must be
+            // applied to each element before constructing the destination.
+            value_types_compatible(&[], &expected.value_type(), &actual.value_type())
         }
         (
             ValueType::Map(expected_key, expected_value),
@@ -1799,15 +2124,12 @@ pub(super) fn value_types_compatible(
             ValueType::Entry(expected_key, expected_value),
             ValueType::Entry(actual_key, actual_value),
         ) => {
-            value_types_compatible(
-                objects,
-                &expected_key.value_type(),
-                &actual_key.value_type(),
-            ) && value_types_compatible(
-                objects,
-                &expected_value.value_type(),
-                &actual_value.value_type(),
-            )
+            value_types_compatible(&[], &expected_key.value_type(), &actual_key.value_type())
+                && value_types_compatible(
+                    &[],
+                    &expected_value.value_type(),
+                    &actual_value.value_type(),
+                )
         }
         (
             ValueType::Function(expected_parameters, expected_result, expected_effects),

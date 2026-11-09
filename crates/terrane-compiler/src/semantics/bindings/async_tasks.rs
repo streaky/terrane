@@ -83,14 +83,39 @@ pub(super) fn reference_has_stable_lender(
 pub(in crate::semantics) enum AutoTraitObligation {
     Send,
     Sync,
+    Static,
+}
+
+pub(in crate::semantics) fn value_type_satisfies_auto_trait(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    obligation: AutoTraitObligation,
+) -> bool {
+    value_type_satisfies_auto_trait_with_policy(package, None, value_type, obligation)
+}
+
+pub(in crate::semantics) fn value_type_satisfies_capture_auto_trait(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    position: usize,
+    value_type: &ValueType,
+    obligation: AutoTraitObligation,
+) -> bool {
+    value_type_satisfies_auto_trait_with_policy(
+        package,
+        Some((unit, position)),
+        value_type,
+        obligation,
+    )
 }
 
 #[expect(
     clippy::too_many_lines,
     reason = "Recursive auto-trait proof cases stay aligned with the complete semantic value shape"
 )]
-pub(in crate::semantics) fn value_type_satisfies_auto_trait(
+fn value_type_satisfies_auto_trait_with_policy(
     package: &SemanticPackage,
+    context: Option<(&SemanticUnit, usize)>,
     value_type: &ValueType,
     obligation: AutoTraitObligation,
 ) -> bool {
@@ -99,7 +124,13 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
         value_type: &ValueType,
         obligation: AutoTraitObligation,
         visiting: &mut BTreeSet<String>,
+        context: Option<(&SemanticUnit, usize)>,
     ) -> bool {
+        if matches!(obligation, AutoTraitObligation::Static)
+            && !value_type_is_owned_static(value_type)
+        {
+            return false;
+        }
         match value_type {
             ValueType::InvocationScopedNative {
                 rust_type,
@@ -111,6 +142,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 .is_some_and(|capability| match obligation {
                     AutoTraitObligation::Send => capability.send,
                     AutoTraitObligation::Sync => capability.sync,
+                    AutoTraitObligation::Static => false,
                 }),
             ValueType::InvocationScopedNative { .. } => false,
             ValueType::Reference(inner) => satisfies(
@@ -118,12 +150,18 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 inner.value_type_ref(),
                 AutoTraitObligation::Sync,
                 visiting,
+                context,
             ),
             ValueType::Object(identity) => {
                 if let Some(capability) = package.native_capability(identity) {
                     return match obligation {
                         AutoTraitObligation::Send => capability.send,
                         AutoTraitObligation::Sync => capability.sync,
+                        AutoTraitObligation::Static => {
+                            identity.type_arguments.iter().all(|argument| {
+                                satisfies(package, argument, obligation, visiting, context)
+                            })
+                        }
                     };
                 }
                 if let Some((send, sync)) = package
@@ -133,6 +171,11 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                     return match obligation {
                         AutoTraitObligation::Send => send,
                         AutoTraitObligation::Sync => sync,
+                        AutoTraitObligation::Static => {
+                            identity.type_arguments.iter().all(|argument| {
+                                satisfies(package, argument, obligation, visiting, context)
+                            })
+                        }
                     };
                 }
                 let key = format!("{}::{}", identity.namespace, identity.name);
@@ -167,6 +210,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                                             ),
                                             obligation,
                                             visiting,
+                                            context,
                                         )
                                 })
                         }
@@ -194,6 +238,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                                             ),
                                             obligation,
                                             visiting,
+                                            context,
                                         )
                                     })
                                 })
@@ -203,7 +248,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 visiting.remove(&key);
                 result
             }
-            ValueType::Optional(inner) => satisfies(package, inner, obligation, visiting),
+            ValueType::Optional(inner) => satisfies(package, inner, obligation, visiting, context),
             ValueType::MutableReference(inner)
             | ValueType::Iterator(inner)
             | ValueType::IterationStep(inner)
@@ -212,9 +257,13 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
             | ValueType::Tuple(inner, _)
             | ValueType::UnorderedSet(inner)
             | ValueType::TaskGroup(inner)
-            | ValueType::TaskOutcome(inner) => {
-                satisfies(package, inner.value_type_ref(), obligation, visiting)
-            }
+            | ValueType::TaskOutcome(inner) => satisfies(
+                package,
+                inner.value_type_ref(),
+                obligation,
+                visiting,
+                context,
+            ),
             ValueType::SharedReference(inner) => match obligation {
                 AutoTraitObligation::Send => {
                     satisfies(
@@ -222,34 +271,109 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                         inner.value_type_ref(),
                         AutoTraitObligation::Send,
                         visiting,
+                        context,
                     ) && satisfies(
                         package,
                         inner.value_type_ref(),
                         AutoTraitObligation::Sync,
                         visiting,
+                        context,
                     )
                 }
-                AutoTraitObligation::Sync => {
-                    satisfies(package, inner.value_type_ref(), obligation, visiting)
-                }
+                AutoTraitObligation::Sync | AutoTraitObligation::Static => satisfies(
+                    package,
+                    inner.value_type_ref(),
+                    obligation,
+                    visiting,
+                    context,
+                ),
             },
             ValueType::Map(key, value)
             | ValueType::Entry(key, value)
             | ValueType::UnorderedMap(key, value) => {
-                satisfies(package, key.value_type_ref(), obligation, visiting)
-                    && satisfies(package, value.value_type_ref(), obligation, visiting)
+                satisfies(package, key.value_type_ref(), obligation, visiting, context)
+                    && satisfies(
+                        package,
+                        value.value_type_ref(),
+                        obligation,
+                        visiting,
+                        context,
+                    )
             }
             ValueType::AsyncFunction(_, _, transferability, _)
             | ValueType::Task(_, transferability)
             | ValueType::ScopedTask(_, transferability) => match obligation {
                 AutoTraitObligation::Send => *transferability != TaskTransferability::Local,
                 AutoTraitObligation::Sync => false,
+                AutoTraitObligation::Static => true,
             },
+            ValueType::TypeParameter(name) => {
+                !matches!(obligation, AutoTraitObligation::Static)
+                    && context.is_none_or(|(unit, position)| {
+                        unit.type_parameter_at(position, name)
+                            .and_then(|parameter| parameter.bound.as_ref())
+                            .is_some_and(|bound| {
+                                interface_bound_proves_trait(package, bound, obligation)
+                            })
+                    })
+            }
+            ValueType::ProjectedGeneric(_) => {
+                !matches!(obligation, AutoTraitObligation::Static) && context.is_none()
+            }
             _ => true,
         }
     }
 
-    satisfies(package, value_type, obligation, &mut BTreeSet::new())
+    satisfies(
+        package,
+        value_type,
+        obligation,
+        &mut BTreeSet::new(),
+        context,
+    )
+}
+
+fn interface_bound_proves_trait(
+    package: &SemanticPackage,
+    bound: &crate::semantics::ObjectIdentity,
+    obligation: AutoTraitObligation,
+) -> bool {
+    let Some((unit, object)) = package.units.iter().find_map(|unit| {
+        unit.descriptors
+            .iter()
+            .find(|object| object.identity.base() == bound.base())
+            .map(|object| (unit, object))
+    }) else {
+        return false;
+    };
+    if object.kind != ObjectKind::Interface {
+        return false;
+    }
+    let native_traits = package
+        .projection
+        .item(&bound.namespace, &bound.name)
+        .and_then(|item| match &item.kind {
+            crate::rust_interop::projection::ProjectedKind::Interface(interface) => {
+                Some((interface.send, interface.sync))
+            }
+            _ => None,
+        });
+    let (send, sync) = crate::semantics::protocol_transfer_capabilities(
+        object,
+        native_traits,
+        unit.functions.iter().any(|method| {
+            method
+                .owner_identity
+                .as_ref()
+                .is_some_and(|owner| owner.base() == object.identity.base())
+                && method.is_async
+        }),
+    );
+    match obligation {
+        AutoTraitObligation::Send => send,
+        AutoTraitObligation::Sync => sync,
+        AutoTraitObligation::Static => false,
+    }
 }
 
 pub(super) fn value_type_is_task_transferable(

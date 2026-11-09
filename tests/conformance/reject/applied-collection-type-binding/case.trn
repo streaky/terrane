@@ -1,0 +1,4 @@
+namespace applied-collection-type-binding
+from /core/collections import list
+function main;
+    values = list of int;

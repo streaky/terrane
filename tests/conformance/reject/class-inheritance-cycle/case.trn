@@ -1,0 +1,5 @@
+namespace class-inheritance-cycle
+class a extends b
+class b extends a
+function main;
+    return

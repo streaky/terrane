@@ -140,8 +140,9 @@ use reexports::{
 };
 use rustdoc_support::{
     descriptive_rust_identity, impl_trait_bounds, implementation_trait_path, implements_trait,
-    is_rust_byte_vector_type, is_rust_string_type, project_boundary_capabilities, receiver_kind,
-    resolved_name, resolved_path_name, type_implements_deref_target, type_implements_generic_trait,
+    implements_unconditionally_copy, is_rust_byte_vector_type, is_rust_string_type,
+    project_boundary_capabilities, receiver_kind, resolved_name, resolved_path_name,
+    type_implements_deref_target, type_implements_generic_trait,
 };
 use source_rendering::{
     append_required_nominal_units, collect_foreign_function, collect_source_foreign,
@@ -162,9 +163,10 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "339";
+const PROJECTION_SCHEMA: &str = "343";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
+pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -349,6 +351,8 @@ pub enum ProjectedKind {
         #[serde(default)]
         cloneable: bool,
         #[serde(default)]
+        copyable: bool,
+        #[serde(default)]
         send: bool,
         #[serde(default)]
         sync: bool,
@@ -365,6 +369,8 @@ pub enum ProjectedKind {
         constants: Vec<ProjectedConstant>,
         #[serde(default)]
         displayable: bool,
+        #[serde(default)]
+        copyable: bool,
         #[serde(default)]
         send: bool,
         #[serde(default)]
@@ -1994,6 +2000,35 @@ impl Projection {
         let item = matching.next()?;
         matching.next().is_none().then_some(item)
     }
+    /// Returns canonical admitted instance members, without static operations or declined members.
+    #[must_use]
+    pub(crate) fn projected_member_inventory(&self) -> ProjectedInstanceMembers {
+        let mut members = ProjectedInstanceMembers::new();
+        for item in self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+        {
+            let (methods, fields) = match &item.kind {
+                ProjectedKind::ForeignType {
+                    methods, fields, ..
+                } => (methods, fields.as_slice()),
+                ProjectedKind::Enum { methods, .. } => (methods, &[][..]),
+                _ => continue,
+            };
+            if methods.is_empty() && fields.is_empty() {
+                continue;
+            }
+            let names = members
+                .entry(item.namespace.clone())
+                .or_default()
+                .entry(item.name.clone())
+                .or_default();
+            names.extend(methods.iter().map(|method| method.name.clone()));
+            names.extend(fields.iter().map(|field| field.name.clone()));
+        }
+        members
+    }
 
     #[must_use]
     pub(crate) fn item_named(&self, name: &str) -> Option<&ProjectedItem> {
@@ -2004,6 +2039,17 @@ impl Projection {
             .filter(|item| item.name == name);
         let item = matching.next()?;
         matching.next().is_none().then_some(item)
+    }
+    #[must_use]
+    pub(crate) fn native_type_copyable(&self, namespace: &str, name: &str) -> bool {
+        let Some(item) = self.item(namespace, name) else {
+            return false;
+        };
+        matches!(
+            &item.kind,
+            ProjectedKind::ForeignType { copyable: true, .. }
+                | ProjectedKind::Enum { copyable: true, .. }
+        )
     }
 
     #[must_use]
@@ -2470,7 +2516,8 @@ impl Projection {
                         || projected_owner_path_matches(
                             &self.canonical_native_type(&item.rust_path),
                             &self.canonical_native_type(base_rust_path),
-                        ))
+                        )
+                        || self.native_alias_constructor_matches(&item.rust_path, rust_path))
             })
             .and_then(|item| match &item.kind {
                 ProjectedKind::ForeignType {
@@ -2499,6 +2546,7 @@ impl Projection {
                                             &self.canonical_native_type(native),
                                             &self.canonical_native_type(owner),
                                         )
+                                        || self.native_alias_constructor_matches(native, owner)
                                         // A fixed native path can target a different
                                         // constructor after proven receiver forwarding.
                                         // Same-constructor specializations still need

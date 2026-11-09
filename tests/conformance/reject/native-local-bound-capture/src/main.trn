@@ -1,0 +1,11 @@
+namespace app
+from /deps/terrane-supertrait-witness import LocalBound
+class concrete implements LocalBound
+    function value int;
+        return 7
+function go of (T implements LocalBound) int; item T
+    callback = function int;
+        return item.value;
+    return callback;
+function main;
+    print; (go; (instance concrete;))

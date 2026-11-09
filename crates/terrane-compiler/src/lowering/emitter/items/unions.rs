@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use crate::{
     ScalarType,
     lowering::{
@@ -59,6 +61,24 @@ impl Emitter<'_> {
     ) -> String {
         let arms = self.union_arms(binding);
         let actual = self.value_type(value);
+        if let Some(ValueType::Union(source_arms)) = &actual
+            && let Some(source) = self.union_binding(value)
+        {
+            let source_name = union_type_name(&source);
+            let destination_name = union_type_name(binding);
+            let storage = self.available_storage_reference(&source, value, false);
+            let mut result = format!("match ({storage}).clone() {{ ");
+            for (index, arm) in source_arms.iter().enumerate() {
+                let destination = arms
+                    .iter()
+                    .position(|candidate| candidate == arm)
+                    .expect("validated local union destination");
+                write!(result, "{source_name}::Arm{index}(value) => {destination_name}::Arm{destination}(value), ")
+                    .expect("writing to a String cannot fail");
+            }
+            result.push('}');
+            return result;
+        }
         let selected = actual
             .as_ref()
             .and_then(|actual| arms.iter().find(|arm| *arm == actual))

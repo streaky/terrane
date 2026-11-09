@@ -1,0 +1,6 @@
+package = "native-local-bound-capture"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-supertrait-witness]
+version = "=0.1.0"
+effects = ["build"]

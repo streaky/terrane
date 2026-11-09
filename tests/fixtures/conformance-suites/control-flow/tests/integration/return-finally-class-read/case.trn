@@ -1,0 +1,30 @@
+namespace return-finally-class-read
+from /core/collections import list
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'x'
+    function render string;
+        return this.message
+
+function bad int;
+    throw instance Err;
+
+class K
+    n int = 4
+
+function eatk K; x K
+    print; (bad;)
+    return x
+
+function f K; o K
+    try
+        return (eatk; o)
+    finally
+        print; o.n
+
+function test-scenario;
+    try
+        print; (f; (instance K;)).n
+    catch
+        print; 0

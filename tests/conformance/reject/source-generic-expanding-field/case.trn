@@ -1,0 +1,5 @@
+namespace app
+class N of (T)
+    next N of (T|none)|none = none
+function main;
+    print; 1

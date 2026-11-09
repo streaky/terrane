@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/terrane-query-witness import query
+
+async function main;
+  result = query; 'insert'
+  print; (result.size;)

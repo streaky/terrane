@@ -44,7 +44,7 @@ for Box<
     >,
 > {
     fn clone(&self) -> Self {
-        self.clone_box()
+        CommandProtocol::clone_box(&**self)
     }
 }
 pub struct Command<
@@ -343,42 +343,52 @@ impl SharedCommand {
         &self,
         service: &std::sync::Arc<witness::Executor>,
         input: Alpha,
-    ) -> AlphaReply {
-        return __terrane_raised(
-            || -> Result<_, crate::TerraneForeignError> {
-                match match std::panic::catch_unwind(
-                    std::panic::AssertUnwindSafe(|| -> Result<
-                        _,
-                        crate::TerraneForeignError,
-                    > { Ok((&*service).call(input)) }),
-                ) {
-                    Ok(result) => result?,
-                    Err(payload) => {
-                        return Err(
-                            crate::__terrane_dependency_panic(
-                                payload,
-                                "witness",
-                                "witness::Executor::call",
-                            ),
-                        );
-                    }
-                } {
-                    Ok(value) => Ok(value),
-                    Err(error) => {
-                        Err(
-                            crate::TerraneForeignError(
-                                crate::TerraneError::custom_raised(
-                                    crate::DescriptorId(2),
-                                    error.to_string(),
-                                    crate::TERRANE_NO_SITE,
+    ) -> Result<AlphaReply, TerraneError> {
+        return Ok({
+            let __terrane_conversion_input_0 = input;
+            __terrane_raised_err(
+                || -> Result<_, crate::TerraneForeignError> {
+                    match match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok(
+                                <witness::Executor>::call(
+                                    &*service,
+                                    __terrane_conversion_input_0,
                                 ),
-                            ),
-                        )
+                            )
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "witness",
+                                    "witness::Executor::call",
+                                ),
+                            );
+                        }
+                    } {
+                        Ok(value) => Ok(value),
+                        Err(error) => {
+                            Err(
+                                crate::TerraneForeignError(
+                                    crate::TerraneError::custom_raised(
+                                        crate::DescriptorId(2),
+                                        error.to_string(),
+                                        crate::TERRANE_NO_SITE,
+                                    ),
+                                ),
+                            )
+                        }
                     }
-                }
-            }(),
-            4 /* terrane-site: src/main.trn:42:16-42:40 */,
-        );
+                }(),
+                4 /* terrane-site: src/main.trn:42:16-42:40 */,
+            )?
+        });
     }
 }
 impl CommandProtocol<
@@ -413,7 +423,7 @@ impl CommandProtocol<
         service: &std::sync::Arc<witness::Executor>,
         input: witness::Alpha,
     ) -> Result<witness::AlphaReply, TerraneError> {
-        Ok(SharedCommand::dispatch(&*self, service, input))
+        SharedCommand::dispatch(&*self, service, input)
     }
 }
 impl From<SharedCommand>
@@ -951,7 +961,7 @@ impl RetainedResource {
     }
     pub fn construct(&mut self, value: Unique) {
         {
-            let __terrane_value = value;
+            let __terrane_value: Unique = value;
             self.payload = Some(__terrane_value);
         }
     }
@@ -985,6 +995,7 @@ fn main() {
     let shared: std::sync::Arc<witness::Executor>;
     let pointer: SharedCommand;
     let through_pointer: AlphaReply;
+    let mut failure: Option<TerraneError> = None;
     let nested: NestedCommand;
     let values: Option<terrane_collection_support::List<AlphaReply>>;
     let missing: Option<terrane_collection_support::List<AlphaReply>>;
@@ -1005,7 +1016,7 @@ fn main() {
     let branch: Tree;
     let children: Option<terrane_collection_support::List<Tree>>;
     let absent: Tree;
-    let mut failure: Option<TerraneError> = None;
+    let mut failure_2: Option<TerraneError> = None;
     let selected_mode: Option<Mode>;
     let missing_mode: Option<Mode>;
     executor = __terrane_raised(
@@ -1110,411 +1121,42 @@ fn main() {
         20 /* terrane-site: src/main.trn:111:14-111:30 */,
     );
     pointer = SharedCommand::terrane_construct();
-    through_pointer = pointer
-        .dispatch(
-            &shared,
-            {
-                let __terrane_conversion_input_0 = terrane_int_support::Int::from(
-                    43_i128,
-                );
-                __terrane_raised(
-                    || -> Result<_, crate::TerraneForeignError> {
-                        Ok(witness::Alpha {
-                            value: terrane_int_support::coerce::<
-                                i64,
-                            >(&__terrane_conversion_input_0)
-                                .map_err(|error| crate::TerraneForeignError(
-                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                ))?,
-                        })
-                    }(),
-                    21 /* terrane-site: src/main.trn:113:50-113:76 */,
-                )
-            },
-        );
+    through_pointer = __terrane_traced(
+        pointer
+            .dispatch(
+                &shared,
+                {
+                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
+                        43_i128,
+                    );
+                    __terrane_raised(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            Ok(witness::Alpha {
+                                value: terrane_int_support::coerce::<
+                                    i64,
+                                >(&__terrane_conversion_input_0)
+                                    .map_err(|error| crate::TerraneForeignError(
+                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                    ))?,
+                            })
+                        }(),
+                        21 /* terrane-site: src/main.trn:113:50-113:76 */,
+                    )
+                },
+            ),
+        22 /* terrane-site: src/main.trn:113:23-113:77 */,
+    );
     println!("{}", terrane_scalar_support::scalar_text(&through_pointer.value));
-    nested = NestedCommand::terrane_construct();
-    values = __terrane_traced(
-        nested
-            .dispatch(
-                &executor,
-                {
-                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
-                        44_i128,
-                    );
-                    __terrane_raised(
-                        || -> Result<_, crate::TerraneForeignError> {
-                            Ok(witness::Maybe {
-                                value: terrane_int_support::coerce::<
-                                    i64,
-                                >(&__terrane_conversion_input_0)
-                                    .map_err(|error| crate::TerraneForeignError(
-                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                    ))?,
-                            })
-                        }(),
-                        22 /* terrane-site: src/main.trn:116:42-116:68 */,
-                    )
-                },
-            ),
-        23 /* terrane-site: src/main.trn:116:14-116:69 */,
-    );
-    if (&values).is_some() {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match &values {
-            Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
-            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            24 /* terrane-site: src/main.trn:118:16-118:25 */)),
-            24 /* terrane-site: src/main.trn:118:16-118:25 */).value)
-        );
-    }
-    missing = __terrane_traced(
-        nested
-            .dispatch(
-                &executor,
-                {
-                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
-                        -1_i128,
-                    );
-                    __terrane_raised(
-                        || -> Result<_, crate::TerraneForeignError> {
-                            Ok(witness::Maybe {
-                                value: terrane_int_support::coerce::<
-                                    i64,
-                                >(&__terrane_conversion_input_0)
-                                    .map_err(|error| crate::TerraneForeignError(
-                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                    ))?,
-                            })
-                        }(),
-                        25 /* terrane-site: src/main.trn:119:43-119:69 */,
-                    )
-                },
-            ),
-        26 /* terrane-site: src/main.trn:119:15-119:70 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&(&missing).is_none()));
-    echo = EchoCommand::terrane_construct();
-    generic = __terrane_traced(
-        echo
-            .dispatch(
-                &executor,
-                {
-                    let __terrane_conversion_input_0 = String::from("generic");
-                    __terrane_raised(
-                        || -> Result<_, crate::TerraneForeignError> {
-                            Ok(witness::Echo::<String> {
-                                value: __terrane_conversion_input_0,
-                            })
-                        }(),
-                        27 /* terrane-site: src/main.trn:122:41-122:73 */,
-                    )
-                },
-            ),
-        28 /* terrane-site: src/main.trn:122:15-122:74 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&generic.value));
-    other = AlternateCommand::terrane_construct();
-    differently_bound = other
-        .dispatch(
-            &executor,
-            {
-                let __terrane_conversion_input_0 = terrane_int_support::Int::from(
-                    45_i128,
-                );
-                __terrane_raised(
-                    || -> Result<_, crate::TerraneForeignError> {
-                        Ok(witness::Alpha {
-                            value: terrane_int_support::coerce::<
-                                i64,
-                            >(&__terrane_conversion_input_0)
-                                .map_err(|error| crate::TerraneForeignError(
-                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                ))?,
-                        })
-                    }(),
-                    29 /* terrane-site: src/main.trn:125:52-125:78 */,
-                )
-            },
-        );
-    println!("{}", terrane_scalar_support::scalar_text(&differently_bound.label));
-    unique = UniqueCommand::terrane_construct();
-    owned_result = __terrane_traced(
-        unique
-            .dispatch(
-                &executor,
-                {
-                    let __terrane_conversion_input_0 = String::from("unique");
-                    __terrane_raised(
-                        || -> Result<_, crate::TerraneForeignError> {
-                            Ok(witness::Unique {
-                                text: __terrane_conversion_input_0,
-                            })
-                        }(),
-                        30 /* terrane-site: src/main.trn:128:48-128:80 */,
-                    )
-                },
-            ),
-        31 /* terrane-site: src/main.trn:128:20-128:81 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&owned_result.text));
-    reusable = {
-        let __terrane_conversion_input_0 = terrane_int_support::Int::from(46_i128);
-        __terrane_raised(
-            || -> Result<_, crate::TerraneForeignError> {
-                Ok(witness::Alpha {
-                    value: terrane_int_support::coerce::<
-                        i64,
-                    >(&__terrane_conversion_input_0)
-                        .map_err(|error| crate::TerraneForeignError(
-                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                        ))?,
-                })
-            }(),
-            32 /* terrane-site: src/main.trn:130:16-130:42 */,
-        )
-    };
-    inferred = {
-        let __terrane_conversion_input_0 = reusable.clone();
-        __terrane_raised(
-            || -> Result<_, crate::TerraneForeignError> {
-                match match std::panic::catch_unwind(
-                    std::panic::AssertUnwindSafe(|| -> Result<
-                        _,
-                        crate::TerraneForeignError,
-                    > { Ok(witness::execute(__terrane_conversion_input_0)) }),
-                ) {
-                    Ok(result) => result?,
-                    Err(payload) => {
-                        return Err(
-                            crate::__terrane_dependency_panic(
-                                payload,
-                                "witness",
-                                "witness::execute",
-                            ),
-                        );
-                    }
-                } {
-                    Ok(value) => Ok(value),
-                    Err(error) => {
-                        Err(
-                            crate::TerraneForeignError(
-                                crate::TerraneError::custom_raised(
-                                    crate::DescriptorId(2),
-                                    error.to_string(),
-                                    crate::TERRANE_NO_SITE,
-                                ),
-                            ),
-                        )
-                    }
-                }
-            }(),
-            33 /* terrane-site: src/main.trn:131:16-131:33 */,
-        )
-    };
-    println!("{}", terrane_scalar_support::scalar_text(&inferred.value));
-    println!("{}", terrane_scalar_support::scalar_text(&reusable.value));
-    tagged = TaggedCommand::terrane_construct();
-    with_type_field = __terrane_traced(
-        tagged
-            .dispatch(
-                &executor,
-                {
-                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
-                        48_i128,
-                    );
-                    __terrane_raised(
-                        || -> Result<_, crate::TerraneForeignError> {
-                            Ok(witness::Tagged {
-                                value: terrane_int_support::coerce::<
-                                    i64,
-                                >(&__terrane_conversion_input_0)
-                                    .map_err(|error| crate::TerraneForeignError(
-                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                    ))?,
-                            })
-                        }(),
-                        34 /* terrane-site: src/main.trn:135:51-135:78 */,
-                    )
-                },
-            ),
-        35 /* terrane-site: src/main.trn:135:23-135:79 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&with_type_field.r#type));
-    held = <RetainedProvider<
-        String,
-    >>::from(
-        RetainedResource::terrane_construct({
-            let __terrane_conversion_input_0 = String::from("held");
-            __terrane_raised(
-                || -> Result<_, crate::TerraneForeignError> {
-                    Ok(witness::Unique {
-                        text: __terrane_conversion_input_0,
-                    })
-                }(),
-                36 /* terrane-site: src/main.trn:137:77-137:107 */,
-            )
-        }),
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&held.read()));
-    println!("{}", terrane_scalar_support::scalar_text(&held.read()));
-    tree_command_value = TreeCommand::terrane_construct();
-    tree_result = __terrane_traced(
-        tree_command_value
-            .dispatch(
-                &executor,
-                {
-                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
-                        49_i128,
-                    );
-                    __terrane_raised(
-                        || -> Result<_, crate::TerraneForeignError> {
-                            Ok(witness::TreeRequest {
-                                value: terrane_int_support::coerce::<
-                                    i64,
-                                >(&__terrane_conversion_input_0)
-                                    .map_err(|error| crate::TerraneForeignError(
-                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                    ))?,
-                            })
-                        }(),
-                        37 /* terrane-site: src/main.trn:141:59-141:91 */,
-                    )
-                },
-            ),
-        38 /* terrane-site: src/main.trn:141:19-141:92 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&tree_result.value));
-    leaf = {
-        let __terrane_conversion_input_0 = terrane_int_support::Int::from(-2_i128);
-        let __terrane_conversion_input_1 = None;
-        __terrane_raised(
-            || -> Result<_, crate::TerraneForeignError> {
-                Ok(witness::Tree {
-                    value: terrane_int_support::coerce::<
-                        i64,
-                    >(&__terrane_conversion_input_0)
-                        .map_err(|error| crate::TerraneForeignError(
-                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                        ))?,
-                    children: {
-                        let __terrane_field_argument: Option<
-                            terrane_collection_support::List<Tree>,
-                        > = __terrane_conversion_input_1;
-                        __terrane_field_argument
-                    }
-                        .map(|
-                            value,
-                        | -> Result<Vec<witness::Tree>, crate::TerraneForeignError> {
-                            Ok(
-                                value
-                                    .into_iter()
-                                    .map(|item| -> Result<_, crate::TerraneForeignError> {
-                                        Ok(item)
-                                    })
-                                    .collect::<Result<Vec<witness::Tree>, _>>()?,
-                            )
-                        })
-                        .transpose()?
-                        .into(),
-                })
-            }(),
-            39 /* terrane-site: src/main.trn:143:12-143:54 */,
-        )
-    };
-    println!("{}", terrane_scalar_support::scalar_text(&leaf.value));
-    branch = {
-        let __terrane_conversion_input_0 = terrane_int_support::Int::from(50_i128);
-        let __terrane_conversion_input_1 = Some(
-            terrane_collection_support::List::<Tree>::new(vec![leaf]),
-        );
-        __terrane_raised(
-            || -> Result<_, crate::TerraneForeignError> {
-                Ok(witness::Tree {
-                    value: terrane_int_support::coerce::<
-                        i64,
-                    >(&__terrane_conversion_input_0)
-                        .map_err(|error| crate::TerraneForeignError(
-                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                        ))?,
-                    children: {
-                        let __terrane_field_argument: Option<
-                            terrane_collection_support::List<Tree>,
-                        > = __terrane_conversion_input_1;
-                        __terrane_field_argument
-                    }
-                        .map(|
-                            value,
-                        | -> Result<Vec<witness::Tree>, crate::TerraneForeignError> {
-                            Ok(
-                                value
-                                    .into_iter()
-                                    .map(|item| -> Result<_, crate::TerraneForeignError> {
-                                        Ok(item)
-                                    })
-                                    .collect::<Result<Vec<witness::Tree>, _>>()?,
-                            )
-                        })
-                        .transpose()?
-                        .into(),
-                })
-            }(),
-            40 /* terrane-site: src/main.trn:145:14-145:64 */,
-        )
-    };
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(child_count(&branch),
-        41 /* terrane-site: src/main.trn:146:13-146:32 */))
-    );
-    children = (&branch.children)
-        .as_ref()
-        .map(|__terrane_field_item| terrane_collection_support::List::new(
-            __terrane_field_item
-                .iter()
-                .map(|__terrane_field_item| (*__terrane_field_item).clone())
-                .collect(),
-        ))
-        .clone();
-    if (&children).is_some() {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match &children {
-            Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
-            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            42 /* terrane-site: src/main.trn:149:16-149:27 */)),
-            42 /* terrane-site: src/main.trn:149:16-149:27 */).value)
-        );
-    }
-    absent = {
-        let __terrane_conversion_input_0 = terrane_int_support::Int::from(51_i128);
-        __terrane_raised(
-            || -> Result<_, crate::TerraneForeignError> {
-                Ok(witness::Tree {
-                    value: terrane_int_support::coerce::<
-                        i64,
-                    >(&__terrane_conversion_input_0)
-                        .map_err(|error| crate::TerraneForeignError(
-                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                        ))?,
-                    children: None::<Vec<witness::Tree>>,
-                })
-            }(),
-            43 /* terrane-site: src/main.trn:150:14-150:39 */,
-        )
-    };
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(child_count(&absent),
-        44 /* terrane-site: src/main.trn:151:13-151:32 */))
-    );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
-                alpha.dispatch(&executor, { let __terrane_conversion_input_0 =
+                pointer.dispatch(&shared, { let __terrane_conversion_input_0 =
                 terrane_int_support::Int::from(- 1_i128); __terrane_raised_completion!(|
                 | -> Result < _, crate ::TerraneForeignError > { Ok(witness::Alpha {
                 value : terrane_int_support::coerce:: < i64 >
                 (&__terrane_conversion_input_0).map_err(| error | crate
                 ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
-                ::TERRANE_NO_SITE))) ? }) } (), 45 /* terrane-site: src/main.trn:153:36-153:62 */) }), 46 /* terrane-site: src/main.trn:153:9-153:63 */
+                ::TERRANE_NO_SITE))) ? }) } (), 23 /* terrane-site: src/main.trn:116:36-116:62 */) }), 24 /* terrane-site: src/main.trn:116:9-116:63 */
             );
             TerraneCompletion::Normal
         })();
@@ -1554,11 +1196,432 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
+    nested = NestedCommand::terrane_construct();
+    values = __terrane_traced(
+        nested
+            .dispatch(
+                &executor,
+                {
+                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
+                        44_i128,
+                    );
+                    __terrane_raised(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            Ok(witness::Maybe {
+                                value: terrane_int_support::coerce::<
+                                    i64,
+                                >(&__terrane_conversion_input_0)
+                                    .map_err(|error| crate::TerraneForeignError(
+                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                    ))?,
+                            })
+                        }(),
+                        25 /* terrane-site: src/main.trn:120:42-120:68 */,
+                    )
+                },
+            ),
+        26 /* terrane-site: src/main.trn:120:14-120:69 */,
+    );
+    if (&values).is_some() {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match &values {
+            Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            27 /* terrane-site: src/main.trn:122:16-122:25 */)),
+            27 /* terrane-site: src/main.trn:122:16-122:25 */).value)
+        );
+    }
+    missing = __terrane_traced(
+        nested
+            .dispatch(
+                &executor,
+                {
+                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
+                        -1_i128,
+                    );
+                    __terrane_raised(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            Ok(witness::Maybe {
+                                value: terrane_int_support::coerce::<
+                                    i64,
+                                >(&__terrane_conversion_input_0)
+                                    .map_err(|error| crate::TerraneForeignError(
+                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                    ))?,
+                            })
+                        }(),
+                        28 /* terrane-site: src/main.trn:123:43-123:69 */,
+                    )
+                },
+            ),
+        29 /* terrane-site: src/main.trn:123:15-123:70 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&(&missing).is_none()));
+    echo = EchoCommand::terrane_construct();
+    generic = __terrane_traced(
+        echo
+            .dispatch(
+                &executor,
+                {
+                    let __terrane_conversion_input_0 = String::from("generic");
+                    __terrane_raised(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            Ok(witness::Echo::<String> {
+                                value: __terrane_conversion_input_0,
+                            })
+                        }(),
+                        30 /* terrane-site: src/main.trn:126:41-126:73 */,
+                    )
+                },
+            ),
+        31 /* terrane-site: src/main.trn:126:15-126:74 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&generic.value));
+    other = AlternateCommand::terrane_construct();
+    differently_bound = other
+        .dispatch(
+            &executor,
+            {
+                let __terrane_conversion_input_0 = terrane_int_support::Int::from(
+                    45_i128,
+                );
+                __terrane_raised(
+                    || -> Result<_, crate::TerraneForeignError> {
+                        Ok(witness::Alpha {
+                            value: terrane_int_support::coerce::<
+                                i64,
+                            >(&__terrane_conversion_input_0)
+                                .map_err(|error| crate::TerraneForeignError(
+                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                ))?,
+                        })
+                    }(),
+                    32 /* terrane-site: src/main.trn:129:52-129:78 */,
+                )
+            },
+        );
+    println!("{}", terrane_scalar_support::scalar_text(&differently_bound.label));
+    unique = UniqueCommand::terrane_construct();
+    owned_result = __terrane_traced(
+        unique
+            .dispatch(
+                &executor,
+                {
+                    let __terrane_conversion_input_0 = String::from("unique");
+                    __terrane_raised(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            Ok(witness::Unique {
+                                text: __terrane_conversion_input_0,
+                            })
+                        }(),
+                        33 /* terrane-site: src/main.trn:132:48-132:80 */,
+                    )
+                },
+            ),
+        34 /* terrane-site: src/main.trn:132:20-132:81 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&owned_result.text));
+    reusable = {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(46_i128);
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(witness::Alpha {
+                    value: terrane_int_support::coerce::<
+                        i64,
+                    >(&__terrane_conversion_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                })
+            }(),
+            35 /* terrane-site: src/main.trn:134:16-134:42 */,
+        )
+    };
+    inferred = {
+        let __terrane_conversion_input_0 = reusable.clone();
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(witness::execute(__terrane_conversion_input_0)) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::execute",
+                            ),
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(value),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
+                }
+            }(),
+            36 /* terrane-site: src/main.trn:135:16-135:33 */,
+        )
+    };
+    println!("{}", terrane_scalar_support::scalar_text(&inferred.value));
+    println!("{}", terrane_scalar_support::scalar_text(&reusable.value));
+    tagged = TaggedCommand::terrane_construct();
+    with_type_field = __terrane_traced(
+        tagged
+            .dispatch(
+                &executor,
+                {
+                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
+                        48_i128,
+                    );
+                    __terrane_raised(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            Ok(witness::Tagged {
+                                value: terrane_int_support::coerce::<
+                                    i64,
+                                >(&__terrane_conversion_input_0)
+                                    .map_err(|error| crate::TerraneForeignError(
+                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                    ))?,
+                            })
+                        }(),
+                        37 /* terrane-site: src/main.trn:139:51-139:78 */,
+                    )
+                },
+            ),
+        38 /* terrane-site: src/main.trn:139:23-139:79 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&with_type_field.r#type));
+    held = <RetainedProvider<
+        String,
+    >>::from(
+        RetainedResource::terrane_construct({
+            let __terrane_conversion_input_0 = String::from("held");
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    Ok(witness::Unique {
+                        text: __terrane_conversion_input_0,
+                    })
+                }(),
+                39 /* terrane-site: src/main.trn:141:77-141:107 */,
+            )
+        }),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&held.read()));
+    println!("{}", terrane_scalar_support::scalar_text(&held.read()));
+    tree_command_value = TreeCommand::terrane_construct();
+    tree_result = __terrane_traced(
+        tree_command_value
+            .dispatch(
+                &executor,
+                {
+                    let __terrane_conversion_input_0 = terrane_int_support::Int::from(
+                        49_i128,
+                    );
+                    __terrane_raised(
+                        || -> Result<_, crate::TerraneForeignError> {
+                            Ok(witness::TreeRequest {
+                                value: terrane_int_support::coerce::<
+                                    i64,
+                                >(&__terrane_conversion_input_0)
+                                    .map_err(|error| crate::TerraneForeignError(
+                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                    ))?,
+                            })
+                        }(),
+                        40 /* terrane-site: src/main.trn:145:59-145:91 */,
+                    )
+                },
+            ),
+        41 /* terrane-site: src/main.trn:145:19-145:92 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&tree_result.value));
+    leaf = {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(-2_i128);
+        let __terrane_conversion_input_1 = None;
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(witness::Tree {
+                    value: terrane_int_support::coerce::<
+                        i64,
+                    >(&__terrane_conversion_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                    children: {
+                        let __terrane_field_argument: Option<
+                            terrane_collection_support::List<Tree>,
+                        > = __terrane_conversion_input_1;
+                        __terrane_field_argument
+                    }
+                        .map(|
+                            value,
+                        | -> Result<Vec<witness::Tree>, crate::TerraneForeignError> {
+                            Ok(
+                                value
+                                    .into_iter()
+                                    .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                        Ok(item)
+                                    })
+                                    .collect::<Result<Vec<witness::Tree>, _>>()?,
+                            )
+                        })
+                        .transpose()?
+                        .into(),
+                })
+            }(),
+            42 /* terrane-site: src/main.trn:147:12-147:54 */,
+        )
+    };
+    println!("{}", terrane_scalar_support::scalar_text(&leaf.value));
+    branch = {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(50_i128);
+        let __terrane_conversion_input_1 = Some(
+            terrane_collection_support::List::<Tree>::new(vec![leaf]),
+        );
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(witness::Tree {
+                    value: terrane_int_support::coerce::<
+                        i64,
+                    >(&__terrane_conversion_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                    children: {
+                        let __terrane_field_argument: Option<
+                            terrane_collection_support::List<Tree>,
+                        > = __terrane_conversion_input_1;
+                        __terrane_field_argument
+                    }
+                        .map(|
+                            value,
+                        | -> Result<Vec<witness::Tree>, crate::TerraneForeignError> {
+                            Ok(
+                                value
+                                    .into_iter()
+                                    .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                        Ok(item)
+                                    })
+                                    .collect::<Result<Vec<witness::Tree>, _>>()?,
+                            )
+                        })
+                        .transpose()?
+                        .into(),
+                })
+            }(),
+            43 /* terrane-site: src/main.trn:149:14-149:64 */,
+        )
+    };
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(child_count(&branch),
+        44 /* terrane-site: src/main.trn:150:13-150:32 */))
+    );
+    children = (&branch.children)
+        .as_ref()
+        .map(|__terrane_field_item| terrane_collection_support::List::new(
+            __terrane_field_item
+                .iter()
+                .map(|__terrane_field_item| (*__terrane_field_item).clone())
+                .collect(),
+        ))
+        .clone();
+    if (&children).is_some() {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match &children {
+            Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            45 /* terrane-site: src/main.trn:153:16-153:27 */)),
+            45 /* terrane-site: src/main.trn:153:16-153:27 */).value)
+        );
+    }
+    absent = {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(51_i128);
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(witness::Tree {
+                    value: terrane_int_support::coerce::<
+                        i64,
+                    >(&__terrane_conversion_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                    children: None::<Vec<witness::Tree>>,
+                })
+            }(),
+            46 /* terrane-site: src/main.trn:154:14-154:39 */,
+        )
+    };
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(child_count(&absent),
+        47 /* terrane-site: src/main.trn:155:13-155:32 */))
+    );
+    let __terrane_completion_1: TerraneCompletion<()> = (|| {
+        let __terrane_try_1: TerraneCompletion<()> = (|| {
+            __terrane_traced_completion!(
+                alpha.dispatch(&executor, { let __terrane_conversion_input_0 =
+                terrane_int_support::Int::from(- 1_i128); __terrane_raised_completion!(|
+                | -> Result < _, crate ::TerraneForeignError > { Ok(witness::Alpha {
+                value : terrane_int_support::coerce:: < i64 >
+                (&__terrane_conversion_input_0).map_err(| error | crate
+                ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+                ::TERRANE_NO_SITE))) ? }) } (), 48 /* terrane-site: src/main.trn:157:36-157:62 */) }), 49 /* terrane-site: src/main.trn:157:9-157:63 */
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_1 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_1) => {
+                let mut __terrane_handled_1 = false;
+                if !__terrane_handled_1
+                    && __terrane_error_1.kind
+                        == TerraneErrorKind::Custom(DescriptorId(2))
+                {
+                    __terrane_handled_1 = true;
+                    let _ = failure_2.insert(__terrane_error_1.clone());
+                    {
+                        let __terrane_error_text_1 = failure_2
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .message();
+                        println!("{}", __terrane_error_text_1);
+                    };
+                }
+                if !__terrane_handled_1 {
+                    return TerraneCompletion::Error(__terrane_error_1);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_1 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
     selected_mode = {
         let __terrane_conversion_input_0 = true;
         __terrane_raised(
             mode(__terrane_conversion_input_0),
-            47 /* terrane-site: src/main.trn:156:21-156:31 */,
+            50 /* terrane-site: src/main.trn:160:21-160:31 */,
         )
     };
     if (&selected_mode).is_some() {
@@ -1566,28 +1629,28 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
             &match &selected_mode { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") }; let
-            __terrane_receiver_value_1 = &__terrane_raised(| | -> Result < _, crate
+            __terrane_receiver_value_2 = &__terrane_raised(| | -> Result < _, crate
             ::TerraneForeignError > { { let value = match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::Mode::First) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) };
             Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            48 /* terrane-site: src/main.trn:158:34-158:46 */); let
-            __terrane_comparison_right = &__terrane_receiver_value_1; < Mode as
+            51 /* terrane-site: src/main.trn:162:34-162:46 */); let
+            __terrane_comparison_right = &__terrane_receiver_value_2; < Mode as
             std::cmp::PartialEq > ::eq(__terrane_comparison_left,
             __terrane_comparison_right) })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_2 =
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_3 =
             &__terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok(witness::Mode::First) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) };
             Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            49 /* terrane-site: src/main.trn:159:17-159:29 */); let
-            __terrane_comparison_left = &__terrane_receiver_value_2; let
+            52 /* terrane-site: src/main.trn:163:17-163:29 */); let
+            __terrane_comparison_left = &__terrane_receiver_value_3; let
             __terrane_comparison_right = &match &selected_mode { Some(value) => value, _
             => unreachable!("flow-proven storage refinement") }; < Mode as
             std::cmp::PartialEq > ::eq(__terrane_comparison_left,
@@ -1597,15 +1660,15 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
             &match &selected_mode { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") }; let
-            __terrane_receiver_value_3 = &__terrane_raised(| | -> Result < _, crate
+            __terrane_receiver_value_4 = &__terrane_raised(| | -> Result < _, crate
             ::TerraneForeignError > { { let value = match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::Mode::Last) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::Last")) };
             Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            50 /* terrane-site: src/main.trn:160:34-160:45 */); let
-            __terrane_comparison_right = &__terrane_receiver_value_3; < Mode as
+            53 /* terrane-site: src/main.trn:164:34-164:45 */); let
+            __terrane_comparison_right = &__terrane_receiver_value_4; < Mode as
             std::cmp::PartialEq > ::ne(__terrane_comparison_left,
             __terrane_comparison_right) })
         );
@@ -1614,14 +1677,14 @@ fn main() {
         let __terrane_conversion_input_0 = false;
         __terrane_raised(
             mode(__terrane_conversion_input_0),
-            51 /* terrane-site: src/main.trn:161:20-161:31 */,
+            54 /* terrane-site: src/main.trn:165:20-165:31 */,
         )
     };
     println!("{}", terrane_scalar_support::scalar_text(&(&missing_mode).is_none()));
     check_numeric_fields();
     __terrane_traced(
         check_recipe_selection(&executor),
-        52 /* terrane-site: src/main.trn:164:5-164:37 */,
+        55 /* terrane-site: src/main.trn:168:5-168:37 */,
     );
 }
 #[derive(Clone)]
@@ -1670,7 +1733,7 @@ impl BatchCommand {
                         }
                     }
                 }(),
-                53 /* terrane-site: src/main.trn:171:16-171:40 */,
+                56 /* terrane-site: src/main.trn:175:16-175:40 */,
             )?
         });
     }
@@ -1759,7 +1822,7 @@ impl MarkedCommand {
                         }
                     }
                 }(),
-                54 /* terrane-site: src/main.trn:178:16-178:40 */,
+                57 /* terrane-site: src/main.trn:182:16-182:40 */,
             )?
         });
     }
@@ -1834,7 +1897,7 @@ impl BorrowedOutputCommand {
                         }
                     }
                 }(),
-                55 /* terrane-site: src/main.trn:185:16-185:40 */,
+                58 /* terrane-site: src/main.trn:189:16-189:40 */,
             )?
         });
     }
@@ -1909,17 +1972,17 @@ fn check_numeric_fields() {
                         .into(),
                 })
             }(),
-            56 /* terrane-site: src/main.trn:193:14-193:66 */,
+            59 /* terrane-site: src/main.trn:197:14-197:66 */,
         )
     };
     selected = optional_number(true, terrane_int_support::Int::from(73_i128));
     {
-        let __terrane_value = match selected.clone() {
+        let __terrane_value: Option<u32> = match selected.clone() {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
                         terrane_int_support::coerce::<u32>(&__terrane_optional_value),
-                        57 /* terrane-site: src/main.trn:195:22-195:30 */,
+                        60 /* terrane-site: src/main.trn:199:22-199:30 */,
                     ),
                 )
             }
@@ -1928,12 +1991,12 @@ fn check_numeric_fields() {
         fields.quality = __terrane_value;
     }
     {
-        let __terrane_value = match selected.clone() {
+        let __terrane_value: Option<f64> = match selected.clone() {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
                         terrane_int_support::exact_f64(&__terrane_optional_value),
-                        58 /* terrane-site: src/main.trn:196:20-196:28 */,
+                        61 /* terrane-site: src/main.trn:200:20-200:28 */,
                     ),
                 )
             }
@@ -1955,12 +2018,12 @@ fn check_numeric_fields() {
     );
     absent = optional_number(false, terrane_int_support::Int::from(0_i128));
     {
-        let __terrane_value = match absent {
+        let __terrane_value: Option<u32> = match absent {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
                         terrane_int_support::coerce::<u32>(&__terrane_optional_value),
-                        59 /* terrane-site: src/main.trn:200:22-200:28 */,
+                        62 /* terrane-site: src/main.trn:204:22-204:28 */,
                     ),
                 )
             }
@@ -1970,12 +2033,12 @@ fn check_numeric_fields() {
     }
     println!("{}", terrane_scalar_support::scalar_text(&(&fields.quality).is_none()));
     {
-        let __terrane_value = match selected {
+        let __terrane_value: Option<u32> = match selected {
             Some(__terrane_optional_value) => {
                 Some(
                     __terrane_raised(
                         terrane_int_support::coerce::<u32>(&__terrane_optional_value),
-                        60 /* terrane-site: src/main.trn:202:22-202:30 */,
+                        63 /* terrane-site: src/main.trn:206:22-206:30 */,
                     ),
                 )
             }
@@ -1984,15 +2047,15 @@ fn check_numeric_fields() {
         fields.quality = __terrane_value;
     }
     invalid = optional_number(true, terrane_int_support::Int::from(-1_i128));
-    let __terrane_completion_1: TerraneCompletion<()> = (|| {
-        let __terrane_try_1: TerraneCompletion<()> = (|| {
+    let __terrane_completion_2: TerraneCompletion<()> = (|| {
+        let __terrane_try_2: TerraneCompletion<()> = (|| {
             {
-                let __terrane_value = match invalid {
+                let __terrane_value: Option<u32> = match invalid {
                     Some(__terrane_optional_value) => {
                         Some(
                             __terrane_raised_completion!(
                                 terrane_int_support::coerce:: < u32 >
-                                (&__terrane_optional_value), 61 /* terrane-site: src/main.trn:205:26-205:33 */
+                                (&__terrane_optional_value), 64 /* terrane-site: src/main.trn:209:26-209:33 */
                             ),
                         )
                     }
@@ -2002,18 +2065,18 @@ fn check_numeric_fields() {
             }
             TerraneCompletion::Normal
         })();
-        match __terrane_try_1 {
+        match __terrane_try_2 {
             TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
             TerraneCompletion::Break => return TerraneCompletion::Break,
             TerraneCompletion::Continue => return TerraneCompletion::Continue,
             TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_1) => {
-                let mut __terrane_handled_1 = false;
-                if !__terrane_handled_1
-                    && __terrane_error_1.kind
+            TerraneCompletion::Error(__terrane_error_2) => {
+                let mut __terrane_handled_2 = false;
+                if !__terrane_handled_2
+                    && __terrane_error_2.kind
                         == TerraneErrorKind::IntegerConversionOverflow
                 {
-                    __terrane_handled_1 = true;
+                    __terrane_handled_2 = true;
                     println!(
                         "{}", { let mut __terrane_text = String::new(); match &fields
                         .quality { Some(__terrane_present) => {
@@ -2022,14 +2085,14 @@ fn check_numeric_fields() {
                         } __terrane_text }
                     );
                 }
-                if !__terrane_handled_1 {
-                    return TerraneCompletion::Error(__terrane_error_1);
+                if !__terrane_handled_2 {
+                    return TerraneCompletion::Error(__terrane_error_2);
                 }
             }
         }
         TerraneCompletion::Normal
     })();
-    match __terrane_completion_1 {
+    match __terrane_completion_2 {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
@@ -2054,12 +2117,12 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
     batching = BatchCommand::terrane_construct();
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(batching
-        .dispatch(executor, __terrane_raised_err(batch(), 62 /* terrane-site: src/main.trn:211:43-211:49 */) ?), 63 /* terrane-site: src/main.trn:211:13-211:50 */) ?)
+        .dispatch(executor, __terrane_raised_err(batch(), 65 /* terrane-site: src/main.trn:215:43-215:49 */) ?), 66 /* terrane-site: src/main.trn:215:13-215:50 */) ?)
     );
     marked_value = MarkedCommand::terrane_construct();
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(marked_value
-        .dispatch(executor, __terrane_raised_err(marked(), 64 /* terrane-site: src/main.trn:213:47-213:54 */) ?), 65 /* terrane-site: src/main.trn:213:13-213:55 */) ?)
+        .dispatch(executor, __terrane_raised_err(marked(), 67 /* terrane-site: src/main.trn:217:47-217:54 */) ?), 68 /* terrane-site: src/main.trn:217:13-217:55 */) ?)
     );
     borrowed_value = BorrowedOutputCommand::terrane_construct();
     result = __terrane_traced_err(
@@ -2068,10 +2131,10 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
                 executor,
                 __terrane_raised_err(
                     borrowed_output(),
-                    66 /* terrane-site: src/main.trn:215:50-215:66 */,
+                    69 /* terrane-site: src/main.trn:219:50-219:66 */,
                 )?,
             ),
-        67 /* terrane-site: src/main.trn:215:14-215:67 */,
+        70 /* terrane-site: src/main.trn:219:14-219:67 */,
     )?;
     println!("{}", terrane_scalar_support::scalar_text(&result.value));
     borrowed_input = {
@@ -2087,7 +2150,7 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
                         ))?,
                 })
             }(),
-            68 /* terrane-site: src/main.trn:217:22-217:48 */,
+            71 /* terrane-site: src/main.trn:221:22-221:48 */,
         )?
     };
     borrowed_loan = &borrowed_input;
@@ -2123,12 +2186,12 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
                 }
             }
         }(),
-        69 /* terrane-site: src/main.trn:219:23-219:45 */,
+        72 /* terrane-site: src/main.trn:223:23-223:45 */,
     )?;
     println!("{}", terrane_scalar_support::scalar_text(&borrowed_result.label));
     set_request = __terrane_raised_err(
         set_batch(),
-        70 /* terrane-site: src/main.trn:221:19-221:29 */,
+        73 /* terrane-site: src/main.trn:225:19-225:29 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
@@ -2141,11 +2204,11 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(error) => Err(crate
         ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
         ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))) } } (),
-        71 /* terrane-site: src/main.trn:222:13-222:38 */) ? })
+        74 /* terrane-site: src/main.trn:226:13-226:38 */) ? })
     );
     map_request = __terrane_raised_err(
         mapped_batch(),
-        72 /* terrane-site: src/main.trn:223:19-223:32 */,
+        75 /* terrane-site: src/main.trn:227:19-227:32 */,
     )?;
     map_result = {
         let __terrane_conversion_input_0 = map_request;
@@ -2182,7 +2245,7 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
                     }
                 }
             }(),
-            73 /* terrane-site: src/main.trn:224:18-224:43 */,
+            76 /* terrane-site: src/main.trn:228:18-228:43 */,
         )?
     };
     println!("{}", terrane_scalar_support::scalar_text(&map_result.value));

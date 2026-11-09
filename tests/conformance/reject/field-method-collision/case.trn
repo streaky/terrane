@@ -1,0 +1,13 @@
+namespace field-method-collision
+from /core/collections import list
+class holder
+    f function to string
+    function construct; f function to string
+        this.f = f
+    function f int;
+        return 9
+
+function main;
+    h = instance holder; function string;
+        return 'a'
+    print; (h.f;)

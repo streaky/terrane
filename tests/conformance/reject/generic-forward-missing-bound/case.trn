@@ -1,0 +1,10 @@
+namespace app
+interface named
+    function name int;
+function target of (T implements named) int; item T
+    return item.name;
+function forward of (U) int; item U
+    return target; (move item)
+function main;
+    forward; (instance unrelated;)
+class unrelated

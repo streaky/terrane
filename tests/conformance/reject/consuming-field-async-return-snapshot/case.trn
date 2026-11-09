@@ -1,0 +1,10 @@
+namespace consuming-field-async-return-snapshot
+
+class holder
+    f consuming async function to int
+    function construct; f consuming async function to int
+        this.f = f
+    function get consuming async function to int;
+        return this.f
+
+function main;

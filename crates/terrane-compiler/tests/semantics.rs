@@ -419,28 +419,6 @@ fn duplicate_declarations_and_private_imports_are_rejected() {
 }
 
 #[test]
-fn global_replacement_is_distinct_from_namespace_local_assignment() {
-    let analyzed = analyze(&package(
-        false,
-        &[
-            (
-                "one.trn",
-                "namespace first\nglobal shared = 1\nconstant local = 1\n",
-            ),
-            (
-                "two.trn",
-                "namespace second\nglobal shared = 2\nconstant local = 2\n",
-            ),
-        ],
-    ))
-    .unwrap();
-
-    assert!(analyzed.symbol("/first", "local").is_some());
-    assert!(analyzed.symbol("/second", "local").is_some());
-    assert!(analyzed.symbol("/first", "shared").is_none());
-}
-
-#[test]
 fn namespace_local_bindings_may_shadow_program_globals() {
     let analyzed = analyze(&package(
         false,
@@ -2183,6 +2161,56 @@ fn namespace_storage_rejects_materialized_objects_but_keeps_scalars_and_locals()
         "namespace app\nclass item\n  value int = 0\nconstant count int = 1\nconstant item-type = item\nfunction main;\n  value = instance item;\n  print; value.value\n".to_owned(),
     );
     analyze(&package).expect("scalar namespace values and local objects remain supported");
+}
+
+#[test]
+fn global_reads_follow_updates_without_hiding_unread_locals() {
+    for update in [
+        "    global calls = 5\n",
+        "    if 1 < 2\n        global calls = 5\n",
+    ] {
+        let source = format!(
+            "namespace app\nglobal calls int = 0\nfunction main;\n{update}    print; calls\n    unread-local = 9\n"
+        );
+        let compilation = terrane_compiler::compile("main.trn", source.clone()).unwrap();
+        let unread = compilation
+            .warnings
+            .iter()
+            .filter(|warning| warning.code.as_ref() == "W4001")
+            .collect::<Vec<_>>();
+        assert!(
+            unread.iter().all(|warning| {
+                warning
+                    .primary
+                    .is_some_and(|span| source[span.start..span.end].contains("unread-local"))
+            }),
+            "a read global is not an unread binding: {unread:?}"
+        );
+        assert!(
+            unread.iter().any(|warning| {
+                warning
+                    .primary
+                    .is_some_and(|span| source[span.start..span.end].contains("unread-local"))
+            }),
+            "global read aggregation must not hide an unrelated unread local"
+        );
+    }
+
+    let compilation = terrane_compiler::compile(
+        "unread.trn",
+        "namespace app\nglobal calls int = 0\nfunction main;\n    global calls = 5\n    print; 1\n"
+            .to_owned(),
+    )
+    .unwrap();
+    assert!(
+        compilation.warnings.iter().any(|warning| {
+            warning.code.as_ref() == "W4001"
+                && warning.primary.is_some_and(|span| {
+                    compilation.source.text()[span.start..span.end].contains("calls")
+                })
+        }),
+        "a truly unread global still needs W4001"
+    );
 }
 
 fn contains_kind(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bool {

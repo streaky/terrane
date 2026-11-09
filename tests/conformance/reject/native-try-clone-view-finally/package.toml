@@ -1,0 +1,7 @@
+package = "native-try-clone-view-finally"
+executor = "threaded"
+[namespaces]
+app = "src"
+[rust-dependencies.witness]
+package = "terrane-invocation-scoped-witness"
+version = "0.1.0"

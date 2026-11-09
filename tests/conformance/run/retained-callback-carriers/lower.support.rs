@@ -849,7 +849,7 @@ pub struct TerraneOwnedMutableInputsR<A0, Output> {
     >,
 }
 impl<A0, Output> TerraneOwnedMutableInputsR<A0, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnMut((&A0,)) -> Output + Clone + Send + 'static,
     {
@@ -857,7 +857,7 @@ impl<A0, Output> TerraneOwnedMutableInputsR<A0, Output> {
             body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
-    fn call(&self, arguments: (&A0,)) -> Output {
+    pub fn call(&self, arguments: (&A0,)) -> Output {
         self.body.lock().expect("mutable callable lock poisoned").call(arguments)
     }
 }
@@ -894,7 +894,7 @@ pub struct TerraneOwnedMutableInputsM<A0, Output> {
     >,
 }
 impl<A0, Output> TerraneOwnedMutableInputsM<A0, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnMut((&mut A0,)) -> Output + Clone + Send + 'static,
     {
@@ -902,7 +902,7 @@ impl<A0, Output> TerraneOwnedMutableInputsM<A0, Output> {
             body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
-    fn call(&self, arguments: (&mut A0,)) -> Output {
+    pub fn call(&self, arguments: (&mut A0,)) -> Output {
         self.body.lock().expect("mutable callable lock poisoned").call(arguments)
     }
 }
@@ -930,7 +930,7 @@ pub struct TerraneConsumingCallable<Arguments, Output> {
     body: std::boxed::Box<dyn TerraneConsumingCallableBody<Arguments, Output>>,
 }
 impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnOnce(Arguments) -> Output + Send + 'static,
     {
@@ -938,7 +938,7 @@ impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
             body: std::boxed::Box::new(function),
         }
     }
-    fn call(self, arguments: Arguments) -> Output {
+    pub fn call(self, arguments: Arguments) -> Output {
         self.body.call(arguments)
     }
 }
@@ -951,7 +951,7 @@ pub trait SinkProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SinkProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SinkProtocol::clone_box(&**self)
     }
 }
 pub struct Sink(Box<dyn SinkProtocol>);

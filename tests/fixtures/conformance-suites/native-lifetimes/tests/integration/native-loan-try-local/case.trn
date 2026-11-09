@@ -1,0 +1,17 @@
+namespace native-loan-try-local
+from /deps/terrane-query-witness import Holder, View, query
+from /core/collections import list
+class W
+    inner Holder
+    other Holder
+    function construct; inner Holder, other Holder
+        this.inner = move inner
+        this.other = move other
+function test-scenario;
+    h = Holder::new;
+    try
+        v = h.view;
+        print; (v.size;)
+    catch
+        print; (h.label_len;)
+    print; (h.label_len;)

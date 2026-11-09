@@ -1,0 +1,15 @@
+namespace completion-finally-conditional-post-read
+from /core/collections import list
+
+function eat int; k list of int
+    return k[0]
+
+function main;
+    c = true
+    o list of int = list; 1
+    try
+        print; (eat; o)
+    finally
+        if c
+            o = list; 2
+        print; o[0]

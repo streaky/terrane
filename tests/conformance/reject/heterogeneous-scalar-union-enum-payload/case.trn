@@ -1,0 +1,4 @@
+namespace heterogeneous-scalar-union-enum-payload
+enum result
+  value; item int|string
+function main;

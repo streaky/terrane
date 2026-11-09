@@ -1,0 +1,7 @@
+namespace inherited-ancestor-library
+
+public interface base
+    function b int;
+
+public interface sub implements base
+    function other int;

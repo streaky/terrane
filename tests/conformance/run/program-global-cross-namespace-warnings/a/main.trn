@@ -1,0 +1,5 @@
+namespace a
+global calls int = 0
+global unused int = 0
+function bump;
+  global calls = calls + 1

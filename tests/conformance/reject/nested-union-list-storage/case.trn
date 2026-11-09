@@ -1,0 +1,5 @@
+namespace nested-union-list-storage
+
+function main;
+    values list of int|string = list; 1, 'text'
+    print; values.length

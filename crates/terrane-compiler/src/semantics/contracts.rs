@@ -85,9 +85,8 @@ pub(super) fn descriptor_alias(
         return None;
     }
     let name = node
-        .children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::Name)?;
+        .assignment_target()
+        .filter(|child| child.kind == SyntaxKind::Name)?;
     let initializer = node.children.last()?;
     let descriptor_name = node_text(&unit.source, initializer).trim();
     if descriptor_name == "none" {
@@ -281,13 +280,10 @@ pub(super) fn collect_typed_bindings(
             item_type,
         )?;
         for binding in &loop_bindings {
-            let existing = visible_bindings
-                .iter()
-                .rev()
-                .find(|existing| existing.name == binding.name);
-            if existing.is_some_and(|existing| existing.value_type == binding.value_type) {
-                continue;
-            }
+            // Every loop target is a declaration, even when its spelling and
+            // type match a prior target. Reaching flow decides whether their
+            // live outputs share storage; declaration inference must retain
+            // each target's origin for that decision.
             visible_bindings.push(binding.clone());
             bindings.push(binding.clone());
         }
@@ -402,9 +398,8 @@ pub(super) fn collect_typed_bindings(
             let mut region_bindings = visible_bindings.clone();
             if acquisition.kind == SyntaxKind::Assignment
                 && let Some(target) = acquisition
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::Name)
+                    .assignment_target()
+                    .filter(|child| child.kind == SyntaxKind::Name)
                 && let Some(initializer) = acquisition.children.last()
             {
                 let name = node_text(&unit.source, target);
@@ -438,6 +433,7 @@ pub(super) fn collect_typed_bindings(
         analyze_binding_node(unit, node, visible_bindings, scope)?;
         bindings.extend_from_slice(&visible_bindings[prior_len..]);
     }
+    super::collections::retain_appended_native_origins(unit, node, visible_bindings, bindings)?;
     for child in &node.children {
         collect_typed_bindings(unit, matches, child, visible_bindings, bindings, scope)?;
     }
@@ -481,7 +477,10 @@ pub(super) fn analyze_function_contract(
         .children
         .iter()
         .find(|child| child.kind == SyntaxKind::TypeExpression)
-        .map(|type_node| declared_value_type(unit, type_node, aliases))
+        .map(|type_node| {
+            super::types::validate_scalar_union_declaration(unit, type_node, aliases)?;
+            declared_value_type(unit, type_node, aliases)
+        })
         .transpose()?;
     let mut parameters = Vec::new();
     let mut optional_seen = false;
@@ -503,7 +502,10 @@ pub(super) fn analyze_function_contract(
                 .iter()
                 .find(|child| child.kind == SyntaxKind::TypeExpression);
             let value_type = type_node
-                .map(|type_node| declared_value_type(unit, type_node, aliases))
+                .map(|type_node| {
+                    super::types::validate_scalar_union_declaration(unit, type_node, aliases)?;
+                    declared_value_type(unit, type_node, aliases)
+                })
                 .transpose()?;
             let variadic = parameter
                 .children
@@ -543,7 +545,7 @@ pub(super) fn analyze_function_contract(
                     parameter.span,
                 ));
             }
-            if let (Some(expected), Some(default)) = (value_type.clone(), default) {
+            if let (Some(expected), Some(default)) = (value_type.as_ref(), default) {
                 let actual =
                     infer_value_type(unit, default, &unit.typed_bindings)?.ok_or_else(|| {
                         failure(
@@ -557,7 +559,7 @@ pub(super) fn analyze_function_contract(
                     &unit.source,
                     &unit.descriptors,
                     node_text(&unit.source, parameter_name),
-                    &expected,
+                    expected,
                     &actual,
                     default,
                     "T0006",
@@ -1450,16 +1452,16 @@ pub(super) fn escaping_throwables(
             )
         {
             BTreeSet::from(["/core/errors::missing-key".to_owned()])
-        } else if let Some(ValueType::Object(object)) = receiver_type {
-            unit.functions
-                .iter()
-                .find(|contract| {
-                    contract.owner_identity.as_ref() == Some(&object)
-                        && contract.name == member_name
-                })
-                .and_then(|contract| inferred.get(&key(contract.span)))
+        } else if let Some(contract) = super::calls::selected_callable_contract(
+            package,
+            unit,
+            node,
+            crate::syntax::call_is_unsafe(node),
+        ) {
+            inferred
+                .get(&key(contract.span))
                 .cloned()
-                .unwrap_or_default()
+                .unwrap_or_else(|| contract.escaping_throwables.clone())
         } else if member_name == "decode" {
             BTreeSet::from(["/core/errors::decode-error".to_owned()])
         } else {

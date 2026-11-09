@@ -1,0 +1,15 @@
+namespace app
+class P
+    value int = 7
+    consuming function finish int;
+        return this.value
+function main;
+    p = instance P;
+    i int = 0
+    while i < 2
+        try
+            print; (p.finish;)
+            p = instance P;
+        finally
+            print; 1
+        i = i + 1

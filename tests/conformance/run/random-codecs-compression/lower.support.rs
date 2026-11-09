@@ -724,15 +724,15 @@ impl DecodeResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.value = __terrane_value;
         }
     }
@@ -768,7 +768,7 @@ impl Base64Codec {
     }
     pub fn construct(&mut self, url_safe: bool) {
         {
-            let __terrane_value = url_safe;
+            let __terrane_value: bool = url_safe;
             self.url_safe = __terrane_value;
         }
     }
@@ -842,11 +842,11 @@ impl CompressionOptions {
     }
     pub fn construct(&mut self, level: terrane_int_support::Int, deterministic: bool) {
         {
-            let __terrane_value = level.clone();
+            let __terrane_value: terrane_int_support::Int = level.clone();
             self.level = __terrane_value;
         }
         {
-            let __terrane_value = deterministic;
+            let __terrane_value: bool = deterministic;
             self.deterministic = __terrane_value;
         }
     }
@@ -878,15 +878,15 @@ impl DecompressionLimits {
         max_work: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = max_output.clone();
+            let __terrane_value: terrane_int_support::Int = max_output.clone();
             self.max_output = __terrane_value;
         }
         {
-            let __terrane_value = max_ratio.clone();
+            let __terrane_value: terrane_int_support::Int = max_ratio.clone();
             self.max_ratio = __terrane_value;
         }
         {
-            let __terrane_value = max_work.clone();
+            let __terrane_value: terrane_int_support::Int = max_work.clone();
             self.max_work = __terrane_value;
         }
     }
@@ -922,19 +922,19 @@ impl CompressionResult {
         data: Vec<u8>,
     ) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = resource_limit;
+            let __terrane_value: bool = resource_limit;
             self.resource_limit = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.value = __terrane_value;
         }
     }
@@ -951,7 +951,7 @@ impl CompressionCodec {
     }
     pub fn construct(&mut self, format: String) {
         {
-            let __terrane_value = format;
+            let __terrane_value: String = format;
             self.format = __terrane_value;
         }
     }
@@ -1031,15 +1031,15 @@ impl ByteResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.value = __terrane_value;
         }
     }
@@ -1071,15 +1071,15 @@ impl RandomIntResult {
         number: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = number.clone();
+            let __terrane_value: terrane_int_support::Int = number.clone();
             self.value = __terrane_value;
         }
     }
@@ -1100,11 +1100,11 @@ impl SecretOperationResult {
     }
     pub fn construct(&mut self, failed: bool, message: String) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -1123,7 +1123,9 @@ impl SecretBuffer {
     }
     pub fn construct(&mut self, data: Vec<u8>) {
         {
-            let __terrane_value = terrane_platform_secret_buffer(data);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_secret_buffer(
+                data,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -1152,11 +1154,11 @@ impl DigestValue {
     }
     pub fn construct(&mut self, algorithm: String, data: Vec<u8>) {
         {
-            let __terrane_value = algorithm;
+            let __terrane_value: String = algorithm;
             self.algorithm = __terrane_value;
         }
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.value = __terrane_value;
         }
     }
@@ -1191,15 +1193,15 @@ impl DigestResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, digest: DigestValue) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = digest;
+            let __terrane_value: DigestValue = digest;
             self.value = __terrane_value;
         }
     }
@@ -1220,11 +1222,11 @@ impl SignatureValue {
     }
     pub fn construct(&mut self, algorithm: String, data: Vec<u8>) {
         {
-            let __terrane_value = algorithm;
+            let __terrane_value: String = algorithm;
             self.algorithm = __terrane_value;
         }
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.value = __terrane_value;
         }
     }
@@ -1267,15 +1269,15 @@ impl SignatureResult {
         signature: SignatureValue,
     ) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = signature;
+            let __terrane_value: SignatureValue = signature;
             self.value = __terrane_value;
         }
     }
@@ -1294,7 +1296,7 @@ impl SecureRandom {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = terrane_platform_secure_random();
+            let __terrane_value: TerranePlatformCapability = terrane_platform_secure_random();
             self.handle = __terrane_value;
         }
     }
@@ -1332,7 +1334,7 @@ impl PseudoRandomAlgorithm {
     }
     pub fn construct(&mut self, name: String) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
     }
@@ -1357,7 +1359,10 @@ impl PseudoRandom {
     }
     pub fn construct(&mut self, algorithm: PseudoRandomAlgorithm, seed: Vec<u8>) {
         {
-            let __terrane_value = terrane_platform_pseudo_random(algorithm.name, seed);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_pseudo_random(
+                algorithm.name,
+                seed,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -1388,7 +1393,9 @@ impl PseudoRandom {
         raw = terrane_platform_random_split(&self.handle);
         child = PseudoRandom::terrane_construct(chacha20(), Vec::<u8>::from([]));
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             child.handle = __terrane_value;
         }
         return child;
@@ -1400,7 +1407,9 @@ pub fn split_pseudo(source: PseudoRandom) -> PseudoRandom {
     raw = terrane_platform_random_split(&source.handle);
     child = PseudoRandom::terrane_construct(chacha20(), Vec::<u8>::from([]));
     {
-        let __terrane_value = terrane_platform_result_capability(&raw);
+        let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+            &raw,
+        );
         child.handle = __terrane_value;
     }
     return child;
@@ -1465,7 +1474,7 @@ impl HashAlgorithm {
     }
     pub fn construct(&mut self, name: String) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
     }
@@ -1532,11 +1541,11 @@ impl Uuid {
     }
     pub fn construct(&mut self, text: String, data: Vec<u8>) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.string = __terrane_value;
         }
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.bytes = __terrane_value;
         }
     }
@@ -1559,15 +1568,15 @@ impl UuidResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, identifier: Uuid) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = identifier;
+            let __terrane_value: Uuid = identifier;
             self.value = __terrane_value;
         }
     }

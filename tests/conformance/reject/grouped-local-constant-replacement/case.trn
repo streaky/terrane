@@ -1,0 +1,5 @@
+namespace grouped-local-constant-replacement
+function main;
+    constant g int = 1
+    ((g)) = 4
+    print; g

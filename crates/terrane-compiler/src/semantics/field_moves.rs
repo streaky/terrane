@@ -92,10 +92,11 @@ fn field_owner(
     }
 }
 
-fn destructive_move(
+pub(crate) fn field_access_transfers(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     access: &SyntaxNode,
+    implicit: bool,
 ) -> Result<bool, SemanticFailure> {
     let Some(owner) = field_owner(unit, access)? else {
         return Ok(false);
@@ -114,12 +115,27 @@ fn destructive_move(
     ) {
         return Ok(false);
     }
-    // Native fields move directly. Only authored optional fields leave a `none` slot.
-    if package
+    if implicit
+        && (package.native_value_is_copyable(&ty)
+            || matches!(&ty, ValueType::Object(identity)
+                if package.projection.item(&identity.namespace, &identity.name).is_some()
+                    && super::objects::value_type_is_cloneable(package, unit, &ty)))
+    {
+        return Ok(false);
+    }
+    // Source fields have slot-taking semantics even when their value is Clone.
+    let native_owner = package
         .projection
         .item(&owner.namespace, &owner.name)
-        .is_some()
+        .is_some();
+    if native_owner
+        && (package.native_value_is_copyable(&ty)
+            || super::objects::value_type_is_cloneable(package, unit, &ty))
     {
+        return Ok(false);
+    }
+    // Native fields move directly when no reusable native conversion exists.
+    if native_owner {
         return Ok(true);
     }
     Ok(!matches!(ty, ValueType::Optional(_)))
@@ -476,6 +492,10 @@ fn visit_assignment(
     Ok(flow)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "field ownership follows control exits, closure captures and consuming accesses in one traversal"
+)]
 fn visit(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -508,7 +528,7 @@ fn visit(
         && let Some(path) = path_at(unit, access)
     {
         check_access(unit, &path, moved, access.span)?;
-        if destructive_move(package, unit, access)? {
+        if field_access_transfers(package, unit, access, false)? {
             moved.insert(path);
         }
         return Ok(FieldFlow::normal());
@@ -546,6 +566,26 @@ fn visit(
         }
         _ => {}
     }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first().map(ungroup)
+        && let [receiver, _] = callee.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && super::namespaces::function_contract_for_call(package, unit, callee).is_some_and(
+            |contract| {
+                contract.owner.is_some()
+                    && contract.written_invocation_mode == InvocationMode::Consuming
+            },
+        )
+        && let receiver = ungroup(receiver)
+        && let Some(path) = path_at(unit, receiver)
+        && receiver.kind == SyntaxKind::MemberExpression
+    {
+        let flow = visit_children(package, unit, node, moved)?;
+        if field_access_transfers(package, unit, receiver, true)? {
+            moved.insert(path);
+        }
+        return Ok(flow);
+    }
     if !moved.is_empty() {
         if matches!(
             node.kind,
@@ -554,7 +594,7 @@ fn visit(
             check_rust_access(unit, node, moved)?;
         }
         if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
+            && let Some(callee) = node.children.first().map(ungroup)
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
             && let Some(path) = path_at(unit, receiver)

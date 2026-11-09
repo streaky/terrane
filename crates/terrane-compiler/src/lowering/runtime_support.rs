@@ -922,39 +922,16 @@ pub(super) fn emit_global_storage(
         let Some(ValueType::Scalar(scalar)) = value_type else {
             continue;
         };
-        let initial = package.units.iter().rev().find_map(|candidate_unit| {
-            candidate_unit
-                .tree
-                .root
-                .children
-                .iter()
-                .rev()
-                .find_map(|candidate| {
-                    let global = candidate.children.iter().any(|child| {
-                        child.kind == SyntaxKind::DeclarationQualifier
-                            && candidate_unit.source.text()[child.span.start..child.span.end].trim()
-                                == "global"
-                    });
-                    let candidate_name = candidate
-                        .children
-                        .iter()
-                        .find(|child| child.kind == SyntaxKind::Name)?;
-                    (global
-                        && &candidate_unit.source.text()
-                            [candidate_name.span.start..candidate_name.span.end]
-                            == name.as_str())
-                    .then_some((candidate_unit, candidate, candidate_name))
-                })
-        });
-        let initial = initial.and_then(|(initial_unit, initial_node, initial_name)| {
-            let name_index = initial_node
-                .children
-                .iter()
-                .position(|child| child.span == initial_name.span)?;
-            let initializer = binding_initializer(initial_node, name_index)?;
-            let mut initial_emitter = Emitter::new(registry, package, initial_unit, false);
-            Some(initial_emitter.expression_as(initializer, ValueType::Scalar(scalar)))
-        });
+        let name_index = node
+            .children
+            .iter()
+            .position(|child| child.span == name_node.span);
+        let initial = name_index
+            .and_then(|name_index| binding_initializer(node, name_index))
+            .map(|initializer| {
+                let mut initial_emitter = Emitter::new(registry, package, unit, false);
+                initial_emitter.expression_as(initializer, ValueType::Scalar(scalar))
+            });
         let initial = initial.map_or_else(|| "None".to_owned(), |value| format!("Some({value})"));
         writeln!(
             output,

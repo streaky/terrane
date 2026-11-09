@@ -1,0 +1,10 @@
+namespace generic-ref-then-owned
+from /core/collections import list
+function look of (T) int; a ref T, b T
+    return 1
+
+function f of (T) int; o T
+    return (look; o, o)
+
+function main;
+    print; (f; (list; 1))

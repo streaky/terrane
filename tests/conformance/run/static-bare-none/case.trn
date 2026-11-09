@@ -1,0 +1,6 @@
+namespace static-bare-none
+class holder
+    static n int|none = 3
+function main;
+    holder::n = none
+    print; holder::n == none

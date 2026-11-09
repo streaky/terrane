@@ -1,0 +1,8 @@
+namespace call-string-alias-borrow
+from /core/collections import list
+function look string; a ref string, b string
+    return a + b
+function test-scenario;
+    o = 'x'
+    alias = ref o
+    print; (look; alias, o)

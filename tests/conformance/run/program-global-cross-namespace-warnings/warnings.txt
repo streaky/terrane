@@ -1,0 +1,2 @@
+main.trn:3:1: warning[W4001]: binding `unused` is never read
+main.trn:7:3: warning[W4001]: binding `calls` is never read

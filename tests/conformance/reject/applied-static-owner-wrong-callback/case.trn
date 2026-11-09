@@ -1,0 +1,8 @@
+namespace app
+class Q of (T)
+    static function count int; value T
+        return 1
+
+function main;
+    callback = Q of (int)::count
+    print; (callback; 'wrong')

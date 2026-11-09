@@ -1,0 +1,8 @@
+namespace field-default-generic-mismatch
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+
+class InvalidDefaults
+    box Box of int = instance Box of string; 'bad'

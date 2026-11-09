@@ -1,0 +1,12 @@
+namespace app
+
+function pick ref int; a ref int, b ref int, flag bool
+    r ref int = a
+    if flag
+        r = b
+    return r
+
+function main;
+    a = 1
+    b = 2
+    print; (pick; a, b, true)

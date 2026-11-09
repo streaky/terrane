@@ -1,0 +1,13 @@
+namespace app
+from /deps/terrane-query-witness import Holder, CopyView
+from /core/collections import unordered-map
+
+function store; values mutable ref unordered-map of string, (unordered-map of string, CopyView), holder Holder
+    inner unordered-map of string, CopyView = unordered-map;
+    inner.set; 'view', (holder.copy_view;)
+    values.set; 'inner', inner
+
+function main;
+    holder = Holder::new;
+    values unordered-map of string, (unordered-map of string, CopyView) = unordered-map;
+    store; values, holder

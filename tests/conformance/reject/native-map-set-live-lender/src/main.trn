@@ -1,0 +1,10 @@
+namespace app
+from /deps/terrane-query-witness import Holder, CopyView, View
+from /core/collections import list, map, tuple
+
+function main;
+    h = Holder::new;
+    m map of string, CopyView = map;
+    m.set; 'a', (h.copy_view;)
+    h.bump;
+    print; m.length

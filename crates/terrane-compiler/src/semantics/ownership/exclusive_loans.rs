@@ -1,8 +1,7 @@
 use super::{
     BTreeMap, BTreeSet, InvocationMode, ReferenceAuthority, ReferenceProjection,
     ReferenceProvenance, SemanticPackage, SemanticUnit, Span, SyntaxKind, SyntaxNode, ValueType,
-    argument_for_parameter, function_contract_for_call, member_invocation_mode, node_text,
-    typed_member_call,
+    argument_for_parameter, function_contract_for_call, node_text, typed_member_call,
 };
 
 pub(super) fn owner_place_path(
@@ -14,9 +13,7 @@ pub(super) fn owner_place_path(
 ) -> Option<Vec<ReferenceProjection>> {
     match node.kind {
         SyntaxKind::Name => {
-            let declaration = package
-                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))?
-                .declaration_span?;
+            let declaration = root_place_binding(package, unit, node)?;
             if declaration == owner {
                 return Some(Vec::new());
             }
@@ -27,6 +24,16 @@ pub(super) fn owner_place_path(
             .children
             .first()
             .and_then(|child| owner_place_path(package, unit, child, owner, provenances)),
+        SyntaxKind::UnaryExpression
+            if matches!(
+                super::unary_operator_text(unit, node).as_deref(),
+                Some("ref" | "mutable ref" | "shared ref")
+            ) =>
+        {
+            node.children
+                .last()
+                .and_then(|child| owner_place_path(package, unit, child, owner, provenances))
+        }
         SyntaxKind::MemberExpression => {
             let [receiver, member] = node.children.as_slice() else {
                 return None;
@@ -78,9 +85,25 @@ fn root_place_binding(
             | SyntaxKind::IndexExpression
             | SyntaxKind::GroupExpression => node = node.children.first()?,
             SyntaxKind::Name => {
-                return package
-                    .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-                    .and_then(|symbol| symbol.declaration_span);
+                if let Some(origins) =
+                    unit.flow_read_bindings
+                        .get(&(node.span.file, node.span.start, node.span.end))
+                    && origins.len() == 1
+                    && let Some(origin) = origins.first()
+                    && unit
+                        .typed_bindings
+                        .iter()
+                        .any(|binding| binding.span == *origin)
+                {
+                    return Some(*origin);
+                }
+                return super::binding_at(unit, node)
+                    .map(|binding| binding.span)
+                    .or_else(|| {
+                        package
+                            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+                            .and_then(|symbol| symbol.declaration_span)
+                    });
             }
             _ => return None,
         }
@@ -144,7 +167,9 @@ pub(super) fn first_owner_access_between(
         if let Some((receiver, ty, member)) = typed_member_call(unit, callee) {
             if through_reference(receiver) {
                 end = end.max(node.span.end);
-            } else if member_invocation_mode(package, unit, &ty, &member) == InvocationMode::Mutable
+            } else if super::super::diagnostics::member_invocation_mode_at(
+                package, unit, receiver, &ty, &member,
+            ) == InvocationMode::Mutable
                 && overlaps_owner(receiver)
             {
                 return Some(receiver.span);
@@ -195,6 +220,17 @@ pub(super) fn first_owner_access_between(
             .then_some(node.span);
     }
     let children = match node.kind {
+        SyntaxKind::ForStatement
+            if node.children.first().is_some_and(|target| {
+                target.span.file == window.observer.file
+                    && target.span.start <= window.observer.start
+                    && window.observer.end <= target.span.end
+            }) =>
+        {
+            // The collection expression acquires the iterator loan; it is not
+            // an independent owner access after the element binding exists.
+            &node.children[2..]
+        }
         SyntaxKind::Argument => &node.children[node.children.len().saturating_sub(1)..],
         SyntaxKind::MemberExpression => &node.children[..node.children.len().min(1)],
         _ => &node.children,
@@ -202,6 +238,27 @@ pub(super) fn first_owner_access_between(
     children.iter().find_map(|child| {
         first_owner_access_between(package, unit, child, OwnerAccessWindow { end, ..window })
     })
+}
+
+pub(super) fn iteration_loan_end(node: &SyntaxNode, observer: Span) -> Option<usize> {
+    if node.span.file != observer.file
+        || node.span.start > observer.start
+        || node.span.end < observer.end
+    {
+        return None;
+    }
+    if node.kind == SyntaxKind::ForStatement
+        && node.children.first().is_some_and(|target| {
+            target.span.start <= observer.start && observer.end <= target.span.end
+        })
+    {
+        // The iterator retains its collection borrow even if the element is
+        // unused or its final read occurs before the end of the body.
+        return Some(node.span.end);
+    }
+    node.children
+        .iter()
+        .find_map(|child| iteration_loan_end(child, observer))
 }
 
 pub(super) fn has_exclusive_lineage(
@@ -225,4 +282,52 @@ pub(super) fn has_exclusive_lineage(
         };
         current = parent;
     }
+}
+
+pub(super) fn validate_shared_iteration_access(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), super::SemanticFailure> {
+    if node.kind == SyntaxKind::ForStatement
+        && let [_, collection, body] = node.children.as_slice()
+        && collection.kind == SyntaxKind::UnaryExpression
+        && super::unary_operator_text(unit, collection).as_deref() == Some("ref")
+        && let Some(provenance) = super::expression_provenance(
+            package,
+            unit,
+            collection,
+            &unit.reference_provenance,
+            &unit.reference_return_lenders,
+        )
+        && let Some(conflict) = first_owner_access_between(
+            package,
+            unit,
+            body,
+            OwnerAccessWindow {
+                owner: provenance.owner,
+                borrowed_path: &provenance.path,
+                // The iterator, not its element's last use, keeps this loan
+                // live throughout the body, including nested iterations.
+                // No binding descends from this expression: writes through
+                // aliases must conflict just like writes to the owner.
+                observer: collection.span,
+                provenances: &unit.reference_provenance,
+                writes_only: true,
+                start: body.span.start,
+                end: body.span.end,
+            },
+        )
+    {
+        return Err(super::failure(
+            &unit.source,
+            "T0059",
+            "cannot mutate a collection while its shared reference iterator is live",
+            conflict,
+        ));
+    }
+    for child in &node.children {
+        validate_shared_iteration_access(package, unit, child)?;
+    }
+    Ok(())
 }

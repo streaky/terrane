@@ -1,0 +1,20 @@
+namespace truth-protocol
+
+class gate
+  open bool = false
+
+  function construct; open bool
+    this.open = open
+
+  function truth bool;
+    return this.open
+
+function test-scenario;
+  enabled = instance gate; true
+  disabled = instance gate; false
+  if enabled
+    print; 'enabled'
+  if disabled
+    print; 'unexpected'
+  else
+    print; 'disabled'

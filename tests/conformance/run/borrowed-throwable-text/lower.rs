@@ -121,105 +121,119 @@ impl ErrorHolder {
     }
     pub fn construct(&mut self, current: TerraneError) {
         {
-            let __terrane_value = current;
+            let __terrane_value: TerraneError = current;
             self.current = Some(__terrane_value);
         }
     }
     pub fn replace_current(&mut self) -> String {
         {
-            let __terrane_value = make_error(true);
+            let __terrane_value: TerraneError = make_error(true);
             self.current = Some(__terrane_value);
         }
         return String::from("original");
     }
 }
+fn observe(error: &TerraneError) -> String {
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_0 =
+        error.message(); let __terrane_string_argument_0 = "orig"; __terrane_error_text_0
+        .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
+        }), String::from("/"), terrane_scalar_support::scalar_text(&{ let
+        __terrane_error_text_1 = error.descriptor_name(); let __terrane_string_argument_0
+        = "original-error"; __terrane_error_text_1.contains(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) })
+    );
+    return error.message().to_owned();
+}
 fn main() {
     let mut error: TerraneError;
     let owned: String;
     let mut held: std::sync::Arc<TerraneSharedCell<ErrorHolder>>;
+    let observed: TerraneError;
     error = make_error(false);
     {
-        let __terrane_error_text_0 = error.message();
-        println!("{}", __terrane_error_text_0);
+        let __terrane_error_text_2 = error.message();
+        println!("{}", __terrane_error_text_2);
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_1 = error
-        .message(); let __terrane_string_argument_0 = "orig"; __terrane_error_text_1
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_3 = error
+        .message(); let __terrane_string_argument_0 = "orig"; __terrane_error_text_3
         .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
         })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_2 = error
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_4 = error
         .descriptor_name(); let __terrane_string_argument_0 = "original-error";
-        __terrane_error_text_2.contains(std::convert::AsRef:: < str >
+        __terrane_error_text_4.contains(std::convert::AsRef:: < str >
         ::as_ref(&__terrane_string_argument_0)) })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_3 =
-        &String::from("original"); let __terrane_error_text_4 = error.message(); let
-        __terrane_string_argument_0 = __terrane_error_text_4; __terrane_receiver_value_3
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_5 =
+        &String::from("original"); let __terrane_error_text_6 = error.message(); let
+        __terrane_string_argument_0 = __terrane_error_text_6; __terrane_receiver_value_5
         .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
         })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_5 = error
-        .message(); __terrane_error_text_5 == "original" })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_7 = error
+        .message(); __terrane_error_text_7 == "original" })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_6 = error
-        .message(); "original" == __terrane_error_text_6 })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_8 = error
+        .message(); "original" == __terrane_error_text_8 })
     );
     {
-        let __terrane_receiver_value_7 = &make_error(false);
-        let __terrane_error_text_8 = __terrane_receiver_value_7.message();
-        println!("{}", __terrane_error_text_8);
+        let __terrane_receiver_value_9 = &make_error(false);
+        let __terrane_error_text_10 = __terrane_receiver_value_9.message();
+        println!("{}", __terrane_error_text_10);
     };
     owned = error.message().to_owned();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_9 = { error
-        .message().to_owned() }; let __terrane_comparison_text_10 = &replace(&mut error);
-        __terrane_error_text_9.as_str() == __terrane_comparison_text_10.as_str() })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_11 = {
+        error.message().to_owned() }; let __terrane_comparison_text_12 = &replace(&mut
+        error); __terrane_error_text_11.as_str() == __terrane_comparison_text_12.as_str()
+        })
     );
     println!("{}", terrane_scalar_support::scalar_text(&owned));
     {
-        let __terrane_error_text_11 = error.message();
-        println!("{}", __terrane_error_text_11);
+        let __terrane_error_text_13 = error.message();
+        println!("{}", __terrane_error_text_13);
     };
     error = make_error(false);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_12 = {
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_14 = {
         error.message().to_owned() }; let __terrane_string_argument_0 = &replace(&mut
-        error); __terrane_error_text_12.as_str().contains(std::convert::AsRef:: < str >
+        error); __terrane_error_text_14.as_str().contains(std::convert::AsRef:: < str >
         ::as_ref(&__terrane_string_argument_0)) })
     );
     error = make_error(false);
     {
-        let __terrane_error_text_13 = { error.message().to_owned() };
-        let __terrane_print_value_14 = terrane_scalar_support::scalar_text(
+        let __terrane_error_text_15 = { error.message().to_owned() };
+        let __terrane_print_value_16 = terrane_scalar_support::scalar_text(
             &replace(&mut error),
         );
-        println!("{}{}", __terrane_error_text_13.as_str(), __terrane_print_value_14);
+        println!("{}{}", __terrane_error_text_15.as_str(), __terrane_print_value_16);
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
         String::with_capacity(1); __terrane_text.push_str("x"); { let
-        __terrane_error_text_15 = error.message(); __terrane_text
-        .push_str(__terrane_error_text_15); } __terrane_text })
+        __terrane_error_text_17 = error.message(); __terrane_text
+        .push_str(__terrane_error_text_17); } __terrane_text })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_16 =
-        &make_error(false); let __terrane_error_text_17 = __terrane_receiver_value_16
-        .message(); let __terrane_receiver_value_18 = &make_error(true); let
-        __terrane_error_text_19 = __terrane_receiver_value_18.message(); let
-        __terrane_string_argument_0 = __terrane_error_text_19; __terrane_error_text_17
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_18 =
+        &make_error(false); let __terrane_error_text_19 = __terrane_receiver_value_18
+        .message(); let __terrane_receiver_value_20 = &make_error(true); let
+        __terrane_error_text_21 = __terrane_receiver_value_20.message(); let
+        __terrane_string_argument_0 = __terrane_error_text_21; __terrane_error_text_19
         .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
         })
     );
-    let __terrane_switch_value_1612 = &String::from("original");
+    let __terrane_switch_value_1779 = &String::from("original");
     if {
-        let __terrane_receiver_value_20 = &make_error(false);
-        let __terrane_error_text_21 = __terrane_receiver_value_20.message();
-        __terrane_switch_value_1612.as_str() == __terrane_error_text_21
+        let __terrane_receiver_value_22 = &make_error(false);
+        let __terrane_error_text_23 = __terrane_receiver_value_22.message();
+        __terrane_switch_value_1779.as_str() == __terrane_error_text_23
     } {
         println!("{}", String::from("matched"));
     } else {
@@ -229,81 +243,87 @@ fn main() {
         TerraneSharedCell::new(ErrorHolder::terrane_construct(make_error(false))),
     );
     {
-        let __terrane_owner_22 = &held;
-        let __terrane_read_guard_23 = __terrane_owner_22
+        let __terrane_owner_24 = &held;
+        let __terrane_read_guard_25 = __terrane_owner_24
             .lock()
             .expect("shared reference lock poisoned");
-        let __terrane_error_text_24 = __terrane_read_guard_23
+        let __terrane_error_text_26 = __terrane_read_guard_25
             .current
             .as_ref()
             .expect("required field initialized")
             .message();
-        println!("{}", __terrane_error_text_24);
+        println!("{}", __terrane_error_text_26);
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_27 = { let
-        __terrane_owner_25 = &held; let __terrane_read_guard_26 = __terrane_owner_25
-        .lock().expect("shared reference lock poisoned"); __terrane_read_guard_26.current
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_29 = { let
+        __terrane_owner_27 = &held; let __terrane_read_guard_28 = __terrane_owner_27
+        .lock().expect("shared reference lock poisoned"); __terrane_read_guard_28.current
         .as_ref().expect("required field initialized").message().to_owned() }; let
-        __terrane_string_argument_0 = &{ let __terrane_owner_29 = held.clone(); let
-        __terrane_call_result = __terrane_owner_29.lock()
+        __terrane_string_argument_0 = &{ let __terrane_owner_31 = held.clone(); let
+        __terrane_call_result = __terrane_owner_31.lock()
         .expect("shared reference lock poisoned").replace_current();
-        __terrane_call_result }; __terrane_error_text_27.as_str()
+        __terrane_call_result }; __terrane_error_text_29.as_str()
         .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
         })
     );
     {
-        let __terrane_owner_30 = &held;
-        let __terrane_read_guard_31 = __terrane_owner_30
+        let __terrane_owner_32 = &held;
+        let __terrane_read_guard_33 = __terrane_owner_32
             .lock()
             .expect("shared reference lock poisoned");
-        let __terrane_error_text_32 = __terrane_read_guard_31
+        let __terrane_error_text_34 = __terrane_read_guard_33
             .current
             .as_ref()
             .expect("required field initialized")
             .message();
-        println!("{}", __terrane_error_text_32);
+        println!("{}", __terrane_error_text_34);
     };
     held = std::sync::Arc::new(
         TerraneSharedCell::new(ErrorHolder::terrane_construct(make_error(false))),
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_35 = { let
-        __terrane_owner_33 = &held; let __terrane_read_guard_34 = __terrane_owner_33
-        .lock().expect("shared reference lock poisoned"); __terrane_read_guard_34.current
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_error_text_37 = { let
+        __terrane_owner_35 = &held; let __terrane_read_guard_36 = __terrane_owner_35
+        .lock().expect("shared reference lock poisoned"); __terrane_read_guard_36.current
         .as_ref().expect("required field initialized").message().to_owned() }; let
-        __terrane_comparison_text_36 = &{ let __terrane_owner_38 = held.clone(); let
-        __terrane_call_result = __terrane_owner_38.lock()
+        __terrane_comparison_text_38 = &{ let __terrane_owner_40 = held.clone(); let
+        __terrane_call_result = __terrane_owner_40.lock()
         .expect("shared reference lock poisoned").replace_current();
-        __terrane_call_result }; __terrane_error_text_35.as_str() ==
-        __terrane_comparison_text_36.as_str() })
+        __terrane_call_result }; __terrane_error_text_37.as_str() ==
+        __terrane_comparison_text_38.as_str() })
     );
     held = std::sync::Arc::new(
         TerraneSharedCell::new(ErrorHolder::terrane_construct(make_error(false))),
     );
     {
-        let __terrane_error_text_41 = {
-            let __terrane_owner_39 = &held;
-            let __terrane_read_guard_40 = __terrane_owner_39
+        let __terrane_error_text_43 = {
+            let __terrane_owner_41 = &held;
+            let __terrane_read_guard_42 = __terrane_owner_41
                 .lock()
                 .expect("shared reference lock poisoned");
-            __terrane_read_guard_40
+            __terrane_read_guard_42
                 .current
                 .as_ref()
                 .expect("required field initialized")
                 .message()
                 .to_owned()
         };
-        let __terrane_print_value_44 = terrane_scalar_support::scalar_text(
+        let __terrane_print_value_46 = terrane_scalar_support::scalar_text(
             &{
-                let __terrane_owner_43 = held.clone();
-                let __terrane_call_result = __terrane_owner_43
+                let __terrane_owner_45 = held.clone();
+                let __terrane_call_result = __terrane_owner_45
                     .lock()
                     .expect("shared reference lock poisoned")
                     .replace_current();
                 __terrane_call_result
             },
         );
-        println!("{}{}", __terrane_error_text_41.as_str(), __terrane_print_value_44);
+        println!("{}{}", __terrane_error_text_43.as_str(), __terrane_print_value_46);
+    };
+    observed = make_error(false);
+    println!("{}", terrane_scalar_support::scalar_text(&observe(&observed)));
+    {
+        let __terrane_error_text_47 = observed.message();
+        println!("{}", __terrane_error_text_47);
     };
 }

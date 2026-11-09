@@ -1,0 +1,10 @@
+namespace source-mutable-receiver-replace
+class A
+  value int = 1
+  mutable function replace;
+    this = instance A;
+    this.value = 7
+function test-scenario;
+  a = instance A;
+  a.replace;
+  print; a.value

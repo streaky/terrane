@@ -51,6 +51,13 @@ impl Emitter<'_> {
     }
 
     pub(super) fn statement(&mut self, node: &SyntaxNode) {
+        let statement = node;
+        let mut node = node;
+        while node.kind == SyntaxKind::GroupExpression
+            && let [inner] = node.children.as_slice()
+        {
+            node = inner;
+        }
         self.statement_debug_point(node);
         let referenced_fresh_lists = self.statement_fresh_list_references(node);
         match node.kind {
@@ -138,7 +145,7 @@ impl Emitter<'_> {
             }
             _ => {}
         }
-        self.emit_callable_drops_after(node);
+        self.emit_callable_drops_after(statement);
         self.invalidate_fresh_lists(&referenced_fresh_lists);
     }
 
@@ -284,11 +291,13 @@ impl Emitter<'_> {
             return false;
         };
         let storage = rust_static_field_name(self.package, &object.identity, self.text(member));
-        if matches!(self.value_type(left), Some(ValueType::Object(_))) {
+        let value_type = self.value_type(left).expect("validated static field type");
+        if matches!(value_type, ValueType::Object(_)) {
             self.line(&format!("{storage}.replace({value});"));
         } else {
+            let destination_type = rust_value_type(self.package, value_type);
             self.line(&format!(
-                "{{ let __terrane_static_value = {value}; *{storage}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}"
+                "{{ let __terrane_static_value: {destination_type} = {value}; *{storage}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}"
             ));
         }
         true
@@ -302,8 +311,16 @@ impl Emitter<'_> {
         if self.global_assignment(node) {
             return;
         }
-        if let [target, value] = node.children.as_slice()
-            && target.kind == SyntaxKind::IndexExpression
+        let [target, value] = node.children.as_slice() else {
+            return;
+        };
+        let mut target = target;
+        while target.kind == SyntaxKind::GroupExpression
+            && let [inner] = target.children.as_slice()
+        {
+            target = inner;
+        }
+        if target.kind == SyntaxKind::IndexExpression
             && let [receiver, index] = target.children.as_slice()
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
@@ -344,12 +361,8 @@ impl Emitter<'_> {
             self.binding(node);
             return;
         }
-        let [left, right] = node.children.as_slice() else {
-            return;
-        };
-        if let [left, right] = node.children.as_slice()
-            && let Some(ValueType::MutableReference(item)) = self.value_type(left)
-        {
+        let (left, right) = (target, value);
+        if let Some(ValueType::MutableReference(item)) = self.value_type(left) {
             let value = self.expression_as(right, item.value_type());
             let target = self.expression(left);
             self.line(&format!("*({target}) = {value};"));
@@ -367,6 +380,17 @@ impl Emitter<'_> {
             .as_ref()
             .map(|binding| binding.value_type.clone())
             .or_else(|| self.value_type(left));
+        let field_value_type = match left.children.as_slice() {
+            [receiver, member]
+                if left.kind == SyntaxKind::MemberExpression
+                    && self.object_field(receiver, self.text(member)) =>
+            {
+                value_type
+                    .as_ref()
+                    .map(|value_type| rust_value_type(self.package, value_type.clone()))
+            }
+            _ => None,
+        };
         let value = if let Some(binding) = union_binding {
             self.union_value(&binding, right)
         } else if let Some(value_type) = value_type {
@@ -418,8 +442,9 @@ impl Emitter<'_> {
             } else {
                 "__terrane_value"
             };
+            let annotation = field_value_type.map_or_else(String::new, |ty| format!(": {ty}"));
             self.line(&format!(
-                "{{ {setup} let __terrane_value = {value}; {target} = {assigned}; }}"
+                "{{ {setup} let __terrane_value{annotation} = {value}; {target} = {assigned}; }}"
             ));
             return;
         }
@@ -440,6 +465,13 @@ impl Emitter<'_> {
                 "*{}.lock().expect(\"reference lock poisoned\")",
                 self.local_storage_name(left)
             )
+        } else if left.kind == SyntaxKind::Name && self.text(left) == "this" {
+            let receiver = if self.shared_async_receiver {
+                self.receiver_guard_expression(left)
+            } else {
+                self.raw_storage_name(left)
+            };
+            format!("*({receiver})")
         } else {
             self.expression(left)
         };
@@ -449,6 +481,10 @@ impl Emitter<'_> {
             .is_some_and(|binding| self.binding_may_be_unassigned(binding))
         {
             self.line(&format!("let _ = {target}.insert({value});"));
+        } else if assigned_binding.as_ref().is_some_and(|binding| {
+            crate::semantics::binding_stores_are_independent(self.package, self.unit, binding)
+        }) {
+            self.line(&format!("let {target} = {value};"));
         } else {
             self.line(&format!("{target} = {value};"));
         }
@@ -1155,7 +1191,9 @@ impl Emitter<'_> {
             } else {
                 self.line("TerraneCompletion::Break => break,");
             }
-            if let Some(label) = &self.continue_label {
+            if !crate::semantics::statement_may_continue(node) {
+                self.line("TerraneCompletion::Continue => __terrane_generated_defect(\"non-continuing try produced continue\"),");
+            } else if let Some(label) = &self.continue_label {
                 self.line(&format!("TerraneCompletion::Continue => break '{label},"));
             } else {
                 self.line("TerraneCompletion::Continue => continue,");
@@ -1183,13 +1221,19 @@ impl Emitter<'_> {
         reason = "binding lowering keeps typed storage, ownership, discard, and initialization in one path"
     )]
     pub(super) fn binding(&mut self, node: &SyntaxNode) {
-        let Some((name_index, name_node)) = node
-            .children
-            .iter()
-            .enumerate()
-            .find(|(_, child)| child.kind == SyntaxKind::Name)
+        let Some(name_node) = node
+            .assignment_target()
+            .filter(|target| target.kind == SyntaxKind::Name)
         else {
             return;
+        };
+        let name_index = if node.kind == SyntaxKind::Assignment {
+            0
+        } else {
+            node.children
+                .iter()
+                .position(|child| child.span == name_node.span)
+                .expect("binding contains its declared name")
         };
         let source_name = self.text(name_node);
         let binding = self
@@ -1998,6 +2042,7 @@ impl Emitter<'_> {
                 self.loop_counter += 1;
                 let (source, text_unit) = self.for_iterable_source(
                     collection,
+                    node,
                     collection_type.as_ref(),
                     text_iteration,
                     loop_index,

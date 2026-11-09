@@ -23,6 +23,7 @@ fn ambiguous_projection() -> Projection {
                 static_methods: Vec::new(),
                 constants: Vec::new(),
                 cloneable: false,
+                copyable: false,
                 send,
                 sync: false,
                 boundary: ProjectedBoundaryCapabilities::default(),
@@ -461,6 +462,23 @@ fn task_write_liveness_preserves_unread_overwrites() {
             .collect::<Vec<_>>(),
         vec![("W4002", source.find("pending = (value; 2)").unwrap())],
     );
+}
+
+#[test]
+fn repeated_loop_target_reads_match_each_declaration() {
+    let source = concat!(
+        "namespace loop-liveness\n",
+        "from /core/collections import range\n",
+        "function main;\n",
+        "    for index in (range; 0, 2)\n",
+        "        print; index\n",
+        "    for index in (range; 0, 2)\n",
+        "        print; index\n",
+        "    for index in (range; 0, 2)\n",
+        "        print; index\n",
+    );
+    let semantic = analyze(&Package::implicit("main.trn", source.to_owned())).unwrap();
+    assert_eq!(warnings(&semantic, false, false), Vec::new());
 }
 
 #[test]

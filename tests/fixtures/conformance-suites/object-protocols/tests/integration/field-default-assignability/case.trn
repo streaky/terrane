@@ -1,0 +1,18 @@
+namespace field-default-assignability
+from /core/collections import list, map
+class Defaults
+    static label string = 'ready'
+    integer int = 4
+    optional int|none = none
+    nothing none = none
+    lines list of string = list;
+    labels map of string, string = map;
+
+function test-scenario;
+    value = instance Defaults;
+    print; value.integer
+    print; value.optional == none
+    print; value.nothing is a none
+    print; value.lines.length
+    print; value.labels.length
+    print; Defaults::label

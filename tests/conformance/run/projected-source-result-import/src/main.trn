@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+from /helpers import make as imported_make
+
+function main;
+  y = imported_make;
+  print; (y.label_len;)

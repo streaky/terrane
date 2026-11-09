@@ -1,0 +1,12 @@
+namespace static-optional-async-replacement
+async function five int;
+    return 5
+class holder
+    static f (async function to int)|none = none
+async function main;
+    holder::f = five
+    callback = holder::f
+    if callback != none
+        print; (await callback;)
+    holder::f = none
+    print; holder::f == none

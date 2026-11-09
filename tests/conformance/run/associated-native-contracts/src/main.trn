@@ -112,6 +112,10 @@ function main;
     pointer = instance shared-command;
     through-pointer = pointer.dispatch; shared, (instance Alpha; value = 43)
     print; through-pointer.value
+    try
+        pointer.dispatch; shared, (instance Alpha; value = -1)
+    catch Failure as failure
+        print; failure.message
     nested = instance nested-command;
     values = nested.dispatch; executor, (instance Maybe; value = 44)
     if values != none

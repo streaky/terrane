@@ -159,7 +159,7 @@ impl Receiver {
     }
     pub fn construct(&mut self, value: Option<Builder>) {
         {
-            let __terrane_value = value;
+            let __terrane_value: Option<Builder> = value;
             self.value = __terrane_value;
         }
     }

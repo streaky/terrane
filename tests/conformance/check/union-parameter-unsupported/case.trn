@@ -1,6 +1,0 @@
-namespace union-parameter-unsupported
-function choose; value int8 | int32
-  print; value
-function main;
-  value int8 = 1
-  choose; value

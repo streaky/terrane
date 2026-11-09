@@ -1,0 +1,3 @@
+package = "cycle"
+[namespaces]
+cycle = "src"

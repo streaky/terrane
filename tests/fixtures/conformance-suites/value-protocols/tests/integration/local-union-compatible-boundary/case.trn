@@ -1,0 +1,16 @@
+namespace local-union-compatible-boundary
+
+function observe; flag bool
+    if flag
+        value int = 1
+    else
+        value string = 'text'
+    print; (value is a string)
+    if value is a string
+        print; value
+    else
+        print; value
+
+function test-scenario;
+    observe; true
+    observe; false

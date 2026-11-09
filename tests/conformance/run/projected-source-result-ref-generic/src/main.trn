@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+function pick of (T) ref T; value ref T
+  return value
+
+function main;
+  h = Holder::new;
+  y = pick; h
+  print; (y.label_len;)

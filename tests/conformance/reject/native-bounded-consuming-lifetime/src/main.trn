@@ -1,0 +1,13 @@
+namespace app
+from /deps/terrane-supertrait-witness import SendBound
+class concrete implements SendBound
+    function value int;
+        return 7
+function observe of (T) int; item ref T
+    return 7
+function go of (T implements SendBound) int; item T
+    callback = consuming function int;
+        return observe; item
+    return callback;
+function main;
+    print; (go; (instance concrete;))

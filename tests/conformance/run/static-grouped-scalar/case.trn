@@ -1,0 +1,6 @@
+namespace static-grouped-scalar
+class holder
+    static n int = 0
+function main;
+    (holder::n) = 4
+    print; holder::n

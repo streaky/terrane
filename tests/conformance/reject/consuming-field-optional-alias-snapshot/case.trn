@@ -1,0 +1,10 @@
+namespace consuming-field-optional-alias-snapshot
+
+class holder
+    f (consuming function to int)|none
+    function construct; f (consuming function to int)|none
+        this.f = f
+
+function main;
+    h = instance holder; none
+    callback = h.f

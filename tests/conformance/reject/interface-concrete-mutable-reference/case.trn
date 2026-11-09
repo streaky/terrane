@@ -1,0 +1,17 @@
+namespace app
+interface q
+    mutable function m int;
+
+class S implements q
+    k int = 1
+    mutable function m int;
+        this.k = this.k + 1
+        return this.k
+
+function go int; x mutable ref q
+    return x.m;
+
+function main;
+    s = instance S;
+    print; (go; s)
+    print; s.k

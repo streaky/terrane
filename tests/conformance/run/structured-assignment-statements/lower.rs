@@ -22,7 +22,7 @@ impl Item {
     }
     pub fn construct(&mut self, x: terrane_int_support::Int) {
         {
-            let __terrane_value = x.clone();
+            let __terrane_value: terrane_int_support::Int = x.clone();
             self.x = __terrane_value;
         }
         println!("{}", String::from("construct"));
@@ -50,7 +50,7 @@ fn main() {
             terrane_int_support::Int::from(0_i128),
         );
         {
-            let __terrane_value = field_value();
+            let __terrane_value: terrane_int_support::Int = field_value();
             instance.x = __terrane_value;
         }
         instance

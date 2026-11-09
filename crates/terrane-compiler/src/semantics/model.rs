@@ -57,9 +57,14 @@ pub struct Namespace {
     pub symbols: BTreeMap<String, Symbol>,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "native trait proofs are independent capabilities, not mutually exclusive states"
+)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) struct NativeTypeCapabilities {
     pub cloneable: bool,
+    pub copyable: bool,
     pub send: bool,
     pub sync: bool,
 }
@@ -269,6 +274,11 @@ pub struct ReferenceProvenance {
     pub path: Vec<ReferenceProjection>,
     pub lifetime_end: Option<Span>,
 }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct ReferenceAssignmentProvenance {
+    pub assignment: Span,
+    pub provenance: ReferenceProvenance,
+}
 
 // This consumes unit-classified identity facts; the package-level objects helper
 // derives its facts from projection capabilities. Keep those policies distinct
@@ -342,7 +352,10 @@ fn iterable_item_type_in_mode(
 ) -> Result<ValueType, (&'static str, &'static str, Option<Span>)> {
     if !matches!(
         value_type,
-        ValueType::Object(_) | ValueType::Reference(_) | ValueType::Union(_)
+        ValueType::Object(_)
+            | ValueType::Reference(_)
+            | ValueType::MutableReference(_)
+            | ValueType::Union(_)
     ) && !descriptor_has_member(unit, &value_type, "iterator")
     {
         return Err((
@@ -393,8 +406,10 @@ fn iterable_item_type_in_mode(
             Ok(ValueType::Entry(key, value))
         }
         ValueType::Range => Ok(ValueType::Scalar(ScalarType::Int)),
-        ValueType::Reference(item) => iterable_item_type_in_mode(unit, item.value_type(), true)
-            .map(|item| ValueType::Reference(ElementType::new(item))),
+        ValueType::Reference(item) | ValueType::MutableReference(item) => {
+            iterable_item_type_in_mode(unit, item.value_type(), true)
+                .map(|item| ValueType::Reference(ElementType::new(item)))
+        }
         ValueType::Object(identity) => {
             let iterator =
                 super::member_inference::descriptor_protocol_method(unit, &identity, "iterator")
@@ -2081,9 +2096,13 @@ pub struct SemanticUnit {
     pub(crate) flow_replacements: BTreeMap<Span, Span>,
     pub flow_availability: BTreeMap<(u32, usize, usize), FlowAvailability>,
     pub(crate) flow_read_bindings: BTreeMap<(u32, usize, usize), BTreeSet<Span>>,
+    /// Values rebound across completion closures need address-stable take/insert storage.
+    pub(crate) completion_capture_slots: BTreeSet<Span>,
     /// Owner bindings used by declaration-directed implicit source-reference arguments.
     pub reference_owner_spans: BTreeSet<(usize, usize)>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
+    /// Provenance versions established by scalar reference assignments.
+    pub(super) reference_assignment_provenance: Vec<ReferenceAssignmentProvenance>,
     /// Borrowed callable carriers keyed by their last-use statement's cleanup boundary.
     pub callable_drops_after: BTreeMap<(u32, usize, usize), Vec<Span>>,
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
@@ -2105,6 +2124,8 @@ pub struct SemanticUnit {
     pub(crate) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
     pub(super) projected_removals: Vec<crate::rust_interop::projection::RemovedItem>,
+    pub(super) projected_member_inventory:
+        std::sync::Arc<crate::rust_interop::projection::ProjectedInstanceMembers>,
     pub(super) projected_destination_functions: BTreeSet<String>,
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,

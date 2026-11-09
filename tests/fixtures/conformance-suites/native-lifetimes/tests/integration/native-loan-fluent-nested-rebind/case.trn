@@ -1,0 +1,16 @@
+namespace native-loan-fluent-nested-rebind
+from /deps/terrane-query-witness import Holder, View
+from /core/collections import list
+
+function test-scenario;
+    h = Holder::new;
+    unrelated = Holder::new;
+    v = h.view;
+    fluent = list; (v.chain;)
+    v = h.view;
+    nested = list; (list; v)
+    v = h.view;
+    unrelated.bump;
+    print; fluent.length
+    print; nested.length
+    print; (v.size;)

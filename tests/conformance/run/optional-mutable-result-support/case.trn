@@ -1,0 +1,7 @@
+namespace optional-mutable-result-support
+function empty (mutable function to int)|none;
+    return none
+function main;
+    callback = empty;
+    if callback == none
+        print; 0

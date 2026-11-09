@@ -1,0 +1,26 @@
+namespace completion-nested-conditional-restore
+from /core/collections import list
+from /core/errors import throwable
+
+class Err implements throwable
+    message string = 'failure'
+    function render string;
+        return this.message
+
+function eat int; value list of int
+    return value.length
+
+function restored int; value list of int, restore bool
+    try
+        try
+            print; (eat; value)
+            throw instance Err;
+        finally
+            if restore
+                value = list; 2
+    catch
+        print; value[0]
+    return value[0]
+
+function main;
+    print; (restored; (list; 1), false)

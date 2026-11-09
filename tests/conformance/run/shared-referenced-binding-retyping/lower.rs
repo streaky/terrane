@@ -24,6 +24,7 @@ fn main() {
             >::new(vec![terrane_int_support::Int::from(14_i128)]),
         ),
     );
+    let _ = &value;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_0 = &owner;
         __terrane_raised(__terrane_owner_0.lock()

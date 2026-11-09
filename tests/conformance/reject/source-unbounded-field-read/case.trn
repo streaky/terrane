@@ -1,0 +1,10 @@
+namespace app
+class Box of (T)
+  value T
+  function construct; value T
+    this.value = move value
+  function read T;
+    return this.value
+function main;
+  box = instance Box of string; 'hello'
+  print; (box.read;)

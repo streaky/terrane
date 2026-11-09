@@ -1,0 +1,19 @@
+namespace app
+interface named
+    function nm int;
+
+class plain
+    n int = 1
+
+class ok implements named
+    function nm int;
+        return 1
+
+class W of (T implements named)
+    n int = 1
+
+function g of (T) int;
+    return 1
+
+function main;
+    print; (g of W of plain;)

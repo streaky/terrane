@@ -238,6 +238,9 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn binding_may_be_unassigned(&self, binding: &TypedBinding) -> bool {
+        if self.unit.completion_capture_slots.contains(&binding.span) {
+            return true;
+        }
         self.unit
             .flow_availability
             .iter()
@@ -561,7 +564,7 @@ impl<'unit> Emitter<'unit> {
     }
     pub(super) fn is_throwable_value(&self, node: &SyntaxNode) -> bool {
         matches!(
-            self.value_type(node),
+            self.receiver_value_type(node),
             Some(ValueType::Object(identity))
                 if identity.namespace == "/core/errors" && identity.name == "throwable"
         )
@@ -655,6 +658,15 @@ impl<'unit> Emitter<'unit> {
                         && *availability == crate::semantics::FlowAvailability::MayBeUnassigned
                         && self.unit.flow_binding_ids.get(key) == Some(&binding.span)
                 })
+            {
+                return false;
+            }
+            if let ValueType::List(item) = &binding.value_type
+                && !crate::semantics::value_type_is_cloneable(
+                    self.package,
+                    self.unit,
+                    item.value_type_ref(),
+                )
             {
                 return false;
             }
@@ -1155,30 +1167,41 @@ impl<'unit> Emitter<'unit> {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
         };
-        let has_method = self
-            .package
+        self.package
             .units
             .iter()
-            .flat_map(|unit| &unit.functions)
-            .any(|method| method.owner_identity.as_ref() == Some(&identity) && method.name == name);
-        !has_method
-            && self
-                .package
-                .units
-                .iter()
-                .flat_map(|unit| &unit.descriptors)
-                .find(|object| object.identity == identity)
-                .is_some_and(|object| {
-                    effective_object_fields(self.package, object)
-                        .iter()
-                        .any(|field| {
-                            field.name == name
-                                && matches!(
-                                    field.value_type,
-                                    ValueType::Function(..) | ValueType::AsyncFunction(..)
-                                )
-                        })
-                })
+            .flat_map(|unit| &unit.descriptors)
+            .find(|object| object.identity == identity)
+            .is_some_and(|object| {
+                effective_object_fields(self.package, object)
+                    .iter()
+                    .any(|field| {
+                        field.name == name
+                            && matches!(
+                                field.value_type,
+                                ValueType::Function(..) | ValueType::AsyncFunction(..)
+                            )
+                    })
+            })
+    }
+    pub(super) fn callable_static_field(&self, node: &SyntaxNode) -> bool {
+        let [class, member] = node.children.as_slice() else {
+            return false;
+        };
+        node.kind == SyntaxKind::StaticMemberExpression
+            && self.static_storage_name(node).is_some()
+            && self.class_designator(class).is_some_and(|object| {
+                effective_object_fields(self.package, object)
+                    .iter()
+                    .any(|field| {
+                        field.is_static
+                            && field.name == self.text(member)
+                            && matches!(
+                                field.value_type,
+                                ValueType::Function(..) | ValueType::AsyncFunction(..)
+                            )
+                    })
+            })
     }
 
     pub(super) fn wrapped_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
@@ -1758,7 +1781,6 @@ impl<'unit> Emitter<'unit> {
             && !shared
             && !copy
             && !matches!(value_type, ValueType::MutableReference(_))
-            && !self.value_type_owns_resource(value_type)
             && !self.binding_value_is_reused(node)
             && !self.non_consuming_capture_read(node);
         let mutable_storage = mutable && !shared;

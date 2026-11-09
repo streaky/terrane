@@ -1,0 +1,21 @@
+namespace inherited-generic-bound-forwarding
+interface base of (T)
+    function b T;
+
+interface sub implements base of string
+    function other int;
+
+class S implements sub
+    function b string;
+        return 'x'
+    function other int;
+        return 2
+
+function up of (U implements sub) int; x U
+    return 1
+
+function go of (T implements sub) int; x T
+    return up; x
+
+function test-scenario;
+    print; (go; (instance S;))

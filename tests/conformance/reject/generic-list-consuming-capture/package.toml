@@ -1,0 +1,4 @@
+package = "generic-list-consuming-capture"
+
+[namespaces]
+app = "src"

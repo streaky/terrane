@@ -1,0 +1,13 @@
+namespace completion-finally-string-post-read
+from /core/collections import list
+
+function eat int; s string
+    return s.length
+
+function test-scenario;
+    o = 'ab'
+    try
+        print; (eat; o)
+    finally
+        o = 'c'
+    print; o

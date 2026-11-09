@@ -1295,7 +1295,7 @@ impl DocumentInteger {
     }
     pub fn construct(&mut self, text: String) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -1327,15 +1327,15 @@ impl DocumentDecimal {
         text: String,
     ) {
         {
-            let __terrane_value = coefficient;
+            let __terrane_value: String = coefficient;
             self.coefficient = __terrane_value;
         }
         {
-            let __terrane_value = exponent.clone();
+            let __terrane_value: terrane_int_support::Int = exponent.clone();
             self.exponent = __terrane_value;
         }
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -1347,7 +1347,7 @@ pub trait SerializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SerializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SerializableProtocol::clone_box(&**self)
     }
 }
 pub struct Serializable(Box<dyn SerializableProtocol>);
@@ -1368,7 +1368,7 @@ pub trait DeserializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DeserializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DeserializableProtocol::clone_box(&**self)
     }
 }
 pub struct Deserializable(Box<dyn DeserializableProtocol>);
@@ -1388,7 +1388,7 @@ pub trait DocumentDecodableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentDecodableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentDecodableProtocol::clone_box(&**self)
     }
 }
 #[allow(
@@ -1408,7 +1408,7 @@ pub trait DocumentEncodableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentEncodableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentEncodableProtocol::clone_box(&**self)
     }
 }
 #[allow(
@@ -1429,7 +1429,7 @@ pub trait DocumentValidatableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentValidatableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentValidatableProtocol::clone_box(&**self)
     }
 }
 pub struct DocumentValidatable(Box<dyn DocumentValidatableProtocol>);
@@ -1471,20 +1471,20 @@ impl DocumentValue {
     }
     pub fn construct(&mut self, raw: terrane_document_support::DataResult) {
         {
-            let __terrane_value = terrane_document_kind(&raw);
+            let __terrane_value: String = terrane_document_kind(&raw);
             self.kind = __terrane_value;
         }
         {
-            let __terrane_value = terrane_document_text(&raw);
+            let __terrane_value: String = terrane_document_text(&raw);
             self.scalar = __terrane_value;
         }
         {
-            let __terrane_value = terrane_data_encoded(&raw);
+            let __terrane_value: String = terrane_data_encoded(&raw);
             self.encoded = __terrane_value;
         }
         if self.kind.as_str() == "integer" {
             {
-                let __terrane_value = DocumentInteger::terrane_construct(
+                let __terrane_value: DocumentInteger = DocumentInteger::terrane_construct(
                     self.scalar.clone(),
                 );
                 self.integer = __terrane_value;
@@ -1492,7 +1492,7 @@ impl DocumentValue {
         }
         if self.kind.as_str() == "decimal" {
             {
-                let __terrane_value = DocumentDecimal::terrane_construct(
+                let __terrane_value: DocumentDecimal = DocumentDecimal::terrane_construct(
                     terrane_document_coefficient(&raw),
                     terrane_document_exponent(&raw),
                     self.scalar.clone(),
@@ -1501,7 +1501,7 @@ impl DocumentValue {
             }
         }
         {
-            let __terrane_value = raw;
+            let __terrane_value: terrane_document_support::DataResult = raw;
             self.raw = __terrane_value;
         }
     }
@@ -1584,23 +1584,23 @@ impl DocumentResult {
         raw: terrane_document_support::DataResult,
     ) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = path;
+            let __terrane_value: String = path;
             self.path = __terrane_value;
         }
         {
-            let __terrane_value = expected;
+            let __terrane_value: String = expected;
             self.expected = __terrane_value;
         }
         {
-            let __terrane_value = DocumentValue::terrane_construct(raw);
+            let __terrane_value: DocumentValue = DocumentValue::terrane_construct(raw);
             self.value = __terrane_value;
         }
     }
@@ -1649,15 +1649,15 @@ impl DocumentMapping {
         allow_unknown: bool,
     ) {
         {
-            let __terrane_value = descriptor_name;
+            let __terrane_value: String = descriptor_name;
             self.descriptor_name = __terrane_value;
         }
         {
-            let __terrane_value = expected_kind;
+            let __terrane_value: String = expected_kind;
             self.expected_kind = __terrane_value;
         }
         {
-            let __terrane_value = allow_unknown;
+            let __terrane_value: bool = allow_unknown;
             self.allow_unknown = __terrane_value;
         }
     }
@@ -1730,13 +1730,13 @@ impl DocumentMapEntries {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = terrane_make_document_map();
+            let __terrane_value: terrane_document_support::DataResult = terrane_make_document_map();
             self.raw = __terrane_value;
         }
     }
     pub fn append(&mut self, key: String, value: DocumentValue) {
         {
-            let __terrane_value = terrane_document_map_insert(
+            let __terrane_value: terrane_document_support::DataResult = terrane_document_map_insert(
                 &self.raw,
                 key,
                 &value.raw,
@@ -1994,7 +1994,7 @@ pub fn decode_document(
     result = make_document_result(raw);
     if result.failed {
         {
-            let __terrane_value = mapping.descriptor_name.clone();
+            let __terrane_value: String = mapping.descriptor_name.clone();
             result.expected = __terrane_value;
         }
     }
@@ -2025,11 +2025,11 @@ impl JsonOptions {
         max_bytes: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = max_depth.clone();
+            let __terrane_value: terrane_int_support::Int = max_depth.clone();
             self.max_depth = __terrane_value;
         }
         {
-            let __terrane_value = max_bytes.clone();
+            let __terrane_value: terrane_int_support::Int = max_bytes.clone();
             self.max_bytes = __terrane_value;
         }
     }
@@ -2071,7 +2071,7 @@ pub fn decode_json(
     let parsed: DocumentResult;
     parsed = parse_json(input, options);
     if parsed.failed {
-        return parsed.clone();
+        return parsed;
     }
     return deserialize_document(parsed.value.clone(), mapping);
 }

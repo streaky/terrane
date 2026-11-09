@@ -35,6 +35,7 @@ fn collisions(
             let source_value_3: terrane_int_support::Int = terrane_int_support::Int::from(
                 7_i128,
             );
+            let _ = &source_value_3;
             return source_value.clone() + source_value_3.clone();
         })
     };
@@ -49,6 +50,7 @@ fn parameter_carrier(
     let captured: std::sync::Arc<dyn Fn() -> () + Send + Sync>;
     if replace {
         value_3 = TerraneUnionF0S367::Arm1(String::from("carrier"));
+        let _ = &value_3;
     }
     captured = {
         let value_3 = value_3.clone();

@@ -1050,11 +1050,11 @@ impl FilesystemOperationResult {
     }
     pub fn construct(&mut self, failure: bool, detail: String) {
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1077,15 +1077,15 @@ impl ExistenceResult {
     }
     pub fn construct(&mut self, exists: bool, failure: bool, detail: String) {
         {
-            let __terrane_value = exists;
+            let __terrane_value: bool = exists;
             self.exists = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1108,15 +1108,15 @@ impl PathResult {
     }
     pub fn construct(&mut self, target: Path, failure: bool, detail: String) {
         {
-            let __terrane_value = target;
+            let __terrane_value: Path = target;
             self.resolved = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1161,27 +1161,27 @@ impl FileMetadata {
         detail: String,
     ) {
         {
-            let __terrane_value = kind;
+            let __terrane_value: String = kind;
             self.kind = __terrane_value;
         }
         {
-            let __terrane_value = size.clone();
+            let __terrane_value: terrane_int_support::Int = size.clone();
             self.size = __terrane_value;
         }
         {
-            let __terrane_value = readonly;
+            let __terrane_value: bool = readonly;
             self.readonly = __terrane_value;
         }
         {
-            let __terrane_value = permission_detail;
+            let __terrane_value: String = permission_detail;
             self.permission_detail = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1221,23 +1221,23 @@ impl FileData {
         detail: String,
     ) {
         {
-            let __terrane_value = data;
+            let __terrane_value: Vec<u8> = data;
             self.data = __terrane_value;
         }
         {
-            let __terrane_value = completed.clone();
+            let __terrane_value: terrane_int_support::Int = completed.clone();
             self.completed = __terrane_value;
         }
         {
-            let __terrane_value = end;
+            let __terrane_value: bool = end;
             self.end = __terrane_value;
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1271,15 +1271,15 @@ impl FileHandle {
         detail: String,
     ) {
         {
-            let __terrane_value = raw;
+            let __terrane_value: TerranePlatformStreamHandle = raw;
             self.handle = Some(__terrane_value);
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1326,15 +1326,15 @@ impl DirectoryHandle {
         detail: String,
     ) {
         {
-            let __terrane_value = raw;
+            let __terrane_value: TerranePlatformStreamHandle = raw;
             self.handle = Some(__terrane_value);
         }
         {
-            let __terrane_value = failure;
+            let __terrane_value: bool = failure;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -1502,7 +1502,7 @@ impl Filesystem {
     }
     pub fn construct(&mut self, authority: TerraneFilesystemAuthority) {
         {
-            let __terrane_value = authority;
+            let __terrane_value: TerraneFilesystemAuthority = authority;
             self.authority = Some(__terrane_value);
         }
     }
@@ -1701,7 +1701,7 @@ impl Path {
     }
     pub fn construct(&mut self, input: String) {
         {
-            let __terrane_value = input;
+            let __terrane_value: String = input;
             self.text = __terrane_value;
         }
     }
@@ -1958,7 +1958,7 @@ pub fn path_parent(subject: Path) -> Path {
     if terrane_int_support::Int::from(parts.length())
         == terrane_int_support::Int::from(0_i128)
     {
-        return normal.clone();
+        return normal;
     }
     if terrane_int_support::Int::from(parts.length())
         == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
@@ -2035,7 +2035,7 @@ pub fn path_stem(subject: Path) -> String {
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
-        return current.clone();
+        return current;
     }
     if terrane_int_support::Int::from(pieces.len() as i128)
         == terrane_int_support::Int::from(2_i128)
@@ -2175,7 +2175,7 @@ pub fn join_path(base: Path, child: Path) -> Path {
     let combined: Path;
     absolute = path_is_absolute(child.clone());
     if absolute {
-        return normalise_path(child.clone());
+        return normalise_path(child);
     }
     joined = base.text.clone();
     if joined.as_str() != ""

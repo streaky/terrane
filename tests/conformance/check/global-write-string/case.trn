@@ -1,0 +1,6 @@
+namespace global-write-string
+
+global calls int = 0
+
+function main;
+    global calls = 'text'

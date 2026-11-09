@@ -56,6 +56,7 @@ pub(super) fn add_backing_owners(items: &mut Vec<ProjectedItem>, namespace: &str
                 boundary: ProjectedBoundaryCapabilities::default(),
                 displayable: false,
                 cloneable: weak.is_some(),
+                copyable: false,
                 send: weak.is_some_and(|thread_safe| thread_safe),
                 sync: weak.is_some_and(|thread_safe| thread_safe),
             },

@@ -13,7 +13,7 @@ impl Holder {
     }
     pub fn construct(&mut self, value: Builder) {
         {
-            let __terrane_value = value;
+            let __terrane_value: Builder = value;
             self.value = Some(__terrane_value);
         }
     }
@@ -75,7 +75,7 @@ fn main() {
             )
         };
         {
-            let __terrane_value = replacement;
+            let __terrane_value: Builder = replacement;
             h.value = Some(__terrane_value);
         }
         println!(
@@ -96,7 +96,7 @@ fn main() {
             ::TERRANE_NO_SITE))) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:13:19-13:31 */) } }). await, 3 /* terrane-site: src/main.trn:13:19-13:31 */)),
             terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({ let
-            __terrane_future = { let __terrane_call = (&h.value.as_ref()
+            __terrane_future = { let __terrane_call = (&* h.value.as_ref()
             .expect("required field initialized")).serve(); Box::pin(async move { match
             crate
             ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))

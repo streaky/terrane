@@ -1,0 +1,7 @@
+namespace grouped-collection-statement
+from /core/collections import list
+function main;
+    values = list; 1
+    ((values.append; 2))
+    print; values.length
+    print; values[1]

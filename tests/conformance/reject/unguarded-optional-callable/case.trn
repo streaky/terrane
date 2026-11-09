@@ -1,0 +1,6 @@
+namespace unguarded-optional-callable
+function first int;
+    return 1
+function main;
+    callback (function to int)|none = first
+    callback;

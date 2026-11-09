@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/terrane-query-witness import Token
+from /core/collections import list
+
+function main;
+    values list of Token = list; (Token::new;)
+    item = values[0]
+    print; (item.value;)

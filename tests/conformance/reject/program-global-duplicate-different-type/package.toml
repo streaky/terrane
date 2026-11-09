@@ -1,0 +1,4 @@
+package = "program-global-duplicate-different-type"
+[namespaces]
+a = "a"
+b = "b"

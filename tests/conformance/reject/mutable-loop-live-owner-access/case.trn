@@ -1,0 +1,7 @@
+namespace mutable-loop-live-owner-access
+from /core/collections import list
+function main;
+    values = list; 1, 2
+    for value in mutable ref values
+        print; values.length
+        print; value

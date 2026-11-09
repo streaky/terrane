@@ -314,6 +314,24 @@ impl SyntaxNode {
         }
     }
 
+    /// The written place, never a name found in the assignment's value.
+    pub(crate) fn assignment_target(&self) -> Option<&Self> {
+        match self.kind {
+            SyntaxKind::Assignment => {
+                let mut target = self.children.first()?;
+                while target.kind == SyntaxKind::GroupExpression {
+                    target = target.children.first()?;
+                }
+                Some(target)
+            }
+            SyntaxKind::Binding => self
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name),
+            _ => None,
+        }
+    }
+
     pub(crate) fn type_designator_head(&self) -> Option<&Self> {
         let mut node = self;
         while matches!(

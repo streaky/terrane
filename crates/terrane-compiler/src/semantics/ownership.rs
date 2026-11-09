@@ -15,39 +15,213 @@ fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
     node
 }
 
-fn is_nonclone_field(unit: &SemanticUnit, value: &SyntaxNode) -> Result<bool, SemanticFailure> {
+fn requires_noncopyable_projection_access(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<bool, SemanticFailure> {
     let value = ungroup(value);
-    if value.kind != SyntaxKind::MemberExpression {
+    if !matches!(
+        value.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+    ) {
         return Ok(false);
     }
-    Ok(
-        infer_value_type(unit, value, &unit.typed_bindings)?.is_some_and(|value_type| {
-            matches!(value_type, ValueType::MutableReference(_))
-                || (!matches!(
-                    value_type,
-                    ValueType::Reference(_) | ValueType::SharedReference(_)
-                ) && value_type_contains_nonclone_foreign(unit, &value_type))
-        }),
-    )
+    let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+        return Ok(false);
+    };
+    if matches!(&value_type, ValueType::TypeParameter(_)) {
+        return Ok(true);
+    }
+    if value.kind == SyntaxKind::IndexExpression {
+        return Ok(false);
+    }
+    let mut callable_type = &value_type;
+    while let ValueType::Optional(inner) = callable_type {
+        callable_type = inner;
+    }
+    if matches!(
+        callable_type,
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects)
+            if effects.modes.written == InvocationMode::Consuming
+    ) {
+        return is_instance_field(package, unit, value);
+    }
+    Ok(matches!(value_type, ValueType::MutableReference(_))
+        || (!matches!(
+            value_type,
+            ValueType::Reference(_) | ValueType::SharedReference(_)
+        ) && value_type_contains_nonclone_foreign(unit, &value_type)))
 }
 
-fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<(), SemanticFailure> {
-    if is_nonclone_field(unit, value)? {
+fn is_instance_field(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Result<bool, SemanticFailure> {
+    let callee = ungroup(callee);
+    if callee.kind != SyntaxKind::MemberExpression {
+        return Ok(false);
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return Ok(false);
+    };
+    let Some(receiver_type) =
+        super::member_inference::infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
+    else {
+        return Ok(false);
+    };
+    let mut receiver_type = &receiver_type;
+    while let ValueType::Reference(inner)
+    | ValueType::MutableReference(inner)
+    | ValueType::SharedReference(inner) = receiver_type
+    {
+        receiver_type = inner.value_type_ref();
+    }
+    let ValueType::Object(identity) = receiver_type else {
+        return Ok(false);
+    };
+    Ok(package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|object| object.identity.base() == identity.base())
+        .is_some_and(|object| {
+            super::objects::effective_object_fields(package, object)
+                .iter()
+                .any(|field| !field.is_static && field.name == node_text(&unit.source, member))
+        }))
+}
+
+fn validate_callable_field_invocation(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let callee = ungroup(callee);
+    if is_instance_field(package, unit, callee)?
+        && matches!(
+            infer_value_type(unit, callee, &unit.typed_bindings)?,
+            Some(ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects))
+                if effects.modes.written == InvocationMode::Consuming
+        )
+    {
+        return Err(SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "T0135",
+                "a consuming callable field must be explicitly moved out before invocation",
+                callee.span,
+            )
+            .with_help(
+                "when ownership permits, bind `callback = move owner.field`, then invoke `callback;`",
+            )],
+        });
+    }
+    Ok(())
+}
+
+fn validate_static_callable_field_read(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if value.kind != SyntaxKind::StaticMemberExpression {
+        return Ok(());
+    }
+    let [receiver, member] = value.children.as_slice() else {
+        return Ok(());
+    };
+    let Some(identity) = class_designator_identity(unit, receiver) else {
+        return Ok(());
+    };
+    let field = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|object| object.identity.base() == identity.base())
+        .is_some_and(|object| {
+            super::objects::effective_object_fields(package, object)
+                .iter()
+                .any(|field| field.is_static && field.name == node_text(&unit.source, member))
+        });
+    if !field {
+        return Ok(());
+    }
+    let Some(mut value_type) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+        return Ok(());
+    };
+    while let ValueType::Optional(inner) = value_type {
+        value_type = *inner;
+    }
+    if matches!(
+        value_type,
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects)
+            if effects.modes.written == InvocationMode::Consuming
+    ) {
         return Err(failure(
             &unit.source,
             "T0135",
-            "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver",
-            ungroup(value).span,
+            "static consuming callable fields cannot be read or moved; static slots require Clone snapshots",
+            value.span,
         ));
     }
     Ok(())
 }
 
-pub(super) fn validate_async_field_borrow(
+fn validate_field_snapshot(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    if is_nonclone_field(unit, value)? {
+    let value = ungroup(value);
+    if requires_noncopyable_projection_access(package, unit, value)? {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            if value.kind == SyntaxKind::IndexExpression {
+                "indexing cannot copy an unconstrained type parameter; use a concrete typed adapter or a supported borrow"
+            } else {
+                "field snapshot cannot copy a non-Clone or unconstrained value; borrow the field or use explicit `move` through a mutable receiver"
+            },
+            value.span,
+        ));
+    }
+    // Follow the receiver place, not an owned snapshot of each intermediate
+    // field. An indexed non-Clone owner still cannot be materialized merely
+    // because the final selected field is Copy.
+    let mut path = value;
+    while path.kind == SyntaxKind::MemberExpression {
+        let Some(receiver) = path.children.first().map(ungroup) else {
+            break;
+        };
+        if receiver.kind == SyntaxKind::IndexExpression
+            && let Some(ValueType::Object(identity)) =
+                infer_value_type(unit, receiver, &unit.typed_bindings)?
+            && package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_none()
+            && !value_type_is_cloneable(package, unit, &ValueType::Object(identity))
+        {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "indexed source objects cannot snapshot a non-Clone field; borrow the field or use a supported mutable receiver",
+                receiver.span,
+            ));
+        }
+        path = receiver;
+    }
+    Ok(())
+}
+
+pub(super) fn validate_async_field_borrow(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if requires_noncopyable_projection_access(package, unit, value)? {
         validate_async_receiver_field_borrow(unit, value)?;
     }
     Ok(())
@@ -163,6 +337,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .iter()
                 .any(|arm| noncopyable_value_type(package, unit, arm));
         }
+        if matches!(value_type, ValueType::InvocationScopedNative { .. }) {
+            return !package.native_value_is_copyable(value_type);
+        }
         matches!(
             value_type,
             ValueType::MutableReference(_)
@@ -170,7 +347,6 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 | ValueType::ScopedTask(_, _)
                 | ValueType::TaskGroup(_)
                 | ValueType::Iterator(_)
-                | ValueType::InvocationScopedNative { .. }
         ) || matches!(
             value_type,
             ValueType::Function(_, _, effects)
@@ -253,12 +429,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
 
     fn resource_binding(package: &SemanticPackage, unit: &SemanticUnit, binding: usize) -> bool {
         let binding = &unit.typed_bindings[binding];
-        resource_type(
-            package,
-            unit.flow_binding_types
-                .get(&binding.span)
-                .unwrap_or(&binding.value_type),
-        )
+        let value_type = unit
+            .flow_binding_types
+            .get(&binding.span)
+            .unwrap_or(&binding.value_type);
+        resource_type(package, value_type)
     }
 
     fn source_iterator_object(unit: &SemanticUnit, identity: &ObjectIdentity) -> bool {
@@ -289,6 +464,28 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .is_some_and(|method| method.written_invocation_mode == InvocationMode::Consuming)
     }
 
+    #[derive(Default)]
+    struct LoopMoveExits {
+        breaks: Option<BTreeSet<usize>>,
+        continues: Option<BTreeSet<usize>>,
+        returns: Option<BTreeSet<usize>>,
+        throws: Option<BTreeSet<usize>>,
+    }
+    impl LoopMoveExits {
+        fn merge(&mut self, other: Self) {
+            for (destination, source) in [
+                (&mut self.breaks, other.breaks),
+                (&mut self.continues, other.continues),
+                (&mut self.returns, other.returns),
+                (&mut self.throws, other.throws),
+            ] {
+                if let Some(source) = source {
+                    destination.get_or_insert_with(BTreeSet::new).extend(source);
+                }
+            }
+        }
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
@@ -298,28 +495,116 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         unit: &SemanticUnit,
         node: &SyntaxNode,
         moved: &mut BTreeSet<usize>,
-        declaration_name: bool,
+        write_place: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
     ) -> Result<(), SemanticFailure> {
+        if !write_place {
+            validate_static_callable_field_read(package, unit, node)?;
+        }
         if matches!(
             node.kind,
             SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::ReturnStatement
         ) && let Some(value) = node.children.last()
         {
-            validate_field_snapshot(unit, value)?;
+            validate_field_snapshot(package, unit, value)?;
+        }
+        if node.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, node).as_deref() == Some("move")
+            && let Some(value) = node.children.last().map(ungroup)
+            && value.kind == SyntaxKind::IndexExpression
+        {
+            validate_field_snapshot(package, unit, value)?;
+        }
+        if node.kind == SyntaxKind::BinaryExpression
+            && let [left, right] = node.children.as_slice()
+        {
+            let operator = unit.source.text()[left.span.end..right.span.start].trim();
+            // Equality against none observes presence, not an owned field value.
+            let presence = matches!(operator, "==" | "!=")
+                && (infer_value_type(unit, left, &unit.typed_bindings)?
+                    == Some(ValueType::Scalar(ScalarType::None))
+                    || infer_value_type(unit, right, &unit.typed_bindings)?
+                        == Some(ValueType::Scalar(ScalarType::None)));
+            if !presence {
+                validate_field_snapshot(package, unit, left)?;
+                validate_field_snapshot(package, unit, right)?;
+            }
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::IfStatement | SyntaxKind::WhileStatement
+        ) && let Some(condition) = node.children.first()
+        {
+            validate_field_snapshot(package, unit, condition)?;
+        }
+        if node.kind == SyntaxKind::IndexExpression
+            && let Some(index) = node.children.get(1)
+        {
+            validate_field_snapshot(package, unit, index)?;
+        }
+        if node.kind == SyntaxKind::ForStatement
+            && let Some(collection) = node.children.get(1)
+        {
+            validate_field_snapshot(package, unit, collection)?;
+        }
+        if node.kind == SyntaxKind::TypeMembershipExpression
+            && let Some(value) = node.children.first()
+        {
+            validate_field_snapshot(package, unit, value)?;
+        }
+        if let Some(selector) = node.switch_selector() {
+            validate_field_snapshot(package, unit, selector)?;
+        }
+        if node.kind == SyntaxKind::UnaryExpression
+            && !matches!(
+                unary_operator_text(unit, node).as_deref(),
+                Some("ref" | "mutable ref" | "move")
+            )
+            && let Some(operand) = node.children.last()
+        {
+            validate_field_snapshot(package, unit, operand)?;
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
-            && (callee.kind == SyntaxKind::MemberExpression
-                || arguments.children.iter().any(|argument| {
-                    argument.children.last().is_some_and(|value| {
-                        matches!(
-                            value.kind,
-                            SyntaxKind::MemberExpression | SyntaxKind::GroupExpression
-                        )
-                    })
-                }))
         {
+            let enum_payload = ungroup(callee).kind == SyntaxKind::ConstructionExpression
+                && infer_value_type(unit, node, &unit.typed_bindings)?.is_some_and(|ty| {
+                    matches!(ty, ValueType::Object(identity)
+                        if unit.descriptors.iter().any(|descriptor|
+                            descriptor.kind == ObjectKind::Enum
+                                && descriptor.identity.base() == identity.base()))
+                });
+            if enum_payload
+                || ungroup(callee).kind == SyntaxKind::Name
+                    && package
+                        .resolve_name_at(
+                            unit,
+                            callee.span.start,
+                            node_text(&unit.source, ungroup(callee)),
+                        )
+                        .is_some_and(|symbol| {
+                            symbol.identity == "/core/output::print"
+                                || symbol.identity.starts_with("/core/collections::")
+                                    && matches!(
+                                        symbol.name.as_str(),
+                                        "list"
+                                            | "tuple"
+                                            | "map"
+                                            | "set"
+                                            | "unordered-map"
+                                            | "unordered-set"
+                                    )
+                        })
+            {
+                for argument in &arguments.children {
+                    if let Some(value) = argument.children.last() {
+                        validate_field_snapshot(package, unit, value)?;
+                    }
+                }
+            }
+            let callee = ungroup(callee);
+            validate_callable_field_invocation(package, unit, callee)?;
             let projected = super::bindings::projected_function_for_call(
                 package,
                 unit,
@@ -335,7 +620,70 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 && callee.kind == SyntaxKind::MemberExpression
                 && let Some(receiver) = callee.children.first()
             {
-                validate_async_field_borrow(unit, receiver)?;
+                validate_async_field_borrow(package, unit, receiver)?;
+            }
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+            {
+                let mut root = ungroup(receiver);
+                while root.kind == SyntaxKind::MemberExpression {
+                    let Some(parent) = root.children.first() else {
+                        break;
+                    };
+                    root = ungroup(parent);
+                }
+                if matches!(
+                    infer_value_type(unit, root, &unit.typed_bindings)?,
+                    Some(
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_),
+                    )
+                ) && let Some(receiver_type) =
+                    infer_value_type(unit, receiver, &unit.typed_bindings)?
+                    && super::diagnostics::member_invocation_mode_at(
+                        package,
+                        unit,
+                        receiver,
+                        &receiver_type,
+                        node_text(&unit.source, member),
+                    ) == InvocationMode::Consuming
+                {
+                    let receiver_type = match &receiver_type {
+                        ValueType::Reference(inner)
+                        | ValueType::MutableReference(inner)
+                        | ValueType::SharedReference(inner) => inner.value_type_ref(),
+                        value_type => value_type,
+                    };
+                    let cloneable_projected = matches!(receiver_type, ValueType::Object(identity)
+                        if package.projection.item(&identity.namespace, &identity.name).is_some()
+                            && value_type_is_cloneable(package, unit, receiver_type));
+                    if !cloneable_projected {
+                        return Err(failure(
+                            &unit.source,
+                            "T0135",
+                            "a consuming method cannot move out of a borrowed receiver",
+                            root.span,
+                        ));
+                    }
+                }
+            }
+            if let Some(contract) = function_contract_for_call(package, unit, callee)
+                && callee.kind == SyntaxKind::MemberExpression
+                && matches!(
+                    contract.written_invocation_mode,
+                    InvocationMode::Mutable | InvocationMode::Consuming
+                )
+                && let Some(receiver) = callee.children.first()
+                && ungroup(receiver).kind == SyntaxKind::IndexExpression
+                && requires_noncopyable_projection_access(package, unit, receiver)?
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0135",
+                    "indexed bounded receivers cannot be moved or mutably borrowed without a concrete typed adapter",
+                    ungroup(receiver).span,
+                ));
             }
             if let Some(contract) = function_contract_for_call(package, unit, callee) {
                 if projected.is_none()
@@ -369,9 +717,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         });
                     if let Some(value) = argument_for_parameter(unit, arguments, contract, index) {
                         if borrowed {
-                            validate_async_field_borrow(unit, value)?;
+                            validate_async_field_borrow(package, unit, value)?;
                         } else {
-                            validate_field_snapshot(unit, value)?;
+                            validate_field_snapshot(package, unit, value)?;
                         }
                     }
                 }
@@ -418,6 +766,31 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             node.kind,
             SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
         ) {
+            let owned_captures = unit
+                .functions
+                .iter()
+                .find(|contract| contract.span == node.span && !contract.captures.is_empty())
+                .filter(|_| {
+                    infer_value_type(unit, node, &unit.typed_bindings)
+                        .ok()
+                        .flatten()
+                        .as_ref()
+                        .is_some_and(super::bindings::value_type_is_owned_static)
+                })
+                .into_iter()
+                .flat_map(|contract| &contract.captures)
+                .filter_map(|capture| binding_at(unit, capture, node.span.start))
+                .filter(|index| {
+                    let ty = &unit.typed_bindings[*index].value_type;
+                    !super::scoped_regions::field_has_native_loan(package, ty)
+                        && noncopyable_value_type(package, unit, ty)
+                })
+                .collect::<Vec<_>>();
+            for &binding in &owned_captures {
+                if moved.contains(&binding) {
+                    return Err(moved_binding_failure(unit, binding, node.span, true));
+                }
+            }
             let mut nested_moved = moved.clone();
             for child in &node.children {
                 visit(
@@ -427,6 +800,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     &mut nested_moved,
                     false,
                     resource_objects,
+                    loop_exits,
                 )?;
             }
             if node.kind == SyntaxKind::AnonymousFunction {
@@ -436,6 +810,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .filter(|binding| unit.typed_bindings[*binding].scope != Some(node.span))
                     .collect::<Vec<_>>();
                 moved.extend(captured);
+                moved.extend(owned_captures);
             }
             return Ok(());
         }
@@ -463,24 +838,40 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 ValueType::Task(_, _)
             )
         {
-            visit(package, unit, operand, moved, false, resource_objects)?;
+            visit(
+                package,
+                unit,
+                operand,
+                moved,
+                false,
+                resource_objects,
+                loop_exits,
+            )?;
             moved.insert(binding);
             return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
+            && let Some(callee) = node.children.first().map(ungroup)
             && callee.kind == SyntaxKind::Name
             && let Some(binding) =
                 binding_at(unit, node_text(&unit.source, callee), callee.span.start)
             && matches!(
-                &unit.typed_bindings[binding].value_type,
-                ValueType::Function(_, _, effects)
-                    | ValueType::AsyncFunction(_, _, _, effects)
+                infer_value_type(unit, callee, &unit.typed_bindings)?,
+                Some(ValueType::Function(_, _, effects)
+                    | ValueType::AsyncFunction(_, _, _, effects))
                     if effects.modes.written == InvocationMode::Consuming
             )
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -508,7 +899,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -527,7 +926,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -559,7 +966,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -569,9 +984,13 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member, ..] = callee.children.as_slice()
             && receiver.kind != SyntaxKind::Name
-            && let Ok(Some(ValueType::Object(object_name))) =
-                infer_value_type(unit, receiver, &unit.typed_bindings)
-            && method_consumes_receiver(package, &object_name, node_text(&unit.source, member))
+            && let Ok(Some(receiver_type)) = infer_value_type(unit, receiver, &unit.typed_bindings)
+            && let ValueType::Object(object_name)
+            | ValueType::InvocationScopedNative {
+                family: object_name,
+                ..
+            } = &receiver_type
+            && method_consumes_receiver(package, object_name, node_text(&unit.source, member))
             && package
                 .projection
                 .method(
@@ -581,8 +1000,17 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     false,
                 )
                 .is_none_or(|method| method.chain_role.is_none())
-            && resolved_object_span(package, &object_name)
-                .is_some_and(|span| resource_objects.contains(&span_key(span)))
+            && match &receiver_type {
+                ValueType::InvocationScopedNative { .. } => {
+                    matches!(
+                        ungroup(receiver).kind,
+                        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+                    ) && !package.native_value_is_copyable(&receiver_type)
+                }
+                ValueType::Object(_) => resolved_object_span(package, object_name)
+                    .is_some_and(|span| resource_objects.contains(&span_key(span))),
+                _ => false,
+            }
         {
             return Err(failure(
                 &unit.source,
@@ -607,7 +1035,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
         {
             for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             moved.insert(binding);
             return Ok(());
@@ -616,24 +1052,116 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member, ..] = callee.children.as_slice()
-            && receiver.kind == SyntaxKind::Name
-            && matches!(
-                infer_value_type(unit, receiver, &unit.typed_bindings),
-                Ok(Some(ValueType::Object(object_name)))
-                    if method_consumes_receiver(
-                        package,
-                        &object_name,
-                        node_text(&unit.source, member),
-                    )
-            )
-            && let Some(binding) =
-                binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
-            && resource_binding(package, unit, binding)
         {
-            for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+            let mut grouped = receiver;
+            while grouped.kind == SyntaxKind::GroupExpression {
+                let Some(inner) = grouped.children.first() else {
+                    break;
+                };
+                grouped = inner;
             }
-            moved.insert(binding);
+            if grouped.kind == SyntaxKind::Name
+                && let Some(receiver_type) = infer_value_type(unit, grouped, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+                && let ValueType::Object(object_name)
+                | ValueType::InvocationScopedNative {
+                    family: object_name,
+                    ..
+                } = &receiver_type
+                && method_consumes_receiver(package, object_name, node_text(&unit.source, member))
+                && let Some(binding) =
+                    binding_at(unit, node_text(&unit.source, grouped), grouped.span.start)
+                && match &receiver_type {
+                    ValueType::InvocationScopedNative { .. } => {
+                        !package.native_value_is_copyable(&receiver_type)
+                    }
+                    ValueType::Object(_) => resource_binding(package, unit, binding),
+                    _ => false,
+                }
+            {
+                for (index, child) in node.children.iter().enumerate() {
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        moved,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
+                    if index == 0 {
+                        moved.insert(binding);
+                    }
+                }
+                return Ok(());
+            }
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && super::collections::collection_constructor_identity(unit, node, &unit.typed_bindings)
+                .is_some()
+            && let Some(arguments) = node.children.get(1)
+        {
+            let transferred = arguments
+                .children
+                .iter()
+                .filter_map(|argument| {
+                    let value = ungroup(argument.children.last().unwrap_or(argument));
+                    (value.kind == SyntaxKind::Name)
+                        .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
+                        .flatten()
+                        .filter(|binding| noncopyable_binding(package, unit, *binding))
+                })
+                .collect::<Vec<_>>();
+            for child in &node.children {
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
+            }
+            moved.extend(transferred);
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && callee.kind == SyntaxKind::MemberExpression
+            && callee
+                .children
+                .last()
+                .is_some_and(|member| node_text(&unit.source, member) == "append")
+            && let Some(receiver) = callee.children.first()
+            && matches!(
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+                    .ok()
+                    .flatten(),
+                Some(ValueType::List(_))
+            )
+            && let Some(argument) = arguments.children.first()
+        {
+            let value = ungroup(argument.children.last().unwrap_or(argument));
+            let transferred = (value.kind == SyntaxKind::Name)
+                .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
+                .flatten()
+                .filter(|binding| noncopyable_binding(package, unit, *binding));
+            for child in &node.children {
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
+            }
+            if let Some(transferred) = transferred {
+                moved.insert(transferred);
+            }
             return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
@@ -732,13 +1260,47 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         .filter(|binding| noncopyable_binding(package, unit, *binding))
                 })
                 .collect::<Vec<_>>();
-            for child in &node.children {
-                visit(package, unit, child, moved, false, resource_objects)?;
+            let receiver_transferred = function_contract_for_call(package, unit, callee)
+                .filter(|contract| contract.owner.is_some())
+                .and_then(|_| typed_member_call(unit, callee))
+                .filter(|(receiver, ty, member)| {
+                    super::diagnostics::member_invocation_mode_at(
+                        package, unit, receiver, ty, member,
+                    ) == InvocationMode::Consuming
+                })
+                .map(|(receiver, _, _)| ungroup(receiver))
+                .filter(|receiver| receiver.kind == SyntaxKind::Name)
+                .and_then(|receiver| {
+                    binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
+                })
+                .filter(|binding| {
+                    let ty = &unit.typed_bindings[*binding].value_type;
+                    let native_clone_conversion = matches!(ty, ValueType::MutableReference(item)
+                        if matches!(item.value_type_ref(), ValueType::Object(identity)
+                            if package.projection.item(&identity.namespace, &identity.name).is_some()
+                                && value_type_is_cloneable(package, unit, item.value_type_ref())));
+                    !native_clone_conversion && (noncopyable_binding(package, unit, *binding)
+                        || matches!(ty, ValueType::Object(identity)
+                            if package.projection.item(&identity.namespace, &identity.name).is_none()))
+                });
+            for (index, child) in node.children.iter().enumerate() {
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
+                if index == 0 {
+                    moved.extend(receiver_transferred);
+                }
             }
             moved.extend(transferred);
             return Ok(());
         }
-        if node.kind == SyntaxKind::Name && !declaration_name {
+        if node.kind == SyntaxKind::Name && !write_place {
             let name = node_text(&unit.source, node);
             if let Some(binding) = binding_at(unit, name, node.span.start)
                 && moved.contains(&binding)
@@ -751,6 +1313,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let transferred = node
                 .children
                 .last()
+                .map(ungroup)
                 .filter(|initializer| initializer.kind == SyntaxKind::Name)
                 .and_then(|initializer| {
                     binding_at(
@@ -760,10 +1323,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     )
                 })
                 .filter(|binding| noncopyable_binding(package, unit, *binding));
-            let mut skipped_name = false;
-            for child in &node.children {
-                if !skipped_name && child.kind == SyntaxKind::Name {
-                    skipped_name = true;
+            let assignment_target = node.assignment_target();
+            for (index, child) in node.children.iter().enumerate() {
+                if assignment_target.is_some_and(|target| target.span == ungroup(child).span)
+                    && ungroup(child).kind == SyntaxKind::Name
+                {
                     // Write-through assignment uses the reference handle, not a new binding.
                     if node.kind != SyntaxKind::Assignment
                         || !matches!(
@@ -774,15 +1338,21 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         continue;
                     }
                 }
-                visit(package, unit, child, moved, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    child,
+                    moved,
+                    index == 0 && ungroup(child).kind == SyntaxKind::StaticMemberExpression,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             if let Some(binding) = transferred {
                 moved.insert(binding);
             }
-            let assignment_target = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name);
+            let assignment_target =
+                assignment_target.filter(|child| child.kind == SyntaxKind::Name);
             let target_binding = assignment_target.and_then(|target| {
                 let identity = unit
                     .flow_binding_ids
@@ -826,6 +1396,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .iter()
                 .find(|child| child.kind == SyntaxKind::Block);
             let mut try_state = entry.clone();
+            let mut completions = LoopMoveExits::default();
             if let Some(block) = try_block {
                 visit(
                     package,
@@ -834,6 +1405,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     &mut try_state,
                     false,
                     resource_objects,
+                    &mut completions,
                 )?;
             }
             let mut branches = Vec::new();
@@ -851,7 +1423,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
                     let mut branch = try_state.clone();
-                    visit(package, unit, block, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        block,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        &mut completions,
+                    )?;
                     if super::scope_validation::block_may_fall_through(block) {
                         branches.push(branch);
                     }
@@ -863,13 +1443,47 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .find(|child| child.kind == SyntaxKind::FinallyClause)
                 .and_then(|clause| clause.children.first())
             {
+                let mut finally_exits = LoopMoveExits::default();
                 for branch in &mut branches {
-                    visit(package, unit, finally, branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        finally,
+                        branch,
+                        false,
+                        resource_objects,
+                        &mut finally_exits,
+                    )?;
                 }
+                // Finally executes on abrupt paths as well as fall-through.
+                // Preserve each continuation after applying its ownership effects.
+                for completion in [
+                    &mut completions.breaks,
+                    &mut completions.continues,
+                    &mut completions.returns,
+                    &mut completions.throws,
+                ] {
+                    if let Some(state) = completion {
+                        visit(
+                            package,
+                            unit,
+                            finally,
+                            state,
+                            false,
+                            resource_objects,
+                            &mut finally_exits,
+                        )?;
+                        if !super::scope_validation::block_may_fall_through(finally) {
+                            *completion = None;
+                        }
+                    }
+                }
+                completions.merge(finally_exits);
                 if !super::scope_validation::block_may_fall_through(finally) {
                     branches.clear();
                 }
             }
+            loop_exits.merge(completions);
             moved.clear();
             moved.extend(branches.into_iter().flatten());
             return Ok(());
@@ -886,6 +1500,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 &mut entry,
                 false,
                 resource_objects,
+                loop_exits,
             )?;
             let explicit_move = scrutinee.kind == SyntaxKind::UnaryExpression
                 && unary_operator_text(unit, scrutinee).as_deref() == Some("move");
@@ -925,7 +1540,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .iter()
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
-                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                     if super::scope_validation::block_may_fall_through(body) {
                         branches.push(branch);
                     }
@@ -938,7 +1561,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         if node.kind == SyntaxKind::SwitchStatement {
             let mut entry = moved.clone();
             if let Some(selector) = node.switch_selector() {
-                visit(package, unit, selector, &mut entry, false, resource_objects)?;
+                visit(
+                    package,
+                    unit,
+                    selector,
+                    &mut entry,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
             }
             let mut branches = Vec::new();
             for case in node.switch_cases() {
@@ -955,6 +1586,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                             &mut entry,
                             false,
                             resource_objects,
+                            loop_exits,
                         )?;
                     }
                 } else if let Some(header) = case
@@ -962,11 +1594,27 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .first()
                     .filter(|header| header.kind != SyntaxKind::MatchCatchAll)
                 {
-                    visit(package, unit, header, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        header,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
                 let mut branch = entry.clone();
                 if let Some(body) = case.children.last() {
-                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                     if super::scope_validation::block_may_fall_through(body) {
                         branches.push(branch);
                     }
@@ -983,14 +1631,30 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let mut entry = moved.clone();
             for case in &node.children {
                 if let Some(header) = case.children.first() {
-                    visit(package, unit, header, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        header,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
             }
             let mut branches = Vec::with_capacity(node.children.len());
             for case in &node.children {
                 let mut branch = entry.clone();
                 if let Some(body) = case.children.last() {
-                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
                 branches.push(branch);
             }
@@ -1003,7 +1667,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let mut entry = moved.clone();
             for child in &node.children {
                 if !matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
-                    visit(package, unit, child, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
             }
             let mut branches = Vec::new();
@@ -1012,7 +1684,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 if matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
                     has_else |= child.kind == SyntaxKind::ElseClause;
                     let mut branch = entry.clone();
-                    visit(package, unit, child, &mut branch, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        &mut branch,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                     if super::scope_validation::block_may_fall_through(child) {
                         branches.push(branch);
                     }
@@ -1042,6 +1722,37 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         .find(|child| child.kind != SyntaxKind::Block)
                 })
                 .flatten();
+            if let Some(collection) = collection {
+                let cloneable = match infer_value_type(unit, collection, &unit.typed_bindings)? {
+                    Some(
+                        ValueType::List(item)
+                        | ValueType::Set(item)
+                        | ValueType::UnorderedSet(item)
+                        | ValueType::Tuple(item, _),
+                    ) => super::objects::value_type_is_cloneable(
+                        package,
+                        unit,
+                        item.value_type_ref(),
+                    ),
+                    Some(ValueType::Map(key, value) | ValueType::UnorderedMap(key, value)) => {
+                        super::objects::value_type_is_cloneable(package, unit, key.value_type_ref())
+                            && super::objects::value_type_is_cloneable(
+                                package,
+                                unit,
+                                value.value_type_ref(),
+                            )
+                    }
+                    _ => true,
+                };
+                if !cloneable {
+                    return Err(failure(
+                        &unit.source,
+                        "T0135",
+                        "value iteration requires Clone items; iterate through `ref` to borrow non-Clone or unconstrained items",
+                        collection.span,
+                    ));
+                }
+            }
             let loop_bindings = node
                 .children
                 .iter()
@@ -1062,7 +1773,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .collect::<BTreeSet<_>>();
             for child in &node.children {
                 if Some(child) != body {
-                    visit(package, unit, child, &mut entry, false, resource_objects)?;
+                    visit(
+                        package,
+                        unit,
+                        child,
+                        &mut entry,
+                        false,
+                        resource_objects,
+                        loop_exits,
+                    )?;
                 }
             }
             if let Some(collection) = collection
@@ -1078,6 +1797,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             if let Some(body) = body {
                 let mut after_iteration = entry.clone();
+                let mut body_exits = LoopMoveExits::default();
                 visit(
                     package,
                     unit,
@@ -1085,21 +1805,47 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     &mut after_iteration,
                     false,
                     resource_objects,
+                    &mut body_exits,
                 )?;
-                // Loop targets are rebound for each iteration; other move state carries across.
-                let mut next_iteration = after_iteration.clone();
-                for binding in loop_bindings {
-                    next_iteration.remove(&binding);
+                let falls_through = super::scope_validation::block_may_fall_through(body);
+                let has_back_edge = falls_through || body_exits.continues.is_some();
+                let mut back_edge = body_exits.continues.take().unwrap_or_default();
+                if falls_through {
+                    back_edge.extend(after_iteration);
                 }
-                visit(
-                    package,
-                    unit,
-                    body,
-                    &mut next_iteration,
-                    false,
-                    resource_objects,
-                )?;
-                entry.extend(after_iteration);
+                if has_back_edge {
+                    let mut next_iteration = back_edge.clone();
+                    for binding in loop_bindings {
+                        next_iteration.remove(&binding);
+                    }
+                    if node.kind == SyntaxKind::WhileStatement {
+                        for child in &node.children {
+                            if child != body {
+                                visit(
+                                    package,
+                                    unit,
+                                    child,
+                                    &mut next_iteration,
+                                    false,
+                                    resource_objects,
+                                    &mut body_exits,
+                                )?;
+                            }
+                        }
+                    }
+                    visit(
+                        package,
+                        unit,
+                        body,
+                        &mut next_iteration,
+                        false,
+                        resource_objects,
+                        &mut body_exits,
+                    )?;
+                }
+                entry.extend(back_edge);
+                entry.extend(body_exits.breaks.take().into_iter().flatten());
+                loop_exits.merge(body_exits);
             }
             *moved = entry;
             return Ok(());
@@ -1108,7 +1854,39 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if !super::scope_flow::is_flow_value_child(node, index, child) {
                 continue;
             }
-            visit(package, unit, child, moved, false, resource_objects)?;
+            visit(
+                package,
+                unit,
+                child,
+                moved,
+                write_place && node.kind == SyntaxKind::GroupExpression,
+                resource_objects,
+                loop_exits,
+            )?;
+            if matches!(node.kind, SyntaxKind::Block | SyntaxKind::ElseClause)
+                && !super::scope_validation::statement_may_fall_through(child)
+            {
+                break;
+            }
+        }
+        match node.kind {
+            SyntaxKind::BreakStatement => loop_exits
+                .breaks
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ContinueStatement => loop_exits
+                .continues
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ReturnStatement => loop_exits
+                .returns
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ThrowStatement => loop_exits
+                .throws
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            _ => {}
         }
         Ok(())
     }
@@ -1122,6 +1900,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         .map(|object| span_key(object.span))
         .collect();
     for unit in &package.units {
+        super::collections::validate_copy_requirements(package, unit)?;
         visit(
             package,
             unit,
@@ -1129,7 +1908,454 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             &mut BTreeSet::new(),
             false,
             &resource_objects,
+            &mut LoopMoveExits::default(),
         )?;
+    }
+    Ok(())
+}
+
+/// Authority of an earlier call operation borrowing this owned argument's place.
+/// This includes enclosing calls: nested argument evaluation remains inside the
+/// lifetime of the outer call's earlier argument loans.
+pub(super) fn call_argument_borrow_authority(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    argument: &SyntaxNode,
+) -> Option<ReferenceAuthority> {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        call: &SyntaxNode,
+        argument: &SyntaxNode,
+        result: &mut Option<ReferenceAuthority>,
+    ) {
+        if node.kind == SyntaxKind::CallExpression
+            && node.span.start <= argument.span.start
+            && argument.span.end <= node.span.end
+            && let Some(authority) =
+                direct_call_argument_borrow_authority(package, unit, node, argument)
+        {
+            *result = Some(
+                if result.is_some_and(|current| current == ReferenceAuthority::Exclusive)
+                    || authority == ReferenceAuthority::Exclusive
+                {
+                    ReferenceAuthority::Exclusive
+                } else {
+                    ReferenceAuthority::ReadOnly
+                },
+            );
+        }
+        if node.kind == SyntaxKind::CallExpression && node.span == call.span {
+            return;
+        }
+        for child in &node.children {
+            if child.span.start <= argument.span.start && argument.span.end <= child.span.end {
+                visit(package, unit, child, call, argument, result);
+                break;
+            }
+        }
+    }
+    if call_argument_is_borrowed(package, unit, call, argument) {
+        return None;
+    }
+    let mut result = None;
+    visit(package, unit, &unit.tree.root, call, argument, &mut result);
+    result
+}
+
+fn call_argument_is_borrowed(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    argument: &SyntaxNode,
+) -> bool {
+    let [callee, arguments] = call.children.as_slice() else {
+        return false;
+    };
+    let contract = function_contract_for_call(package, unit, callee)
+        .or_else(|| super::bindings::callback_contract(package, unit, callee));
+    let projected =
+        projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(call));
+    let Some(index) = arguments
+        .children
+        .iter()
+        .position(|actual| actual.children.last().unwrap_or(actual).span == argument.span)
+    else {
+        return false;
+    };
+    if let Some(contract) = contract {
+        return contract
+            .parameters
+            .iter()
+            .enumerate()
+            .any(|(parameter_index, parameter)| {
+                argument_for_parameter(unit, arguments, contract, parameter_index).is_some_and(
+                    |actual| {
+                        actual.span == argument.span
+                            && (parameter.element_value_type().is_some_and(|ty| {
+                                matches!(
+                                    ty,
+                                    ValueType::Reference(_) | ValueType::MutableReference(_)
+                                )
+                            }) || projected
+                                .as_ref()
+                                .and_then(|function| function.parameters.get(parameter_index))
+                                .is_some_and(|parameter| parameter.borrowed))
+                    },
+                )
+            });
+    }
+    infer_value_type(unit, callee, &unit.typed_bindings)
+        .ok()
+        .flatten()
+        .and_then(|callable| match callable {
+            ValueType::Function(parameters, _, _)
+            | ValueType::AsyncFunction(parameters, _, _, _) => Some(parameters),
+            _ => None,
+        })
+        .as_ref()
+        .and_then(|parameters| {
+            parameters.get(index).or_else(|| {
+                parameters
+                    .last()
+                    .filter(|parameter| parameter.is_variadic())
+            })
+        })
+        .is_some_and(|parameter| {
+            matches!(
+                parameter.value_type_ref(),
+                ValueType::Reference(_) | ValueType::MutableReference(_)
+            )
+        })
+}
+
+fn direct_call_argument_borrow_authority(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    argument: &SyntaxNode,
+) -> Option<ReferenceAuthority> {
+    let [callee, arguments] = call.children.as_slice() else {
+        return None;
+    };
+    let contract = function_contract_for_call(package, unit, callee)
+        .or_else(|| super::bindings::callback_contract(package, unit, callee));
+    let callable = contract
+        .is_none()
+        .then(|| {
+            infer_value_type(unit, callee, &unit.typed_bindings)
+                .ok()
+                .flatten()
+        })
+        .flatten();
+    let callable_parameters = match &callable {
+        Some(
+            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
+        ) => Some(parameters),
+        _ => None,
+    };
+    if contract.is_none() && callable_parameters.is_none() {
+        return None;
+    }
+    let projected =
+        projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(call));
+    let authority = |ty: &ValueType| match ty {
+        ValueType::Reference(_) => Some(ReferenceAuthority::ReadOnly),
+        ValueType::MutableReference(_) => Some(ReferenceAuthority::Exclusive),
+        _ => None,
+    };
+    let borrowed = |index: usize, value: &SyntaxNode| {
+        if let Some(contract) = contract {
+            contract
+                .parameters
+                .iter()
+                .enumerate()
+                .find_map(|(parameter_index, parameter)| {
+                    argument_for_parameter(unit, arguments, contract, parameter_index)
+                        .filter(|actual| actual.span == value.span)?;
+                    parameter
+                        .element_value_type()
+                        .as_ref()
+                        .and_then(authority)
+                        .or_else(|| {
+                            projected
+                                .as_ref()
+                                .and_then(|function| function.parameters.get(parameter_index))
+                                .filter(|parameter| parameter.borrowed)
+                                .map(|parameter| {
+                                    if parameter.mutable_borrow {
+                                        ReferenceAuthority::Exclusive
+                                    } else {
+                                        ReferenceAuthority::ReadOnly
+                                    }
+                                })
+                        })
+                })
+        } else {
+            callable_parameters
+                .and_then(|parameters| {
+                    parameters
+                        .get(index)
+                        .or_else(|| parameters.last().filter(|p| p.is_variadic()))
+                })
+                .and_then(|parameter| authority(parameter.value_type_ref()))
+        }
+    };
+    let target_index = containing_call_argument_index(arguments, argument.span)?;
+    let target = argument;
+    if borrowed(target_index, target).is_some() {
+        return None;
+    }
+    let (target_owner, target_path) = call_argument_owner_path(package, unit, target)?;
+    arguments
+        .children
+        .iter()
+        .enumerate()
+        .take(target_index)
+        .filter_map(|(index, actual)| {
+            let place = actual.children.last().unwrap_or(actual);
+            let authority = borrowed(index, place)?;
+            owner_place_path(
+                package,
+                unit,
+                place,
+                target_owner,
+                &unit.reference_provenance,
+            )
+            .filter(|path| owner_paths_overlap(&target_path, path))
+            .map(|_| authority)
+        })
+        .chain(call_receiver_borrow_authority(
+            package,
+            unit,
+            callee,
+            target_owner,
+            &target_path,
+        ))
+        .max_by_key(|authority| matches!(authority, ReferenceAuthority::Exclusive))
+}
+
+fn containing_call_argument_index(arguments: &SyntaxNode, value: Span) -> Option<usize> {
+    arguments
+        .children
+        .iter()
+        .position(|actual| actual.children.last().unwrap_or(actual).span == value)
+        .or_else(|| {
+            arguments
+                .children
+                .iter()
+                .enumerate()
+                .filter_map(|(index, actual)| {
+                    let actual = actual.children.last().unwrap_or(actual);
+                    (actual.span.start <= value.start && value.end <= actual.span.end)
+                        .then_some((index, actual.span.end - actual.span.start))
+                })
+                .min_by_key(|(_, width)| *width)
+                .map(|(index, _)| index)
+        })
+}
+
+fn call_receiver_borrow_authority(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    owner: Span,
+    target_path: &[ReferenceProjection],
+) -> Option<ReferenceAuthority> {
+    let (receiver, ty, member) = typed_member_call(unit, callee)?;
+    let mode = super::diagnostics::member_invocation_mode_at(package, unit, receiver, &ty, &member);
+    if mode == InvocationMode::Consuming {
+        return None;
+    }
+    let path = owner_place_path(package, unit, receiver, owner, &unit.reference_provenance)?;
+    if !owner_paths_overlap(target_path, &path)
+        || package.reference_owner_uses_shared_storage(unit, owner)
+    {
+        return None;
+    }
+    Some(if mode == InvocationMode::Mutable {
+        ReferenceAuthority::Exclusive
+    } else {
+        ReferenceAuthority::ReadOnly
+    })
+}
+
+fn call_argument_owner_path(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    place: &SyntaxNode,
+) -> Option<(Span, Vec<ReferenceProjection>)> {
+    let place = ungroup(place);
+    let place = if place.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, place).as_deref() == Some("move")
+    {
+        place.children.last().unwrap_or(place)
+    } else {
+        if matches!(
+            place.kind,
+            SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+        ) {
+            // Ordinary field/element reads produce independent owned snapshots.
+            return None;
+        }
+        place
+    };
+    unit.typed_bindings.iter().find_map(|binding| {
+        owner_place_path(
+            package,
+            unit,
+            place,
+            binding.span,
+            &unit.reference_provenance,
+        )
+        .map(|path| (binding.span, path))
+    })
+}
+
+fn validate_preserved_return_value(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let value = ungroup(value);
+    if let Some(binding) = binding_at(unit, value)
+        && let value_type = unit
+            .flow_binding_types
+            .get(&binding.span)
+            .unwrap_or(&binding.value_type)
+        && !matches!(
+            value_type,
+            ValueType::Reference(_)
+                | ValueType::MutableReference(_)
+                | ValueType::SharedReference(_)
+                | ValueType::InvocationScopedNative { .. }
+        )
+        && !value_type_is_cloneable(package, unit, value_type)
+        && super::bindings::binding_return_requires_preservation(package, binding.span, value.span)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "return cannot preserve a non-Clone or unconstrained value for another read; transfer it only after its final observation",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn validate_return_preservation(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        mut returning: bool,
+    ) -> Result<(), SemanticFailure> {
+        if matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        ) {
+            returning = false;
+        }
+        if node.kind == SyntaxKind::ReturnStatement {
+            returning = true;
+            if let Some(value) = node.children.first() {
+                validate_preserved_return_value(package, unit, value)?;
+            }
+        }
+        if returning
+            && node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && let Some(contract) = super::calls::selected_callable_contract(
+                package,
+                unit,
+                node,
+                crate::syntax::call_is_unsafe(node),
+            )
+        {
+            let projected = super::bindings::projected_function_for_call(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            );
+            for (index, parameter) in contract.parameters.iter().enumerate() {
+                let borrowed = projected
+                    .and_then(|function| function.parameters.get(index))
+                    .is_some_and(|parameter| parameter.borrowed)
+                    || parameter.element_value_type().is_some_and(|ty| {
+                        matches!(
+                            ty,
+                            ValueType::Reference(_)
+                                | ValueType::MutableReference(_)
+                                | ValueType::SharedReference(_)
+                        )
+                    });
+                if !borrowed
+                    && let Some(value) = argument_for_parameter(unit, arguments, &contract, index)
+                {
+                    validate_preserved_return_value(package, unit, value)?;
+                }
+            }
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(arguments) = node.children.get(1)
+        {
+            for argument in &arguments.children {
+                let value = argument.children.last().unwrap_or(argument);
+                validate_call_argument_preservation(package, unit, node, value)?;
+            }
+        }
+        for child in &node.children {
+            visit(package, unit, child, returning)?;
+        }
+        Ok(())
+    }
+    for unit in &package.units {
+        visit(package, unit, &unit.tree.root, false)?;
+    }
+    Ok(())
+}
+
+fn validate_call_argument_preservation(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if let Some(authority) = call_argument_borrow_authority(package, unit, node, value) {
+        if authority == ReferenceAuthority::Exclusive {
+            return Err(failure(
+                &unit.source,
+                "T0149",
+                "cannot access a value while an earlier call argument borrows it exclusively",
+                value.span,
+            ));
+        }
+        let moved = ungroup(value);
+        if moved.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, moved).as_deref() == Some("move")
+        {
+            return Err(failure(
+                &unit.source,
+                "T0058",
+                "cannot move a value while an earlier call argument borrows it",
+                value.span,
+            ));
+        }
+        if let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)?
+            && !value_type_is_cloneable(package, unit, &value_type)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "call cannot preserve a non-Clone or unconstrained value borrowed by an earlier argument",
+                value.span,
+            ));
+        }
     }
     Ok(())
 }
@@ -1210,7 +2436,9 @@ fn first_owner_lifetime_end(
                     let family = member
                         .split_once('.')
                         .map_or(member.as_str(), |(family, _)| family);
-                    (member_invocation_mode(package, unit, &ty, family) == InvocationMode::Mutable)
+                    (super::diagnostics::member_invocation_mode_at(
+                        package, unit, receiver, &ty, family,
+                    ) == InvocationMode::Mutable)
                         .then_some(receiver)
                 })
             }
@@ -1303,12 +2531,21 @@ pub(super) fn argument_for_parameter<'a>(
     parameter_index: usize,
 ) -> Option<&'a SyntaxNode> {
     let parameter = contract.parameters.get(parameter_index)?;
+    argument_for_parameter_name(unit, arguments, &parameter.name, parameter_index)
+}
+
+pub(super) fn argument_for_parameter_name<'a>(
+    unit: &SemanticUnit,
+    arguments: &'a SyntaxNode,
+    parameter_name: &str,
+    parameter_index: usize,
+) -> Option<&'a SyntaxNode> {
     if let Some(named) = arguments.children.iter().find(|argument| {
         argument.children.len() > 1
             && argument
                 .children
                 .first()
-                .is_some_and(|name| node_text(&unit.source, name) == parameter.name)
+                .is_some_and(|name| node_text(&unit.source, name) == parameter_name)
     }) {
         return named.children.last();
     }
@@ -1366,6 +2603,32 @@ fn symbolic_lender_parameter(
             });
         }
         SyntaxKind::CallExpression => {
+            if let Some(specialization) = unit
+                .projected_call_specializations
+                .get(&span_key(node.span))
+                && let Some(receiver_lifetime) = &specialization.projected_receiver_lifetime
+                && let crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                    lifetimes,
+                    ..
+                } = &specialization.projected_result
+                && lifetimes.iter().any(|lifetime| lifetime != "'static")
+                && lifetimes
+                    .iter()
+                    .all(|lifetime| lifetime == "'static" || lifetime == receiver_lifetime)
+                && let Some(receiver) = node
+                    .children
+                    .first()
+                    .and_then(|callee| callee.children.first())
+            {
+                return symbolic_lender_parameter(
+                    package,
+                    unit,
+                    receiver,
+                    contract,
+                    known,
+                    visited_bindings,
+                );
+            }
             let callee = package_function_contract(package, unit, node)?;
             let lender = *known.get(&contract_key(callee))?;
             let argument = argument_for_parameter(unit, node.children.get(1)?, callee, lender)?;
@@ -1381,17 +2644,86 @@ fn symbolic_lender_parameter(
         SyntaxKind::Name => {}
         _ => return None,
     }
+    symbolic_name_lender_parameter(package, unit, node, contract, known, visited_bindings)
+}
+
+fn symbolic_name_lender_parameter(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    contract: &FunctionContract,
+    known: &BTreeMap<FunctionKey, usize>,
+    visited_bindings: &mut BTreeSet<FunctionKey>,
+) -> Option<usize> {
+    if let Some(origins) =
+        unit.flow_read_bindings
+            .get(&(node.span.file, node.span.start, node.span.end))
+    {
+        let mut lender = None;
+        for origin in origins {
+            let parameter_lender = unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == *origin)
+                .and_then(|binding| {
+                    contract.parameters.iter().position(|parameter| {
+                        parameter.name == binding.name
+                            && parameter.span.start <= binding.span.start
+                            && binding.span.end <= parameter.span.end
+                    })
+                });
+            let reaching = if let Some(parameter_lender) = parameter_lender {
+                Some(parameter_lender)
+            } else {
+                fn write_value(node: &SyntaxNode, origin: Span) -> Option<&SyntaxNode> {
+                    if node.span == origin
+                        && matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+                    {
+                        return match node.kind {
+                            SyntaxKind::Assignment => node.children.get(1),
+                            SyntaxKind::Binding => node
+                                .children
+                                .last()
+                                .filter(|child| child.kind != SyntaxKind::TypeExpression),
+                            _ => None,
+                        };
+                    }
+                    node.children
+                        .iter()
+                        .find_map(|child| write_value(child, origin))
+                }
+                write_value(&unit.tree.root, *origin).and_then(|value| {
+                    symbolic_lender_parameter(
+                        package,
+                        unit,
+                        value,
+                        contract,
+                        known,
+                        visited_bindings,
+                    )
+                })
+            };
+            let reaching = reaching?;
+            if lender.is_some_and(|existing| existing != reaching) {
+                return None;
+            }
+            lender = Some(reaching);
+        }
+        if lender.is_some() {
+            return lender;
+        }
+    }
     let binding = binding_at(unit, node)?;
     if let Some(index) = contract.parameters.iter().position(|parameter| {
         parameter.name == binding.name
-            && matches!(
-                parameter.value_type,
-                Some(
+            && parameter.value_type.as_ref().is_some_and(|ty| {
+                matches!(
+                    ty,
                     ValueType::Reference(_)
                         | ValueType::MutableReference(_)
                         | ValueType::SharedReference(_)
-                )
-            )
+                ) || super::scoped_regions::field_has_native_loan(package, ty)
+            })
     }) {
         return Some(index);
     }
@@ -1447,11 +2779,14 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
         let mut changed = false;
         for unit in &package.units {
             for contract in unit.local_functions() {
-                if !matches!(
-                    contract.return_type,
-                    Some(ValueType::Reference(_) | ValueType::MutableReference(_))
-                ) || known.contains_key(&contract_key(contract))
-                {
+                let lends_result = contract.return_type.as_ref().is_some_and(|ty| {
+                    matches!(ty, ValueType::Reference(_) | ValueType::MutableReference(_))
+                        || (matches!(
+                            ty,
+                            ValueType::Object(_) | ValueType::InvocationScopedNative { .. }
+                        ) && super::scoped_regions::field_has_native_loan(package, ty))
+                });
+                if !lends_result || known.contains_key(&contract_key(contract)) {
                     continue;
                 }
                 let mut returns = Vec::new();
@@ -1496,6 +2831,24 @@ pub(super) fn expression_provenance(
     proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
     return_lenders: &BTreeMap<FunctionKey, usize>,
 ) -> Option<ReferenceProvenance> {
+    if node.kind == SyntaxKind::Name
+        && let Some(origins) =
+            unit.flow_read_bindings
+                .get(&(node.span.file, node.span.start, node.span.end))
+    {
+        for origin in origins {
+            if let Some(version) = unit
+                .reference_assignment_provenance
+                .iter()
+                .find(|version| version.assignment == *origin)
+            {
+                let mut provenance = version.provenance.clone();
+                provenance.external_lender |=
+                    owner_is_external_lender(unit, node.span.start, provenance.owner);
+                return Some(provenance);
+            }
+        }
+    }
     if let Some(binding) = binding_at(unit, node)
         && let Some(mut provenance) = proven.get(&(binding.span.start, binding.span.end)).cloned()
     {
@@ -1542,13 +2895,6 @@ fn borrow_origin(
     proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
     return_lenders: &BTreeMap<FunctionKey, usize>,
 ) -> Option<ReferenceProvenance> {
-    if let Some(binding) = binding_at(unit, node)
-        && let Some(existing) = proven.get(&(binding.span.start, binding.span.end))
-    {
-        let mut existing = existing.clone();
-        existing.parent_observer = Some(binding.span);
-        return Some(existing);
-    }
     if let Some(mut existing) = expression_provenance(package, unit, node, proven, return_lenders) {
         if let Some(binding) = binding_at(unit, node)
             && matches!(
@@ -1624,7 +2970,7 @@ pub(super) fn validate_implicit_reference_argument(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    validate_async_field_borrow(unit, value)?;
+    validate_async_field_borrow(package, unit, value)?;
     if let Some(ValueType::Object(identity)) = infer_value_type(unit, value, &unit.typed_bindings)?
         && package
             .projection
@@ -1891,6 +3237,7 @@ fn validate_reference_return(
     node: &SyntaxNode,
     proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
     return_lenders: &BTreeMap<FunctionKey, usize>,
+    versions: &[ReferenceAssignmentProvenance],
 ) -> Result<(), SemanticFailure> {
     if node.kind != SyntaxKind::ReturnStatement {
         return Ok(());
@@ -1952,31 +3299,47 @@ fn validate_reference_return(
             })
         })
         .map(|binding| binding.span);
-    let provenance =
-        expression_provenance(package, unit, value, proven, return_lenders).or_else(|| {
-            reference_return
-                .then(|| borrow_origin(package, unit, value, proven, return_lenders))
-                .flatten()
-        });
+    let mut provenances =
+        reaching_reference_provenances(package, unit, value, proven, versions, return_lenders);
+    if provenances.is_empty()
+        && reference_return
+        && let Some(provenance) = borrow_origin(package, unit, value, proven, return_lenders)
+    {
+        provenances.push(provenance);
+    }
+    let provenance = provenances.first();
     let requires_exclusive = contract.is_some_and(|contract| {
         matches!(contract.return_type, Some(ValueType::MutableReference(_)))
     });
     let parameter_lender = expected_lender.is_some()
-        && provenance.as_ref().is_some_and(|provenance| {
+        && !provenances.is_empty()
+        && provenances.iter().all(|provenance| {
             provenance.lender_parameter == expected_lender
                 && (!requires_exclusive || provenance.authority == ReferenceAuthority::Exclusive)
         });
     if parameter_lender {
         return Ok(());
     }
-    if reference_is_captured_closure_lender(contract, provenance.as_ref()) {
+    reference_return_lender_failure(
+        unit,
+        value.span,
+        reference_is_captured_closure_lender(contract, provenance),
+    )
+}
+
+fn reference_return_lender_failure(
+    unit: &SemanticUnit,
+    span: Span,
+    captured_environment: bool,
+) -> Result<(), SemanticFailure> {
+    if captured_environment {
         return Err(SemanticFailure {
             source: unit.source.clone(),
             diagnostics: vec![
                 Diagnostic::error(
                     "T0145",
                     "returning a reference borrowed from a callable's captured environment is not supported",
-                    value.span,
+                    span,
                 )
                 .with_help(
                     "pass the owner as an explicit reference parameter, or return an owned value",
@@ -1988,8 +3351,53 @@ fn validate_reference_return(
         &unit.source,
         "T0068",
         "returned reference is not proven to originate from one declared reference-parameter lender",
-        value.span,
+        span,
     ))
+}
+
+fn reaching_reference_provenances(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
+    versions: &[ReferenceAssignmentProvenance],
+    return_lenders: &BTreeMap<FunctionKey, usize>,
+) -> Vec<ReferenceProvenance> {
+    let value = ungroup(value);
+    let origins = unit
+        .flow_read_bindings
+        .get(&(value.span.file, value.span.start, value.span.end));
+    if let Some(origins) = origins {
+        let mut reaching = Vec::new();
+        for origin in origins {
+            let mut found_version = false;
+            for version in versions
+                .iter()
+                .filter(|version| version.assignment == *origin)
+            {
+                found_version = true;
+                if !reaching.contains(&version.provenance) {
+                    reaching.push(version.provenance.clone());
+                }
+            }
+            if !found_version
+                && let Some(provenance) = proven.get(&(origin.start, origin.end))
+                && !reaching.contains(provenance)
+            {
+                reaching.push(provenance.clone());
+            }
+        }
+        if !reaching.is_empty() {
+            for provenance in &mut reaching {
+                provenance.external_lender |=
+                    owner_is_external_lender(unit, value.span.start, provenance.owner);
+            }
+            return reaching;
+        }
+    }
+    expression_provenance(package, unit, value, proven, return_lenders)
+        .into_iter()
+        .collect()
 }
 
 fn record_reference_assignment(
@@ -1998,6 +3406,7 @@ fn record_reference_assignment(
     node: &SyntaxNode,
     proven: &mut BTreeMap<(usize, usize), ReferenceProvenance>,
     return_lenders: &BTreeMap<FunctionKey, usize>,
+    versions: &mut Vec<ReferenceAssignmentProvenance>,
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::Assignment
         && let [target, initializer] = node.children.as_slice()
@@ -2009,31 +3418,41 @@ fn record_reference_assignment(
                 | ValueType::MutableReference(_)
                 | ValueType::SharedReference(_)
         )
-        && let Some(mut provenance) =
-            expression_provenance(package, unit, initializer, proven, return_lenders)
     {
-        let key = (binding.span.start, binding.span.end);
-        if let Some(source) = binding_at(unit, initializer)
-            && source.span != binding.span
-            && proven.contains_key(&(source.span.start, source.span.end))
-        {
-            provenance.parent_observer = Some(source.span);
-        }
-        if let Some(initial) = proven.get(&key) {
-            if package.reference_owner_uses_shared_storage(unit, initial.owner)
-                != package.reference_owner_uses_shared_storage(unit, provenance.owner)
-            {
-                return Err(failure(
-                    &unit.source,
-                    "T0142",
-                    "an ordinary observer cannot be reassigned between plain and shared-backed storage; use a separate observer binding",
-                    initializer.span,
-                ));
+        let mut provenances = reaching_reference_provenances(
+            package,
+            unit,
+            initializer,
+            proven,
+            versions,
+            return_lenders,
+        );
+        if !provenances.is_empty() {
+            let key = (binding.span.start, binding.span.end);
+            for provenance in &mut provenances {
+                if let Some(source) = binding_at(unit, initializer)
+                    && source.span != binding.span
+                    && proven.contains_key(&(source.span.start, source.span.end))
+                {
+                    provenance.parent_observer = Some(source.span);
+                }
+                if let Some(initial) = proven.get(&key)
+                    && package.reference_owner_uses_shared_storage(unit, initial.owner)
+                        != package.reference_owner_uses_shared_storage(unit, provenance.owner)
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0142",
+                        "an ordinary observer cannot be reassigned between plain and shared-backed storage; use a separate observer binding",
+                        initializer.span,
+                    ));
+                }
+                versions.push(ReferenceAssignmentProvenance {
+                    assignment: node.span,
+                    provenance: provenance.clone(),
+                });
             }
-        } else {
-            // Inferred declarations are assignments. Later writes must not rebase the
-            // declaration's provenance onto an owner absent at earlier reads.
-            proven.insert(key, provenance);
+            proven.entry(key).or_insert_with(|| provenances.remove(0));
         }
     }
     Ok(())
@@ -2051,7 +3470,7 @@ fn record_unary_reference_provenance(
         && let Some(operator) = unary_operator_text(unit, node)
         && matches!(operator.as_str(), "ref" | "mutable ref" | "shared ref")
     {
-        validate_async_field_borrow(unit, operand)?;
+        validate_async_field_borrow(package, unit, operand)?;
         if let Some(ValueType::Object(identity)) =
             infer_value_type(unit, operand, &unit.typed_bindings)?
             && package
@@ -2111,6 +3530,7 @@ fn record_reference_provenance(
     node: &SyntaxNode,
     proven: &mut BTreeMap<(usize, usize), ReferenceProvenance>,
     return_lenders: &BTreeMap<FunctionKey, usize>,
+    versions: &mut Vec<ReferenceAssignmentProvenance>,
 ) -> Result<(), SemanticFailure> {
     record_unary_reference_provenance(package, unit, node, proven, return_lenders)?;
     if node.kind == SyntaxKind::Binding
@@ -2128,37 +3548,46 @@ fn record_reference_provenance(
             .children
             .last()
             .filter(|child| child.kind != SyntaxKind::TypeExpression)
-        && let Some(mut provenance) =
-            expression_provenance(package, unit, initializer, proven, return_lenders)
-                .or_else(|| {
-                    proven
-                        .get(&(initializer.span.start, initializer.span.end))
-                        .cloned()
-                })
-                .or_else(|| {
-                    (initializer.kind == SyntaxKind::UnaryExpression
-                        && matches!(
-                            unary_operator_text(unit, initializer).as_deref(),
-                            Some("ref" | "mutable ref" | "shared ref")
-                        ))
-                    .then(|| initializer.children.last())
-                    .flatten()
-                    .and_then(|operand| {
-                        borrow_origin(package, unit, operand, proven, return_lenders)
-                    })
-                })
     {
-        if let Some(source) = binding_at(unit, initializer)
-            && proven.contains_key(&(source.span.start, source.span.end))
+        let mut provenances = reaching_reference_provenances(
+            package,
+            unit,
+            initializer,
+            proven,
+            versions,
+            return_lenders,
+        );
+        if provenances.is_empty()
+            && initializer.kind == SyntaxKind::UnaryExpression
+            && matches!(
+                unary_operator_text(unit, initializer).as_deref(),
+                Some("ref" | "mutable ref" | "shared ref")
+            )
+            && let Some(operand) = initializer.children.last()
+            && let Some(provenance) = borrow_origin(package, unit, operand, proven, return_lenders)
         {
-            provenance.parent_observer = Some(source.span);
+            provenances.push(provenance);
         }
-        proven.insert((binding.span.start, binding.span.end), provenance);
+        if let Some(mut provenance) = provenances.first().cloned() {
+            if let Some(source) = binding_at(unit, initializer)
+                && proven.contains_key(&(source.span.start, source.span.end))
+            {
+                provenance.parent_observer = Some(source.span);
+                provenances[0].parent_observer = Some(source.span);
+            }
+            for provenance in &provenances {
+                versions.push(ReferenceAssignmentProvenance {
+                    assignment: binding.span,
+                    provenance: provenance.clone(),
+                });
+            }
+            proven.insert((binding.span.start, binding.span.end), provenance);
+        }
     }
-    record_reference_assignment(package, unit, node, proven, return_lenders)?;
+    record_reference_assignment(package, unit, node, proven, return_lenders, versions)?;
     validate_parameter_reference_storage(package, unit, node, proven, return_lenders)?;
     validate_borrowed_callable_storage(package, unit, node)?;
-    validate_reference_return(package, unit, node, proven, return_lenders)?;
+    validate_reference_return(package, unit, node, proven, return_lenders, versions)?;
     if node.kind == SyntaxKind::ForStatement
         && let [target, collection, _block] = node.children.as_slice()
         && collection.kind == SyntaxKind::UnaryExpression
@@ -2184,7 +3613,7 @@ fn record_reference_provenance(
         }
     }
     for child in &node.children {
-        record_reference_provenance(package, unit, child, proven, return_lenders)?;
+        record_reference_provenance(package, unit, child, proven, return_lenders, versions)?;
     }
     Ok(())
 }
@@ -2372,8 +3801,9 @@ pub(super) fn analyze_reference_provenance(
         unit.reference_return_lenders = return_lenders.clone();
     }
     for index in 0..package.units.len() {
-        let proven = {
+        let (proven, owners, versions) = {
             let unit = &package.units[index];
+            let mut versions = Vec::new();
             let mut proven = unit
                 .typed_bindings
                 .iter()
@@ -2414,6 +3844,7 @@ pub(super) fn analyze_reference_provenance(
                 &unit.tree.root,
                 &mut proven,
                 &return_lenders,
+                &mut versions,
             )?;
             let lifetime_ends = proven
                 .iter()
@@ -2454,10 +3885,11 @@ pub(super) fn analyze_reference_provenance(
                 &return_lenders,
                 &mut owners,
             );
-            (proven, owners)
+            (proven, owners, versions)
         };
-        package.units[index].reference_provenance = proven.0;
-        package.units[index].reference_owner_spans = proven.1;
+        package.units[index].reference_provenance = proven;
+        package.units[index].reference_owner_spans = owners;
+        package.units[index].reference_assignment_provenance = versions;
         package.units[index].callable_drops_after.clear();
     }
     Ok(())
@@ -2551,6 +3983,61 @@ fn callable_cleanup_boundary(
         .map_or_else(|| containing_statement(&unit.tree.root, use_span), Some)
 }
 
+fn span_is_iteration_binding(node: &SyntaxNode, span: Span) -> bool {
+    node.span.start <= span.start
+        && span.end <= node.span.end
+        && (node.kind == SyntaxKind::ForTarget
+            || node
+                .children
+                .iter()
+                .any(|child| span_is_iteration_binding(child, span)))
+}
+
+fn reference_read_reaches(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    declaration: Span,
+) -> bool {
+    fn is_retarget(node: &SyntaxNode, target: Span) -> bool {
+        if node.kind == SyntaxKind::Assignment
+            && node
+                .children
+                .first()
+                .is_some_and(|child| child.span == target)
+        {
+            return true;
+        }
+        node.children.iter().any(|child| is_retarget(child, target))
+    }
+    if node.kind == SyntaxKind::Name
+        && binding_at(unit, node).is_some_and(|binding| {
+            matches!(
+                binding.value_type,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            )
+        })
+        && is_retarget(&unit.tree.root, node.span)
+    {
+        return false;
+    }
+    let origins = unit
+        .flow_read_bindings
+        .get(&(node.span.file, node.span.start, node.span.end));
+    if let Some(origins) = origins {
+        return origins.contains(&declaration);
+    }
+    let same_storage = binding_at(unit, node)
+        .map(|binding| binding.span)
+        .or_else(|| {
+            package
+                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+                .and_then(|symbol| symbol.declaration_span)
+        })
+        == Some(declaration);
+    same_storage && (origins.is_none() || !span_is_iteration_binding(&unit.tree.root, declaration))
+}
+
 fn first_use_after(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -2558,12 +4045,12 @@ fn first_use_after(
     declaration: Span,
     position: usize,
 ) -> Option<Span> {
+    if node.kind == SyntaxKind::ForTarget {
+        return None;
+    }
     if node.kind == SyntaxKind::Name
         && node.span.start >= position
-        && package
-            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-            .and_then(|symbol| symbol.declaration_span)
-            == Some(declaration)
+        && reference_read_reaches(package, unit, node, declaration)
     {
         return Some(node.span);
     }
@@ -2579,15 +4066,15 @@ fn last_use_of_binding(
     declaration: Span,
     position: usize,
 ) -> Option<Span> {
+    if node.kind == SyntaxKind::ForTarget {
+        return None;
+    }
     if node.kind == SyntaxKind::AnonymousFunction && declaration.start < node.span.start {
         return None;
     }
     if node.kind == SyntaxKind::Name
         && node.span.start >= position
-        && package
-            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-            .and_then(|symbol| symbol.declaration_span)
-            == Some(declaration)
+        && reference_read_reaches(package, unit, node, declaration)
     {
         return Some(node.span);
     }
@@ -2610,9 +4097,8 @@ fn last_callable_carrier_use(
             .filter(|source| source.kind == SyntaxKind::Name)
         && binding_at(unit, source).map(|binding| binding.span) == Some(carrier)
         && let Some(target) = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Name)
+            .assignment_target()
+            .filter(|child| child.kind == SyntaxKind::Name)
         && let Some(target_span) = super::bindings::declared_bindings_at_node(unit, node)
             .map(|binding| binding.span)
             .next()
@@ -2698,7 +4184,7 @@ fn later_span(left: Option<Span>, right: Option<Span>) -> Option<Span> {
     }
 }
 
-fn last_reference_dependent_use(
+pub(in crate::semantics) fn last_reference_dependent_use(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     observer: &TypedBinding,
@@ -2845,10 +4331,61 @@ fn expired_reference_use_failure(
         lifetime_end,
     ))
 }
+fn validate_reassigned_reference_versions(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+) -> Result<(), SemanticFailure> {
+    for version in &unit.reference_assignment_provenance {
+        if unit.typed_bindings.iter().any(|binding| {
+            binding.span == version.assignment
+                && matches!(binding.value_type, ValueType::SharedReference(_))
+        }) {
+            continue;
+        }
+        let Some(mutation) = first_owner_lifetime_end(
+            package,
+            unit,
+            &unit.tree.root,
+            version.provenance.owner,
+            version.assignment.end,
+            &unit.reference_provenance,
+            !has_exclusive_lineage(&version.provenance, &unit.reference_provenance),
+        ) else {
+            continue;
+        };
+        if first_use_after(
+            package,
+            unit,
+            &unit.tree.root,
+            version.assignment,
+            mutation.end,
+        )
+        .is_none()
+        {
+            continue;
+        }
+        let owner_name = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == version.provenance.owner)
+            .map_or("<unknown>", |binding| binding.name.as_str());
+        return Err(failure(
+            &unit.source,
+            "T0059",
+            format!(
+                "reference to owner `{owner_name}` remains in use after this mutation, move, or replacement"
+            ),
+            mutation,
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn validate_referenced_replacements(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     for unit in &package.units {
+        exclusive_loans::validate_shared_iteration_access(package, unit, &unit.tree.root)?;
         for (&observer_key, provenance) in &unit.reference_provenance {
             let Some(observer) = unit.typed_bindings.iter().find(|binding| {
                 (binding.span.start, binding.span.end) == observer_key
@@ -2869,13 +4406,19 @@ pub(super) fn validate_referenced_replacements(
             if !matches!(observer.value_type, ValueType::SharedReference(_))
                 && has_exclusive_lineage(provenance, &unit.reference_provenance)
                 && provenance.owner != observer.span
-                && let Some(last_use) = last_reference_dependent_use(
-                    package,
-                    unit,
-                    observer,
-                    &unit.reference_provenance,
-                    &mut BTreeSet::new(),
-                )
+                && let Some(loan_end) =
+                    exclusive_loans::iteration_loan_end(&unit.tree.root, observer.span).or_else(
+                        || {
+                            last_reference_dependent_use(
+                                package,
+                                unit,
+                                observer,
+                                &unit.reference_provenance,
+                                &mut BTreeSet::new(),
+                            )
+                            .map(|last_use| last_use.end)
+                        },
+                    )
                 && let Some(conflict) = first_owner_access_between(
                     package,
                     unit,
@@ -2887,7 +4430,7 @@ pub(super) fn validate_referenced_replacements(
                         provenances: &unit.reference_provenance,
                         writes_only: provenance.authority == ReferenceAuthority::ReadOnly,
                         start: observer.span.end,
-                        end: last_use.end,
+                        end: loan_end,
                     },
                 )
             {
@@ -2911,6 +4454,7 @@ pub(super) fn validate_referenced_replacements(
                 return Err(failure);
             }
         }
+        validate_reassigned_reference_versions(package, unit)?;
     }
     Ok(())
 }
@@ -3705,9 +5249,8 @@ pub(super) fn validate_initializer_dependencies(
                 continue;
             };
             let name = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
+                .assignment_target()
+                .filter(|child| child.kind == SyntaxKind::Name)
                 .expect("ordinary assignment has a name");
             if package
                 .globals

@@ -12,7 +12,7 @@ pub trait SummerProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SummerProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SummerProtocol::clone_box(&**self)
     }
 }
 pub struct Summer(Box<dyn SummerProtocol>);
@@ -43,8 +43,8 @@ impl Calculator {
         let mut value: terrane_int_support::Int;
         result = terrane_int_support::Int::from(0_i128);
         let __terrane_iterable_0 = values;
-        let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_0,
+        let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_0.as_slice(),
         );
         loop {
             value = match __terrane_iterator_0.next() {
@@ -82,8 +82,8 @@ fn total(
     let mut value: terrane_int_support::Int;
     result = terrane_int_support::Int::from(0_i128);
     let __terrane_iterable_1 = values;
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_1,
+    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_1.as_slice(),
     );
     loop {
         value = match __terrane_iterator_1.next() {
@@ -102,8 +102,8 @@ fn offset_total(
     let mut value: terrane_int_support::Int;
     result = offset.clone();
     let __terrane_iterable_2 = values;
-    let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_2,
+    let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_2.as_slice(),
     );
     loop {
         value = match __terrane_iterator_2.next() {

@@ -14,7 +14,7 @@ impl Note {
     }
     pub fn construct(&mut self, text: String) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -203,19 +203,19 @@ fn main() {
         false,
     );
     {
-        let __terrane_value = fields;
+        let __terrane_value: terrane_collection_support::List<String> = fields;
         mapping.field_names = __terrane_value;
     }
     {
-        let __terrane_value = optional_fields;
+        let __terrane_value: terrane_collection_support::List<String> = optional_fields;
         mapping.optional_fields = __terrane_value;
     }
     {
-        let __terrane_value = default_fields;
+        let __terrane_value: terrane_collection_support::List<String> = default_fields;
         mapping.default_fields = __terrane_value;
     }
     {
-        let __terrane_value = default_values;
+        let __terrane_value: terrane_collection_support::List<String> = default_values;
         mapping.default_values = __terrane_value;
     }
     missing = parse_json(String::from("{}"), options.clone());

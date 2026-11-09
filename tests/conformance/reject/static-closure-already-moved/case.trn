@@ -1,0 +1,10 @@
+namespace static-closure-already-moved
+class holder
+    static f (consuming function to int)|none = none
+
+function main;
+    g = consuming function int;
+        return 1
+    h = move g
+    holder::f = g
+    print; 1

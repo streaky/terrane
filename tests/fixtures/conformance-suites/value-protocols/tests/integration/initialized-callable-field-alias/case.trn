@@ -1,0 +1,13 @@
+namespace initialized-callable-field-alias
+function first int;
+    return 5
+function second int;
+    return 7
+class holder
+    f function to int = first
+function test-scenario;
+    h = instance holder;
+    alias = h.f
+    h.f = second
+    print; (alias;)
+    print; (h.f;)

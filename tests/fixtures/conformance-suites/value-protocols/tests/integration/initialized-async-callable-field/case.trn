@@ -1,0 +1,20 @@
+namespace initialized-async-callable-field
+from /core/errors import throwable
+class failure implements throwable
+    message string = 'async field failure'
+    function render string;
+        return this.message
+async function safe int;
+    return 7
+async function bad int throws throwable;
+    throw instance failure;
+class holder
+    f async function to int throws throwable = safe
+async function test-scenario;
+    h = instance holder;
+    print; (await (h.f;))
+    h.f = bad
+    try
+        print; (await (h.f;))
+    catch failure as error
+        print; error.message

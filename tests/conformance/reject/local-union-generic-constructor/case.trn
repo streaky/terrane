@@ -1,0 +1,11 @@
+namespace local-union-generic-constructor
+
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+
+function main;
+    value int|string = 'text'
+    box = instance Box; value
+    print; (box.value is a string)

@@ -1,0 +1,15 @@
+namespace escaping-bounded-capture-list
+from /core/collections import list
+interface named
+    function name int;
+class value implements named
+    function name int;
+        return 1
+function mk of (T implements named) list of function to int; item T
+    fs list of function to int = list;
+    fs.append; function int;
+        return item.name;
+    return fs
+function main;
+    fs = mk; (instance value;)
+    print; (fs[0];)

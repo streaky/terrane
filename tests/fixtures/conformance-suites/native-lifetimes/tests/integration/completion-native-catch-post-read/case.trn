@@ -1,0 +1,12 @@
+namespace completion-native-catch-post-read
+from /core/collections import list
+from /deps/terrane-query-witness import Cl
+
+function test-scenario;
+    c = Cl::new;
+    try
+        print; (c.into_value;)
+        c = Cl::new;
+    catch
+        print; 1
+    print; (c.value;)

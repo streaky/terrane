@@ -1,0 +1,31 @@
+namespace generic-method-nested-result
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+    consuming function take T;
+        return move this.value
+class Factory
+    function both of (B) Box of B; value B
+        return instance (Box of B); (move value)
+    function direct of (B) B; value B
+        return move value
+    static function static-both of (B) Box of B; value B
+        return instance (Box of B); (move value)
+function free-both of (B) Box of B; value B
+    return instance (Box of B); (move value)
+function unbox of (T) T; box Box of T
+    return box.take;
+function test-scenario;
+    factory = instance Factory;
+    inferred = factory.both; 'inferred'
+    print; (inferred.take;)
+    typed Box of string = factory.both; 'typed'
+    print; (typed.take;)
+    explicit = (factory.both of string); 'explicit'
+    print; (explicit.take;)
+    print; (factory.direct; 'direct')
+    free = free-both; 'free'
+    print; (free.take;)
+    static = Factory::static-both; 'static'
+    print; (static.take;)

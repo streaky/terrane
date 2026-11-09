@@ -1,0 +1,10 @@
+namespace generic-return-borrowed-twice
+from /core/collections import list
+function both of (T) int; a ref T, b ref T
+    return 7
+function f of (T) int; value T
+    for item in (list; 1)
+        return both; value, value
+    return 0
+function test-scenario;
+    print; (f; 'safe')

@@ -82,7 +82,7 @@ fn add_tracked(
         std::sync::Arc::new(move |incoming: &Event| -> () {
             {
                 let __terrane_owner_0 = state.clone();
-                let __terrane_value = {
+                let __terrane_value: terrane_int_support::Int = {
                     let __terrane_snapshot = state
                         .lock()
                         .expect("shared reference lock poisoned")
@@ -289,7 +289,7 @@ fn main() {
         std::sync::Arc::new(move |incoming: &Event| -> () {
             {
                 let __terrane_owner_1 = state.clone();
-                let __terrane_value = {
+                let __terrane_value: terrane_int_support::Int = {
                     let __terrane_snapshot = state
                         .lock()
                         .expect("shared reference lock poisoned")
@@ -731,7 +731,7 @@ fn main() {
             );
             {
                 let __terrane_owner_2 = state.clone();
-                let __terrane_value = {
+                let __terrane_value: terrane_int_support::Int = {
                     let __terrane_snapshot = state
                         .lock()
                         .expect("shared reference lock poisoned")
@@ -918,7 +918,8 @@ fn main() {
             changes = changes.clone() + terrane_int_support::Int::from(1_i128);
             current = &mut *incoming;
             {
-                let __terrane_value = changes == terrane_int_support::Int::from(2_i128);
+                let __terrane_value: bool = changes
+                    == terrane_int_support::Int::from(2_i128);
                 current.active = __terrane_value;
             }
             ()
@@ -945,7 +946,7 @@ fn main() {
     };
     println!("{}", terrane_scalar_support::scalar_text(&changing_event.active));
     {
-        let __terrane_value = false;
+        let __terrane_value: bool = false;
         changing_event.active = __terrane_value;
     }
     {
@@ -964,7 +965,7 @@ fn main() {
         let send_only_state = send_only_state.clone();
         TerraneOwnedMutableInputsM::new(move |(incoming,): (&mut MutableEvent,)| -> () {
             {
-                let __terrane_value = __terrane_raised(
+                let __terrane_value: bool = __terrane_raised(
                     || -> Result<_, crate::TerraneForeignError> {
                         {
                             let value = match std::panic::catch_unwind(
@@ -998,7 +999,7 @@ fn main() {
         })
     };
     {
-        let __terrane_value = false;
+        let __terrane_value: bool = false;
         changing_event.active = __terrane_value;
     }
     {

@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/native-query-witness import Connection, StoreResult, Arguments, SqlToken, query_with
+
+async function main;
+  connection = Connection::new;
+  arguments = Arguments::new;
+  arguments.push; 37
+  sql SqlToken = SqlToken::new; 'insert'
+  result StoreResult = await ((query_with; sql, move arguments).persistent; false).execute; connection
+  print; (result.rows_affected;)
+  print; (result.persistent;)

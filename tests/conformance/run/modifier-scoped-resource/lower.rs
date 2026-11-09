@@ -23,7 +23,7 @@ impl Marker {
     }
     pub fn construct(&mut self, name: String) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
     }
@@ -289,7 +289,7 @@ async fn hold(
             );
             {
                 let __terrane_owner_0 = observer.clone();
-                let __terrane_value = true;
+                let __terrane_value: bool = true;
                 __terrane_owner_0
                     .lock()
                     .expect("shared reference lock poisoned")

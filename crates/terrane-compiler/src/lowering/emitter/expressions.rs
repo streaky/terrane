@@ -130,6 +130,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn expression_throws_synchronously(&self, node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::IndexExpression {
+            return true;
+        }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
         {
@@ -322,12 +325,15 @@ impl Emitter<'_> {
         format!("{operator}{operand}")
     }
 
-    pub(super) fn source_applied_function(&self, node: &SyntaxNode) -> Option<String> {
+    pub(super) fn source_applied_function_parts(
+        &self,
+        node: &SyntaxNode,
+    ) -> Option<(&FunctionContract, Vec<String>)> {
         if matches!(
             node.kind,
             SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
         ) {
-            return self.source_applied_function(node.children.first()?);
+            return self.source_applied_function_parts(node.children.first()?);
         }
         if node.kind != SyntaxKind::AppliedType {
             return None;
@@ -339,7 +345,8 @@ impl Emitter<'_> {
         else {
             return None;
         };
-        let mut substitutions = BTreeMap::new();
+        let mut substitutions =
+            crate::semantics::explicit_callable_arguments(self.unit, node, contract)?;
         for (parameter, actual) in contract.parameters.iter().zip(&parameters) {
             crate::semantics::bind_generic_type(
                 &parameter.element_value_type()?,
@@ -365,11 +372,36 @@ impl Emitter<'_> {
                     .map(|value_type| rust_value_type(self.package, value_type.clone()))
             })
             .collect::<Option<Vec<_>>>()?;
-        Some(format!(
-            "{}::<{}>",
-            function_name(self.package, contract),
-            arguments.join(", ")
-        ))
+        Some((contract, arguments))
+    }
+
+    pub(super) fn source_applied_function(&self, node: &SyntaxNode) -> Option<String> {
+        let (contract, arguments) = self.source_applied_function_parts(node)?;
+        let name = if contract.is_static {
+            let mut callee = node;
+            while matches!(
+                callee.kind,
+                SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+            ) {
+                callee = callee.children.first()?;
+            }
+            let owner = callee
+                .children
+                .first()
+                .filter(|_| callee.kind == SyntaxKind::StaticMemberExpression)
+                .and_then(|receiver| {
+                    crate::semantics::class_designator_identity(self.unit, receiver)
+                })
+                .or_else(|| contract.owner_identity.clone())?;
+            format!(
+                "{}::terrane_static_{}",
+                rust_source_type_application(self.package, &owner).replacen('<', "::<", 1),
+                rust_name(&contract.name)
+            )
+        } else {
+            function_name(self.package, contract)
+        };
+        Some(format!("{}::<{}>", name, arguments.join(", ")))
     }
 
     fn initialization_expression(&mut self, node: &SyntaxNode) -> String {
@@ -499,6 +531,28 @@ impl Emitter<'_> {
             return value;
         }
         if node.kind == SyntaxKind::Name
+            && !matches!(
+                value_type,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
+            && let Some(binding) = self.local_typed_binding(node)
+            && self.binding_may_be_unassigned(binding)
+            && (matches!(binding.value_type, ValueType::InvocationScopedNative { .. })
+                || matches!(&binding.value_type, ValueType::Object(identity)
+                    if self.package.projection.item(&identity.namespace, &identity.name).is_some()))
+            && !matches!(value_type, ValueType::Optional(_))
+            && !self.package.native_value_is_copyable(&binding.value_type)
+            && !crate::semantics::value_type_is_cloneable(
+                self.package,
+                self.unit,
+                &binding.value_type,
+            )
+        {
+            return self.owned_storage_value(node);
+        }
+        if node.kind == SyntaxKind::Name
             && self.value_type(node).as_ref() == Some(&value_type)
             && !matches!(
                 value_type,
@@ -511,6 +565,9 @@ impl Emitter<'_> {
                 .is_some_and(|binding| self.binding_may_be_unassigned(binding))
             && !matches!(&value_type, ValueType::Object(identity) if self.object_requires_separation(identity))
         {
+            if self.value_type_owns_resource(&value_type) {
+                return self.moved_name(node);
+            }
             return self.expression(node);
         }
         if node.kind == SyntaxKind::GroupExpression
@@ -630,22 +687,24 @@ impl Emitter<'_> {
                             let rust_type = scoped_rust_type
                                 .as_deref()
                                 .expect("scoped item Rust type was computed");
-                            format!(
-                                "{{ let value: {rust_type} = ({}).into(); value }}",
-                                self.expression(value)
-                            )
+                            let expression = self.expression(value);
+                            if matches!(
+                                self.value_type(value),
+                                Some(ValueType::InvocationScopedNative { rust_type: actual, .. })
+                                    if crate::rust_ir::rust_type_constructors_match(rust_type, &actual)
+                            ) {
+                                // Identity Into fixes the input and output to one
+                                // lifetime. A direct value coercion lets Copy views
+                                // retain the snapshot's shorter lender region.
+                                format!("{{ let value: {rust_type} = {expression}; value }}")
+                            } else {
+                                format!("{{ let value: {rust_type} = ({expression}).into(); value }}")
+                            }
                         } else {
                             self.expression_as(value, item.value_type())
                         }
                     })
                     .collect::<Vec<_>>();
-                if scoped_items {
-                    return format!(
-                        "terrane_collection_support::List::<{}>::new(vec![{}])",
-                        rust_element_type(self.package, item),
-                        values.join(", ")
-                    );
-                }
                 return format!(
                     "terrane_collection_support::{kind}::<{}>::new(vec![{}])",
                     rust_element_type(self.package, item),
@@ -1187,14 +1246,21 @@ impl Emitter<'_> {
             {
                 self.expression(node)
             }
+            ValueType::AsyncFunction(..) | ValueType::Function(..)
+                if node.kind == SyntaxKind::MemberExpression
+                    && matches!(
+                        node.children.as_slice(),
+                        [receiver, member]
+                            if self.callable_object_field(receiver, self.text(member))
+                    ) =>
+            {
+                self.member(node, Some(&value_type))
+            }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
-                if node.kind == SyntaxKind::Name
-                    || node.kind == SyntaxKind::MemberExpression
-                        && matches!(
-                            node.children.as_slice(),
-                            [receiver, member]
-                                if self.callable_object_field(receiver, self.text(member))
-                        ) =>
+                if matches!(
+                    node.kind,
+                    SyntaxKind::Name | SyntaxKind::StaticMemberExpression
+                ) =>
             {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
@@ -1226,9 +1292,13 @@ impl Emitter<'_> {
                     );
                 }
                 if let Some(contract) = self.contract_for_call(node, false) {
-                    let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    let function = if node.kind == SyntaxKind::StaticMemberExpression {
+                        self.static_member(node)
+                    } else {
+                        function_name(self.package, contract)
+                    };
                     let future = if expected_throws && !actual_throws {
                         format!("Box::pin(async move {{ Ok({function}({arguments}).await) }})")
                     } else {
@@ -1353,9 +1423,8 @@ impl Emitter<'_> {
                 if node.kind == SyntaxKind::MemberExpression =>
             {
                 let [receiver, member] = node.children.as_slice() else {
-                    return String::new();
+                    unreachable!("bound method member has a receiver and selector")
                 };
-                let callable_field = self.callable_object_field(receiver, self.text(member));
                 let value_type = self.value_type(node);
                 let value_requires_throwing_abi = matches!(
                     &value_type,
@@ -1379,7 +1448,7 @@ impl Emitter<'_> {
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
                 let receiver = self.expression_as(receiver, receiver_type.clone());
-                let (declarations, arguments, tuple_arguments) =
+                let (declarations, arguments, _) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
                 let argument_values = (0..parameters.len())
                     .map(|index| format!("argument_{index}"))
@@ -1466,13 +1535,7 @@ impl Emitter<'_> {
                             .join(", ")
                     });
                 let method_arguments = borrowed_arguments.as_deref().unwrap_or(&arguments);
-                let call = if callable_field && actual_mode != InvocationMode::Shared {
-                    format!("receiver.{method_name}.call({tuple_arguments})")
-                } else if callable_field {
-                    format!("(receiver.{method_name})({arguments})")
-                } else {
-                    format!("receiver.{method_name}({method_arguments})")
-                };
+                let call = format!("receiver.{method_name}({method_arguments})");
                 let body = if expected_throws && !actual_throws {
                     format!("Ok({call})")
                 } else {
@@ -1483,7 +1546,10 @@ impl Emitter<'_> {
                 )
             }
             ValueType::Function(parameters, _, expected_effects)
-                if node.kind == SyntaxKind::Name =>
+                if matches!(
+                    node.kind,
+                    SyntaxKind::Name | SyntaxKind::StaticMemberExpression
+                ) =>
             {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
@@ -1508,9 +1574,13 @@ impl Emitter<'_> {
                     return format!("{constructor}(move |{declarations}| {call})");
                 }
                 if let Some(contract) = self.contract_for_call(node, false) {
-                    let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    let function = if node.kind == SyntaxKind::StaticMemberExpression {
+                        self.static_member(node)
+                    } else {
+                        function_name(self.package, contract)
+                    };
                     if expected_mode == InvocationMode::Shared
                         && (!expected_throws || actual_throws)
                     {
@@ -2288,7 +2358,7 @@ impl Emitter<'_> {
             && let Some(category) = descriptor_category
         {
             let union_name = union_type_name(&binding);
-            let expression = self.expression(value);
+            let expression = self.available_storage_reference(&binding, value, false);
             let matching = self
                 .union_arms(&binding)
                 .iter()
@@ -2312,7 +2382,7 @@ impl Emitter<'_> {
                 .position(|arm| *arm == ValueType::Scalar(descriptor))
         {
             let union_name = union_type_name(&binding);
-            let expression = self.expression(value);
+            let expression = self.available_storage_reference(&binding, value, false);
             return format!("matches!(&{expression}, {union_name}::Arm{index}(_))");
         }
         let value_type = self.value_type(value);
@@ -2519,12 +2589,18 @@ impl Emitter<'_> {
                         binding.name == name
                             && binding.is_visible_at(self.source.id(), node.span.start)
                     })
-                    .map(|binding| binding.value_type.clone())
+                    .map(|binding| {
+                        narrowed_value_type(self.unit, node, &self.unit.typed_bindings)
+                            .unwrap_or_else(|| binding.value_type.clone())
+                    })
                     .or_else(|| {
                         self.parameter_types
                             .iter()
                             .find(|(parameter, _)| parameter == name)
-                            .map(|(_, value_type)| value_type.clone())
+                            .map(|(_, value_type)| {
+                                narrowed_value_type(self.unit, node, &self.unit.typed_bindings)
+                                    .unwrap_or_else(|| value_type.clone())
+                            })
                     })
             }
             SyntaxKind::TypeExpression

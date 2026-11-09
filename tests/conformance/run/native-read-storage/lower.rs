@@ -36,7 +36,9 @@ impl Holder {
     }
     pub async fn joined_read(&mut self) -> String {
         {
-            let __terrane_value = terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                1_i128,
+            );
             self.n = __terrane_value;
         }
         return {
@@ -64,7 +66,9 @@ impl Holder {
         __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
     ) -> String {
         {
-            let __terrane_value = terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                1_i128,
+            );
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -493,7 +497,7 @@ fn main() {
         );
         println!("{}", terrane_scalar_support::scalar_text(&text));
         {
-            let __terrane_value = String::from("changed");
+            let __terrane_value: String = String::from("changed");
             item.text = __terrane_value;
         }
         println!("{}", terrane_scalar_support::scalar_text(&item.text));
@@ -551,7 +555,7 @@ fn main() {
         };
         {
             let __terrane_owner_41 = shared.clone();
-            let __terrane_value = String::from("replacement before polling");
+            let __terrane_value: String = String::from("replacement before polling");
             __terrane_owner_41.lock().expect("shared reference lock poisoned").text = __terrane_value;
         }
         println!(
@@ -600,7 +604,7 @@ fn main() {
         };
         println!(
             "{}", terrane_scalar_support::scalar_text(&inspect_callback(text.clone(),
-            text.clone()))
+            text))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0
@@ -610,7 +614,7 @@ fn main() {
             &__terrane_raised(take_text(&mut native), 48 /* terrane-site: src/main.trn:87:38-87:55 */)), 49 /* terrane-site: src/main.trn:87:13-87:56 */) })
         );
         {
-            let __terrane_value = String::from("old receiver");
+            let __terrane_value: String = String::from("old receiver");
             native.text = __terrane_value;
         }
         println!(

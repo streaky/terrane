@@ -14,7 +14,7 @@ impl Counter {
     }
     pub fn increment(&mut self) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.value.clone()
+            let __terrane_value: terrane_int_support::Int = self.value.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.value = __terrane_value;
         }
@@ -62,8 +62,8 @@ impl Holder {
         };
         {
             let __terrane_owner_4 = TERRANE_STATIC_HOLDER_FIRST.handle();
-            let __terrane_value = first_value.clone() + second_value.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = first_value.clone()
+                + second_value.clone() + terrane_int_support::Int::from(1_i128);
             __terrane_owner_4.lock().expect("static field lock poisoned").value = __terrane_value;
         }
         return {

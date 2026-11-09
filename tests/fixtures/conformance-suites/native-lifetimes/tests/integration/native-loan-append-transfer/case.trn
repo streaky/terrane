@@ -1,0 +1,14 @@
+namespace native-loan-append-transfer
+from /deps/terrane-query-witness import Holder, View
+from /core/collections import list
+
+function test-scenario;
+    h = Holder::new;
+    v = h.view;
+    values = list; (h.view;)
+    values.append; v
+    print; (values[1].size;)
+    other = h.view;
+    declared list of View = list;
+    declared.append; other
+    print; (declared[0].size;)

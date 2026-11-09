@@ -1,0 +1,6 @@
+namespace applied-collection-type-argument
+from /core/collections import list
+function take; values list of int
+
+function main;
+    take; list of int

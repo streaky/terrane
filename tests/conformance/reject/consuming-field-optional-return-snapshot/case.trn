@@ -1,0 +1,10 @@
+namespace consuming-field-optional-return-snapshot
+
+class holder
+    f (consuming function to int)|none
+    function construct; f (consuming function to int)|none
+        this.f = f
+    function get (consuming function to int)|none;
+        return this.f
+
+function main;

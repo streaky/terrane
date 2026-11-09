@@ -1,0 +1,9 @@
+namespace narrowed-optional-mutable-callable
+function test-scenario;
+    n = 0
+    callback (mutable function to int)|none = mutable function int;
+        n = n + 1
+        return n
+    if callback != none
+        print; (callback;)
+        print; (callback;)

@@ -61,7 +61,7 @@ fn main() {
             (current_2,): (&mut MutableEvent,),
         | -> bool {
             {
-                let __terrane_value = !{
+                let __terrane_value: bool = !{
                     let __terrane_snapshot = current_2.active;
                     __terrane_snapshot
                 };

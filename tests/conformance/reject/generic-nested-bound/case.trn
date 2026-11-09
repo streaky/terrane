@@ -1,0 +1,14 @@
+namespace generic-nested-bound
+from /core/collections import list
+interface named
+    function name string;
+class Wrapped of (T implements named)
+    value T
+    function construct; value T
+        this.value = move value
+class Plain
+    value int = 1
+class Holder
+    value list of (Wrapped of Plain)|none = none
+function main;
+    print; 0

@@ -1,0 +1,9 @@
+namespace static-missing-assignment
+class holder
+    static n int = 3
+    x int = 2
+    static function method int;
+        return 9
+function main;
+    holder::zz = 3
+    print; 1

@@ -25,8 +25,8 @@ fn main() {
         ],
     );
     let __terrane_iterable_0 = rows;
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         item = match __terrane_iterator_0.next() {

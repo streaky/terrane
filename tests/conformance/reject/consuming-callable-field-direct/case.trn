@@ -1,0 +1,11 @@
+namespace consuming-callable-field-direct
+from /core/collections import list
+class holder
+    f consuming function to int
+    function construct; f consuming function to int
+        this.f = f
+
+function main;
+    h = instance holder; consuming function int;
+        return 5
+    print; (h.f;)

@@ -1,0 +1,16 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder
+
+class Wrapped
+    inner Holder
+    function construct; inner Holder
+        this.inner = move inner
+
+function main;
+    w = instance Wrapped; (Holder::new;)
+    go; shared ref w
+
+function go; w shared ref Wrapped
+    s = w.inner.label;
+    print; s

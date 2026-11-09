@@ -1,0 +1,5 @@
+namespace applied-class-type-value
+class Box of (T)
+    value T
+function main;
+    value = Box of int

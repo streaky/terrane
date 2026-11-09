@@ -86,7 +86,7 @@ impl RequiredBox {
     }
     pub fn construct(&mut self, item: Inner) {
         {
-            let __terrane_value = item;
+            let __terrane_value: Inner = item;
             self.item = Some(__terrane_value);
         }
     }
@@ -128,7 +128,9 @@ fn main() {
     );
     object_alias = object_field(&mut original);
     {
-        let __terrane_value = terrane_int_support::Int::from(34_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            34_i128,
+        );
         object_alias.value = __terrane_value;
     }
     println!(
@@ -142,7 +144,9 @@ fn main() {
     required = RequiredBox::terrane_construct(Inner::terrane_construct());
     required_alias = required_field(&mut required);
     {
-        let __terrane_value = terrane_int_support::Int::from(89_i128);
+        let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+            89_i128,
+        );
         required_alias.value = __terrane_value;
     }
     println!(

@@ -1,0 +1,27 @@
+namespace source-associated-interface
+
+interface request
+    associated type response
+    function dispatch response; input string
+
+class numeric-request implements request
+    associated type response = int
+    type int = 17
+    function dispatch int; input string
+        return 40
+
+class text-request implements request
+    associated type response = string
+    function dispatch string; input string
+        return input
+
+
+function test-scenario;
+    ordinary numeric-request = instance numeric-request;
+    print; ordinary.type
+    numeric request of int = instance numeric-request;
+    count = numeric.dispatch; 'ignored'
+    print; (count + 2)
+    textual request of string = instance text-request;
+    message = textual.dispatch; 'distinct'
+    print; message

@@ -1,0 +1,4 @@
+package = "global-write-cross-namespace-variable"
+[namespaces]
+a = "a"
+b = "b"

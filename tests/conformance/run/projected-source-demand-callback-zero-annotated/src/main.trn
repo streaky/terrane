@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+function make Holder;
+    return Holder::new;
+
+function apply of (T) T; factory function to T
+    return factory;
+
+function main;
+    value Holder = apply; make
+    print; (value.label_len;)

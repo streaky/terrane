@@ -1,0 +1,5 @@
+namespace static-consuming-async-presence
+class holder
+    static f (consuming async function to int)|none = none
+function main;
+    print; holder::f == none

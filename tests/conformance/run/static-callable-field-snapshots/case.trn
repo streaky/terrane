@@ -1,0 +1,22 @@
+namespace static-callable-field-snapshots
+function five int;
+    return 5
+function counter mutable function to int;
+    n = 0
+    return mutable function int;
+        n = n + 1
+        return n
+class callbacks
+    static observe function to int = five
+    static advance mutable function to int = counter;
+    static function control int;
+        return 5
+function main;
+    print; (callbacks::observe;)
+    print; (callbacks::advance;)
+    print; (callbacks::advance;)
+    local = callbacks::advance
+    print; (local;)
+    print; (local;)
+    print; (callbacks::advance;)
+    print; (callbacks::control;)

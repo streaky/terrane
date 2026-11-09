@@ -2292,15 +2292,15 @@ impl ConcurrencyOperationResult {
         detail: String,
     ) {
         {
-            let __terrane_value = did_fail;
+            let __terrane_value: bool = did_fail;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = exceeded_deadline;
+            let __terrane_value: bool = exceeded_deadline;
             self.deadline_exceeded = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
     }
@@ -2341,23 +2341,23 @@ impl ConcurrencyIntResult {
         result_value: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = did_fail;
+            let __terrane_value: bool = did_fail;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = exceeded_deadline;
+            let __terrane_value: bool = exceeded_deadline;
             self.deadline_exceeded = __terrane_value;
         }
         {
-            let __terrane_value = has_value;
+            let __terrane_value: bool = has_value;
             self.available = __terrane_value;
         }
         {
-            let __terrane_value = detail;
+            let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = result_value.clone();
+            let __terrane_value: terrane_int_support::Int = result_value.clone();
             self.value = __terrane_value;
         }
     }
@@ -2382,15 +2382,17 @@ impl IntMutex {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_mutex(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -2449,15 +2451,17 @@ impl IntReadWriteLock {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_rw_lock(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -2496,7 +2500,7 @@ impl MemoryOrder {
     }
     pub fn construct(&mut self, ordering_name: String) {
         {
-            let __terrane_value = ordering_name;
+            let __terrane_value: String = ordering_name;
             self.name = __terrane_value;
         }
     }
@@ -2536,15 +2540,17 @@ impl AtomicInt64 {
         let raw: TerranePlatformResult;
         raw = terrane_platform_atomic_int64(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -2608,15 +2614,17 @@ impl ThreadLocalInt {
         let raw: TerranePlatformResult;
         raw = terrane_platform_thread_local_int(initial);
         {
-            let __terrane_value = terrane_platform_result_failed(&raw);
+            let __terrane_value: bool = terrane_platform_result_failed(&raw);
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_message(&raw);
+            let __terrane_value: String = terrane_platform_result_message(&raw);
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = terrane_platform_result_capability(&raw);
+            let __terrane_value: TerranePlatformCapability = terrane_platform_result_capability(
+                &raw,
+            );
             self.handle = __terrane_value;
         }
     }
@@ -2671,7 +2679,7 @@ impl DurationSubtraction {
     }
     pub fn construct(&mut self, total: terrane_int_support::Int) {
         {
-            let __terrane_value = total.clone();
+            let __terrane_value: terrane_int_support::Int = total.clone();
             self.total_nanoseconds = __terrane_value;
         }
     }
@@ -2718,21 +2726,22 @@ impl Duration {
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = whole_seconds.clone();
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone();
             self.seconds = __terrane_value;
         }
         {
-            let __terrane_value = fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
             self.nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value = whole_seconds.clone()
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone()
                 * terrane_int_support::Int::from(1000000000_i128)
                 + fractional_nanoseconds.clone();
             self.total_nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value = DurationSubtraction::terrane_construct(
+            let __terrane_value: DurationSubtraction = DurationSubtraction::terrane_construct(
                 self.total_nanoseconds.clone(),
             );
             self.subtract = __terrane_value;
@@ -2916,11 +2925,11 @@ impl MonotonicInstant {
         elapsed: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = runtime_domain.clone();
+            let __terrane_value: terrane_int_support::Int = runtime_domain.clone();
             self.domain = __terrane_value;
         }
         {
-            let __terrane_value = elapsed.clone();
+            let __terrane_value: terrane_int_support::Int = elapsed.clone();
             self.elapsed_nanoseconds = __terrane_value;
         }
     }
@@ -2991,11 +3000,12 @@ impl Instant {
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = seconds.clone();
+            let __terrane_value: terrane_int_support::Int = seconds.clone();
             self.unix_seconds = __terrane_value;
         }
         {
-            let __terrane_value = fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
             self.nanoseconds = __terrane_value;
         }
     }
@@ -3017,7 +3027,7 @@ impl Deadline {
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
         {
-            let __terrane_value = target;
+            let __terrane_value: MonotonicInstant = target;
             self.expires_at = __terrane_value;
         }
     }
@@ -3102,15 +3112,15 @@ impl Tick {
         expirations: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = scheduled_at;
+            let __terrane_value: MonotonicInstant = scheduled_at;
             self.scheduled = __terrane_value;
         }
         {
-            let __terrane_value = observed_at;
+            let __terrane_value: MonotonicInstant = observed_at;
             self.observed = __terrane_value;
         }
         {
-            let __terrane_value = expirations.clone();
+            let __terrane_value: terrane_int_support::Int = expirations.clone();
             self.count = __terrane_value;
         }
     }
@@ -3146,11 +3156,11 @@ impl Ticker {
     }
     pub fn construct(&mut self, interval: Duration) {
         {
-            let __terrane_value = Clock::terrane_static_monotonic();
+            let __terrane_value: MonotonicInstant = Clock::terrane_static_monotonic();
             self.anchor = __terrane_value;
         }
         {
-            let __terrane_value = interval;
+            let __terrane_value: Duration = interval;
             self.period = __terrane_value;
         }
     }
@@ -3184,7 +3194,7 @@ impl Ticker {
                 + period_total.clone() * observed_index.clone(),
         );
         {
-            let __terrane_value = observed_index.clone()
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.next_index = __terrane_value;
         }
@@ -3297,7 +3307,7 @@ impl Ticker {
                 .clone() + period_total.clone() * observed_index.clone(),
         );
         {
-            let __terrane_value = observed_index.clone()
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
                 + terrane_int_support::Int::from(1_i128);
             __terrane_shared_handle
                 .lock()

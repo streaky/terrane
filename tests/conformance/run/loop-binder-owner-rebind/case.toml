@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "control-flow"
+test = "/loop-binder-owner-rebind::test-scenario"

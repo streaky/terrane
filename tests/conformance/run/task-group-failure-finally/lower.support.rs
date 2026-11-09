@@ -1851,7 +1851,7 @@ impl DurationSubtraction {
     }
     pub fn construct(&mut self, total: terrane_int_support::Int) {
         {
-            let __terrane_value = total.clone();
+            let __terrane_value: terrane_int_support::Int = total.clone();
             self.total_nanoseconds = __terrane_value;
         }
     }
@@ -1898,21 +1898,22 @@ impl Duration {
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = whole_seconds.clone();
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone();
             self.seconds = __terrane_value;
         }
         {
-            let __terrane_value = fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
             self.nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value = whole_seconds.clone()
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone()
                 * terrane_int_support::Int::from(1000000000_i128)
                 + fractional_nanoseconds.clone();
             self.total_nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value = DurationSubtraction::terrane_construct(
+            let __terrane_value: DurationSubtraction = DurationSubtraction::terrane_construct(
                 self.total_nanoseconds.clone(),
             );
             self.subtract = __terrane_value;
@@ -2096,11 +2097,11 @@ impl MonotonicInstant {
         elapsed: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = runtime_domain.clone();
+            let __terrane_value: terrane_int_support::Int = runtime_domain.clone();
             self.domain = __terrane_value;
         }
         {
-            let __terrane_value = elapsed.clone();
+            let __terrane_value: terrane_int_support::Int = elapsed.clone();
             self.elapsed_nanoseconds = __terrane_value;
         }
     }
@@ -2171,11 +2172,12 @@ impl Instant {
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = seconds.clone();
+            let __terrane_value: terrane_int_support::Int = seconds.clone();
             self.unix_seconds = __terrane_value;
         }
         {
-            let __terrane_value = fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
             self.nanoseconds = __terrane_value;
         }
     }
@@ -2197,7 +2199,7 @@ impl Deadline {
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
         {
-            let __terrane_value = target;
+            let __terrane_value: MonotonicInstant = target;
             self.expires_at = __terrane_value;
         }
     }
@@ -2282,15 +2284,15 @@ impl Tick {
         expirations: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = scheduled_at;
+            let __terrane_value: MonotonicInstant = scheduled_at;
             self.scheduled = __terrane_value;
         }
         {
-            let __terrane_value = observed_at;
+            let __terrane_value: MonotonicInstant = observed_at;
             self.observed = __terrane_value;
         }
         {
-            let __terrane_value = expirations.clone();
+            let __terrane_value: terrane_int_support::Int = expirations.clone();
             self.count = __terrane_value;
         }
     }
@@ -2326,11 +2328,11 @@ impl Ticker {
     }
     pub fn construct(&mut self, interval: Duration) {
         {
-            let __terrane_value = Clock::terrane_static_monotonic();
+            let __terrane_value: MonotonicInstant = Clock::terrane_static_monotonic();
             self.anchor = __terrane_value;
         }
         {
-            let __terrane_value = interval;
+            let __terrane_value: Duration = interval;
             self.period = __terrane_value;
         }
     }
@@ -2364,7 +2366,7 @@ impl Ticker {
                 + period_total.clone() * observed_index.clone(),
         );
         {
-            let __terrane_value = observed_index.clone()
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.next_index = __terrane_value;
         }
@@ -2477,7 +2479,7 @@ impl Ticker {
                 .clone() + period_total.clone() * observed_index.clone(),
         );
         {
-            let __terrane_value = observed_index.clone()
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
                 + terrane_int_support::Int::from(1_i128);
             __terrane_shared_handle
                 .lock()

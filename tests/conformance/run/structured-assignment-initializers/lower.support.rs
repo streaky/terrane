@@ -6,7 +6,9 @@ static __TERRANE_GLOBAL_SEEDED: std::sync::LazyLock<
         {
             let mut instance = Item::terrane_construct();
             {
-                let __terrane_value = terrane_int_support::Int::from(8_i128);
+                let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                    8_i128,
+                );
                 instance.value = __terrane_value;
             }
             instance

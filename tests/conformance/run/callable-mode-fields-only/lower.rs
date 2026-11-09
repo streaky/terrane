@@ -71,10 +71,11 @@ fn main() {
         let first: terrane_int_support::Int;
         let second: terrane_int_support::Int;
         let third: terrane_int_support::Int;
+        let finish_sync: TerraneConsumingCallable<(), ()>;
         value = Operations::terrane_construct();
         value.change.call(());
-        read = value.read.clone();
-        change = value.change_async.clone();
+        read = value.read;
+        change = value.change_async;
         finish = value.finish_async;
         first = __terrane_await(read(terrane_int_support::Int::from(1_i128))).await;
         second = __terrane_await(change.call((terrane_int_support::Int::from(2_i128),)))
@@ -87,7 +88,8 @@ fn main() {
             terrane_scalar_support::scalar_text(&third)
         );
         println!("{}", String::from("changed"));
-        value.finish.call(());
+        finish_sync = value.finish;
+        finish_sync.call(());
         println!("{}", String::from("finished"));
     });
 }

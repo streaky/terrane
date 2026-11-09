@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /core/collections import list
+
+class Cfg
+    sql string = 'insert'
+    other string = 'spare'
+
+function main;
+    cfg = instance Cfg;
+    q = query; cfg.sql
+    s = move cfg.sql
+    print; (q.size;), s

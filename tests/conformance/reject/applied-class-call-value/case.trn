@@ -1,0 +1,10 @@
+namespace applied-class-call-value
+
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+
+function main;
+    value = Box of int;
+    print; 1

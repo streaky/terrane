@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/terrane-query-witness import Token
+from /core/collections import map
+
+function get Token; values map of string, Token
+  return values['item']
+
+function main;
+  values map of string, Token = map; item=(Token::new;)
+  value = get; values
+  print; (value.value;)

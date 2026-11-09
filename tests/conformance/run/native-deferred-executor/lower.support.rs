@@ -510,25 +510,39 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::read-borrowed", "/app::main"];
-    pub static SITES: [Site; 9] = [
-        /* terrane-site-row: site 0: /app::read-borrowed (src/main.trn:16:17-16:43) */
-        { Site { function: 0, file: 0, line: 16, column: 17, end_line: 16, end_column: 43 } },
-        /* terrane-site-row: site 1: /app::read-borrowed (src/main.trn:18:31-18:84) */
-        { Site { function: 0, file: 0, line: 18, column: 31, end_line: 18, end_column: 84 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:22:15-22:35) */
-        { Site { function: 1, file: 0, line: 22, column: 15, end_line: 22, end_column: 35 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:23:15-23:43) */
-        { Site { function: 1, file: 0, line: 23, column: 15, end_line: 23, end_column: 43 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:25:42-25:58) */
-        { Site { function: 1, file: 0, line: 25, column: 42, end_line: 25, end_column: 58 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:27:25-27:51) */
-        { Site { function: 1, file: 0, line: 27, column: 25, end_line: 27, end_column: 51 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:29:39-29:92) */
-        { Site { function: 1, file: 0, line: 29, column: 39, end_line: 29, end_column: 92 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:31:26-31:47) */
-        { Site { function: 1, file: 0, line: 31, column: 26, end_line: 31, end_column: 47 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:33:19-33:32) */
-        { Site { function: 1, file: 0, line: 33, column: 19, end_line: 33, end_column: 32 } },
+    pub static SITES: [Site; 16] = [
+        /* terrane-site-row: site 0: /app::read-borrowed (src/main.trn:24:17-24:43) */
+        { Site { function: 0, file: 0, line: 24, column: 17, end_line: 24, end_column: 43 } },
+        /* terrane-site-row: site 1: /app::read-borrowed (src/main.trn:26:31-26:84) */
+        { Site { function: 0, file: 0, line: 26, column: 31, end_line: 26, end_column: 84 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:30:15-30:35) */
+        { Site { function: 1, file: 0, line: 30, column: 15, end_line: 30, end_column: 35 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:31:15-31:43) */
+        { Site { function: 1, file: 0, line: 31, column: 15, end_line: 31, end_column: 43 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:33:42-33:58) */
+        { Site { function: 1, file: 0, line: 33, column: 42, end_line: 33, end_column: 58 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:35:25-35:51) */
+        { Site { function: 1, file: 0, line: 35, column: 25, end_line: 35, end_column: 51 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:37:20-37:73) */
+        { Site { function: 1, file: 0, line: 37, column: 20, end_line: 37, end_column: 73 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:37:19-37:90) */
+        { Site { function: 1, file: 0, line: 37, column: 19, end_line: 37, end_column: 90 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:38:25-38:51) */
+        { Site { function: 1, file: 0, line: 38, column: 25, end_line: 38, end_column: 51 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:40:49-40:102) */
+        { Site { function: 1, file: 0, line: 40, column: 49, end_line: 40, end_column: 102 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:40:48-40:119) */
+        { Site { function: 1, file: 0, line: 40, column: 48, end_line: 40, end_column: 119 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:41:21-41:42) */
+        { Site { function: 1, file: 0, line: 41, column: 21, end_line: 41, end_column: 42 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:42:25-42:51) */
+        { Site { function: 1, file: 0, line: 42, column: 25, end_line: 42, end_column: 51 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:44:39-44:92) */
+        { Site { function: 1, file: 0, line: 44, column: 39, end_line: 44, end_column: 92 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:46:26-46:47) */
+        { Site { function: 1, file: 0, line: 46, column: 26, end_line: 46, end_column: 47 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:48:19-48:32) */
+        { Site { function: 1, file: 0, line: 48, column: 19, end_line: 48, end_column: 32 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1484,6 +1498,7 @@ pub use sqlx_core::sql_str::SqlStr;
 pub use sqlx_sqlite::SqliteArguments;
 pub use sqlx_sqlite::SqliteConnectOptions;
 pub use sqlx_sqlite::SqliteConnection;
+pub use sqlx_sqlite::SqliteQueryResult;
 pub use sqlx_sqlite::SqliteRow;
 // Source: <terrane>/projected/deps/sqlx-core/sql-str.trn
 // Namespace: deps/sqlx-core/sql-str

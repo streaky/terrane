@@ -1,0 +1,17 @@
+namespace completion-callable-rewrite
+from /core/collections import list
+
+function one int;
+    return 1
+
+function eat int; f function to int
+    return f;
+
+function test-scenario;
+    o = one
+    try
+        print; (eat; o)
+        o = one
+    finally
+        print; 2
+    print; (o;)

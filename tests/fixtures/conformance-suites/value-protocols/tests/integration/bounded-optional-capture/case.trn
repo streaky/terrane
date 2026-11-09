@@ -1,0 +1,19 @@
+namespace bounded-optional-capture
+from /core/collections import list
+interface named
+    function name int;
+
+class value implements named
+    amount int = 1
+    function name int;
+        return this.amount
+
+function go of (T implements named) int; item T|none
+    f = function int;
+        if item != none
+            return 1
+        return 0
+    return f;
+
+function test-scenario;
+    print; (go; (instance value;))

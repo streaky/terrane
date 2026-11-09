@@ -1,0 +1,11 @@
+namespace callable-result-upcast
+
+class Base
+class Sub extends Base
+
+function make-sub Sub;
+    return instance Sub;
+
+function main;
+    source = make-sub
+    target function to Base = source

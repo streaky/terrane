@@ -1,0 +1,10 @@
+namespace consuming-field-sync-return-snapshot
+
+class holder
+    f consuming function to int
+    function construct; f consuming function to int
+        this.f = f
+    function get consuming function to int;
+        return this.f
+
+function main;

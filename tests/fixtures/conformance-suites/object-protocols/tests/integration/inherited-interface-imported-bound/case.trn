@@ -1,0 +1,15 @@
+namespace inherited-interface-imported-bound
+
+from /inherited-ancestor-library import sub
+
+class S implements sub
+    function b int;
+        return 1
+    function other int;
+        return 2
+
+function go of (T implements sub) int; x T
+    return (x.b;) + (x.other;)
+
+function test-scenario;
+    print; (go; (instance S;))

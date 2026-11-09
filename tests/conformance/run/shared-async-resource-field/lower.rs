@@ -13,7 +13,7 @@ impl Holder {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = Some(stdin());
+            let __terrane_value: Option<ByteReader> = Some(stdin());
             self.input = __terrane_value;
         }
     }

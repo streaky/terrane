@@ -1,0 +1,11 @@
+namespace consuming-field-sync-alias-snapshot
+
+class holder
+    f consuming function to int
+    function construct; f consuming function to int
+        this.f = f
+
+function main;
+    h = instance holder; consuming function int;
+        return 5
+    callback = h.f

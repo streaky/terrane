@@ -457,8 +457,8 @@ fn main() {
         dependent_index = dependent_index + 1;
     }
     let __terrane_iterable_7 = dependent;
-    let mut __terrane_iterator_7 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_7,
+    let mut __terrane_iterator_7 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_7.as_slice(),
     );
     loop {
         value = match __terrane_iterator_7.next() {
@@ -574,8 +574,8 @@ fn main() {
     source = terrane_collection_support::List::<i64>::new(vec![1, 2, 3, 4]);
     collected = terrane_collection_support::List::<i64>::new(Vec::new());
     let __terrane_iterable_8 = source.clone();
-    let mut __terrane_iterator_8 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_8,
+    let mut __terrane_iterator_8 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_8.as_slice(),
     );
     {
         let __terrane_list_append_11 = collected.make_unique();
@@ -600,8 +600,8 @@ fn main() {
     );
     observed = terrane_collection_support::List::<i64>::new(Vec::new());
     let __terrane_iterable_9 = source;
-    let mut __terrane_iterator_9 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_9,
+    let mut __terrane_iterator_9 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_9.as_slice(),
     );
     loop {
         value = match __terrane_iterator_9.next() {
@@ -634,8 +634,8 @@ fn main() {
     );
     flattened = terrane_collection_support::List::<i64>::new(Vec::new());
     let __terrane_iterable_10 = rows;
-    let mut __terrane_iterator_10 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_10,
+    let mut __terrane_iterator_10 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_10.as_slice(),
     );
     {
         let __terrane_list_append_12 = flattened.make_unique();
@@ -645,8 +645,8 @@ fn main() {
                 terrane_collection_support::IterationStep::End => break,
             };
             let __terrane_iterable_11 = row;
-            let mut __terrane_iterator_11 = terrane_collection_support::Iterable::terrane_iterator(
-                &__terrane_iterable_11,
+            let mut __terrane_iterator_11 = terrane_collection_support::slice_iterator(
+                __terrane_iterable_11.as_slice(),
             );
             loop {
                 value = match __terrane_iterator_11.next() {
@@ -671,8 +671,8 @@ fn main() {
     aliased = terrane_collection_support::List::<i64>::new(vec![1, 2]);
     alias = aliased.clone();
     let __terrane_iterable_12 = alias.clone();
-    let mut __terrane_iterator_12 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_12,
+    let mut __terrane_iterator_12 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_12.as_slice(),
     );
     {
         let __terrane_list_append_13 = aliased.make_unique();
@@ -697,8 +697,8 @@ fn main() {
     );
     self_source = terrane_collection_support::List::<i64>::new(vec![1, 2]);
     let __terrane_iterable_13 = self_source.clone();
-    let mut __terrane_iterator_13 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_13,
+    let mut __terrane_iterator_13 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_13.as_slice(),
     );
     loop {
         value = match __terrane_iterator_13.next() {
@@ -1100,8 +1100,8 @@ fn main() {
                 inferred_capture.append(__terrane_collection_argument_0);
             };
             let __terrane_iterable_18 = inferred_capture.clone();
-            let mut __terrane_iterator_18 = terrane_collection_support::Iterable::terrane_iterator(
-                &__terrane_iterable_18,
+            let mut __terrane_iterator_18 = terrane_collection_support::slice_iterator(
+                __terrane_iterable_18.as_slice(),
             );
             loop {
                 inferred_value = match __terrane_iterator_18.next() {

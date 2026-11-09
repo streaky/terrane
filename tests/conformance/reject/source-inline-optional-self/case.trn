@@ -1,0 +1,5 @@
+namespace app
+class Node
+    next Node|none = none
+function main;
+    print; 1

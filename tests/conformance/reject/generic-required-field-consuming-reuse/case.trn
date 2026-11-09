@@ -1,0 +1,15 @@
+namespace app
+class V of (T)
+    value T
+    function construct; value T
+        this.value = move value
+    consuming function done int;
+        return 3
+class R
+    f V of int
+    function construct;
+        this.f = instance (V of int); 7
+function main;
+    r = instance R;
+    print; ((r.f).done;)
+    print; (r.f.done;)

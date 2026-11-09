@@ -1,0 +1,9 @@
+namespace nonoptional-generic-field-none
+class Bx of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class Holder
+    value Bx of int|none = none
+function main;
+    print; 0

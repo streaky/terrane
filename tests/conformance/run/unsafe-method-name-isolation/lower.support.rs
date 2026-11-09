@@ -742,42 +742,6 @@ fn __terrane_uninitialized_binding(
 }
 // Source: core/logging.trn
 // Namespace: core/logging
-#[allow(dead_code)]
-#[derive(Clone)]
-enum TerraneUnionF1S5342 {
-    Arm0(LogField),
-    Arm1(String),
-}
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF1S5342 {
-    fn write_scalar(&self, output: &mut String) {
-        match self {
-            Self::Arm0(_) => {
-                unreachable!("semantic display refinement excludes this union arm")
-            }
-            Self::Arm1(value) => {
-                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
-            }
-        }
-    }
-}
-#[allow(dead_code)]
-#[derive(Clone)]
-enum TerraneUnionF1S5641 {
-    Arm0(LogField),
-    Arm1(String),
-}
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF1S5641 {
-    fn write_scalar(&self, output: &mut String) {
-        match self {
-            Self::Arm0(_) => {
-                unreachable!("semantic display refinement excludes this union arm")
-            }
-            Self::Arm1(value) => {
-                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
-            }
-        }
-    }
-}
 #[derive(Clone)]
 pub struct LogLevel {
     pub name: String,
@@ -794,11 +758,11 @@ impl LogLevel {
     }
     pub fn construct(&mut self, name: String, rank: terrane_int_support::Int) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
         {
-            let __terrane_value = rank.clone();
+            let __terrane_value: terrane_int_support::Int = rank.clone();
             self.rank = __terrane_value;
         }
     }
@@ -846,7 +810,7 @@ pub trait LogValueProtocol: Send + Sync {
 }
 impl Clone for Box<dyn LogValueProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        LogValueProtocol::clone_box(&**self)
     }
 }
 pub struct LogValue(Box<dyn LogValueProtocol>);
@@ -874,7 +838,7 @@ impl DocumentLogValue {
     }
     pub fn construct(&mut self, input: DocumentValue) {
         {
-            let __terrane_value = input;
+            let __terrane_value: DocumentValue = input;
             self.value = __terrane_value;
         }
     }
@@ -910,7 +874,7 @@ impl TextLogValue {
     }
     pub fn construct(&mut self, input: String) {
         {
-            let __terrane_value = input;
+            let __terrane_value: String = input;
             self.value = __terrane_value;
         }
     }
@@ -946,7 +910,7 @@ impl ErrorLogValue {
     }
     pub fn construct(&mut self, rendered: String) {
         {
-            let __terrane_value = rendered;
+            let __terrane_value: String = rendered;
             self.rendered = __terrane_value;
         }
     }
@@ -1010,19 +974,19 @@ impl LogField {
         source: String,
     ) {
         {
-            let __terrane_value = name;
+            let __terrane_value: String = name;
             self.name = __terrane_value;
         }
         {
-            let __terrane_value = input;
+            let __terrane_value: LogValue = input;
             self.value = __terrane_value;
         }
         {
-            let __terrane_value = secret;
+            let __terrane_value: bool = secret;
             self.secret = __terrane_value;
         }
         {
-            let __terrane_value = source;
+            let __terrane_value: String = source;
             self.source = __terrane_value;
         }
     }
@@ -1058,7 +1022,7 @@ impl LogSink {
     }
     pub fn construct(&mut self, handle: TerranePlatformCapability) {
         {
-            let __terrane_value = handle;
+            let __terrane_value: TerranePlatformCapability = handle;
             self.handle = __terrane_value;
         }
     }
@@ -1083,15 +1047,15 @@ impl LogSinkResult {
     }
     pub fn construct(&mut self, failed: bool, message: String, sink: LogSink) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = sink;
+            let __terrane_value: LogSink = sink;
             self.value = __terrane_value;
         }
     }
@@ -1177,23 +1141,23 @@ impl LoggerOptions {
         max_bytes: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value = minimum;
+            let __terrane_value: LogLevel = minimum;
             self.minimum = __terrane_value;
         }
         {
-            let __terrane_value = target_prefix;
+            let __terrane_value: String = target_prefix;
             self.target_prefix = __terrane_value;
         }
         {
-            let __terrane_value = target;
+            let __terrane_value: String = target;
             self.target = __terrane_value;
         }
         {
-            let __terrane_value = max_fields.clone();
+            let __terrane_value: terrane_int_support::Int = max_fields.clone();
             self.max_fields = __terrane_value;
         }
         {
-            let __terrane_value = max_bytes.clone();
+            let __terrane_value: terrane_int_support::Int = max_bytes.clone();
             self.max_bytes = __terrane_value;
         }
     }
@@ -1230,8 +1194,8 @@ impl LogContext {
         let mut existing: LogField;
         updated = terrane_collection_support::List::new(Vec::new());
         let __terrane_iterable_0 = self.fields.clone();
-        let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_0,
+        let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_0.as_slice(),
         );
         {
             let __terrane_list_append_0 = updated.make_unique();
@@ -1251,7 +1215,7 @@ impl LogContext {
             updated.append(__terrane_collection_argument_0);
         };
         {
-            let __terrane_value = updated;
+            let __terrane_value: terrane_collection_support::List<LogField> = updated;
             self.fields = __terrane_value;
         }
     }
@@ -1260,8 +1224,8 @@ impl LogContext {
         let mut existing: String;
         updated = terrane_collection_support::List::<String>::new(Vec::new());
         let __terrane_iterable_1 = self.spans.clone();
-        let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_1,
+        let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_1.as_slice(),
         );
         {
             let __terrane_list_append_1 = updated.make_unique();
@@ -1281,100 +1245,66 @@ impl LogContext {
             updated.append(__terrane_collection_argument_0);
         };
         {
-            let __terrane_value = updated;
+            let __terrane_value: terrane_collection_support::List<String> = updated;
             self.spans = __terrane_value;
         }
     }
     pub fn adding_field(&self, addition: LogField) -> LogContext {
         let mut value: LogContext;
-        let mut existing: TerraneUnionF1S5342;
+        let mut existing: LogField;
+        let mut existing_2: String;
         value = LogContext::terrane_construct();
         let __terrane_iterable_2 = self.fields.clone();
-        let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_2,
+        let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_2.as_slice(),
         );
         loop {
-            existing = TerraneUnionF1S5342::Arm0(
-                match __terrane_iterator_2.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            value
-                .append_field(
-                    match existing {
-                        TerraneUnionF1S5342::Arm0(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    },
-                );
+            existing = match __terrane_iterator_2.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_field(existing);
         }
         value.append_field(addition);
         let __terrane_iterable_3 = self.spans.clone();
-        let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_3,
+        let mut __terrane_iterator_3 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_3.as_slice(),
         );
         loop {
-            existing = TerraneUnionF1S5342::Arm1(
-                match __terrane_iterator_3.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            let _ = &existing;
-            value
-                .append_span(
-                    match &existing {
-                        TerraneUnionF1S5342::Arm1(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    }
-                        .clone(),
-                );
+            existing_2 = match __terrane_iterator_3.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_span(existing_2);
         }
         return value;
     }
     pub fn adding_span(&self, span: String) -> LogContext {
         let mut value: LogContext;
-        let mut existing: TerraneUnionF1S5641;
+        let mut existing: LogField;
+        let mut existing_2: String;
         value = LogContext::terrane_construct();
         let __terrane_iterable_4 = self.fields.clone();
-        let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_4,
+        let mut __terrane_iterator_4 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_4.as_slice(),
         );
         loop {
-            existing = TerraneUnionF1S5641::Arm0(
-                match __terrane_iterator_4.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            value
-                .append_field(
-                    match existing {
-                        TerraneUnionF1S5641::Arm0(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    },
-                );
+            existing = match __terrane_iterator_4.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_field(existing);
         }
         let __terrane_iterable_5 = self.spans.clone();
-        let mut __terrane_iterator_5 = terrane_collection_support::Iterable::terrane_iterator(
-            &__terrane_iterable_5,
+        let mut __terrane_iterator_5 = terrane_collection_support::slice_iterator(
+            __terrane_iterable_5.as_slice(),
         );
         loop {
-            existing = TerraneUnionF1S5641::Arm1(
-                match __terrane_iterator_5.next() {
-                    terrane_collection_support::IterationStep::Item(item) => item,
-                    terrane_collection_support::IterationStep::End => break,
-                },
-            );
-            let _ = &existing;
-            value
-                .append_span(
-                    match &existing {
-                        TerraneUnionF1S5641::Arm1(value) => value,
-                        _ => unreachable!("flow-proven storage refinement"),
-                    }
-                        .clone(),
-                );
+            existing_2 = match __terrane_iterator_5.next() {
+                terrane_collection_support::IterationStep::Item(item) => item,
+                terrane_collection_support::IterationStep::End => break,
+            };
+            value.append_span(existing_2);
         }
         value.append_span(span);
         return value;
@@ -1415,15 +1345,15 @@ impl Logger {
         context: LogContext,
     ) {
         {
-            let __terrane_value = sink;
+            let __terrane_value: LogSink = sink;
             self.sink = __terrane_value;
         }
         {
-            let __terrane_value = options;
+            let __terrane_value: LoggerOptions = options;
             self.options = __terrane_value;
         }
         {
-            let __terrane_value = context;
+            let __terrane_value: LogContext = context;
             self.context = __terrane_value;
         }
     }
@@ -1487,15 +1417,15 @@ impl LogOutcome {
     }
     pub fn construct(&mut self, filtered: bool, failed: bool, message: String) {
         {
-            let __terrane_value = filtered;
+            let __terrane_value: bool = filtered;
             self.filtered = __terrane_value;
         }
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
     }
@@ -1531,19 +1461,19 @@ impl LogEvent {
         fields: terrane_collection_support::List<LogField>,
     ) {
         {
-            let __terrane_value = level;
+            let __terrane_value: LogLevel = level;
             self.level = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = fields;
+            let __terrane_value: terrane_collection_support::List<LogField> = fields;
             self.fields = __terrane_value;
         }
         {
-            let __terrane_value = source;
+            let __terrane_value: String = source;
             self.source = __terrane_value;
         }
     }
@@ -1596,8 +1526,8 @@ pub fn emit_at(
     }
     combined = terrane_collection_support::List::new(Vec::new());
     let __terrane_iterable_6 = v.context.fields.clone();
-    let mut __terrane_iterator_6 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_6,
+    let mut __terrane_iterator_6 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_6.as_slice(),
     );
     {
         let __terrane_list_append_2 = combined.make_unique();
@@ -1607,14 +1537,14 @@ pub fn emit_at(
                 terrane_collection_support::IterationStep::End => break,
             };
             {
-                let __terrane_collection_argument_0 = item;
+                let __terrane_collection_argument_0 = item.clone();
                 __terrane_list_append_2.push(__terrane_collection_argument_0);
             };
         }
     }
     let __terrane_iterable_7 = f;
-    let mut __terrane_iterator_7 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_7,
+    let mut __terrane_iterator_7 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_7.as_slice(),
     );
     {
         let __terrane_list_append_3 = combined.make_unique();
@@ -1818,7 +1748,7 @@ impl DocumentInteger {
     }
     pub fn construct(&mut self, text: String) {
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -1850,15 +1780,15 @@ impl DocumentDecimal {
         text: String,
     ) {
         {
-            let __terrane_value = coefficient;
+            let __terrane_value: String = coefficient;
             self.coefficient = __terrane_value;
         }
         {
-            let __terrane_value = exponent.clone();
+            let __terrane_value: terrane_int_support::Int = exponent.clone();
             self.exponent = __terrane_value;
         }
         {
-            let __terrane_value = text;
+            let __terrane_value: String = text;
             self.text = __terrane_value;
         }
     }
@@ -1870,7 +1800,7 @@ pub trait SerializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SerializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SerializableProtocol::clone_box(&**self)
     }
 }
 pub struct Serializable(Box<dyn SerializableProtocol>);
@@ -1891,7 +1821,7 @@ pub trait DeserializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DeserializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DeserializableProtocol::clone_box(&**self)
     }
 }
 pub struct Deserializable(Box<dyn DeserializableProtocol>);
@@ -1911,7 +1841,7 @@ pub trait DocumentDecodableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentDecodableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentDecodableProtocol::clone_box(&**self)
     }
 }
 #[allow(
@@ -1931,7 +1861,7 @@ pub trait DocumentEncodableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentEncodableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentEncodableProtocol::clone_box(&**self)
     }
 }
 #[allow(
@@ -1952,7 +1882,7 @@ pub trait DocumentValidatableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentValidatableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentValidatableProtocol::clone_box(&**self)
     }
 }
 pub struct DocumentValidatable(Box<dyn DocumentValidatableProtocol>);
@@ -1994,20 +1924,20 @@ impl DocumentValue {
     }
     pub fn construct(&mut self, raw: terrane_document_support::DataResult) {
         {
-            let __terrane_value = terrane_document_kind(&raw);
+            let __terrane_value: String = terrane_document_kind(&raw);
             self.kind = __terrane_value;
         }
         {
-            let __terrane_value = terrane_document_text(&raw);
+            let __terrane_value: String = terrane_document_text(&raw);
             self.scalar = __terrane_value;
         }
         {
-            let __terrane_value = terrane_data_encoded(&raw);
+            let __terrane_value: String = terrane_data_encoded(&raw);
             self.encoded = __terrane_value;
         }
         if self.kind.as_str() == "integer" {
             {
-                let __terrane_value = DocumentInteger::terrane_construct(
+                let __terrane_value: DocumentInteger = DocumentInteger::terrane_construct(
                     self.scalar.clone(),
                 );
                 self.integer = __terrane_value;
@@ -2015,7 +1945,7 @@ impl DocumentValue {
         }
         if self.kind.as_str() == "decimal" {
             {
-                let __terrane_value = DocumentDecimal::terrane_construct(
+                let __terrane_value: DocumentDecimal = DocumentDecimal::terrane_construct(
                     terrane_document_coefficient(&raw),
                     terrane_document_exponent(&raw),
                     self.scalar.clone(),
@@ -2024,7 +1954,7 @@ impl DocumentValue {
             }
         }
         {
-            let __terrane_value = raw;
+            let __terrane_value: terrane_document_support::DataResult = raw;
             self.raw = __terrane_value;
         }
     }
@@ -2099,23 +2029,23 @@ impl DocumentResult {
         raw: terrane_document_support::DataResult,
     ) {
         {
-            let __terrane_value = failed;
+            let __terrane_value: bool = failed;
             self.failed = __terrane_value;
         }
         {
-            let __terrane_value = message;
+            let __terrane_value: String = message;
             self.message = __terrane_value;
         }
         {
-            let __terrane_value = path;
+            let __terrane_value: String = path;
             self.path = __terrane_value;
         }
         {
-            let __terrane_value = expected;
+            let __terrane_value: String = expected;
             self.expected = __terrane_value;
         }
         {
-            let __terrane_value = DocumentValue::terrane_construct(raw);
+            let __terrane_value: DocumentValue = DocumentValue::terrane_construct(raw);
             self.value = __terrane_value;
         }
     }
@@ -2164,15 +2094,15 @@ impl DocumentMapping {
         allow_unknown: bool,
     ) {
         {
-            let __terrane_value = descriptor_name;
+            let __terrane_value: String = descriptor_name;
             self.descriptor_name = __terrane_value;
         }
         {
-            let __terrane_value = expected_kind;
+            let __terrane_value: String = expected_kind;
             self.expected_kind = __terrane_value;
         }
         {
-            let __terrane_value = allow_unknown;
+            let __terrane_value: bool = allow_unknown;
             self.allow_unknown = __terrane_value;
         }
     }
@@ -2245,13 +2175,13 @@ impl DocumentMapEntries {
     }
     pub fn construct(&mut self) {
         {
-            let __terrane_value = terrane_make_document_map();
+            let __terrane_value: terrane_document_support::DataResult = terrane_make_document_map();
             self.raw = __terrane_value;
         }
     }
     pub fn append(&mut self, key: String, value: DocumentValue) {
         {
-            let __terrane_value = terrane_document_map_insert(
+            let __terrane_value: terrane_document_support::DataResult = terrane_document_map_insert(
                 &self.raw,
                 key,
                 &value.raw,
@@ -2509,7 +2439,7 @@ pub fn decode_document(
     result = make_document_result(raw);
     if result.failed {
         {
-            let __terrane_value = mapping.descriptor_name.clone();
+            let __terrane_value: String = mapping.descriptor_name.clone();
             result.expected = __terrane_value;
         }
     }

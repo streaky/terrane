@@ -1,0 +1,9 @@
+namespace static-closure-moved-reuse
+class holder
+    static f (consuming function to int)|none = none
+
+function main;
+    g = consuming function int;
+        return 1
+    holder::f = g
+    print; (g;)

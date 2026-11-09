@@ -21,7 +21,7 @@ impl Counter {
     }
     pub fn construct(&mut self, stop: terrane_int_support::Int) {
         {
-            let __terrane_value = stop.clone();
+            let __terrane_value: terrane_int_support::Int = stop.clone();
             self.stop = __terrane_value;
         }
     }
@@ -36,20 +36,20 @@ impl Counter {
             return terrane_collection_support::IterationStep::End;
         }
         {
-            let __terrane_value = self.advances.clone()
+            let __terrane_value: terrane_int_support::Int = self.advances.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.advances = __terrane_value;
         }
         if self.current.clone() >= self.stop.clone() {
             {
-                let __terrane_value = true;
+                let __terrane_value: bool = true;
                 self.ended = __terrane_value;
             }
             return terrane_collection_support::IterationStep::End;
         }
         item = self.current.clone();
         {
-            let __terrane_value = self.current.clone()
+            let __terrane_value: terrane_int_support::Int = self.current.clone()
                 + terrane_int_support::Int::from(1_i128);
             self.current = __terrane_value;
         }
@@ -74,7 +74,7 @@ impl NoneOnce {
             return terrane_collection_support::IterationStep::End;
         }
         {
-            let __terrane_value = true;
+            let __terrane_value: bool = true;
             self.emitted = __terrane_value;
         }
         return terrane_collection_support::IterationStep::<()>::Item(());

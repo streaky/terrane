@@ -502,7 +502,9 @@ fn main() {
         );
         callable = CallableHolder::terrane_construct();
         {
-            let __terrane_value = std::sync::Arc::new(loud_render);
+            let __terrane_value: std::sync::Arc<
+                dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
+            > = std::sync::Arc::new(loud_render);
             callable.render = __terrane_value;
         }
         println!(

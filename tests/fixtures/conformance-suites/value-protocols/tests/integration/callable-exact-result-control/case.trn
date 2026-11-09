@@ -1,0 +1,8 @@
+namespace callable-exact-result-control
+
+function source int;
+    return 7
+
+function test-scenario;
+    exact function to int = source
+    print; (exact;)

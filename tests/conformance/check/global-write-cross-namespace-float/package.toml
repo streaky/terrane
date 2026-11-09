@@ -1,0 +1,4 @@
+package = "global-write-cross-namespace-float"
+[namespaces]
+a = "a"
+b = "b"

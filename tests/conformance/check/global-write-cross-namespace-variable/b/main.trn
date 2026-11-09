@@ -1,0 +1,5 @@
+namespace b
+
+function main;
+    value = 'text'
+    global calls = value

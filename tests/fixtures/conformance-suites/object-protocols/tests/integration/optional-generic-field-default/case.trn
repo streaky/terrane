@@ -1,0 +1,20 @@
+namespace optional-generic-field-default
+class Bx of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class Holder
+    value (Bx of int)|none = none
+interface named
+    function name string;
+class Wrapped of (T implements named)
+    value T
+    function construct; value T
+        this.value = move value
+class Forwarded of (U implements named)
+    value Wrapped of U
+    function construct; value Wrapped of U
+        this.value = move value
+function test-scenario;
+    holder = instance Holder;
+    print; holder.value is a none

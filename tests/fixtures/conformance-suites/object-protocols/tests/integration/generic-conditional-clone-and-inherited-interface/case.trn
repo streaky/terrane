@@ -1,0 +1,60 @@
+namespace generic-conditional-clone-and-inherited-interface
+from /core/collections import list
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+class Wrap of (T)
+    value Box of T
+    function construct; value Box of T
+        this.value = move value
+class Nested of (T)
+    value Wrap of Wrap of T
+    function construct; value Wrap of Wrap of T
+        this.value = move value
+class Generic of (T)
+    direct Box of T
+    nested Nested of T
+    values list of T
+    fixed int = 19
+    function construct; direct Box of T, nested Nested of T, values list of T
+        this.direct = move direct
+        this.nested = move nested
+        this.values = move values
+interface base
+    function base-value int;
+interface sub implements base
+    function sub-value int;
+class Item implements sub
+    function base-value int;
+        return 11
+    function sub-value int;
+        return 13
+function target of (T implements sub) int; value T
+    return 17
+function forward of (U implements sub) int; value U
+    callback function from U to int = target
+    return callback; (move value)
+function constrained of (U implements sub) int; value U
+    return value.base-value;
+
+
+function test-scenario;
+    direct = instance (Box of int); (5)
+    leaf = instance (Box of int); (6)
+    inner-wrapper = instance (Wrap of int); (move leaf)
+    nested-box = instance (Box of (Wrap of int)); (move inner-wrapper)
+    outer-wrapper = instance (Wrap of (Wrap of int)); (move nested-box)
+    nested-value = instance (Nested of int); (move outer-wrapper)
+    values = list; (7)
+    generic = instance (Generic of int); (move direct, move nested-value, move values)
+    copied = generic
+    listed = list; (generic)
+    nested = generic.nested
+    copy-nested = nested
+    print; copied.direct.value
+    print; listed[0].values[0]
+    print; copy-nested.value.value.value.value.value
+    print; (constrained; (instance Item;))
+    print; (forward; (instance Item;))
+    print; copied.fixed

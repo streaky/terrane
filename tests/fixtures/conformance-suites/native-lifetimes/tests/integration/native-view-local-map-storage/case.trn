@@ -1,0 +1,28 @@
+namespace native-view-local-map-storage
+from /deps/terrane-query-witness import Holder, CopyView
+from /core/collections import map, unordered-map, list
+
+function store; holder Holder
+    view = holder.copy_view;
+    values map of string, CopyView = map;
+    values.set; 'view', view
+    map_alias = mutable ref values
+    map_alias.set; 'alias', view
+    print; (values['alias'].size;)
+    print; (values['view'].size;)
+    unordered unordered-map of string, CopyView = unordered-map;
+    unordered.set; 'view', view
+    unordered_alias = mutable ref unordered
+    unordered_alias.set; 'alias', view
+    print; (unordered['alias'].size;)
+    print; (unordered['view'].size;)
+    nested map of string, list of CopyView = map;
+    nested.set; 'view', (list; view)
+    print; (nested['view'][0].size;)
+    items list of CopyView = list;
+    items.append; view
+    print; (items[0].size;)
+    holder.bump;
+
+function test-scenario;
+    store; (Holder::new;)

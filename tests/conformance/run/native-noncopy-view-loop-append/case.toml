@@ -1,0 +1,5 @@
+phase = "run"
+status = "accept"
+suite = "native-lifetimes"
+test = "/native-noncopy-view-loop-append::test-scenario"
+stdout = "stdout.txt"

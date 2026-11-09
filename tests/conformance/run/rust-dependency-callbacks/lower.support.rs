@@ -1774,7 +1774,7 @@ pub struct TerraneMutableCallable<Arguments, Output> {
     >,
 }
 impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnMut(Arguments) -> Output + Clone + Send + 'static,
     {
@@ -1782,7 +1782,7 @@ impl<Arguments, Output> TerraneMutableCallable<Arguments, Output> {
             body: std::sync::Mutex::new(std::boxed::Box::new(function)),
         }
     }
-    fn call(&self, arguments: Arguments) -> Output {
+    pub fn call(&self, arguments: Arguments) -> Output {
         self.body.lock().expect("mutable callable lock poisoned").call(arguments)
     }
 }
@@ -1810,7 +1810,7 @@ pub struct TerraneConsumingCallable<Arguments, Output> {
     body: std::boxed::Box<dyn TerraneConsumingCallableBody<Arguments, Output>>,
 }
 impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
-    fn new<Function>(function: Function) -> Self
+    pub fn new<Function>(function: Function) -> Self
     where
         Function: FnOnce(Arguments) -> Output + Send + 'static,
     {
@@ -1818,7 +1818,7 @@ impl<Arguments, Output> TerraneConsumingCallable<Arguments, Output> {
             body: std::boxed::Box::new(function),
         }
     }
-    fn call(self, arguments: Arguments) -> Output {
+    pub fn call(self, arguments: Arguments) -> Output {
         self.body.call(arguments)
     }
 }
@@ -1832,7 +1832,7 @@ pub trait AdjustableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn AdjustableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        AdjustableProtocol::clone_box(&**self)
     }
 }
 pub struct Adjustable(Box<dyn AdjustableProtocol>);
@@ -1902,7 +1902,7 @@ pub trait AsyncEntryProtocol: Send + Sync {
 pub struct AsyncEntry(Box<dyn AsyncEntryProtocol>);
 impl AsyncEntry {
     fn __terrane_callback_snapshot(&self) -> Self {
-        Self(self.0.__terrane_callback_snapshot())
+        Self(AsyncEntryProtocol::__terrane_callback_snapshot(&*self.0))
     }
 }
 impl AsyncEntry {
@@ -1985,7 +1985,7 @@ pub trait DropAwareProtocol {
 }
 impl Clone for Box<dyn DropAwareProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DropAwareProtocol::clone_box(&**self)
     }
 }
 pub struct DropAware(Box<dyn DropAwareProtocol>);
@@ -2019,7 +2019,7 @@ pub trait LocalAdjustableProtocol {
 }
 impl Clone for Box<dyn LocalAdjustableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        LocalAdjustableProtocol::clone_box(&**self)
     }
 }
 pub struct LocalAdjustable(Box<dyn LocalAdjustableProtocol>);
@@ -2565,7 +2565,7 @@ pub trait RenderableProtocol: Send {
 }
 impl Clone for Box<dyn RenderableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        RenderableProtocol::clone_box(&**self)
     }
 }
 pub struct Renderable(Box<dyn RenderableProtocol>);

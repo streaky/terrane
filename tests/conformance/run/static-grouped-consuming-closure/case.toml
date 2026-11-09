@@ -1,0 +1,4 @@
+# Isolated: no unrelated closure may supply runtime support.
+phase = "run"
+status = "accept"
+canonical-rust = true

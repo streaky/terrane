@@ -1,0 +1,9 @@
+package = "conformance/control-flow"
+artifact = "library"
+rust-toolchain = "pinned"
+
+[namespaces]
+"conformance/control-flow" = "src"
+
+[testing]
+integration = "tests/integration"

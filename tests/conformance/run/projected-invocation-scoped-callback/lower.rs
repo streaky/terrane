@@ -586,8 +586,10 @@ fn exact_mixed_branch<'view>(state: &'view String) -> witness::BorrowedLabel<'vi
     );
 }
 fn exact_helper_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
-    let mut children: terrane_collection_support::List<_>;
-    children = terrane_collection_support::List::<_>::new(vec![]);
+    let mut children: terrane_collection_support::List<witness::BorrowedLabel<'_>>;
+    children = terrane_collection_support::List::<
+        witness::BorrowedLabel<'_>,
+    >::new(vec![]);
     {
         let __terrane_collection_argument_0 = exact_inner_label(state);
         children.push_unique(__terrane_collection_argument_0);
@@ -632,11 +634,7 @@ fn exact_helper_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup
                         > {
                             Ok(
                                 witness::borrowed_row(
-                                    __terrane_conversion_input_0
-                                        .into_unique_vec()
-                                        .into_iter()
-                                        .map(Into::into)
-                                        .collect::<Vec<_>>(),
+                                    __terrane_conversion_input_0.into_unique_vec(),
                                 ),
                             )
                         }),
@@ -783,8 +781,10 @@ fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
     };
 }
 fn exact_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
-    let mut children: terrane_collection_support::List<_>;
-    children = terrane_collection_support::List::<_>::new(vec![]);
+    let mut children: terrane_collection_support::List<witness::BorrowedLabel<'_>>;
+    children = terrane_collection_support::List::<
+        witness::BorrowedLabel<'_>,
+    >::new(vec![]);
     {
         let __terrane_collection_argument_0 = __terrane_raised(
             || -> Result<_, crate::TerraneForeignError> {
@@ -853,11 +853,7 @@ fn exact_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view>
                         > {
                             Ok(
                                 witness::borrowed_row(
-                                    __terrane_conversion_input_0
-                                        .into_unique_vec()
-                                        .into_iter()
-                                        .map(Into::into)
-                                        .collect::<Vec<_>>(),
+                                    __terrane_conversion_input_0.into_unique_vec(),
                                 ),
                             )
                         }),

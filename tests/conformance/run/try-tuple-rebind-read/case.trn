@@ -1,0 +1,15 @@
+namespace app
+from /core/collections import list, tuple
+from /core/collections import tuple
+
+function eat int; k tuple of int
+    return 1
+
+function main;
+    o = tuple; 1, 2
+    try
+        print; (eat; o)
+        o = tuple; 3, 4
+    finally
+        print; 2
+    print; o[0]

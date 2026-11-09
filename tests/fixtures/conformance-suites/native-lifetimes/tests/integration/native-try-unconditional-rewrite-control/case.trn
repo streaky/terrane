@@ -1,0 +1,13 @@
+namespace native-try-unconditional-rewrite-control
+from /deps/terrane-query-witness import Holder, View
+function test-scenario;
+    h = Holder::new;
+    k = Holder::new;
+    v = h.view;
+    try
+        print; (v.into_size;)
+        v = h.view;
+    finally
+        print; 1
+    v = k.view;
+    print; (v.size;)

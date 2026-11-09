@@ -1,0 +1,6 @@
+namespace reserved-for-tuple-target
+from /core/collections import map
+function main;
+  values map of string, int = map; ('one': 1)
+  for key, this in values
+    print; key

@@ -1,0 +1,13 @@
+namespace generic-field-cloneable-control
+class F of (T)
+    number int = 3
+class G
+    value F of string
+    function construct; value F of string
+        this.value = move value
+function test-scenario;
+    original = instance G; (instance (F of string);)
+    copied = original
+    copied.value.number = 9
+    print; original.value.number
+    print; copied.value.number

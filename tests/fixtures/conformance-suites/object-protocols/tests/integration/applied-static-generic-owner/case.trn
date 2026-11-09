@@ -1,0 +1,56 @@
+namespace applied-static-generic-owner
+from /core/collections import list
+class Q of (T)
+    n int = 1
+    static function mk int;
+        return 3
+    static function list-length int; values list of T
+        return values.length
+    static function echoed T; value T
+        return value
+    static function empty Q of (T);
+        return instance Q of (T);
+    static function generic of (U) U; value U
+        return value
+    static function again int;
+        return (Q of (T))::mk;
+    function own int;
+        return Q of (T)::mk;
+
+class Box of (T)
+    value T
+    function construct; value T
+        this.value = move value
+    static function make Box of (T); value T
+        return instance Box of (T); move value
+
+function invoke int; callback function to int
+    return callback;
+
+function test-scenario;
+    maker = (Q of int)::mk
+    print; (maker;)
+    print; ((Q of int)::mk;)
+    print; ((Q of int)::echoed; 7)
+    echo = Q of (int)::echoed
+    print; (echo; 8)
+    print; ((Q of int)::list-length; (list; 2, 3))
+    length = Q of (int)::list-length
+    print; (length; (list; 1))
+    empty = (Q of int)::empty;
+    print; empty.n
+    factory = Q of (int)::empty
+    other = factory;
+    print; other.n
+    box = Box of (int)::make; 9
+    print; box.value
+    boxed = (Box of (int))::make
+    another = boxed; 10
+    print; another.value
+    print; ((Q of int)::generic of (int); 11)
+    print; (Q of (string)::generic; 12)
+    print; (Q of (int)::again;)
+    print; (other.own;)
+    print; (invoke; Q of (int)::mk)
+    alternate = Q of (string)::mk
+    print; (alternate;)

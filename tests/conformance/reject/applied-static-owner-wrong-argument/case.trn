@@ -1,0 +1,7 @@
+namespace app
+class Q of (T)
+    static function count int; value T
+        return 1
+
+function main;
+    print; (Q of (string)::count; 2)

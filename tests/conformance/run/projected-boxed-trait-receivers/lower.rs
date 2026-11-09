@@ -17,7 +17,7 @@ impl Counter {
     }
     pub fn increment(&mut self) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.value.clone()
+            let __terrane_value: terrane_int_support::Int = self.value.clone()
                 + terrane_int_support::Int::from(5_i128);
             self.value = __terrane_value;
         }

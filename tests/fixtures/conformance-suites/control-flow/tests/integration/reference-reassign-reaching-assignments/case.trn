@@ -1,0 +1,23 @@
+namespace reference-reassign-reaching-assignments
+
+function test-scenario;
+    a = 1
+    b = 2
+    c = 3
+    r ref int = ref a
+    print; r
+    r = ref b
+    a = 4
+    print; r
+    r = ref c
+    b = 5
+    print; b
+    print; r
+    if true
+        r = ref a
+    else
+        r = ref b
+    print; r
+    mutable-value mutable ref int = mutable ref c
+    mutable-value = 6
+    print; c

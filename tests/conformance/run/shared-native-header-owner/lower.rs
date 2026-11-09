@@ -16,7 +16,8 @@ impl RequestBuilderOwner {
     }
     pub fn construct(&mut self, builder: std::sync::Arc<TerraneSharedCell<Builder>>) {
         {
-            let __terrane_value = builder.clone();
+            let __terrane_value: std::sync::Arc<TerraneSharedCell<Builder>> = builder
+                .clone();
             self.builder = Some(__terrane_value);
         }
     }
@@ -120,8 +121,8 @@ fn main() {
     let copied_value: OptionalHeaders;
     builders = make_builders();
     let __terrane_iterable_0 = builders.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         builder = match __terrane_iterator_0.next() {

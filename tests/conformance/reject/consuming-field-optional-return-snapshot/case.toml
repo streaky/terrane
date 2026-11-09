@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0135"
+contains = "field snapshot cannot copy"

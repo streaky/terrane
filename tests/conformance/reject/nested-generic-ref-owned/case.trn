@@ -1,0 +1,9 @@
+namespace nested-generic-ref-owned
+function identity of (T) T; value T
+    return value
+function inspect of (T) int; first ref T, second T
+    return 1
+function run of (T) int; value T
+    return (inspect; value, (identity; value))
+function main;
+    print; (run; 'value')

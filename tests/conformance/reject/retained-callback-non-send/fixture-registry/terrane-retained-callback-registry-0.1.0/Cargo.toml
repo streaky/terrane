@@ -1,7 +1,0 @@
-[package]
-name = "terrane-retained-callback-registry"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-terrane-retained-callback-api = { path = "../terrane-retained-callback-api-0.1.0" }

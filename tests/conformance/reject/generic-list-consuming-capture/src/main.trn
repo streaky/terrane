@@ -1,0 +1,11 @@
+namespace app
+from /core/collections import list
+function f of (T) list of T; o list of T, d list of T
+    callback = consuming function list of T;
+        if o.length > 0
+            return o
+        return d
+    return callback;
+
+function main;
+    print; (f; (list; 'a'), (list; 'b'))

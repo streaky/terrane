@@ -196,7 +196,7 @@ impl<T: Clone> IndexedIteration for &[T] {
 }
 
 pub trait Iterable {
-    type Item: Clone + 'static;
+    type Item: Clone;
     type Iter;
     fn terrane_iterator(&self) -> Self::Iter;
 }
@@ -424,6 +424,11 @@ impl<T> Tuple<T> {
     pub fn length(&self) -> i128 {
         self.0.len() as i128
     }
+    /// Lends the elements without imposing a static lifetime on their values.
+    #[must_use]
+    pub fn as_slice(&self) -> &[T] {
+        self.0.as_slice()
+    }
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)
@@ -517,19 +522,6 @@ type FixedState = BuildHasherDefault<StableHasher>;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Map<K: Eq + Hash, V>(Arc<indexmap::IndexMap<K, V, FixedState>>);
 impl<K: Eq + Hash, V> Map<K, V> {
-    /// Borrows a value without cloning or detaching shared storage.
-    #[inline]
-    pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
-        Arc::get_mut(&mut self.0)?.get_mut(key)
-    }
-}
-impl<K: Eq + Hash, V> Map<K, V> {
-    /// Borrows the existing entries without cloning keys or values.
-    pub fn as_entries(&self) -> impl std::iter::Iterator<Item = (&K, &V)> {
-        self.0.iter()
-    }
-}
-impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     #[must_use]
     pub fn new(entries: Vec<Entry<K, V>>) -> Self {
         let mut map = indexmap::IndexMap::with_hasher(FixedState::default());
@@ -546,6 +538,23 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     pub fn get(&self, key: &K) -> Option<&V> {
         self.0.get(key)
     }
+    /// Borrows a value without cloning or detaching shared storage.
+    #[inline]
+    pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
+        Arc::get_mut(&mut self.0)?.get_mut(key)
+    }
+    /// Borrows the existing entries without cloning keys or values.
+    pub fn as_entries(&self) -> impl std::iter::Iterator<Item = (&K, &V)> {
+        self.0.iter()
+    }
+}
+impl<K: Eq + Hash + Clone, V> Map<K, V> {
+    #[must_use]
+    pub fn keys(&self) -> List<K> {
+        List::new(self.0.keys().cloned().collect())
+    }
+}
+impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     /// Borrows a value, separating value-semantic shared storage when required.
     #[inline]
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
@@ -578,10 +587,6 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
         Arc::make_mut(&mut self.0).shift_remove(key)
     }
     #[must_use]
-    pub fn keys(&self) -> List<K> {
-        List::new(self.0.keys().cloned().collect())
-    }
-    #[must_use]
     pub fn values(&self) -> List<V> {
         List::new(self.0.values().cloned().collect())
     }
@@ -595,7 +600,7 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
         )
     }
 }
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for Map<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> IndexedIteration for Map<K, V> {
     type Item = Entry<K, V>;
     fn item_at(&self, index: usize) -> Option<Self::Item> {
         self.0
@@ -603,7 +608,7 @@ impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for Ma
             .map(|(key, value)| Entry::new(key.clone(), value.clone()))
     }
 }
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> Iterable for Map<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> Iterable for Map<K, V> {
     type Item = Entry<K, V>;
     type Iter = CollectionIterator<Self>;
     fn terrane_iterator(&self) -> Self::Iter {
@@ -700,6 +705,14 @@ impl<K: Eq + Hash, V: Eq> Eq for UnorderedMapData<K, V> {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnorderedMap<K: Eq + Hash, V>(Arc<UnorderedMapData<K, V>>);
 impl<K: Eq + Hash, V> UnorderedMap<K, V> {
+    #[must_use]
+    pub fn length(&self) -> i128 {
+        self.0.values.len() as i128
+    }
+    #[must_use]
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.0.values.get(key).map(|(_, value)| value)
+    }
     /// Borrows a value without cloning or detaching shared storage.
     #[inline]
     pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
@@ -718,7 +731,7 @@ impl<K: Eq + Hash, V> UnorderedMap<K, V> {
     }
 }
 
-impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
+impl<K: Eq + Hash + Clone, V> UnorderedMap<K, V> {
     #[must_use]
     pub fn new(entries: Vec<Entry<K, V>>) -> Self {
         let mut values = HashMap::with_hasher(FixedState::default());
@@ -737,14 +750,15 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
             iteration_keys,
         }))
     }
+}
+
+impl<K: Eq + Hash + Clone, V> UnorderedMap<K, V> {
     #[must_use]
-    pub fn length(&self) -> i128 {
-        self.0.values.len() as i128
+    pub fn keys(&self) -> List<K> {
+        List::new(self.0.iteration_keys.clone())
     }
-    #[must_use]
-    pub fn get(&self, key: &K) -> Option<&V> {
-        self.0.values.get(key).map(|(_, value)| value)
-    }
+}
+impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     /// Borrows a value, separating value-semantic shared storage when required.
     #[inline]
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
@@ -792,10 +806,6 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
         Some(value)
     }
     #[must_use]
-    pub fn keys(&self) -> List<K> {
-        List::new(self.0.iteration_keys.clone())
-    }
-    #[must_use]
     pub fn values(&self) -> List<V> {
         List::new(
             self.0
@@ -817,7 +827,7 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     }
 }
 
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for UnorderedMap<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> IndexedIteration for UnorderedMap<K, V> {
     type Item = Entry<K, V>;
     fn item_at(&self, index: usize) -> Option<Self::Item> {
         let key = self.0.iteration_keys.get(index)?;
@@ -825,7 +835,7 @@ impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> IndexedIteration for Un
     }
 }
 
-impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> Iterable for UnorderedMap<K, V> {
+impl<K: Eq + Hash + Clone, V: Clone> Iterable for UnorderedMap<K, V> {
     type Item = Entry<K, V>;
     type Iter = CollectionIterator<Self>;
     fn terrane_iterator(&self) -> Self::Iter {

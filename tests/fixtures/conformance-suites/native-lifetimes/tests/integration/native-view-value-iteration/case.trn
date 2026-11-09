@@ -1,0 +1,47 @@
+namespace native-view-value-iteration
+from /deps/terrane-query-witness import Holder, CopyView
+from /core/collections import list
+
+function observe; values list of CopyView
+    for value in values
+        print; (value.size;)
+    print; values.length
+
+function observe-ref; values ref list of CopyView
+    for value in values
+        print; (value.size;)
+    print; values.length
+
+function test-scenario;
+    holder = Holder::new;
+    typed list of CopyView = list; (holder.copy_view;)
+    for value in typed
+        print; (value.size;)
+        print; typed.length
+    print; typed.length
+    for value in typed
+        print; (value.size;)
+    inferred = list; (holder.copy_view;)
+    for value in inferred
+        print; (value.size;)
+        print; inferred.length
+    print; inferred.length
+    for value in inferred
+        inferred.append; (holder.copy_view;)
+        print; (value.size;)
+    print; inferred.length
+    observe; typed
+    observe-ref; typed
+    for value in typed
+        typed.append; (holder.copy_view;)
+        print; (value.size;)
+    print; typed.length
+    numbers = list; 1
+    for number in numbers
+        numbers.append; 2
+        print; number
+    print; numbers.length
+    words = list; 'word'
+    for word in words
+        print; word
+    print; words.length
