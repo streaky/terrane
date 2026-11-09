@@ -9,6 +9,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, mpsc};
+#[path = "conformance/build_workspace.rs"]
+mod build_workspace;
+use build_workspace::{ConformanceBuild, FixtureDependencyLock, write_if_changed};
 #[path = "conformance/native_fixtures.rs"]
 mod native_fixtures;
 #[path = "conformance/shared_suites.rs"]
@@ -16,7 +19,6 @@ mod shared_suites;
 
 const MAX_CONFORMANCE_JOBS: usize = 8;
 static TIMING_WRITE_LOCK: Mutex<()> = Mutex::new(());
-static NEXT_BUILD_ID: AtomicUsize = AtomicUsize::new(0);
 static NATIVE_TOOL_ARTIFACTS: ToolMutex<BTreeMap<PathBuf, PathBuf>> =
     ToolMutex::new(BTreeMap::new());
 
@@ -48,7 +50,7 @@ fn coverage_rustflags(build: &ConformanceBuild) -> std::borrow::Cow<'static, str
     write!(
         flags,
         " --remap-path-prefix={}={}",
-        build.root.join("support").display(),
+        build.support.display(),
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
@@ -126,113 +128,6 @@ fn coverage_test_environment(command: &mut Command) {
 
 fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance")
-}
-
-struct ConformanceBuild {
-    root: PathBuf,
-    target: PathBuf,
-}
-
-impl ConformanceBuild {
-    fn new() -> Self {
-        let build_id = NEXT_BUILD_ID.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
-            "terrane-conformance-{}-{build_id}",
-            std::process::id()
-        ));
-        if root.exists() {
-            fs::remove_dir_all(&root).unwrap();
-        }
-        fs::create_dir_all(root.join("src")).unwrap();
-        write_support_crates(&root);
-        let target = if coverage_dir().is_some() {
-            PathBuf::from(
-                std::env::var_os("TERRANE_COVERAGE_TARGET_DIR").expect("coverage target directory"),
-            )
-            .join("conformance")
-        } else {
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/conformance")
-        };
-        Self { root, target }
-    }
-
-    fn write_manifest(
-        &self,
-        binary_names: &[&str],
-        dependencies: &[terrane_compiler::RustDependency],
-        requires_unsafe_code: bool,
-    ) {
-        let mut manifest = r#"[package]
-name = "terrane_conformance_harness"
-version = "0.0.0"
-edition = "2024"
-autobins = false
-
-[dependencies]
-terrane-int-support = { path = "support/terrane-int-support" }
-terrane-collection-support = { path = "support/terrane-collection-support" }
-terrane-scalar-support = { path = "support/terrane-scalar-support" }
-terrane-string-support = { path = "support/terrane-string-support" }
-terrane-document-support = { path = "support/terrane-document-support" }
-terrane-stream-abi = { path = "support/terrane-stream-abi" }
-terrane-platform-support = { path = "support/terrane-platform-support" }
-"#
-        .to_owned();
-        for dependency in terrane_compiler::with_tokio_runtime(
-            dependencies,
-            &["rt", "rt-multi-thread", "sync", "time"],
-        )
-        .iter()
-        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
-        {
-            manifest.push_str(&dependency.cargo_dependency_spec());
-        }
-        let target_tables = dependencies
-            .iter()
-            .map(terrane_compiler::RustDependency::cargo_manifest_table)
-            .filter(|table| table != "dependencies")
-            .collect::<BTreeSet<_>>();
-        for table in target_tables {
-            writeln!(manifest, "\n[{table}]").unwrap();
-            for dependency in dependencies
-                .iter()
-                .filter(|dependency| dependency.cargo_manifest_table() == table)
-            {
-                manifest.push_str(&dependency.cargo_dependency_spec());
-            }
-        }
-        // Binary tables must follow every dependency table so they do not terminate a
-        // target-specific dependency section.
-        for binary_name in binary_names {
-            write!(
-                manifest,
-                "\n[[bin]]\nname = \"{binary_name}\"\npath = \"src/{binary_name}.rs\"\n"
-            )
-            .unwrap();
-        }
-        writeln!(
-            manifest,
-            "\n[lints.rust]\nunsafe_code = \"{}\"",
-            if requires_unsafe_code {
-                "deny"
-            } else {
-                "forbid"
-            }
-        )
-        .unwrap();
-        manifest.push_str(
-            "\n[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true\n\
-             \n[profile.test]\ndebug = \"line-tables-only\"\nincremental = true\n\
-             \n[workspace]\n",
-        );
-        fs::write(self.root.join("Cargo.toml"), manifest).unwrap();
-    }
-}
-
-impl Drop for ConformanceBuild {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.root);
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -382,8 +277,10 @@ fn copy_package_fixture(source: &Path, destination: &Path) {
     for entry in fs::read_dir(source).unwrap() {
         let entry = entry.unwrap();
         let name = entry.file_name();
-        if name == ".trn" || name == "case.toml" || name == "lower.rs" || name == "lower.support.rs"
-        {
+        if matches!(
+            name.to_str(),
+            Some(".trn" | "target" | "case.toml" | "lower.rs" | "lower.support.rs")
+        ) {
             continue;
         }
         let source_path = entry.path();
@@ -405,12 +302,17 @@ fn case_source_path(
     if entrypoint != terrane_compiler::MANIFEST_FILE_NAME {
         return case.join(entrypoint);
     }
+    let manifest = fs::read_to_string(case.join("case.toml")).unwrap();
+    if field(&manifest, "projection-history").is_none() {
+        stage_native_tools(case, case);
+        native_fixtures::stage(case, &case.join(".trn/dependencies"), &build.target);
+        return case.join(entrypoint);
+    }
     let staged = build.root.join("package-input").join(staging_identity);
     if staged.exists() {
         fs::remove_dir_all(&staged).unwrap();
     }
     copy_package_fixture(case, &staged);
-    let manifest = fs::read_to_string(case.join("case.toml")).unwrap();
     if let Some(history) = field(&manifest, "projection-history") {
         let destination = staged.join(".trn/projection-cache.json");
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
@@ -445,6 +347,8 @@ fn stage_native_tools(case: &Path, staged: &Path) {
                     .name("native-tool-compiler".into())
                     .stack_size(8 * 1024 * 1024)
                     .spawn_scoped(scope, || {
+                        let _dependency_lock =
+                            FixtureDependencyLock::preserve(source.parent().unwrap());
                         let package = terrane_compiler::Package::load(&source).unwrap();
                         terrane_compiler::compile_package(&package).unwrap()
                     })
@@ -458,8 +362,9 @@ fn stage_native_tools(case: &Path, staged: &Path) {
                 source.display(),
                 compilation.warnings
             );
-            let build = ConformanceBuild::new();
-            let name = format!("native_tool_{}", NEXT_BUILD_ID.load(Ordering::Relaxed));
+            let build =
+                ConformanceBuild::retained_role(source.parent().unwrap(), "conformance-tool");
+            let name = stable_binary_name("native_tool", &source);
             let rust_files = compilation.rust_files_for(Path::new("lower.rs")).unwrap();
             stage_generated_binary(
                 &name,
@@ -484,6 +389,9 @@ fn stage_native_tools(case: &Path, staged: &Path) {
             binary_path(&name, &build)
         });
         let destination = staged.join(".trn/consumers").join(name);
+        if fs::symlink_metadata(&destination).is_ok() {
+            fs::remove_file(&destination).unwrap();
+        }
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
         // Copying opens an executable for writing; concurrent Unix forks can
         // inherit that descriptor until exec and cause ETXTBSY in another worker.
@@ -552,7 +460,7 @@ fn persist_lowering_artifacts(case: &Path, files: &[terrane_compiler::rust_ir::R
         let contents = file
             .contents
             .replace(terrane_compiler::VERSION, "<version>");
-        fs::write(destination, contents).unwrap();
+        write_if_changed(destination, contents).unwrap();
     }
     if files.iter().any(|file| file.path == "lower.rs")
         && !files.iter().any(|file| file.path == "lower.support.rs")
@@ -673,12 +581,17 @@ where
     })
 }
 
+fn stable_binary_name(prefix: &str, identity: &Path) -> String {
+    let identity = identity.strip_prefix(corpus()).unwrap_or(identity);
+    let digest = Sha256::digest(identity.as_os_str().as_encoded_bytes());
+    format!("{prefix}_{digest:x}")
+}
+
 fn prepare_conformance_case(
-    case_index: usize,
     manifest_path: &Path,
     build: &ConformanceBuild,
 ) -> Option<PreparedGeneratedCase> {
-    let binary_name = format!("terrane_conformance_case_{case_index}");
+    let binary_name = stable_binary_name("terrane_conformance_case", manifest_path);
     let case = manifest_path.parent().unwrap();
     let mut timing = CaseTiming::new(case, &build.root);
     let manifest = fs::read_to_string(manifest_path).unwrap();
@@ -686,6 +599,7 @@ fn prepare_conformance_case(
     let status = field(&manifest, "status").unwrap();
     let entrypoint = field(&manifest, "entrypoint").unwrap_or("case.trn");
     let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
+    let _dependency_lock = package_case.then(|| FixtureDependencyLock::preserve(case));
     let source_path = case_source_path(build, case, entrypoint, &binary_name);
     let options = terrane_compiler::CompilerOptions {
         require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
@@ -806,7 +720,9 @@ fn assert_diagnostic_location(
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = selected_manifests();
-    let build = ConformanceBuild::new();
+    // Hold the corpus lock through preparation, builds and execution: shared target
+    // executables must not be replaced by another invocation while they are running.
+    let build = ConformanceBuild::retained(&corpus());
     shared_suites::run(&manifests, &build);
     let individual_manifests = manifests
         .into_iter()
@@ -817,7 +733,7 @@ fn every_manifest_drives_a_conformance_case() {
     let prepared = parallel_map_indexed(
         &individual_manifests,
         conformance_jobs(individual_manifests.len()),
-        |case_index, manifest_path| prepare_conformance_case(case_index, manifest_path, &build),
+        |_, manifest_path| prepare_conformance_case(manifest_path, &build),
     );
     let mut deferred_generated_cases = Vec::new();
     for prepared in prepared.into_iter().flatten() {
@@ -846,6 +762,7 @@ fn every_manifest_drives_a_conformance_case() {
             requires_unsafe_code,
             mut timing,
         } = prepared;
+        let case_build = ConformanceBuild::retained(&case);
         timing.begin_pending_work();
         compile_and_maybe_run(
             &binary_name,
@@ -854,7 +771,7 @@ fn every_manifest_drives_a_conformance_case() {
             &manifest,
             &rust_files,
             (&dependencies, requires_unsafe_code),
-            &build,
+            &case_build,
         );
         timing.pass();
     }
@@ -871,6 +788,8 @@ fn stage_generated_binary(
     build: &ConformanceBuild,
 ) {
     native_fixtures::stage(case, &build.root, &build.target);
+    let inventory_path = build.root.join(format!("{binary_name}.files.json"));
+    let mut paths = BTreeSet::new();
     for file in rust_files {
         let path = Path::new(&file.path);
         let name = path.file_name().expect("rendered artifact has a file name");
@@ -921,8 +840,26 @@ fn stage_generated_binary(
                 destination
             }
         };
-        fs::write(destination, contents).unwrap();
+        paths.insert(destination.strip_prefix(&build.root).unwrap().to_owned());
+        write_if_changed(destination, contents).unwrap();
     }
+    if let Ok(previous) = fs::read(&inventory_path) {
+        let previous: BTreeSet<PathBuf> = serde_json::from_slice(&previous).unwrap();
+        for obsolete in previous.difference(&paths) {
+            assert!(
+                obsolete.starts_with("src")
+                    && obsolete
+                        .components()
+                        .all(|part| matches!(part, std::path::Component::Normal(_))),
+                "invalid generated source inventory"
+            );
+            let obsolete = build.root.join(obsolete);
+            if obsolete.is_file() {
+                fs::remove_file(obsolete).unwrap();
+            }
+        }
+    }
+    write_if_changed(inventory_path, serde_json::to_vec(&paths).unwrap()).unwrap();
 }
 
 fn build_generated_binaries(
@@ -1158,6 +1095,9 @@ fn configure_suite_runtime(command: &mut Command, build_dir: &Path, identity: &s
     let directory = build_dir
         .join("suite-runtime")
         .join(identity.replace(['/', ':'], "_"));
+    if directory.exists() {
+        fs::remove_dir_all(&directory).unwrap();
+    }
     fs::create_dir_all(&directory).unwrap();
     let result_path = directory.join(".terrane-result");
     let _ = fs::remove_file(&result_path);
@@ -1318,92 +1258,6 @@ fn create_file_symlink(target: &str, link: PathBuf) {
     std::os::windows::fs::symlink_file(target, link).unwrap();
 }
 
-fn write_support_crates(directory: &Path) {
-    let int = directory.join("support/terrane-int-support");
-    let collection = directory.join("support/terrane-collection-support");
-    let scalar = directory.join("support/terrane-scalar-support");
-    let string = directory.join("support/terrane-string-support");
-    let document = directory.join("support/terrane-document-support");
-    let stream = directory.join("support/terrane-stream-abi");
-    fs::create_dir_all(int.join("src")).unwrap();
-    fs::create_dir_all(collection.join("src")).unwrap();
-    fs::create_dir_all(scalar.join("src")).unwrap();
-    fs::create_dir_all(string.join("src")).unwrap();
-    fs::create_dir_all(document.join("src")).unwrap();
-    fs::create_dir_all(stream.join("src")).unwrap();
-    fs::write(
-        int.join("Cargo.toml"),
-        "[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
-    )
-    .unwrap();
-    fs::write(
-        collection.join("Cargo.toml"),
-        "[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = { path = \"../terrane-int-support\" }\nunicode-segmentation = \"=1.12.0\"\n",
-    )
-    .unwrap();
-    fs::write(
-        collection.join("src/lib.rs"),
-        include_bytes!("../../terrane-collection-support/src/lib.rs"),
-    )
-    .unwrap();
-    fs::write(
-        int.join("src/lib.rs"),
-        include_bytes!("../../terrane-int-support/src/lib.rs"),
-    )
-    .unwrap();
-    fs::write(
-        scalar.join("Cargo.toml"),
-        "[package]\nname = \"terrane-scalar-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nterrane-int-support = { path = \"../terrane-int-support\" }\n",
-    )
-    .unwrap();
-    fs::write(
-        scalar.join("src/lib.rs"),
-        include_bytes!("../../terrane-scalar-support/src/lib.rs"),
-    )
-    .unwrap();
-    fs::write(
-        string.join("Cargo.toml"),
-        "[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n# Unicode 16.0 profile: case folding, normalization, and segmentation move together.\ncaseless = \"=0.2.2\"\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = { version = \"=1.12.0\", features = [\"std\"] }\nunicode-normalization = \"=0.1.24\"\nunicode-segmentation = \"=1.12.0\"\n",
-    )
-    .unwrap();
-    fs::write(
-        string.join("src/lib.rs"),
-        include_bytes!("../../terrane-string-support/src/lib.rs"),
-    )
-    .unwrap();
-    fs::write(
-        document.join("Cargo.toml"),
-        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"raw_value\"] }\njson-event-parser = \"=0.2.3\"\n# Keep this compatible with projected dependency graphs that select newer 2.5.x releases.\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n",
-    )
-    .unwrap();
-    fs::write(
-        document.join("src/lib.rs"),
-        include_bytes!("../../terrane-document-support/src/lib.rs"),
-    )
-    .unwrap();
-    fs::write(
-        document.join("src/native.rs"),
-        include_bytes!("../../terrane-document-support/src/native.rs"),
-    )
-    .unwrap();
-    fs::write(
-        document.join("src/native_serialize.rs"),
-        include_bytes!("../../terrane-document-support/src/native_serialize.rs"),
-    )
-    .unwrap();
-    fs::write(
-        stream.join("Cargo.toml"),
-        "[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nlibc = \"0.2\"\nrustix = { version = \"1\", features = [\"fs\"] }\n",
-    )
-    .unwrap();
-    fs::write(
-        stream.join("src/lib.rs"),
-        include_bytes!("../../terrane-stream-abi/src/lib.rs"),
-    )
-    .unwrap();
-    terrane_compiler::write_platform_support(&directory.join("support")).unwrap();
-}
-
 fn optional_bytes(path: PathBuf) -> Vec<u8> {
     fs::read(path).unwrap_or_default()
 }
@@ -1481,6 +1335,12 @@ fn manifests_below(root: &Path) -> Vec<PathBuf> {
     let mut manifests = Vec::new();
     for entry in fs::read_dir(root).unwrap() {
         let path = entry.unwrap().path();
+        if path
+            .file_name()
+            .is_some_and(|name| name == ".trn" || name == "target")
+        {
+            continue;
+        }
         if path.is_dir() {
             manifests.extend(manifests_below(&path));
         } else if path.file_name().is_some_and(|name| name == "case.toml") {
@@ -1781,11 +1641,84 @@ fn source_archive_discovers_and_checks_cases_without_git_inventory() {
         "namespace archived\nfunction main;\n    value int = 'not-an-int'\n",
     )
     .unwrap();
+    for ignored in [
+        archive.join(".trn/package-input"),
+        case.join(".trn"),
+        case.join("target"),
+    ] {
+        fs::create_dir_all(&ignored).unwrap();
+        fs::write(ignored.join("case.toml"), "not a conformance case\n").unwrap();
+    }
     assert_fixture_manifests(&archive);
     let manifests = manifests_below(&archive);
     assert_eq!(manifests, vec![case.join("case.toml")]);
     // Execute the discovered case: absence of Git must not bypass compiler checking.
-    assert!(prepare_conformance_case(0, &manifests[0], &build).is_none());
+    assert!(prepare_conformance_case(&manifests[0], &build).is_none());
+}
+
+#[test]
+fn retained_build_reuses_artifacts_and_rechecks_changes() {
+    let _corpus_lock = ConformanceBuild::retained(&corpus());
+    let temporary = ConformanceBuild::new();
+    let case = temporary.root.join("retained-case");
+    fs::create_dir_all(&case).unwrap();
+    let name = stable_binary_name("reuse_regression", &case);
+    let publish = |text: &str| {
+        let build = ConformanceBuild::retained(&case);
+        let source_path = case.join("case.trn");
+        let source = format!("namespace reuse\nfunction main;\n    print; '{text}'\n");
+        let compilation = terrane_compiler::compile(&source_path, source).unwrap();
+        let files = compilation.rust_files_for(Path::new("lower.rs")).unwrap();
+        stage_generated_binary(
+            &name,
+            &case,
+            "",
+            &files,
+            compilation.requires_unsafe_code,
+            &build,
+        );
+        let output = build_generated_binaries(
+            &[&name],
+            &compilation.rust_dependencies,
+            compilation.requires_unsafe_code,
+            &build,
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let executable = binary_path(&name, &build);
+        let output = Command::new(&executable).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, format!("{text}\n").as_bytes());
+        (
+            executable.clone(),
+            fs::metadata(executable).unwrap().modified().unwrap(),
+        )
+    };
+    let (executable, original_modified_at) = publish("before");
+    assert_eq!(
+        publish("before").1,
+        original_modified_at,
+        "unchanged rerun relinked the program"
+    );
+    publish("after");
+    {
+        let build = ConformanceBuild::retained(&case);
+        write_if_changed(build.root.join(format!("src/{name}.rs")), "not valid Rust").unwrap();
+        let output = build_generated_binaries(&[&name], &[], false, &build);
+        assert!(
+            !output.status.success(),
+            "invalid changed source reused an old success"
+        );
+    }
+    publish("recovered");
+    fs::remove_file(executable).unwrap();
 }
 
 #[test]
@@ -1845,15 +1778,6 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
         "{record:?}"
     );
     fs::remove_file(output).unwrap();
-}
-
-#[test]
-fn generated_conformance_workspace_uses_compact_debug_profiles() {
-    let build = ConformanceBuild::new();
-    build.write_manifest(&[], &[], false);
-    let manifest = fs::read_to_string(build.root.join("Cargo.toml")).unwrap();
-    assert!(manifest.contains("[profile.dev]\ndebug = \"line-tables-only\"\nincremental = true"));
-    assert!(manifest.contains("[profile.test]\ndebug = \"line-tables-only\"\nincremental = true"));
 }
 
 #[test]

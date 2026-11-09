@@ -12,6 +12,16 @@ static NEXT_PUBLICATION_ID: AtomicUsize = AtomicUsize::new(0);
 pub(super) fn stage(case: &Path, destination: &Path, target: &Path) {
     let registry = case.join("fixture-registry");
     if !registry.is_dir() {
+        for name in ["fixture-registry", ".cargo"] {
+            let path = destination.join(name);
+            if let Ok(metadata) = fs::symlink_metadata(&path) {
+                if metadata.is_dir() {
+                    fs::remove_dir_all(path).expect("remove obsolete staged fixture directory");
+                } else {
+                    fs::remove_file(path).expect("remove obsolete staged fixture link");
+                }
+            }
+        }
         return;
     }
     let config = case.join(".cargo");
@@ -29,6 +39,8 @@ pub(super) fn stage(case: &Path, destination: &Path, target: &Path) {
         }
         copy_tree(&config, &staged_config).expect("stage native Cargo configuration");
         rewrite_patch_paths(&staged_config, &shared.join("fixture-registry"));
+    } else if staged_config.exists() {
+        fs::remove_dir_all(staged_config).expect("remove obsolete native Cargo configuration");
     }
 }
 
@@ -158,8 +170,11 @@ fn copy_tree(source: &Path, destination: &Path) -> io::Result<()> {
 }
 
 fn link_or_copy(source: &Path, destination: &Path) -> io::Result<()> {
-    if destination.exists() {
-        if destination.is_dir() {
+    if fs::read_link(destination).is_ok_and(|current| current == source) {
+        return Ok(());
+    }
+    if let Ok(metadata) = fs::symlink_metadata(destination) {
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
             fs::remove_dir_all(destination)?;
         } else {
             fs::remove_file(destination)?;

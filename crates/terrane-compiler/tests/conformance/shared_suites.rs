@@ -1,6 +1,6 @@
 use super::{
-    CaseTiming, ConformanceBuild, assert_expected_warnings, binary_path, boolean_field,
-    build_generated_binaries, conformance_jobs, corpus, field, manifests_below,
+    CaseTiming, ConformanceBuild, FixtureDependencyLock, assert_expected_warnings, binary_path,
+    boolean_field, build_generated_binaries, conformance_jobs, corpus, field, manifests_below,
     parallel_map_indexed, persist_lowering_artifacts, run_case_with_selector,
     stage_generated_binary, usize_field,
 };
@@ -144,6 +144,7 @@ fn compile_shared_suite(
     selected: &[PathBuf],
     registered: &[PathBuf],
 ) -> terrane_compiler::testing::TestTierCompilation {
+    let _dependency_lock = FixtureDependencyLock::preserve(suite_root);
     let package =
         terrane_compiler::testing::TestPackage::load(suite_root).unwrap_or_else(|errors| {
             panic!(
@@ -207,6 +208,7 @@ pub(super) fn run(manifests: &[PathBuf], build: &ConformanceBuild) {
     for ((suite, case_manifests), (suite_root, mut case_timings, mut suite_timing, tier)) in
         suites.into_iter().zip(prepared)
     {
+        let suite_build = ConformanceBuild::retained(&suite_root);
         let mut selected = Vec::new();
         for manifest_path in &case_manifests {
             let manifest = fs::read_to_string(manifest_path).unwrap();
@@ -241,13 +243,13 @@ pub(super) fn run(manifests: &[PathBuf], build: &ConformanceBuild) {
             "",
             &rust_files,
             tier.compilation.requires_unsafe_code,
-            build,
+            &suite_build,
         );
         let output = build_generated_binaries(
             &[&binary_name],
             &tier.compilation.rust_dependencies,
             tier.compilation.requires_unsafe_code,
-            build,
+            &suite_build,
         );
         if !output.status.success() {
             suite_timing.fail();
@@ -269,8 +271,8 @@ pub(super) fn run(manifests: &[PathBuf], build: &ConformanceBuild) {
             let manifest = fs::read_to_string(&manifest_path).unwrap();
             case_timings[index].begin_pending_work();
             run_case_with_selector(
-                &binary_path(&binary_name, build),
-                &build.root,
+                &binary_path(&binary_name, &suite_build),
+                &suite_build.root,
                 case,
                 &manifest,
                 Some(selector),
