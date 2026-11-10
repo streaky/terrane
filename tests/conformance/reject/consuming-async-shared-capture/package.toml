@@ -1,0 +1,4 @@
+package = "consuming-async-shared-capture"
+
+[namespaces]
+app = "src"

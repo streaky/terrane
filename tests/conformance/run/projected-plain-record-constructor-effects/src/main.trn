@@ -5,6 +5,7 @@ from /core/errors import coercion-error, integer-conversion-overflow, dependency
 from /deps/terrane-recursive-descriptor-witness/macros import native_int
 from /deps/terrane-recursive-descriptor-witness import nested_count
 from /core/collections import list
+from /deps/terrane-recursive-descriptor-witness import native_options, native_options_status, native_options_mark
 function make-mark Mark; text string
     return instance Mark; mark = text
 function make-count Count; value int
@@ -87,3 +88,11 @@ async function main;
         print; (macro-value; 9223372036854775807 * 4)
     catch integer-conversion-overflow
         print; 'macro-helper-overflow-caught'
+    options = native_options;
+    print; (native_options_status; options)
+    options = {
+        mode = none
+        mark = 'B'
+    }
+    print; (native_options_status; options)
+    print; (native_options_mark; options)

@@ -12,3 +12,11 @@ effects = ["build"]
 [rust-dependencies.http]
 version = "=1.5.0"
 effects = ["build"]
+
+[rust-dependencies.axum-core]
+version = "=0.5.6"
+effects = ["build"]
+
+[rust-dependencies.axum]
+version = "=0.8.9"
+effects = ["build"]

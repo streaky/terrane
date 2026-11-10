@@ -11,3 +11,6 @@ default-string
 selected-string
 selected-string
 selected-string
+73
+37
+91

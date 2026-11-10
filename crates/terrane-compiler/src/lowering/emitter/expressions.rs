@@ -525,7 +525,17 @@ impl Emitter<'_> {
         value_type: ValueType,
     ) -> String {
         if node.kind == SyntaxKind::Name
-            && self.value_type(node).as_ref() == Some(&value_type)
+            && self.value_type(node).is_some_and(|actual| {
+                actual == value_type
+                    || (matches!(
+                        (&actual, &value_type),
+                        (ValueType::Object(_), ValueType::Object(_))
+                    ) && crate::semantics::reference_target_types_equal(
+                        self.package,
+                        &actual,
+                        &value_type,
+                    ))
+            })
             && let Some(value) = self.narrowed_storage_name(node, true, false)
         {
             return value;

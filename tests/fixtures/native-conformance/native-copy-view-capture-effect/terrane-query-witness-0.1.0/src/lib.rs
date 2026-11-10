@@ -79,6 +79,9 @@ impl Token {
         7
     }
 }
+pub use std::net::IpAddr as Address;
+pub fn sample_address() -> Address { [127, 0, 0, 1].into() }
+pub fn same_address(left: &Address, right: &Address) -> bool { std::ptr::eq(left, right) }
 pub enum NE {
     A,
     B,

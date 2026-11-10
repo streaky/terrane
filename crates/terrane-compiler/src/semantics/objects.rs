@@ -8263,6 +8263,7 @@ pub(crate) fn canonicalize_native_value_type(
         }
         ValueType::Optional(inner) => canonicalize_native_value_type(package, inner),
         ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
         | ValueType::SharedReference(inner)
         | ValueType::List(inner)
         | ValueType::Set(inner)

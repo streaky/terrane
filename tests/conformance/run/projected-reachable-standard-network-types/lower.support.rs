@@ -553,7 +553,6 @@ fn __terrane_uninitialized_binding(
 // Namespace: deps/ipnet
 pub use std::net::IpAddr;
 pub use ipnet::IpNet;
-pub use std::net::SocketAddr;
 pub use std::net::SocketAddr as TerraneNsDepsTokioNetSocketAddrIdentity2F646570732F746F6B696F2F6E657400536F636B657441646472;
 pub fn terrane_static_trn_497041646472_from_str(
     s: &str,

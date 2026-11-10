@@ -752,6 +752,7 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 // Namespace: deps/native-query-witness
 pub use native_query_witness::Arguments;
 pub use native_query_witness::Connection;
+pub use native_query_witness::Query as QueryHashH28e03a0c808b6c69f022dec953a1db630e7eee7f1a501c71c08cc75df1eebaee;
 pub use native_query_witness::SqlToken;
 pub use native_query_witness::Store;
 pub use native_query_witness::StoreResult;

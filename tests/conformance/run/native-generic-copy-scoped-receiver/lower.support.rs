@@ -533,7 +533,7 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/witness.trn
 // Namespace: deps/witness
-pub type GenericView<'view> = witness::GenericView<'view, i64>;
+pub use witness::GenericView;
 pub use witness::Holder;
 pub fn terrane_static_trn_486f6c646572_new() -> Result<
     Holder,

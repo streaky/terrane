@@ -26,6 +26,36 @@ fn increment(counter: &mut Counter) {
         counter.increment();
     }
 }
+fn wrap_async(
+    handler: std::sync::Arc<
+        dyn Fn(
+            terrane_int_support::Int,
+        ) -> std::pin::Pin<
+                Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+            > + Send + Sync,
+    >,
+) -> std::sync::Arc<
+    dyn Fn(
+        terrane_int_support::Int,
+    ) -> std::pin::Pin<
+            Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+        > + Send + Sync,
+> {
+    return {
+        let handler = handler.clone();
+        std::sync::Arc::new(move |
+            value: terrane_int_support::Int,
+        | -> std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>> {
+            let handler = handler.clone();
+            Box::pin(async move {
+                return __terrane_await(handler(value.clone())).await;
+            })
+        })
+    };
+}
+async fn times_two(value: terrane_int_support::Int) -> terrane_int_support::Int {
+    return value.clone() * terrane_int_support::Int::from(2_i128);
+}
 fn main() {
     __terrane_run(async move {
         let read_counter: Counter;
@@ -47,11 +77,35 @@ fn main() {
         let callback: std::sync::Arc<dyn Fn(&mut Counter) -> () + Send + Sync>;
         let owned: Counter;
         let consume: TerraneConsumingCallable<(), Result<i64, TerraneError>>;
+        let wrapped: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> std::pin::Pin<
+                    Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+                > + Send + Sync,
+        >;
+        let shared_handler: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> std::pin::Pin<
+                    Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+                > + Send + Sync,
+        >;
+        let shared_observe: std::sync::Arc<
+            dyn Fn() -> terrane_int_support::Int + Send + Sync,
+        >;
+        let mutable_handler: TerraneMutableCallable<
+            (terrane_int_support::Int,),
+            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
+        >;
+        let mutable_observe: std::sync::Arc<
+            dyn Fn() -> terrane_int_support::Int + Send + Sync,
+        >;
         read_counter = {
             let __terrane_conversion_input_0 = terrane_int_support::Int::from(11_i128);
             __terrane_raised(
                 terrane_static_trn_436f756e746572_new(__terrane_conversion_input_0),
-                1 /* terrane-site: src/main.trn:16:20-16:42 */,
+                1 /* terrane-site: src/main.trn:23:20-23:42 */,
             )
         };
         read_only = {
@@ -88,21 +142,21 @@ fn main() {
                                         >(terrane_int_support::Int::from(i128::from(value)))
                                     }
                                 }(),
-                                2 /* terrane-site: src/main.trn:18:17-18:36 */,
+                                2 /* terrane-site: src/main.trn:25:17-25:36 */,
                             )?,
                         ),
-                        2 /* terrane-site: src/main.trn:18:17-18:36 */,
+                        2 /* terrane-site: src/main.trn:25:17-25:36 */,
                     )?,
                 );
             })
         };
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(read_only(),
-            3 /* terrane-site: src/main.trn:19:13-19:23 */))
+            3 /* terrane-site: src/main.trn:26:13-26:23 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(read_only(),
-            4 /* terrane-site: src/main.trn:20:13-20:23 */))
+            4 /* terrane-site: src/main.trn:27:13-27:23 */))
         );
         async_values = terrane_collection_support::List::<
             OpaqueValue,
@@ -111,7 +165,7 @@ fn main() {
                 { let __terrane_conversion_input_0 =
                 terrane_int_support::Int::from(23_i128);
                 __terrane_raised(terrane_static_trn_4f706171756556616c7565_new(__terrane_conversion_input_0),
-                5 /* terrane-site: src/main.trn:22:47-22:67 */) }
+                5 /* terrane-site: src/main.trn:29:47-29:67 */) }
             ],
         );
         async_read_only = {
@@ -132,15 +186,15 @@ fn main() {
                                             async move {
                                                 __terrane_raised_err(
                                                     __terrane_future.await,
-                                                    6 /* terrane-site: src/main.trn:24:22-24:44 */,
+                                                    6 /* terrane-site: src/main.trn:31:22-31:44 */,
                                                 )
                                             }
                                         })
                                         .await,
-                                    6 /* terrane-site: src/main.trn:24:22-24:44 */,
+                                    6 /* terrane-site: src/main.trn:31:22-31:44 */,
                                 )?,
                             ),
-                            7 /* terrane-site: src/main.trn:24:16-24:44 */,
+                            7 /* terrane-site: src/main.trn:31:16-31:44 */,
                         )?,
                     );
                 })
@@ -148,7 +202,7 @@ fn main() {
         };
         async_value = __terrane_traced(
             __terrane_await(async_read_only()).await,
-            8 /* terrane-site: src/main.trn:25:25-25:41 */,
+            8 /* terrane-site: src/main.trn:32:25-32:41 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&async_value));
         mixed_counter = {
@@ -157,7 +211,7 @@ fn main() {
                 terrane_static_trn_4f706171756556616c7565_new(
                     __terrane_conversion_input_0,
                 ),
-                9 /* terrane-site: src/main.trn:28:21-28:41 */,
+                9 /* terrane-site: src/main.trn:35:21-35:41 */,
             )
         };
         holder = SourceHolder::terrane_construct();
@@ -198,27 +252,27 @@ fn main() {
                                             >(terrane_int_support::Int::from(i128::from(value)))
                                         }
                                     }(),
-                                    10 /* terrane-site: src/main.trn:32:32-32:52 */,
+                                    10 /* terrane-site: src/main.trn:39:32-39:52 */,
                                 )?),
                         ),
-                        11 /* terrane-site: src/main.trn:32:16-32:53 */,
+                        11 /* terrane-site: src/main.trn:39:16-39:53 */,
                     )?,
                 );
             })
         };
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(mixed.call(()),
-            12 /* terrane-site: src/main.trn:33:13-33:19 */))
+            12 /* terrane-site: src/main.trn:40:13-40:19 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(mixed.call(()),
-            13 /* terrane-site: src/main.trn:34:13-34:19 */))
+            13 /* terrane-site: src/main.trn:41:13-41:19 */))
         );
         callback_counter = {
             let __terrane_conversion_input_0 = terrane_int_support::Int::from(20_i128);
             __terrane_raised(
                 terrane_static_trn_436f756e746572_new(__terrane_conversion_input_0),
-                14 /* terrane-site: src/main.trn:36:24-36:46 */,
+                14 /* terrane-site: src/main.trn:43:24-43:46 */,
             )
         };
         callback = {
@@ -237,13 +291,13 @@ fn main() {
             ::__terrane_dependency_panic(payload, "witness", "witness::Counter::value"))
             }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
-            15 /* terrane-site: src/main.trn:40:13-40:36 */))
+            15 /* terrane-site: src/main.trn:47:13-47:36 */))
         );
         owned = {
             let __terrane_conversion_input_0 = terrane_int_support::Int::from(40_i128);
             __terrane_raised(
                 terrane_static_trn_436f756e746572_new(__terrane_conversion_input_0),
-                16 /* terrane-site: src/main.trn:42:13-42:35 */,
+                16 /* terrane-site: src/main.trn:49:13-49:35 */,
             )
         };
         consume = {
@@ -281,17 +335,70 @@ fn main() {
                                         >(terrane_int_support::Int::from(i128::from(value)))
                                     }
                                 }(),
-                                17 /* terrane-site: src/main.trn:45:17-45:29 */,
+                                17 /* terrane-site: src/main.trn:52:17-52:29 */,
                             )?,
                         ),
-                        17 /* terrane-site: src/main.trn:45:17-45:29 */,
+                        17 /* terrane-site: src/main.trn:52:17-52:29 */,
                     )?,
                 );
             })
         };
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(consume.call(()),
-            18 /* terrane-site: src/main.trn:46:13-46:21 */))
+            18 /* terrane-site: src/main.trn:53:13-53:21 */))
         );
+        wrapped = wrap_async(
+            std::sync::Arc::new(move |
+                argument_0: terrane_int_support::Int,
+            | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
+                Box::pin(times_two(argument_0))
+            }),
+        );
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&__terrane_await(wrapped(terrane_int_support::Int::from(7_i128)))
+            . await)
+        );
+        shared_handler = std::sync::Arc::new(move |
+            argument_0: terrane_int_support::Int,
+        | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
+            Box::pin(times_two(argument_0))
+        });
+        shared_observe = {
+            let shared_handler = shared_handler.clone();
+            std::sync::Arc::new(move || -> terrane_int_support::Int {
+                let probe: &std::sync::Arc<
+                    dyn Fn(
+                        terrane_int_support::Int,
+                    ) -> std::pin::Pin<
+                            Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+                        > + Send + Sync,
+                >;
+                probe = &shared_handler;
+                let _ = &probe;
+                return terrane_int_support::Int::from(4_i128);
+            })
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&shared_observe()));
+        mutable_handler = TerraneMutableCallable::new(move |
+            (argument_0,): (terrane_int_support::Int,),
+        | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
+            Box::pin(times_two(argument_0))
+        });
+        mutable_observe = {
+            let mutable_handler = mutable_handler.clone();
+            std::sync::Arc::new(move || -> terrane_int_support::Int {
+                let probe: &TerraneMutableCallable<
+                    (terrane_int_support::Int,),
+                    std::pin::Pin<
+                        Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+                    >,
+                >;
+                probe = &mutable_handler;
+                let _ = &probe;
+                return terrane_int_support::Int::from(5_i128);
+            })
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&mutable_observe()));
     });
 }

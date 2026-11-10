@@ -86,3 +86,10 @@ pub fn render<F>(request: &Request, view: F) -> i64
 where F: for<'view> Fn(&'view Request) -> View<'view> {
     view(request).entry.value()
 }
+
+pub struct RootOnly<T = Entry> { entry: Entry, marker: std::marker::PhantomData<T> }
+pub type RootAlias<T = Entry> = RootOnly<T>;
+pub fn root_only() -> RootOnly { RootOnly { entry: Entry(67), marker: std::marker::PhantomData } }
+impl<T> RootOnly<T> {
+    pub fn view(&self) -> &Entry { &self.entry }
+}

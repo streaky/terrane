@@ -1,0 +1,4 @@
+package = "consuming-sync-shared-capture"
+
+[namespaces]
+app = "src"

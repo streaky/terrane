@@ -1,0 +1,11 @@
+namespace app
+
+function times-two int; value int
+    return value * 2
+
+function main;
+    handler consuming function from int to int = times-two
+    observe = function int;
+        probe = ref handler
+        return 5
+    print; (observe;)

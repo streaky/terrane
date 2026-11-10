@@ -1,0 +1,4 @@
+package = "consuming-async-spawn-capture"
+
+[namespaces]
+app = "src"

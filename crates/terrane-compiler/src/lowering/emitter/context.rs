@@ -1775,7 +1775,9 @@ impl<'unit> Emitter<'unit> {
         let shared = self
             .local_typed_binding(node)
             .is_some_and(|binding| self.reference_backed(binding));
-        let copy = rust_value_is_copy(value_type) || matches!(value_type, ValueType::Reference(_));
+        let copy = rust_value_is_copy(value_type)
+            || matches!(value_type, ValueType::Reference(_))
+            || (owned && self.package.native_value_is_copyable(value_type));
         let take = owned
             && !mutable
             && !shared
