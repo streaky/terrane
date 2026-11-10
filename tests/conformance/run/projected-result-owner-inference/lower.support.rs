@@ -924,9 +924,7 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 // Namespace: deps/terrane-query-witness
 pub use terrane_query_witness::Connection;
 pub use terrane_query_witness::ConnectionOptions;
-pub type QueryHashH516148ace190bc08a50c23f0b12386536f5e50f7511d2cfb937e228b330810b8<
-    'q,
-> = terrane_query_witness::Query<'q, terrane_query_witness::Store, ()>;
+pub use terrane_query_witness::Query as QueryHashH516148ace190bc08a50c23f0b12386536f5e50f7511d2cfb937e228b330810b8;
 pub use terrane_query_witness::Row;
 pub use terrane_query_witness::Store;
 pub use terrane_query_witness::StoreResult;

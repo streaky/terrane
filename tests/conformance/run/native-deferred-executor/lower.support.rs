@@ -1489,11 +1489,7 @@ fn __terrane_uninitialized_binding(
 extern crate __terrane_recursive_tokio as tokio;
 // Source: <terrane>/projected/deps/sqlx-core/query.trn
 // Namespace: deps/sqlx-core/query
-pub type QueryHashH66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f<
-    'q,
-    A,
-    DB,
-> = sqlx_core::query::Query<'q, DB, A>;
+pub use sqlx_core::query::Query as QueryHashH66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f;
 pub use sqlx_core::sql_str::SqlStr;
 pub use sqlx_sqlite::SqliteArguments;
 pub use sqlx_sqlite::SqliteConnectOptions;
