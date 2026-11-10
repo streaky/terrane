@@ -1,0 +1,14 @@
+namespace app
+
+async function times-two int; value int
+    return value * 2
+
+async function main;
+    handler consuming async function from int to int = times-two
+    observe = async function int;
+        probe = ref handler
+        return 5
+    scope = task-scope;
+    child = scope.spawn; observe
+    outcome = await scope.join; child
+    print; outcome.value

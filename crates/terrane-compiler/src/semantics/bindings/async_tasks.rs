@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    Span,
+    InvocationMode, Span,
     syntax::{SyntaxKind, SyntaxNode},
 };
 
@@ -300,9 +300,17 @@ fn value_type_satisfies_auto_trait_with_policy(
                         context,
                     )
             }
-            // An owned async callable's carrier is Send + Sync independently
-            // of its arguments, result, and the future it creates.
-            ValueType::AsyncFunction(_, _, _, effects) => !effects.borrowed_environment,
+            // Shared and mutex-backed mutable carriers are Sync; consuming
+            // carriers are only Send. Body invocation is a separate concern.
+            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+                if effects.borrowed_environment {
+                    return false;
+                }
+                match obligation {
+                    AutoTraitObligation::Send | AutoTraitObligation::Static => true,
+                    AutoTraitObligation::Sync => effects.modes.written != InvocationMode::Consuming,
+                }
+            }
             ValueType::Task(_, transferability) | ValueType::ScopedTask(_, transferability) => {
                 match obligation {
                     AutoTraitObligation::Send => *transferability != TaskTransferability::Local,
@@ -417,6 +425,7 @@ pub(super) fn value_type_is_task_transferable(
             value_type_is_task_transferable(package, key.value_type_ref())
                 && value_type_is_task_transferable(package, value.value_type_ref())
         }
+        // Executor transfer is distinct from proving a captured carrier's Sync.
         ValueType::AsyncFunction(_, _, transferability, _)
         | ValueType::Task(_, transferability)
         | ValueType::ScopedTask(_, transferability) => {

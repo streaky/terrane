@@ -45,6 +45,9 @@ function main;
     if returned != none
         print; returned
     print; (clone_count;)
+    inferred int|none = ((request.extensions;).get;).map; entry-value
+    if inferred != none
+        print; inferred
     host = Host::new;
     (host.base_mut;).draw_circle; 7
     (host.base_mut;).draw_circle; 11

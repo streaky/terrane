@@ -117,8 +117,9 @@ fn callback_capture_trait_failure(
             "T0084",
             "projected callback requires transferable captured values",
         ),
-        // Mutable/consuming bodies are stored behind exclusive ownership or a
-        // Mutex: Send suffices for the carrier's Sync, unlike shared Fn bodies.
+        // Carrier Sync follows its stored callable: shared Fn and mutex-backed
+        // mutable bodies are Sync; consuming carriers are not. Invocation mode
+        // here describes the callback body, not how a captured callable is called.
         (
             sync && contract.written_invocation_mode == InvocationMode::Shared,
             AutoTraitObligation::Sync,

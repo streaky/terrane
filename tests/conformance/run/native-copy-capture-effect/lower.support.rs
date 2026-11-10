@@ -522,8 +522,8 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 29, column: 40, end_line: 29, end_column: 55 } },
         /* terrane-site-row: site 5: /app::main (src/main.trn:35:29-35:44) */
         { Site { function: 0, file: 0, line: 35, column: 29, end_line: 35, end_column: 44 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:37:17-37:49) */
-        { Site { function: 0, file: 0, line: 37, column: 17, end_line: 37, end_column: 49 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:38:17-38:49) */
+        { Site { function: 0, file: 0, line: 38, column: 17, end_line: 38, end_column: 49 } },
     ];
     #[cold]
     #[inline(never)]
@@ -541,6 +541,7 @@ mod __terrane_trace {
 // Namespace: deps/terrane-query-witness
 pub use std::net::IpAddr;
 pub use terrane_query_witness::Token;
+pub type View<'a> = terrane_query_witness::View<'a>;
 pub fn terrane_static_trn_546f6b656e_new() -> Result<Token, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_query_witness::Token::new()),
@@ -552,6 +553,24 @@ pub fn terrane_static_trn_546f6b656e_new() -> Result<Token, crate::TerraneForeig
                     payload,
                     "terrane-query-witness",
                     "terrane_query_witness::Token",
+                ),
+            )
+        }
+    }
+}
+pub fn query<'view>(
+    sql: &'view str,
+) -> Result<terrane_query_witness::View<'view>, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::query(sql)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::query",
                 ),
             )
         }

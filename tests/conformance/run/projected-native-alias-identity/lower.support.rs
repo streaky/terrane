@@ -631,7 +631,6 @@ pub fn owner_byte(
 // Namespace: deps/api
 pub use api::Alias;
 pub use owner::Holder;
-pub use api::MutableAlias;
 pub use api::OtherHolder;
 pub use api::PublicHolder;
 pub use owner::PublicValue;

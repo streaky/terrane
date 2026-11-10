@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-query-witness import Token, Address, sample_address, same_address
+from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query, Address, sample_address, same_address
 from /core/collections import list
 
 class optional-address
@@ -33,5 +33,6 @@ function main;
     empty = instance optional-address; none
     print; (empty.peer;) == none
     optional Address|none = sample_address;
+    // Passing the same Copy payload twice is a control, not the narrowed-field regression.
     if optional != none
         print; (same_address; optional, optional)

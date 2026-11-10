@@ -388,7 +388,7 @@ impl Emitter<'_> {
             {
                 native_field_type
                     .as_ref()
-                    .map(|ty| ty.rust_type())
+                    .map(crate::rust_interop::projection::ProjectedType::rust_type)
                     .or_else(|| {
                         value_type
                             .as_ref()

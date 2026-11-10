@@ -1,0 +1,11 @@
+namespace app
+
+async function times-two int; value int
+    return value * 2
+
+async function main;
+    handler consuming async function from int to int = times-two
+    observe = function int;
+        probe = ref handler
+        return 5
+    print; (observe;)

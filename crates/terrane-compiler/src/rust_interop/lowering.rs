@@ -5,6 +5,26 @@ mod descriptor_fields;
 
 pub(super) type DependencyImportOwners = BTreeMap<String, (String, String, Vec<String>, bool)>;
 
+fn rust_type_contains_infer(rust_type: &str) -> bool {
+    struct Infer(bool);
+    impl<'ast> syn::visit::Visit<'ast> for Infer {
+        fn visit_type_infer(&mut self, _: &'ast syn::TypeInfer) {
+            self.0 = true;
+        }
+    }
+    if !rust_type
+        .split(|character: char| !character.is_alphanumeric() && character != '_')
+        .any(|token| token == "_")
+    {
+        return false;
+    }
+    let Ok(ty) = syn::parse_str::<syn::Type>(rust_type) else {
+        return false;
+    };
+    let mut infer = Infer(false);
+    syn::visit::Visit::visit_type(&mut infer, &ty);
+    infer.0
+}
 fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&ObjectIdentity)) {
     match value_type {
         ValueType::Object(identity) => {
@@ -221,8 +241,11 @@ pub(super) fn index_dependency_import_owners(
             let Some(path) = path else {
                 continue;
             };
-            // A declaration imports the nominal family, not its inferred default application.
-            let rust_name = rust_object_name(&object.identity.name);
+            if rust_type_contains_infer(&path) {
+                continue;
+            }
+            let rust_name =
+                crate::lowering::helpers::rust_object_type_base_name(package, &object.identity);
             let generic_parameters = projected
                 .as_ref()
                 .map(projected_generic_names)
@@ -249,21 +272,21 @@ pub(super) fn index_dependency_import_owners(
                 .or_insert_with(|| (unit.namespace.clone(), path, generic_parameters, true));
         }
         for (name, path) in package.projection.foreign_imports(&unit.namespace) {
-            let rust_name = rust_object_name(&name);
-            if !unit.descriptors.iter().any(|object| {
-                object.kind != ObjectKind::Interface
-                    && rust_object_name(&object.identity.name) == rust_name
-                    && (native_selected_nominals.contains(&(
-                        object.identity.namespace.as_str(),
-                        object.identity.name.as_str(),
-                    )) || unit_references_object(
-                        unit,
-                        &object.identity,
-                        static_method_references,
-                    ))
-            }) {
+            let Some(object) = unit.descriptors.iter().find(|object| {
+                object.identity.namespace == unit.namespace
+                    && object.identity.name == name
+                    && object.kind != ObjectKind::Interface
+            }) else {
+                continue;
+            };
+            let identity = &object.identity;
+            if !(native_selected_nominals
+                .contains(&(identity.namespace.as_str(), identity.name.as_str()))
+                || unit_references_object(unit, identity, static_method_references))
+            {
                 continue;
             }
+            let rust_name = crate::lowering::helpers::rust_object_type_base_name(package, identity);
             let projected = package.projection.projected_type(&unit.namespace, &name);
             if !native_selected_nominals.contains(&(unit.namespace.as_str(), name.as_str()))
                 && projected
@@ -301,6 +324,9 @@ pub(super) fn index_dependency_import_owners(
                         .unwrap_or_default(),
                 )
             };
+            if rust_type_contains_infer(&path) {
+                continue;
+            }
             owners
                 .entry(rust_name)
                 .and_modify(
@@ -337,7 +363,9 @@ pub(super) fn index_dependency_import_owners(
     {
         if identity.native_projection.is_some()
             && specialized_nominals.contains(&(identity.namespace.clone(), identity.name.clone()))
-            && owners.contains_key(&rust_object_name(&identity.name))
+            && owners.contains_key(&crate::lowering::helpers::rust_object_type_base_name(
+                package, &identity,
+            ))
         {
             continue;
         }
@@ -373,10 +401,7 @@ pub(super) fn index_dependency_import_owners(
         let Some(path) = path else {
             continue;
         };
-        if path
-            .split(|character: char| !character.is_alphanumeric() && character != '_')
-            .any(|token| token == "_")
-        {
+        if rust_type_contains_infer(&path) {
             // Anonymous native arguments are inferred at use sites, not item aliases.
             continue;
         }

@@ -84,6 +84,23 @@ fn main() {
                     Box<dyn Future<Output = terrane_int_support::Int> + Send>,
                 > + Send + Sync,
         >;
+        let shared_handler: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> std::pin::Pin<
+                    Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+                > + Send + Sync,
+        >;
+        let shared_observe: std::sync::Arc<
+            dyn Fn() -> terrane_int_support::Int + Send + Sync,
+        >;
+        let mutable_handler: TerraneMutableCallable<
+            (terrane_int_support::Int,),
+            std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int> + Send>>,
+        >;
+        let mutable_observe: std::sync::Arc<
+            dyn Fn() -> terrane_int_support::Int + Send + Sync,
+        >;
         read_counter = {
             let __terrane_conversion_input_0 = terrane_int_support::Int::from(11_i128);
             __terrane_raised(
@@ -342,5 +359,46 @@ fn main() {
             terrane_scalar_support::scalar_text(&__terrane_await(wrapped(terrane_int_support::Int::from(7_i128)))
             . await)
         );
+        shared_handler = std::sync::Arc::new(move |
+            argument_0: terrane_int_support::Int,
+        | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
+            Box::pin(times_two(argument_0))
+        });
+        shared_observe = {
+            let shared_handler = shared_handler.clone();
+            std::sync::Arc::new(move || -> terrane_int_support::Int {
+                let probe: &std::sync::Arc<
+                    dyn Fn(
+                        terrane_int_support::Int,
+                    ) -> std::pin::Pin<
+                            Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+                        > + Send + Sync,
+                >;
+                probe = &shared_handler;
+                let _ = &probe;
+                return terrane_int_support::Int::from(4_i128);
+            })
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&shared_observe()));
+        mutable_handler = TerraneMutableCallable::new(move |
+            (argument_0,): (terrane_int_support::Int,),
+        | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
+            Box::pin(times_two(argument_0))
+        });
+        mutable_observe = {
+            let mutable_handler = mutable_handler.clone();
+            std::sync::Arc::new(move || -> terrane_int_support::Int {
+                let probe: &TerraneMutableCallable<
+                    (terrane_int_support::Int,),
+                    std::pin::Pin<
+                        Box<dyn Future<Output = terrane_int_support::Int> + Send>,
+                    >,
+                >;
+                probe = &mutable_handler;
+                let _ = &probe;
+                return terrane_int_support::Int::from(5_i128);
+            })
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&mutable_observe()));
     });
 }
