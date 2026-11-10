@@ -26,25 +26,6 @@ fn rust_type_contains_infer(rust_type: &str) -> bool {
     infer.0
 }
 
-#[cfg(test)]
-mod tests {
-    use super::rust_type_contains_infer;
-
-    #[test]
-    fn import_inference_guard_fails_closed_without_rejecting_lifetimes_or_names() {
-        for (path, expected) in [
-            ("native::Owner<_>", true),
-            ("native::Owner<Option<_>>", true),
-            ("native::Owner<_,", true),
-            ("native::Owner<'_>", false),
-            ("native::Owner<has_underscore>", false),
-            ("native::Owner<u8>", false),
-        ] {
-            assert_eq!(rust_type_contains_infer(path), expected, "{path}");
-        }
-    }
-}
-
 fn native_import_target(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
@@ -1937,4 +1918,23 @@ pub(super) fn rust_value_path(path: &str) -> String {
         || path.to_owned(),
         |arguments| format!("{}::{}", &path[..arguments], &path[arguments..]),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rust_type_contains_infer;
+
+    #[test]
+    fn import_inference_guard_fails_closed_without_rejecting_lifetimes_or_names() {
+        for (path, expected) in [
+            ("native::Owner<_>", true),
+            ("native::Owner<Option<_>>", true),
+            ("native::Owner<_,", true),
+            ("native::Owner<'_>", false),
+            ("native::Owner<has_underscore>", false),
+            ("native::Owner<u8>", false),
+        ] {
+            assert_eq!(rust_type_contains_infer(path), expected, "{path}");
+        }
+    }
 }
