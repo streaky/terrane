@@ -1,7 +1,24 @@
 namespace app
 
-from /deps/terrane-query-witness import Holder, View, CopyView, Spec, Token, NE, CE, CloneEnum, query
+from /deps/terrane-query-witness import Token, Address, sample_address, same_address
 from /core/collections import list
+
+class optional-address
+    private address Address|none
+
+    function construct; address Address|none
+        this.address = address
+
+    function peer string|none;
+        address = this.address
+        if address != none
+            return render-address; address
+        return none
+
+private function render-address string; address Address
+    formatted string = rust
+        address.to_string()
+    return formatted
 
 function main;
     t = Token::new;
@@ -9,3 +26,12 @@ function main;
         return t.value;
     print; (read;)
     print; (read;)
+    view = instance optional-address; (sample_address;)
+    found = view.peer;
+    if found != none
+        print; found
+    empty = instance optional-address; none
+    print; (empty.peer;) == none
+    optional Address|none = sample_address;
+    if optional != none
+        print; (same_address; optional, optional)

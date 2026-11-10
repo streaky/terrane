@@ -509,15 +509,21 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 4] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:9-7:20) */
-        { Site { function: 0, file: 0, line: 7, column: 9, end_line: 7, end_column: 20 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:9:16-9:24) */
-        { Site { function: 0, file: 0, line: 9, column: 16, end_line: 9, end_column: 24 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:10:13-10:18) */
-        { Site { function: 0, file: 0, line: 10, column: 13, end_line: 10, end_column: 18 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:11:13-11:18) */
-        { Site { function: 0, file: 0, line: 11, column: 13, end_line: 11, end_column: 18 } },
+    pub static SITES: [Site; 7] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:24:9-24:20) */
+        { Site { function: 0, file: 0, line: 24, column: 9, end_line: 24, end_column: 20 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:26:16-26:24) */
+        { Site { function: 0, file: 0, line: 26, column: 16, end_line: 26, end_column: 24 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:27:13-27:18) */
+        { Site { function: 0, file: 0, line: 27, column: 13, end_line: 27, end_column: 18 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:28:13-28:18) */
+        { Site { function: 0, file: 0, line: 28, column: 13, end_line: 28, end_column: 18 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:29:40-29:55) */
+        { Site { function: 0, file: 0, line: 29, column: 40, end_line: 29, end_column: 55 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:35:29-35:44) */
+        { Site { function: 0, file: 0, line: 35, column: 29, end_line: 35, end_column: 44 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:37:17-37:49) */
+        { Site { function: 0, file: 0, line: 37, column: 17, end_line: 37, end_column: 49 } },
     ];
     #[cold]
     #[inline(never)]
@@ -533,8 +539,8 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/terrane-query-witness.trn
 // Namespace: deps/terrane-query-witness
+pub use std::net::IpAddr;
 pub use terrane_query_witness::Token;
-pub type View<'a> = terrane_query_witness::View<'a>;
 pub fn terrane_static_trn_546f6b656e_new() -> Result<Token, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_query_witness::Token::new()),
@@ -551,11 +557,12 @@ pub fn terrane_static_trn_546f6b656e_new() -> Result<Token, crate::TerraneForeig
         }
     }
 }
-pub fn query<'view>(
-    sql: &'view str,
-) -> Result<terrane_query_witness::View<'view>, crate::TerraneForeignError> {
+pub fn same_address(
+    left: &IpAddr,
+    right: &IpAddr,
+) -> Result<bool, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_query_witness::query(sql)),
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::same_address(left, right)),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
@@ -563,7 +570,23 @@ pub fn query<'view>(
                 crate::__terrane_dependency_panic(
                     payload,
                     "terrane-query-witness",
-                    "terrane_query_witness::query",
+                    "terrane_query_witness::same_address",
+                ),
+            )
+        }
+    }
+}
+pub fn sample_address() -> Result<IpAddr, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::sample_address()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::sample_address",
                 ),
             )
         }

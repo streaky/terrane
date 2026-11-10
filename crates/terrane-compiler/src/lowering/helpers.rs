@@ -1070,7 +1070,7 @@ fn rust_rendered_object_name(identity: &ObjectIdentity) -> impl Iterator<Item = 
 }
 
 /// Qualifies rendered-name collisions with a readable canonical stem and exact-byte suffix.
-pub(crate) fn rust_object_type_name(
+pub(crate) fn rust_object_type_base_name(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> String {
@@ -1123,6 +1123,14 @@ pub(crate) fn rust_object_type_name(
     if identity.is_unsafe {
         base.push_str("UnsafeContract");
     }
+    base
+}
+
+pub(crate) fn rust_object_type_name(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+) -> String {
+    let base = rust_object_type_base_name(package, identity);
     if let Some(native_projection) = &identity.native_projection
         && let Some((_, arguments)) = native_projection.split_once('<')
     {

@@ -1,6 +1,7 @@
 namespace app
 
 from /deps/witness import Entry, Host, Request, clone_count, consume, make_view, render, root_count
+from /deps/witness import RootAlias, root_only
 from /deps/http import HeaderMap, HeaderName, HeaderValue
 from /callbacks import mark-sensitive, clear-sensitive, read-sensitive, clear-sensitive-optional
 from /core/collections import list
@@ -8,11 +9,22 @@ from /core/collections import list
 function entry-value int; entry ref Entry
     return entry.value;
 
+function mapped-entry int|none; request ref Request
+    return request.extensions;
+        .get of Entry;
+        .map; entry-value
+
 function request-view host-invocation-scoped-native; request ref Request
     return make_view; ((request.extensions;).entry;)
 
 function observe-header bool; action function from ref HeaderValue to bool, header ref HeaderValue
     return action; header
+
+class root-alias
+    value int = 79
+
+function root-value int; root mutable ref RootAlias
+    return ((root.view;).value;)
 
 function main;
     request = Request::new; 41
@@ -25,9 +37,13 @@ function main;
     if selected != none
         print; (selected.value;)
     print; (clone_count;)
-    mapped int|none = ((request.extensions;).get;).map; entry-value
+    mapped int|none = (((request.extensions;).get of Entry);).map; entry-value
     if mapped != none
         print; mapped
+    print; (clone_count;)
+    returned = mapped-entry; request
+    if returned != none
+        print; returned
     print; (clone_count;)
     host = Host::new;
     (host.base_mut;).draw_circle; 7
@@ -108,3 +124,8 @@ function main;
     observers[0] = read-sensitive
     for observer in observers
         print; (observer; named-target)
+    root = root_only;
+    print; (root-value; root)
+    print; (clone_count;)
+    source-root = instance root-alias;
+    print; source-root.value

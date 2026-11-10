@@ -40,6 +40,7 @@ fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&Obje
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
         | ValueType::Reference(item)
+        | ValueType::MutableReference(item)
         | ValueType::SharedReference(item) => {
             visit_value_type_objects(item.value_type_ref(), visit);
         }
@@ -155,9 +156,10 @@ pub(super) fn index_dependency_import_owners(
     }
     // Direct native calls do not retain support wrappers whose signatures used to
     // supply these root imports. Their selected type graph is declaration demand.
+    // Declaration-only aliases can lack a closed native_projection but still name
+    // valid Rust storage, including a generic family's native default arguments.
     let native_selected_nominals = source_objects
         .iter()
-        .filter(|identity| identity.native_projection.is_some())
         .map(|identity| (identity.namespace.as_str(), identity.name.as_str()))
         .collect::<BTreeSet<_>>();
     let mut owners = BTreeMap::new();
@@ -165,13 +167,17 @@ pub(super) fn index_dependency_import_owners(
         if !unit.bundled || !unit.namespace.starts_with("/deps/") {
             continue;
         }
-        // Chain-only owners have no storable source representation. Their Rust
-        // binders (including lifetimes) remain inferred in the native expression.
+        // Inferred chain-only owners need no declaration. Explicit native ABI
+        // demand still needs the nominal family, including opaque default arguments.
         for object in &unit.descriptors {
             if object.kind == ObjectKind::Interface {
                 continue;
             }
-            if package.projection.item(&object.identity.namespace, &object.identity.name)
+            let native_selected = native_selected_nominals.contains(&(
+                object.identity.namespace.as_str(),
+                object.identity.name.as_str(),
+            ));
+            if !native_selected && package.projection.item(&object.identity.namespace, &object.identity.name)
                 .is_some_and(|item| matches!(&item.kind,
                     crate::rust_interop::projection::ProjectedKind::ForeignType { methods, .. }
                         if !methods.is_empty() && methods.iter().all(|method| method.chain_role.is_some())))
@@ -179,10 +185,8 @@ pub(super) fn index_dependency_import_owners(
                 continue;
             }
             if object.identity.namespace != unit.namespace
-                || !(native_selected_nominals.contains(&(
-                    object.identity.namespace.as_str(),
-                    object.identity.name.as_str(),
-                )) || unit_references_object(unit, &object.identity, static_method_references))
+                || !(native_selected
+                    || unit_references_object(unit, &object.identity, static_method_references))
                 || package
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
@@ -198,9 +202,10 @@ pub(super) fn index_dependency_import_owners(
             let projected = package
                 .projection
                 .projected_type(&object.identity.namespace, &object.identity.name);
-            if projected
-                .as_ref()
-                .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
+            if !native_selected
+                && projected
+                    .as_ref()
+                    .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
             {
                 continue;
             }
@@ -260,9 +265,10 @@ pub(super) fn index_dependency_import_owners(
                 continue;
             }
             let projected = package.projection.projected_type(&unit.namespace, &name);
-            if projected
-                .as_ref()
-                .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
+            if !native_selected_nominals.contains(&(unit.namespace.as_str(), name.as_str()))
+                && projected
+                    .as_ref()
+                    .is_some_and(crate::rust_interop::projection::ProjectedType::contains_opaque)
             {
                 continue;
             }
@@ -331,13 +337,7 @@ pub(super) fn index_dependency_import_owners(
     {
         if identity.native_projection.is_some()
             && specialized_nominals.contains(&(identity.namespace.clone(), identity.name.clone()))
-        {
-            continue;
-        }
-        if package.projection.item(&identity.namespace, &identity.name)
-            .is_some_and(|item| matches!(&item.kind,
-                crate::rust_interop::projection::ProjectedKind::ForeignType { methods, .. }
-                    if !methods.is_empty() && methods.iter().all(|method| method.chain_role.is_some())))
+            && owners.contains_key(&rust_object_name(&identity.name))
         {
             continue;
         }
@@ -393,21 +393,21 @@ pub(super) fn index_dependency_import_owners(
                 } => !generic_parameters.is_empty(),
                 _ => false,
             });
-        let mut rust_name = if declared_generic || !identity.native_arguments.is_empty() {
-            // Generic foreign declarations have one import identity; applications
-            // are rendered at use sites rather than becoming Rust declaration names.
-            rust_object_name(&identity.name)
+        let rust_name = crate::lowering::helpers::rust_object_type_base_name(package, &identity);
+        let (path, generic_parameters) = if declared_generic {
+            (
+                crate::rust_ir::rust_type_constructor(&path).unwrap_or(path),
+                Vec::new(),
+            )
         } else {
-            rust_object_type_name(package, &identity)
+            (
+                path,
+                projected
+                    .as_ref()
+                    .map(projected_generic_names)
+                    .unwrap_or_default(),
+            )
         };
-        if let Some(application) = rust_name.find('<') {
-            // Declaration ownership is the root symbol, never a type application.
-            rust_name.truncate(application);
-        }
-        let generic_parameters = projected
-            .as_ref()
-            .map(projected_generic_names)
-            .unwrap_or_default();
         owners
             .entry(rust_name)
             .and_modify(|(_, existing_path, _, from_source)| {

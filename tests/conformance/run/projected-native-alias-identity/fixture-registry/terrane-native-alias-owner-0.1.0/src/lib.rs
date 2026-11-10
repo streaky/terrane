@@ -8,6 +8,10 @@ impl<T> Holder<T> {
         Self { value }
     }
 
+    pub fn set_value(&mut self, value: T) {
+        self.value = value;
+    }
+
     pub fn into_value(self) -> T {
         self.value
     }

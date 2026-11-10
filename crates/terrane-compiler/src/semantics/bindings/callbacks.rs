@@ -352,6 +352,7 @@ fn projected_chain_role(
     let [callee, _] = node.children.as_slice() else {
         return None;
     };
+    let callee = callee.type_designator_head()?;
     let function =
         projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))?;
     function.chain_role.or_else(|| {
@@ -431,6 +432,7 @@ fn collect_chain_receivers(
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, _] = node.children.as_slice()
+        && let Some(callee) = callee.type_designator_head()
         && callee.kind == SyntaxKind::MemberExpression
         && let [receiver, _] = callee.children.as_slice()
         && projected_chain_role(package, unit, node).is_some()
@@ -503,13 +505,7 @@ pub(in crate::semantics) fn projected_function_for_call<'a>(
     is_unsafe: bool,
 ) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
     let is_unsafe = is_unsafe || crate::syntax::call_is_unsafe(callee);
-    let mut callee = callee;
-    while matches!(
-        callee.kind,
-        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
-    ) {
-        callee = callee.children.first()?;
-    }
+    let callee = callee.type_designator_head()?;
     if callee.kind == SyntaxKind::ConstructionExpression {
         let identity = class_designator_identity(unit, callee.children.first()?)?;
         return package

@@ -2,6 +2,19 @@ namespace app
 
 from /deps/api import Alias, StringAlias, PublicHolder, OtherHolder, PublicValue as FacadeValue, make_default, make_string, make_string_default, take_byte, take_text
 from /deps/owner import Holder as OwnerHolder, PublicValue as ProviderValue, make_owner, owner_byte
+from /deps/api import MutableAlias
+
+class mutable-alias
+    value int
+    function construct; value int
+        this.value = value
+
+function mutate-collision-alias; value mutable ref MutableAlias, replacement uint8
+    rust
+        value.set_value(replacement);
+
+function mutate-default-alias; value mutable ref Alias, replacement uint8
+    value.set_value; replacement
 
 function main;
     # Omitted alias arguments select the Rust u8 default.
@@ -38,6 +51,14 @@ function main;
     print; (consume_aliased_ref; borrowed_string)
     holder = instance StringHolder; (make_string;)
     print; (consume_holder_field; holder)
+    counter = make_owner;
+    mutate-default-alias; counter, 73
+    print; (counter.into_value;)
+    source-value = instance mutable-alias; 37
+    collision-counter = make_owner;
+    mutate-collision-alias; collision-counter, 91
+    print; source-value.value
+    print; (collision-counter.into_value;)
 
 function consume_borrowed uint8; value ref OwnerHolder of uint8
     return value.into_value;

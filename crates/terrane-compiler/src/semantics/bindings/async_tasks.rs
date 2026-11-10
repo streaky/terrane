@@ -300,13 +300,16 @@ fn value_type_satisfies_auto_trait_with_policy(
                         context,
                     )
             }
-            ValueType::AsyncFunction(_, _, transferability, _)
-            | ValueType::Task(_, transferability)
-            | ValueType::ScopedTask(_, transferability) => match obligation {
-                AutoTraitObligation::Send => *transferability != TaskTransferability::Local,
-                AutoTraitObligation::Sync => false,
-                AutoTraitObligation::Static => true,
-            },
+            // An owned async callable's carrier is Send + Sync independently
+            // of its arguments, result, and the future it creates.
+            ValueType::AsyncFunction(_, _, _, effects) => !effects.borrowed_environment,
+            ValueType::Task(_, transferability) | ValueType::ScopedTask(_, transferability) => {
+                match obligation {
+                    AutoTraitObligation::Send => *transferability != TaskTransferability::Local,
+                    AutoTraitObligation::Sync => false,
+                    AutoTraitObligation::Static => true,
+                }
+            }
             ValueType::TypeParameter(name) => {
                 !matches!(obligation, AutoTraitObligation::Static)
                     && context.is_none_or(|(unit, position)| {

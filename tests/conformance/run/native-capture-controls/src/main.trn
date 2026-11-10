@@ -12,6 +12,13 @@ function increment; counter mutable ref NativeCounter
         let counter = &mut *counter;
         counter.increment();
 
+function wrap-async (async function from int to int); handler async function from int to int
+    return async function int; value int
+        return await handler; value
+
+async function times-two int; value int
+    return value * 2
+
 async function main;
     read-counter = NativeCounter::new; 11
     read-only = function int64;
@@ -44,3 +51,5 @@ async function main;
         increment; owned
         return (owned.value;)
     print; (consume;)
+    wrapped = wrap-async; times-two
+    print; await (wrapped; 7)

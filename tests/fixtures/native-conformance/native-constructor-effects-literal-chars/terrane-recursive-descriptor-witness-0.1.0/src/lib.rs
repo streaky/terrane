@@ -18,3 +18,9 @@ macro_rules! native_int {
     ($value:expr) => { $value };
 }
 pub fn nested_count(value: Nested) -> usize { value.marks.len() }
+#[derive(Clone, Copy)]
+pub enum ConfigurationMode { Ready }
+pub struct NativeOptions { pub mode: Option<ConfigurationMode>, pub mark: char }
+pub fn native_options() -> NativeOptions { NativeOptions { mode: Some(ConfigurationMode::Ready), mark: 'A' } }
+pub fn native_options_status(value: &NativeOptions) -> i64 { if value.mode.is_some() { 7 } else { 0 } }
+pub fn native_options_mark(value: &NativeOptions) -> u32 { value.mark as u32 }

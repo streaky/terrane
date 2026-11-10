@@ -380,14 +380,20 @@ impl Emitter<'_> {
             .as_ref()
             .map(|binding| binding.value_type.clone())
             .or_else(|| self.value_type(left));
+        let native_field_type = self.native_field_type(left);
         let field_value_type = match left.children.as_slice() {
             [receiver, member]
                 if left.kind == SyntaxKind::MemberExpression
                     && self.object_field(receiver, self.text(member)) =>
             {
-                value_type
+                native_field_type
                     .as_ref()
-                    .map(|value_type| rust_value_type(self.package, value_type.clone()))
+                    .map(|ty| ty.rust_type())
+                    .or_else(|| {
+                        value_type
+                            .as_ref()
+                            .map(|value_type| rust_value_type(self.package, value_type.clone()))
+                    })
             }
             _ => None,
         };
@@ -406,11 +412,11 @@ impl Emitter<'_> {
         } else {
             value
         };
-        let value = if let Some(projected) = self.native_field_type(left)
+        let value = if let Some(projected) = native_field_type.as_ref()
             && !projected.has_identity_representation()
         {
             let converted =
-                projected_argument_expression("__terrane_field_value", &projected, self.package);
+                projected_argument_expression("__terrane_field_value", projected, self.package);
             self.fallible(
                 format!("(|| -> Result<_, crate::TerraneForeignError> {{ let __terrane_field_value = {value}; Ok({converted}) }})()"),
                 node,

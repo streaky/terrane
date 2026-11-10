@@ -4,6 +4,7 @@ pub use terrane_native_alias_owner::PublicValue;
 
 pub type Alias<T = u8> = terrane_native_alias_owner::Holder<T>;
 pub type StringAlias<T = String> = Alias<T>;
+pub type MutableAlias = terrane_native_alias_owner::Holder<u8>;
 
 pub fn make_default() -> Alias {
     PublicHolder::new(7)
