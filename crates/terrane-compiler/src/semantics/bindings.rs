@@ -717,15 +717,18 @@ pub(super) fn record_declared_binding_writes(
     if node.kind == SyntaxKind::ForTarget {
         let mut recorded = false;
         for name in &node.children {
-            // Events describe reaching source values, not the Rust carrier
-            // that may be shared by several loop declarations. Match the
-            // target origin recorded by flow_iteration_entry and its reads.
+            // Match the canonical flow identity used by reads, including
+            // iteration outputs that flow deliberately gives separate storage.
             let identity = unit
-                .typed_bindings
-                .iter()
-                .find(|binding| binding.span == name.span)
-                .map(|binding| binding.span)
-                .or_else(|| unit.flow_binding_ids.get(&span_key(name.span)).copied())
+                .flow_binding_ids
+                .get(&span_key(name.span))
+                .copied()
+                .or_else(|| {
+                    unit.typed_bindings
+                        .iter()
+                        .find(|binding| binding.span == name.span)
+                        .map(|binding| binding.span)
+                })
                 .or_else(|| {
                     unit.typed_bindings
                         .iter()
@@ -768,8 +771,15 @@ pub(super) fn record_declared_binding_writes(
     let mut recorded = false;
     for binding in declared_bindings_at_node(unit, node) {
         recorded = true;
+        // Redeclarations retain their own source store spans, but reads and
+        // replacements address the same canonical function-owned storage.
+        let identity = unit
+            .flow_binding_ids
+            .get(&span_key(binding.span))
+            .copied()
+            .unwrap_or(binding.span);
         events
-            .entry(span_key(binding.span))
+            .entry(span_key(identity))
             .or_default()
             .push(BindingEvent::Write {
                 span: initial_store_span(node, binding),
@@ -1424,7 +1434,18 @@ pub(crate) fn binding_store_value_is_read(
     declaration_span: Span,
     store_span: Span,
 ) -> bool {
-    let Some(events) = package.binding_events.get(&span_key(declaration_span)) else {
+    let events = package
+        .binding_events
+        .get(&span_key(declaration_span))
+        .or_else(|| {
+            let unit = package
+                .units
+                .iter()
+                .find(|unit| unit.source.id() == declaration_span.file)?;
+            let identity = unit.flow_binding_ids.get(&span_key(declaration_span))?;
+            package.binding_events.get(&span_key(*identity))
+        });
+    let Some(events) = events else {
         return false;
     };
     let Some((store, store_loops, store_regions)) =

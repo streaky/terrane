@@ -2213,6 +2213,71 @@ fn global_reads_follow_updates_without_hiding_unread_locals() {
     );
 }
 
+#[test]
+fn redeclared_binding_reads_match_their_stores() {
+    for body in [
+        "    value int64 = 7\n    print; value\n    value int64 = 8\n    print; value",
+        "    value int64 = 7\n    print; value\n    value string = 'next'\n    print; value",
+        "    switch flag\n        case true\n            value int64 = 7\n            print; value\n        case false\n            value int64 = 0\n            if not flag\n                value = 1\n            print; value",
+        "    switch flag\n        case true\n            closed bool = false\n            while not closed\n                closed = true\n            print; closed\n        case false\n            if not flag\n                closed bool = false\n                while not closed\n                    closed = true\n                if not closed\n                    print; 0",
+        "    if flag\n        value int64 = 7\n    else\n        value int64 = 8\n    print; value",
+        "    for value in 'ab'\n        print; value\n    for value in 'cd'\n        print; value",
+    ] {
+        let source = format!(
+            "namespace app\nfunction probe; flag bool\n{body}\nfunction main;\n    probe; true\n"
+        );
+        let compilation = terrane_compiler::compile("main.trn", source.clone()).unwrap();
+        let unread = compilation
+            .warnings
+            .iter()
+            .filter(|warning| matches!(warning.code.as_ref(), "W4001" | "W4002"))
+            .collect::<Vec<_>>();
+        assert!(unread.is_empty(), "{source}\n{unread:?}");
+    }
+}
+
+#[test]
+fn redeclared_binding_dead_stores_still_warn_once() {
+    for (body, code, store) in [
+        (
+            "    value int64 = 7\n    value int64 = 8\n    print; value",
+            "W4002",
+            "value int64 = 7",
+        ),
+        (
+            "    value int64 = 7\n    print; value\n    value int64 = 8",
+            "W4002",
+            "value int64 = 8",
+        ),
+        (
+            "    switch flag\n        case true\n            value int64 = 7\n        case false\n            value int64 = 8\n            print; value",
+            "W4002",
+            "value int64 = 7",
+        ),
+        (
+            "    value int64 = 7\n    print; value\n    value int64 = 8\n    value = 9\n    print; value",
+            "W4002",
+            "value int64 = 8",
+        ),
+        ("    unused int64 = 7", "W4001", "unused int64 = 7"),
+    ] {
+        let source = format!(
+            "namespace app\nfunction probe; flag bool\n{body}\nfunction main;\n    probe; true\n"
+        );
+        let compilation = terrane_compiler::compile("main.trn", source.clone()).unwrap();
+        let unread = compilation
+            .warnings
+            .iter()
+            .filter(|warning| matches!(warning.code.as_ref(), "W4001" | "W4002"))
+            .map(|warning| {
+                let span = warning.primary.unwrap();
+                (warning.code.as_ref(), &source[span.start..span.end])
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(unread, [(code, store)], "{source}");
+    }
+}
+
 fn contains_kind(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bool {
     node.kind == kind || node.children.iter().any(|child| contains_kind(child, kind))
 }
