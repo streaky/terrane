@@ -75,13 +75,13 @@ impl Holder {
                 .n = __terrane_value;
         }
         return {
-            let __terrane_index_collection_4 = {
-                let __terrane_read_guard_3 = __terrane_shared_handle
+            let __terrane_index_collection_3 = {
+                let __terrane_read_guard_2 = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned");
-                __terrane_read_guard_3.items.clone()
+                __terrane_read_guard_2.items.clone()
             };
-            let __terrane_index_5 = __terrane_raised(
+            let __terrane_index_4 = __terrane_raised(
                 terrane_collection_support::index_from_int(
                     &{
                         let __terrane_snapshot = __terrane_shared_handle
@@ -94,15 +94,15 @@ impl Holder {
                 ),
                 0 /* terrane-site: src/main.trn:16:28-16:46 */,
             );
-            let __terrane_index_place_6 = __terrane_raised(
-                __terrane_index_collection_4
-                    .get(__terrane_index_5)
+            let __terrane_index_place_5 = __terrane_raised(
+                __terrane_index_collection_3
+                    .get(__terrane_index_4)
                     .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index_5,
+                        __terrane_index_4,
                     )),
                 0 /* terrane-site: src/main.trn:16:28-16:46 */,
             );
-            let __terrane_native_reference_0 = &*__terrane_index_place_6;
+            let __terrane_native_reference_0 = &*__terrane_index_place_5;
             __terrane_raised(
                 join_text(__terrane_native_reference_0, "tail"),
                 1 /* terrane-site: src/main.trn:16:17-16:54 */,
@@ -263,42 +263,42 @@ fn main() {
             String,
         >::new(vec![String::from("indexed storage"), String::from("second")]);
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_7 =
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_6 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             10 /* terrane-site: src/main.trn:38:24-38:33 */); let
-            __terrane_index_place_8 = __terrane_raised(values.get(__terrane_index_7)
+            __terrane_index_place_7 = __terrane_raised(values.get(__terrane_index_6)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_7)),
+            terrane_collection_support::IndexError::from_usize(__terrane_index_6)),
             10 /* terrane-site: src/main.trn:38:24-38:33 */); let
-            __terrane_native_reference_0 = &* __terrane_index_place_8; let
-            __terrane_index_9 =
+            __terrane_native_reference_0 = &* __terrane_index_place_7; let
+            __terrane_index_8 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             11 /* terrane-site: src/main.trn:38:35-38:44 */); let
-            __terrane_index_place_10 = __terrane_raised(values.get(__terrane_index_9)
+            __terrane_index_place_9 = __terrane_raised(values.get(__terrane_index_8)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_9)),
+            terrane_collection_support::IndexError::from_usize(__terrane_index_8)),
             11 /* terrane-site: src/main.trn:38:35-38:44 */); let
-            __terrane_native_reference_1 = &* __terrane_index_place_10;
+            __terrane_native_reference_1 = &* __terrane_index_place_9;
             __terrane_raised(same_text(__terrane_native_reference_0,
             __terrane_native_reference_1), 12 /* terrane-site: src/main.trn:38:13-38:44 */) })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_11 =
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_10 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             13 /* terrane-site: src/main.trn:39:24-39:33 */); let
-            __terrane_index_place_12 = __terrane_raised(values.get(__terrane_index_11)
+            __terrane_index_place_11 = __terrane_raised(values.get(__terrane_index_10)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_11)),
+            terrane_collection_support::IndexError::from_usize(__terrane_index_10)),
             13 /* terrane-site: src/main.trn:39:24-39:33 */); let
-            __terrane_native_reference_0 = &* __terrane_index_place_12; let
-            __terrane_index_13 =
+            __terrane_native_reference_0 = &* __terrane_index_place_11; let
+            __terrane_index_12 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
             14 /* terrane-site: src/main.trn:39:35-39:44 */); let
-            __terrane_index_place_14 = __terrane_raised(values.get(__terrane_index_13)
+            __terrane_index_place_13 = __terrane_raised(values.get(__terrane_index_12)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_13)),
+            terrane_collection_support::IndexError::from_usize(__terrane_index_12)),
             14 /* terrane-site: src/main.trn:39:35-39:44 */); let
-            __terrane_native_reference_1 = &* __terrane_index_place_14;
+            __terrane_native_reference_1 = &* __terrane_index_place_13;
             __terrane_raised(join_text(__terrane_native_reference_0,
             __terrane_native_reference_1), 15 /* terrane-site: src/main.trn:39:13-39:44 */) })
         );
@@ -312,34 +312,34 @@ fn main() {
             ],
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_19 =
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_14 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
             16 /* terrane-site: src/main.trn:41:24-41:33 */); let
-            __terrane_index_place_20 = __terrane_raised(nested.get(__terrane_index_19)
+            __terrane_index_place_15 = __terrane_raised(nested.get(__terrane_index_14)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_19)),
-            16 /* terrane-site: src/main.trn:41:24-41:33 */); let __terrane_index_21 =
+            terrane_collection_support::IndexError::from_usize(__terrane_index_14)),
+            16 /* terrane-site: src/main.trn:41:24-41:33 */); let __terrane_index_16 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             17 /* terrane-site: src/main.trn:41:24-41:36 */); let
-            __terrane_index_place_22 = __terrane_raised(__terrane_index_place_20
-            .get(__terrane_index_21).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_21)),
+            __terrane_index_place_17 = __terrane_raised(__terrane_index_place_15
+            .get(__terrane_index_16).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_16)),
             17 /* terrane-site: src/main.trn:41:24-41:36 */); let
-            __terrane_native_reference_0 = &* __terrane_index_place_22; let
-            __terrane_index_23 =
+            __terrane_native_reference_0 = &* __terrane_index_place_17; let
+            __terrane_index_18 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             18 /* terrane-site: src/main.trn:41:38-41:47 */); let
-            __terrane_index_place_24 = __terrane_raised(nested.get(__terrane_index_23)
+            __terrane_index_place_19 = __terrane_raised(nested.get(__terrane_index_18)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_23)),
-            18 /* terrane-site: src/main.trn:41:38-41:47 */); let __terrane_index_25 =
+            terrane_collection_support::IndexError::from_usize(__terrane_index_18)),
+            18 /* terrane-site: src/main.trn:41:38-41:47 */); let __terrane_index_20 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
             19 /* terrane-site: src/main.trn:41:38-41:50 */); let
-            __terrane_index_place_26 = __terrane_raised(__terrane_index_place_24
-            .get(__terrane_index_25).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_25)),
+            __terrane_index_place_21 = __terrane_raised(__terrane_index_place_19
+            .get(__terrane_index_20).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_20)),
             19 /* terrane-site: src/main.trn:41:38-41:50 */); let
-            __terrane_native_reference_1 = &* __terrane_index_place_26;
+            __terrane_native_reference_1 = &* __terrane_index_place_21;
             __terrane_raised(join_text(__terrane_native_reference_0,
             __terrane_native_reference_1), 20 /* terrane-site: src/main.trn:41:13-41:50 */) })
         );
@@ -363,21 +363,21 @@ fn main() {
             ],
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_map_key_31 =
-            String::from("second"); let __terrane_index_place_32 =
-            __terrane_raised(map_grid.get(&__terrane_map_key_31)
-            .ok_or(terrane_collection_support::MissingKey), 21 /* terrane-site: src/main.trn:43:24-43:42 */); let __terrane_map_key_33 =
-            String::from("left"); let __terrane_index_place_34 =
-            __terrane_raised(__terrane_index_place_32.get(&__terrane_map_key_33)
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_map_key_22 =
+            String::from("second"); let __terrane_index_place_23 =
+            __terrane_raised(map_grid.get(&__terrane_map_key_22)
+            .ok_or(terrane_collection_support::MissingKey), 21 /* terrane-site: src/main.trn:43:24-43:42 */); let __terrane_map_key_24 =
+            String::from("left"); let __terrane_index_place_25 =
+            __terrane_raised(__terrane_index_place_23.get(&__terrane_map_key_24)
             .ok_or(terrane_collection_support::MissingKey), 22 /* terrane-site: src/main.trn:43:24-43:50 */); let __terrane_native_reference_0 = &*
-            __terrane_index_place_34; let __terrane_map_key_35 = String::from("first");
-            let __terrane_index_place_36 = __terrane_raised(map_grid
-            .get(&__terrane_map_key_35).ok_or(terrane_collection_support::MissingKey),
-            23 /* terrane-site: src/main.trn:43:52-43:69 */); let __terrane_map_key_37
-            = String::from("right"); let __terrane_index_place_38 =
-            __terrane_raised(__terrane_index_place_36.get(&__terrane_map_key_37)
+            __terrane_index_place_25; let __terrane_map_key_26 = String::from("first");
+            let __terrane_index_place_27 = __terrane_raised(map_grid
+            .get(&__terrane_map_key_26).ok_or(terrane_collection_support::MissingKey),
+            23 /* terrane-site: src/main.trn:43:52-43:69 */); let __terrane_map_key_28
+            = String::from("right"); let __terrane_index_place_29 =
+            __terrane_raised(__terrane_index_place_27.get(&__terrane_map_key_28)
             .ok_or(terrane_collection_support::MissingKey), 24 /* terrane-site: src/main.trn:43:52-43:78 */); let __terrane_native_reference_1 = &*
-            __terrane_index_place_38;
+            __terrane_index_place_29;
             __terrane_raised(join_text(__terrane_native_reference_0,
             __terrane_native_reference_1), 25 /* terrane-site: src/main.trn:43:13-43:78 */) })
         );
@@ -523,15 +523,15 @@ fn main() {
             TerraneSharedCell::new(Holder::terrane_construct()),
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_39 =
-            &shared; let __terrane_native_read_guard_0 = &* __terrane_owner_39.lock()
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_30 =
+            &shared; let __terrane_native_read_guard_0 = &* __terrane_owner_30.lock()
             .expect("shared reference lock poisoned");
             __terrane_raised(same_text(&__terrane_native_read_guard_0.text,
             &__terrane_native_read_guard_0.text), 43 /* terrane-site: src/main.trn:72:13-72:48 */) })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_40 =
-            &shared; let __terrane_native_read_guard_0 = &* __terrane_owner_40.lock()
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_31 =
+            &shared; let __terrane_native_read_guard_0 = &* __terrane_owner_31.lock()
             .expect("shared reference lock poisoned");
             __terrane_raised(same_bytes(&__terrane_native_read_guard_0.data,
             &__terrane_native_read_guard_0.data), 44 /* terrane-site: src/main.trn:73:13-73:49 */) })
@@ -554,9 +554,9 @@ fn main() {
             }
         };
         {
-            let __terrane_owner_41 = shared.clone();
+            let __terrane_owner_32 = shared.clone();
             let __terrane_value: String = String::from("replacement before polling");
-            __terrane_owner_41.lock().expect("shared reference lock poisoned").text = __terrane_value;
+            __terrane_owner_32.lock().expect("shared reference lock poisoned").text = __terrane_value;
         }
         println!(
             "{}",
@@ -608,8 +608,8 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0
-            = { let __terrane_snapshot_42 = (* &native.text).clone();
-            __terrane_snapshot_42 };
+            = { let __terrane_snapshot_33 = (* &native.text).clone();
+            __terrane_snapshot_33 };
             __terrane_raised(join_text(&__terrane_native_snapshot_0,
             &__terrane_raised(take_text(&mut native), 48 /* terrane-site: src/main.trn:87:38-87:55 */)), 49 /* terrane-site: src/main.trn:87:13-87:56 */) })
         );
@@ -618,10 +618,10 @@ fn main() {
             native.text = __terrane_value;
         }
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_receiver_44
-            = { let __terrane_snapshot_43 = (* &native.text).clone();
-            __terrane_snapshot_43 }; let __terrane_string_argument_0 =
-            &__terrane_raised(take_text(&mut native), 50 /* terrane-site: src/main.trn:89:36-89:53 */); __terrane_string_receiver_44
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_receiver_35
+            = { let __terrane_snapshot_34 = (* &native.text).clone();
+            __terrane_snapshot_34 }; let __terrane_string_argument_0 =
+            &__terrane_raised(take_text(&mut native), 50 /* terrane-site: src/main.trn:89:36-89:53 */); __terrane_string_receiver_35
             .contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) })
         );
@@ -756,140 +756,139 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&native.text));
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let
-            __terrane_index_collection_49 = { let __terrane_owner_47 = &shared; let
-            __terrane_read_guard_48 = __terrane_owner_47.lock()
-            .expect("shared reference lock poisoned"); __terrane_read_guard_48.items
-            .clone() }; let __terrane_index_50 =
+            __terrane_index_collection_38 = { let __terrane_owner_36 = &shared; let
+            __terrane_read_guard_37 = __terrane_owner_36.lock()
+            .expect("shared reference lock poisoned"); __terrane_read_guard_37.items
+            .clone() }; let __terrane_index_39 =
             __terrane_raised(terrane_collection_support::index_from_int(&{ let
             __terrane_snapshot = shared.lock().expect("shared reference lock poisoned").n
-            .clone(); __terrane_snapshot }), 62 /* terrane-site: src/main.trn:117:24-117:46 */); let __terrane_index_place_51 =
-            __terrane_raised(__terrane_index_collection_49.get(__terrane_index_50)
+            .clone(); __terrane_snapshot }), 62 /* terrane-site: src/main.trn:117:24-117:46 */); let __terrane_index_place_40 =
+            __terrane_raised(__terrane_index_collection_38.get(__terrane_index_39)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_50)),
+            terrane_collection_support::IndexError::from_usize(__terrane_index_39)),
             62 /* terrane-site: src/main.trn:117:24-117:46 */); let
-            __terrane_native_reference_0 = &* __terrane_index_place_51;
+            __terrane_native_reference_0 = &* __terrane_index_place_40;
             __terrane_raised(join_text(__terrane_native_reference_0, "tail"),
             63 /* terrane-site: src/main.trn:117:13-117:54 */) })
         );
         alias = shared.clone();
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0
-            = { let __terrane_index_collection_57 = { let __terrane_owner_55 = &shared;
-            let __terrane_read_guard_56 = __terrane_owner_55.lock()
-            .expect("shared reference lock poisoned"); __terrane_read_guard_56.items
-            .clone() }; let __terrane_index_58 =
+            = { let __terrane_index_collection_43 = { let __terrane_owner_41 = &shared;
+            let __terrane_read_guard_42 = __terrane_owner_41.lock()
+            .expect("shared reference lock poisoned"); __terrane_read_guard_42.items
+            .clone() }; let __terrane_index_44 =
             __terrane_raised(terrane_collection_support::index_from_int(&{ let
             __terrane_snapshot = alias.lock().expect("shared reference lock poisoned").n
-            .clone(); __terrane_snapshot }), 64 /* terrane-site: src/main.trn:119:24-119:45 */); let __terrane_index_place_59 =
-            __terrane_raised(__terrane_index_collection_57.get(__terrane_index_58)
+            .clone(); __terrane_snapshot }), 64 /* terrane-site: src/main.trn:119:24-119:45 */); let __terrane_index_place_45 =
+            __terrane_raised(__terrane_index_collection_43.get(__terrane_index_44)
             .ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_58)),
+            terrane_collection_support::IndexError::from_usize(__terrane_index_44)),
             64 /* terrane-site: src/main.trn:119:24-119:45 */); let
-            __terrane_snapshot_60 = (* &* __terrane_index_place_59).clone();
-            __terrane_snapshot_60 }; let __terrane_native_snapshot_1 = { let
-            __terrane_owner_61 = &alias; let __terrane_read_guard_62 = __terrane_owner_61
-            .lock().expect("shared reference lock poisoned"); let __terrane_index_63 =
+            __terrane_snapshot_46 = (* &* __terrane_index_place_45).clone();
+            __terrane_snapshot_46 }; let __terrane_native_snapshot_1 = { let
+            __terrane_owner_47 = &alias; let __terrane_read_guard_48 = __terrane_owner_47
+            .lock().expect("shared reference lock poisoned"); let __terrane_index_49 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             65 /* terrane-site: src/main.trn:119:47-119:61 */); let
-            __terrane_index_place_64 = __terrane_raised(__terrane_read_guard_62.items
-            .get(__terrane_index_63).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_63)),
+            __terrane_index_place_50 = __terrane_raised(__terrane_read_guard_48.items
+            .get(__terrane_index_49).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_49)),
             65 /* terrane-site: src/main.trn:119:47-119:61 */); let
-            __terrane_snapshot_65 = (* &* __terrane_index_place_64).clone();
-            __terrane_snapshot_65 };
+            __terrane_snapshot_51 = (* &* __terrane_index_place_50).clone();
+            __terrane_snapshot_51 };
             __terrane_raised(join_text(&__terrane_native_snapshot_0,
             &__terrane_native_snapshot_1), 66 /* terrane-site: src/main.trn:119:13-119:61 */) })
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0
-            = { let __terrane_index_collection_71 = { let __terrane_owner_69 = &shared;
-            let __terrane_read_guard_70 = __terrane_owner_69.lock()
-            .expect("shared reference lock poisoned"); __terrane_read_guard_70.entries
-            .clone() }; let __terrane_map_key_72 = { let __terrane_snapshot = alias
+            = { let __terrane_index_collection_54 = { let __terrane_owner_52 = &shared;
+            let __terrane_read_guard_53 = __terrane_owner_52.lock()
+            .expect("shared reference lock poisoned"); __terrane_read_guard_53.entries
+            .clone() }; let __terrane_map_key_55 = { let __terrane_snapshot = alias
             .lock().expect("shared reference lock poisoned").key.clone();
-            __terrane_snapshot }; let __terrane_index_place_73 =
-            __terrane_raised(__terrane_index_collection_71.get(&__terrane_map_key_72)
-            .ok_or(terrane_collection_support::MissingKey), 67 /* terrane-site: src/main.trn:120:24-120:49 */); let __terrane_snapshot_74 = (* &*
-            __terrane_index_place_73).clone(); __terrane_snapshot_74 }; let
-            __terrane_native_snapshot_1 = { let __terrane_owner_75 = &alias; let
-            __terrane_read_guard_76 = __terrane_owner_75.lock()
-            .expect("shared reference lock poisoned"); let __terrane_map_key_77 =
-            String::from("first"); let __terrane_index_place_78 =
-            __terrane_raised(__terrane_read_guard_76.entries.get(&__terrane_map_key_77)
-            .ok_or(terrane_collection_support::MissingKey), 68 /* terrane-site: src/main.trn:120:51-120:73 */); let __terrane_snapshot_79 = (* &*
-            __terrane_index_place_78).clone(); __terrane_snapshot_79 };
+            __terrane_snapshot }; let __terrane_index_place_56 =
+            __terrane_raised(__terrane_index_collection_54.get(&__terrane_map_key_55)
+            .ok_or(terrane_collection_support::MissingKey), 67 /* terrane-site: src/main.trn:120:24-120:49 */); let __terrane_snapshot_57 = (* &*
+            __terrane_index_place_56).clone(); __terrane_snapshot_57 }; let
+            __terrane_native_snapshot_1 = { let __terrane_owner_58 = &alias; let
+            __terrane_read_guard_59 = __terrane_owner_58.lock()
+            .expect("shared reference lock poisoned"); let __terrane_map_key_60 =
+            String::from("first"); let __terrane_index_place_61 =
+            __terrane_raised(__terrane_read_guard_59.entries.get(&__terrane_map_key_60)
+            .ok_or(terrane_collection_support::MissingKey), 68 /* terrane-site: src/main.trn:120:51-120:73 */); let __terrane_snapshot_62 = (* &*
+            __terrane_index_place_61).clone(); __terrane_snapshot_62 };
             __terrane_raised(join_text(&__terrane_native_snapshot_0,
             &__terrane_native_snapshot_1), 69 /* terrane-site: src/main.trn:120:13-120:73 */) })
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0
-            = { let __terrane_owner_84 = &shared; let __terrane_read_guard_85 =
-            __terrane_owner_84.lock().expect("shared reference lock poisoned"); let
-            __terrane_index_86 =
+            = { let __terrane_owner_63 = &shared; let __terrane_read_guard_64 =
+            __terrane_owner_63.lock().expect("shared reference lock poisoned"); let
+            __terrane_index_65 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             70 /* terrane-site: src/main.trn:121:24-121:39 */); let
-            __terrane_index_place_87 = __terrane_raised(__terrane_read_guard_85.items
-            .get(__terrane_index_86).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_86)),
+            __terrane_index_place_66 = __terrane_raised(__terrane_read_guard_64.items
+            .get(__terrane_index_65).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_65)),
             70 /* terrane-site: src/main.trn:121:24-121:39 */); let
-            __terrane_snapshot_88 = (* &* __terrane_index_place_87).clone();
-            __terrane_snapshot_88 }; let __terrane_native_snapshot_1 = { let
-            __terrane_owner_89 = &shared; let __terrane_read_guard_90 =
-            __terrane_owner_89.lock().expect("shared reference lock poisoned"); let
-            __terrane_index_91 =
+            __terrane_snapshot_67 = (* &* __terrane_index_place_66).clone();
+            __terrane_snapshot_67 }; let __terrane_native_snapshot_1 = { let
+            __terrane_owner_68 = &shared; let __terrane_read_guard_69 =
+            __terrane_owner_68.lock().expect("shared reference lock poisoned"); let
+            __terrane_index_70 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
             71 /* terrane-site: src/main.trn:121:41-121:56 */); let
-            __terrane_index_place_92 = __terrane_raised(__terrane_read_guard_90.items
-            .get(__terrane_index_91).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_91)),
+            __terrane_index_place_71 = __terrane_raised(__terrane_read_guard_69.items
+            .get(__terrane_index_70).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_70)),
             71 /* terrane-site: src/main.trn:121:41-121:56 */); let
-            __terrane_snapshot_93 = (* &* __terrane_index_place_92).clone();
-            __terrane_snapshot_93 }; let __terrane_native_snapshot_2 = { let
-            __terrane_owner_94 = &alias; let __terrane_read_guard_95 = __terrane_owner_94
-            .lock().expect("shared reference lock poisoned"); let __terrane_index_96 =
+            __terrane_snapshot_72 = (* &* __terrane_index_place_71).clone();
+            __terrane_snapshot_72 }; let __terrane_native_snapshot_2 = { let
+            __terrane_owner_73 = &alias; let __terrane_read_guard_74 = __terrane_owner_73
+            .lock().expect("shared reference lock poisoned"); let __terrane_index_75 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             72 /* terrane-site: src/main.trn:121:58-121:72 */); let
-            __terrane_index_place_97 = __terrane_raised(__terrane_read_guard_95.items
-            .get(__terrane_index_96).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_96)),
+            __terrane_index_place_76 = __terrane_raised(__terrane_read_guard_74.items
+            .get(__terrane_index_75).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_75)),
             72 /* terrane-site: src/main.trn:121:58-121:72 */); let
-            __terrane_snapshot_98 = (* &* __terrane_index_place_97).clone();
-            __terrane_snapshot_98 }; let __terrane_native_snapshot_3 = { let
-            __terrane_owner_99 = &alias; let __terrane_read_guard_100 =
-            __terrane_owner_99.lock().expect("shared reference lock poisoned"); let
-            __terrane_index_101 =
+            __terrane_snapshot_77 = (* &* __terrane_index_place_76).clone();
+            __terrane_snapshot_77 }; let __terrane_native_snapshot_3 = { let
+            __terrane_owner_78 = &alias; let __terrane_read_guard_79 = __terrane_owner_78
+            .lock().expect("shared reference lock poisoned"); let __terrane_index_80 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
             73 /* terrane-site: src/main.trn:121:74-121:88 */); let
-            __terrane_index_place_102 = __terrane_raised(__terrane_read_guard_100.items
-            .get(__terrane_index_101).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_101)),
+            __terrane_index_place_81 = __terrane_raised(__terrane_read_guard_79.items
+            .get(__terrane_index_80).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_80)),
             73 /* terrane-site: src/main.trn:121:74-121:88 */); let
-            __terrane_snapshot_103 = (* &* __terrane_index_place_102).clone();
-            __terrane_snapshot_103 };
+            __terrane_snapshot_82 = (* &* __terrane_index_place_81).clone();
+            __terrane_snapshot_82 };
             __terrane_raised(join_four(&__terrane_native_snapshot_0,
             &__terrane_native_snapshot_1, &__terrane_native_snapshot_2,
             &__terrane_native_snapshot_3), 74 /* terrane-site: src/main.trn:121:13-121:88 */) })
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0
-            = { let __terrane_owner_105 = &shared; let __terrane_read_guard_106 =
-            __terrane_owner_105.lock().expect("shared reference lock poisoned"); let
-            __terrane_index_107 =
+            = { let __terrane_owner_83 = &shared; let __terrane_read_guard_84 =
+            __terrane_owner_83.lock().expect("shared reference lock poisoned"); let
+            __terrane_index_85 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             75 /* terrane-site: src/main.trn:122:24-122:39 */); let
-            __terrane_index_place_108 = __terrane_raised(__terrane_read_guard_106.items
-            .get(__terrane_index_107).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_107)),
+            __terrane_index_place_86 = __terrane_raised(__terrane_read_guard_84.items
+            .get(__terrane_index_85).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_85)),
             75 /* terrane-site: src/main.trn:122:24-122:39 */); let
-            __terrane_snapshot_109 = (* &* __terrane_index_place_108).clone();
-            __terrane_snapshot_109 }; let __terrane_index_110 =
+            __terrane_snapshot_87 = (* &* __terrane_index_place_86).clone();
+            __terrane_snapshot_87 }; let __terrane_index_88 =
             __terrane_raised(terrane_collection_support::index_from_int(&{ let
             __terrane_snapshot = shared.lock().expect("shared reference lock poisoned").n
-            .clone(); __terrane_snapshot }), 76 /* terrane-site: src/main.trn:122:41-122:57 */); let __terrane_index_place_111 =
-            __terrane_raised(values.get(__terrane_index_110).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index_110)),
+            .clone(); __terrane_snapshot }), 76 /* terrane-site: src/main.trn:122:41-122:57 */); let __terrane_index_place_89 =
+            __terrane_raised(values.get(__terrane_index_88).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_88)),
             76 /* terrane-site: src/main.trn:122:41-122:57 */); let
-            __terrane_native_reference_1 = &* __terrane_index_place_111;
+            __terrane_native_reference_1 = &* __terrane_index_place_89;
             __terrane_raised(join_text(&__terrane_native_snapshot_0,
             __terrane_native_reference_1), 77 /* terrane-site: src/main.trn:122:13-122:57 */) })
         );

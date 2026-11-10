@@ -2078,9 +2078,9 @@ pub fn assert_throws(
                         __terrane_text.push_str("expected throwable descriptor ");
                         terrane_scalar_support::ScalarDisplay::write_scalar(&expected_descriptor,
                         &mut __terrane_text); __terrane_text.push_str(" but received ");
-                        { let __terrane_error_text_3 = error.as_ref()
+                        { let __terrane_error_text_2 = error.as_ref()
                         .expect("flow-proven available binding").descriptor_name();
-                        __terrane_text.push_str(__terrane_error_text_3); } __terrane_text
+                        __terrane_text.push_str(__terrane_error_text_2); } __terrane_text
                         }), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
                     );
                 }
