@@ -24,7 +24,6 @@ fn main() {
         else_value = 100;
     } else {
         else_value = 400;
-        let _ = &else_value;
     }
     println!("{}", terrane_scalar_support::scalar_text(&else_value));
 }

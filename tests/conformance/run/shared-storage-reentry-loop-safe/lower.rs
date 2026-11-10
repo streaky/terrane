@@ -157,7 +157,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &item;
         total = total.clone() + item.clone();
         copy = hb.clone();
     }
@@ -175,7 +174,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &item;
         total = total.clone() + item.clone();
         copy = ha.clone();
     }
@@ -193,7 +191,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &item;
         if item == terrane_int_support::Int::from(1_i128) {
             break;
         }
@@ -213,7 +210,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &item;
         if item == terrane_int_support::Int::from(1_i128) {
             continue;
         }

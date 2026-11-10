@@ -3258,7 +3258,6 @@ fn test_scenario_terrane_collections_value_semantics() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &number;
         println!("{}", terrane_scalar_support::scalar_text(&number));
     }
     empty_count = terrane_int_support::Int::from(0_i128);
@@ -3386,7 +3385,6 @@ fn test_scenario_terrane_collections_value_semantics() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &value;
         println!("{}", terrane_scalar_support::scalar_text(&value));
     }
     empty_list = terrane_collection_support::List::<
@@ -5090,7 +5088,6 @@ fn test_values_terrane_explicit_numeric_coercions() -> Result<(), TerraneError> 
                         92 /* terrane-site: tests/integration/explicit-numeric-coercions/case.trn:50:26-50:42 */
                     ),
                 );
-            let _ = &impossible;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&impossible.as_ref()
                 .expect("flow-proven available binding"))
@@ -7068,7 +7065,6 @@ fn choose_terrane_local_scalar_union(flag: bool) {
         value = TerraneUnionF69S76::Arm0(terrane_int_support::Int::from(1_i128));
     } else {
         value = TerraneUnionF69S76::Arm1(String::from("text"));
-        let _ = &value;
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &value {
@@ -7327,7 +7323,6 @@ fn observe_terrane_local_union_compatible_boundary(flag: bool) {
         value = TerraneUnionF72S91::Arm0(terrane_int_support::Int::from(1_i128));
     } else {
         value = TerraneUnionF72S91::Arm1(String::from("text"));
-        let _ = &value;
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&matches!(&&value,
@@ -7485,9 +7480,7 @@ fn test_scenario_terrane_map_entry_destructuring() {
             terrane_collection_support::IterationStep::End => break,
         };
         key = __terrane_item_1.key;
-        let _ = &key;
         value = __terrane_item_1.value;
-        let _ = &value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&value)
@@ -7643,7 +7636,6 @@ fn test_scenario_terrane_map_key_removal() -> Result<(), TerraneError> {
             terrane_collection_support::IterationStep::End => break,
         };
         key = __terrane_item_1.key;
-        let _ = &key;
         value = __terrane_item_1.value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
@@ -7755,7 +7747,6 @@ fn test_scenario_terrane_map_key_removal() -> Result<(), TerraneError> {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &pair;
         println!(
             "{}{}{}", String::from("reinserted-"),
             terrane_scalar_support::scalar_text(&pair.key.clone()),
@@ -9537,7 +9528,7 @@ fn test_scenario_terrane_stable_list_sorting() {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key.clone()), 190 /* terrane-site: tests/integration/stable-list-sorting/case.trn:69:17-69:29 */))
+            .get_or_error(&key), 190 /* terrane-site: tests/integration/stable-list-sorting/case.trn:69:17-69:29 */))
         );
     }
     descending = {
@@ -9557,7 +9548,6 @@ fn test_scenario_terrane_stable_list_sorting() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &key;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
@@ -10280,7 +10270,6 @@ fn test_scenario_terrane_string_result_list_iteration() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &part;
         println!("{}", terrane_scalar_support::scalar_text(&part));
     }
     matches = {
@@ -13319,7 +13308,6 @@ fn test_scenario_terrane_typed_json_boundaries() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &diagnostic;
         println!(
             "{}{}{}{}{}", terrane_scalar_support::scalar_text(&diagnostic.path.clone()),
             String::from("|"), terrane_scalar_support::scalar_text(&diagnostic

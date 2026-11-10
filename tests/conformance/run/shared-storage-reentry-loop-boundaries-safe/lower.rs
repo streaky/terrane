@@ -198,7 +198,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &outer_item;
         total = total.clone() + outer_item.clone();
         let __terrane_iterable_5 = terrane_collection_support::List::<
             terrane_int_support::Int,
@@ -211,7 +210,6 @@ fn main() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            let _ = &inner_item;
             copy = ha.clone();
             total = total.clone()
                 + {

@@ -437,7 +437,6 @@ fn main() {
                     Some(item) => item,
                     None => break,
                 };
-                let _ = &scalar;
                 source = String::from("changed during traversal");
                 println!("{}", terrane_scalar_support::scalar_text(&scalar));
             }
@@ -456,7 +455,6 @@ fn main() {
                     Some(item) => item,
                     None => break,
                 };
-                let _ = &scalar;
                 println!("{}", terrane_scalar_support::scalar_text(&scalar));
                 break;
             }

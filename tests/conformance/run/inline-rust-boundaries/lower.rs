@@ -149,7 +149,6 @@ fn main() {
             let value = value.clone();
             value
         };
-        let _ = &observed;
         println!("{}", terrane_scalar_support::scalar_text(&observed));
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
