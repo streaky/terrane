@@ -1925,7 +1925,7 @@ mod tests {
     use super::rust_type_contains_infer;
 
     #[test]
-    fn import_inference_guard_fails_closed_without_rejecting_lifetimes_or_names() {
+    fn import_guard_fails_closed() {
         for (path, expected) in [
             ("native::Owner<_>", true),
             ("native::Owner<Option<_>>", true),
