@@ -2,6 +2,9 @@ use super::super::prelude::*;
 use super::members::GuardScope;
 use super::native_arguments::{NativeArgumentContext, NativeArgumentLifetime};
 
+#[cfg(test)]
+mod tests;
+
 pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'static str {
     match (item.value_type(), descending) {
         (ValueType::Scalar(ScalarType::Float32), false) => {
@@ -259,6 +262,8 @@ impl Emitter<'_> {
         reason = "all call forms share one ordering and error-propagation path"
     )]
     pub(super) fn call(&mut self, node: &SyntaxNode) -> String {
+        #[cfg(test)]
+        tests::count_call(node.span.file);
         let [source_callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
@@ -1823,6 +1828,40 @@ impl Emitter<'_> {
                 return self.compose_text(&parts, None);
             }
         }
+        if callee.kind == SyntaxKind::MemberExpression
+            && callee
+                .children
+                .get(1)
+                .is_some_and(|member| self.text(member) == "concat")
+            && self.value_type(&callee.children[0]) == Some(ValueType::Scalar(ScalarType::Bytes))
+        {
+            let values = argument_values
+                .iter()
+                .map(|value| self.expression(value))
+                .collect::<Vec<_>>();
+            let receiver = self.receiver_expression(&callee.children[0]);
+            let bindings = values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| format!("let part_{index}: Vec<u8> = {value};"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let part_lengths = (0..values.len())
+                .map(|index| format!("part_{index}.len()"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let extensions = (0..values.len())
+                .map(|index| format!("bytes.extend(part_{index});"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            // `bytes.concat` is infallible at the Terrane surface. A combined length outside
+            // `usize` or a failed reservation therefore cannot become a normal language
+            // result. Abort before extension so neither Rust unwinding nor partial mutation
+            // crosses the generated-code boundary.
+            return format!(
+                "{{ let mut bytes = {receiver}; {bindings} let additional = match [{part_lengths}].into_iter().try_fold(0usize, usize::checked_add) {{ Some(length) => length, None => std::process::abort() }}; if bytes.try_reserve(additional).is_err() {{ std::process::abort(); }} {extensions} bytes }}"
+            );
+        }
         let joint_macro_graph = native_macro_path.is_some()
             && (self
                 .unit
@@ -1835,47 +1874,6 @@ impl Emitter<'_> {
                     )
                 })
                 || self.unit.invocation_scoped_result_at(node.span).is_some());
-        let mut values = argument_values
-            .into_iter()
-            .map(|value| {
-                if native_macro_path.is_some() {
-                    self.native_macro_expression(value, joint_macro_graph)
-                } else {
-                    self.expression(value)
-                }
-            })
-            .collect::<Vec<_>>();
-        if callee.kind == SyntaxKind::MemberExpression
-            && callee
-                .children
-                .get(1)
-                .is_some_and(|member| self.text(member) == "concat")
-        {
-            let receiver = self.receiver_expression(&callee.children[0]);
-            if self.value_type(&callee.children[0]) == Some(ValueType::Scalar(ScalarType::Bytes)) {
-                let bindings = values
-                    .iter()
-                    .enumerate()
-                    .map(|(index, value)| format!("let part_{index}: Vec<u8> = {value};"))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                let part_lengths = (0..values.len())
-                    .map(|index| format!("part_{index}.len()"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let extensions = (0..values.len())
-                    .map(|index| format!("bytes.extend(part_{index});"))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                // `bytes.concat` is infallible at the Terrane surface. A combined length outside
-                // `usize` or a failed reservation therefore cannot become a normal language
-                // result. Abort before extension so neither Rust unwinding nor partial mutation
-                // crosses the generated-code boundary.
-                return format!(
-                    "{{ let mut bytes = {receiver}; {bindings} let additional = match [{part_lengths}].into_iter().try_fold(0usize, usize::checked_add) {{ Some(length) => length, None => std::process::abort() }}; if bytes.try_reserve(additional).is_err() {{ std::process::abort(); }} {extensions} bytes }}"
-                );
-            }
-        }
         let specialization = self.unit.projected_call_specializations.get(&(
             node.span.file,
             node.span.start,
@@ -2115,6 +2113,9 @@ impl Emitter<'_> {
         let mut native_field_values = None;
         let mut native_field_converted = Vec::new();
         let mut native_conversion_inputs = Vec::new();
+        // Choose the ABI before emitting operands. Contract/callable paths must
+        // not first emit a discarded, destination-free copy of every subtree.
+        let mut values;
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
             if native_struct_construction {
@@ -2473,7 +2474,7 @@ impl Emitter<'_> {
             }
             if native_struct_construction {
                 native_field_values = Some(ordered);
-                values.clear();
+                values = Vec::new();
             } else {
                 values = ordered.into_iter().flatten().collect();
             }
@@ -2527,6 +2528,17 @@ impl Emitter<'_> {
                     tail.join(", ")
                 ));
             }
+        } else {
+            values = argument_values
+                .into_iter()
+                .map(|value| {
+                    if native_macro_path.is_some() {
+                        self.native_macro_expression(value, joint_macro_graph)
+                    } else {
+                        self.expression(value)
+                    }
+                })
+                .collect::<Vec<_>>();
         }
         self.borrowed_receiver_overrides.truncate(prior_read_guards);
         let projected_static_owner = contract.as_ref().and_then(|contract| {
