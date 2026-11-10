@@ -896,6 +896,9 @@ function main;
 fn nested_expression_analysis_uses_default_worker_stack() {
     // A left-associated expression and nested calls stress both traversal
     // shapes in the same default-stack server process.
+    // Deliberately near the combined debug-stack boundary: modest frame growth
+    // should fail this guard. Keep both dimensions combined rather than gaining
+    // artificial headroom by testing them independently.
     let operands = std::iter::repeat_n("value", 128)
         .collect::<Vec<_>>()
         .join(" and ");

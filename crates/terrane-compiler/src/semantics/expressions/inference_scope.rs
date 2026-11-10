@@ -7,6 +7,9 @@ use super::{SemanticFailure, SemanticUnit, SyntaxKind, SyntaxNode, TypedBinding,
 // scope drops. Only that exact live context is cached: nested temporary scopes
 // may reuse allocation addresses after they drop, but cannot reuse these still
 // borrowed root objects. No pointer is dereferenced or retained across calls.
+// Node-address keys additionally require every queried node to remain alive for
+// the entire root call. Inference must not synthesize and drop temporary nodes
+// inside that scope: allocator address reuse could otherwise produce a stale hit.
 type Context = (usize, usize, usize);
 
 struct InferenceMemo {
