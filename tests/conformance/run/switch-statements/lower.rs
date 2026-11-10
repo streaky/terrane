@@ -103,7 +103,6 @@ fn main() {
         let _ = joined.insert(String::from("joined"));
     } else {
         let _ = joined.insert(String::from("default"));
-        let _ = &joined;
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&joined.as_ref().unwrap_or_else(| |

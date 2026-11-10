@@ -4122,7 +4122,7 @@ pub fn emit_at(
                 terrane_collection_support::IterationStep::End => break,
             };
             {
-                let __terrane_collection_argument_0 = item.clone();
+                let __terrane_collection_argument_0 = item;
                 __terrane_list_append_2.push(__terrane_collection_argument_0);
             };
         }
@@ -4138,7 +4138,6 @@ pub fn emit_at(
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            let _ = &item;
             {
                 let __terrane_collection_argument_0 = item.clone();
                 __terrane_list_append_3.push(__terrane_collection_argument_0);

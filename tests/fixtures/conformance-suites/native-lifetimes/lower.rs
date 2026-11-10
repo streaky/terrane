@@ -7377,7 +7377,6 @@ fn test_scenario_terrane_native_view_value_iteration() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &value;
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
             _, crate ::TerraneForeignError > { { let value = match
@@ -7413,7 +7412,6 @@ fn test_scenario_terrane_native_view_value_iteration() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &value;
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
             _, crate ::TerraneForeignError > { { let value = match
@@ -7446,7 +7444,6 @@ fn test_scenario_terrane_native_view_value_iteration() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &value;
         {
             let __terrane_collection_argument_0 = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
@@ -7505,7 +7502,6 @@ fn test_scenario_terrane_native_view_value_iteration() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &value;
         {
             let __terrane_collection_argument_0 = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
