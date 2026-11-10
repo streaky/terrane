@@ -38,3 +38,8 @@ true
 67
 1
 79
+request-body
+response-body
+GET
+200
+true

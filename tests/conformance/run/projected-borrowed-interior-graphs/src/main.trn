@@ -3,6 +3,12 @@ namespace app
 from /deps/witness import Entry, Host, Request, clone_count, consume, make_view, render, root_count
 from /deps/witness import RootAlias, root_only
 from /deps/http import HeaderMap, HeaderName, HeaderValue
+from /deps/http import Request as HttpRequest, Response as HttpResponse
+from /deps/axum-core/extract import Request as DefaultHttpRequest
+from /deps/axum-core/response import Response as DefaultHttpResponse
+from /deps/axum-core/body import Body as HttpBody
+from /deps/axum/extract import ConnectInfo as HttpConnectInfo
+from /core/networking/native import native-socket-address as HttpSocketAddr
 from /callbacks import mark-sensitive, clear-sensitive, read-sensitive, clear-sensitive-optional
 from /core/collections import list
 
@@ -25,6 +31,33 @@ class root-alias
 
 function root-value int; root mutable ref RootAlias
     return ((root.view;).value;)
+
+function http-request-body string; request mutable ref HttpRequest of string
+    value string = rust
+        request.body().clone()
+    return value
+
+function http-response-body string; response mutable ref HttpResponse of string
+    value string = rust
+        response.body().clone()
+    return value
+
+function default-http-method string; request mutable ref DefaultHttpRequest
+    return ((request.method;).as_str;)
+
+function default-http-status uint16; response mutable ref DefaultHttpResponse
+    return ((response.status;).as_u16;)
+
+function http-peer-ip string; peer ref (HttpConnectInfo of HttpSocketAddr)
+    payload HttpSocketAddr = peer.n0
+    value string = rust
+        payload.ip().to_string()
+    return value
+
+function default-http-peer string|none; request ref DefaultHttpRequest
+    return request.extensions;
+        .get of (HttpConnectInfo of HttpSocketAddr);
+        .map; http-peer-ip
 
 function main;
     request = Request::new; 41
@@ -132,3 +165,14 @@ function main;
     print; (clone_count;)
     source-root = instance root-alias;
     print; source-root.value
+    http-request HttpRequest of string = rust
+        ::http::Request::new(String::from("request-body"))
+    print; (http-request-body; http-request)
+    http-response HttpResponse of string = rust
+        ::http::Response::new(String::from("response-body"))
+    print; (http-response-body; http-response)
+    default-request = DefaultHttpRequest::new; (HttpBody::empty;)
+    print; (default-http-method; default-request)
+    default-response = DefaultHttpResponse::new; (HttpBody::empty;)
+    print; (default-http-status; default-response)
+    print; (default-http-peer; default-request) == none

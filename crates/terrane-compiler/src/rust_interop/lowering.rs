@@ -25,6 +25,40 @@ fn rust_type_contains_infer(rust_type: &str) -> bool {
     syn::visit::Visit::visit_type(&mut infer, &ty);
     infer.0
 }
+
+fn native_import_target(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    path: String,
+    projected: Option<&crate::rust_interop::projection::ProjectedType>,
+) -> (String, Vec<String>) {
+    let declared_generic = package
+        .projection
+        .item(&identity.namespace, &identity.name)
+        .is_some_and(|item| match &item.kind {
+            crate::rust_interop::projection::ProjectedKind::ForeignType {
+                generic_parameters,
+                ..
+            }
+            | crate::rust_interop::projection::ProjectedKind::Enum {
+                generic_parameters, ..
+            } => !generic_parameters.is_empty(),
+            _ => false,
+        });
+    if declared_generic {
+        // Preserve the declaration's binders and defaults, including opaque families.
+        (
+            crate::rust_ir::rust_type_constructor(&path).unwrap_or(path),
+            Vec::new(),
+        )
+    } else {
+        (
+            path,
+            projected.map(projected_generic_names).unwrap_or_default(),
+        )
+    }
+}
+
 fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&ObjectIdentity)) {
     match value_type {
         ValueType::Object(identity) => {
@@ -241,15 +275,13 @@ pub(super) fn index_dependency_import_owners(
             let Some(path) = path else {
                 continue;
             };
+            let (path, generic_parameters) =
+                native_import_target(package, &object.identity, path, projected.as_ref());
             if rust_type_contains_infer(&path) {
                 continue;
             }
             let rust_name =
                 crate::lowering::helpers::rust_object_type_base_name(package, &object.identity);
-            let generic_parameters = projected
-                .as_ref()
-                .map(projected_generic_names)
-                .unwrap_or_default();
             owners
                 .entry(rust_name)
                 .and_modify(
@@ -295,35 +327,8 @@ pub(super) fn index_dependency_import_owners(
             {
                 continue;
             }
-            let declared_generic =
-                package
-                    .projection
-                    .item(&unit.namespace, &name)
-                    .is_some_and(|item| match &item.kind {
-                        crate::rust_interop::projection::ProjectedKind::ForeignType {
-                            generic_parameters,
-                            ..
-                        }
-                        | crate::rust_interop::projection::ProjectedKind::Enum {
-                            generic_parameters,
-                            ..
-                        } => !generic_parameters.is_empty(),
-                        _ => false,
-                    });
-            let (path, generic_parameters) = if declared_generic {
-                (
-                    crate::rust_ir::rust_type_constructor(&path).unwrap_or(path),
-                    Vec::new(),
-                )
-            } else {
-                (
-                    path,
-                    projected
-                        .as_ref()
-                        .map(projected_generic_names)
-                        .unwrap_or_default(),
-                )
-            };
+            let (path, generic_parameters) =
+                native_import_target(package, identity, path, projected.as_ref());
             if rust_type_contains_infer(&path) {
                 continue;
             }
@@ -401,45 +406,21 @@ pub(super) fn index_dependency_import_owners(
         let Some(path) = path else {
             continue;
         };
+        let rust_name = crate::lowering::helpers::rust_object_type_base_name(package, &identity);
+        let (path, generic_parameters) =
+            native_import_target(package, &identity, path, projected.as_ref());
         if rust_type_contains_infer(&path) {
             // Anonymous native arguments are inferred at use sites, not item aliases.
             continue;
         }
-        let declared_generic = package
-            .projection
-            .item(&identity.namespace, &identity.name)
-            .is_some_and(|item| match &item.kind {
-                crate::rust_interop::projection::ProjectedKind::ForeignType {
-                    generic_parameters,
-                    ..
-                }
-                | crate::rust_interop::projection::ProjectedKind::Enum {
-                    generic_parameters, ..
-                } => !generic_parameters.is_empty(),
-                _ => false,
-            });
-        let rust_name = crate::lowering::helpers::rust_object_type_base_name(package, &identity);
-        let (path, generic_parameters) = if declared_generic {
-            (
-                crate::rust_ir::rust_type_constructor(&path).unwrap_or(path),
-                Vec::new(),
-            )
-        } else {
-            (
-                path,
-                projected
-                    .as_ref()
-                    .map(projected_generic_names)
-                    .unwrap_or_default(),
-            )
-        };
         owners
             .entry(rust_name)
-            .and_modify(|(_, existing_path, _, from_source)| {
+            .and_modify(|(_, existing_path, existing_parameters, from_source)| {
                 if specialized_nominals
                     .contains(&(identity.namespace.clone(), identity.name.clone()))
                 {
                     existing_path.clone_from(&path);
+                    existing_parameters.clone_from(&generic_parameters);
                     *from_source = true;
                 }
             })
