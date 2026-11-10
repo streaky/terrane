@@ -112,63 +112,14 @@ pub(super) fn descriptor_alias(
     ))
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "binding collection preserves declaration and scope ordering in one traversal"
-)]
-pub(super) fn collect_typed_bindings(
+#[inline(never)]
+fn collect_function_bindings(
     unit: &SemanticUnit,
     matches: &super::enums::MatchContext<'_>,
     node: &SyntaxNode,
-    visible_bindings: &mut Vec<TypedBinding>,
+    visible_bindings: &[TypedBinding],
     bindings: &mut Vec<TypedBinding>,
-    scope: Option<Span>,
 ) -> Result<(), SemanticFailure> {
-    if matches!(
-        node.kind,
-        SyntaxKind::ClassDeclaration
-            | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::TraitDeclaration
-    ) {
-        if let Some(block) = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Block)
-        {
-            for method in block
-                .children
-                .iter()
-                .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
-            {
-                collect_typed_bindings(
-                    unit,
-                    matches,
-                    method,
-                    visible_bindings,
-                    bindings,
-                    Some(method.span),
-                )?;
-            }
-            for field in block
-                .children
-                .iter()
-                .filter(|child| child.kind == SyntaxKind::Binding)
-            {
-                if let Some(initializer) = super::ownership::binding_initializer(field) {
-                    let mut field_bindings = visible_bindings.clone();
-                    collect_typed_bindings(
-                        unit,
-                        matches,
-                        initializer,
-                        &mut field_bindings,
-                        bindings,
-                        scope,
-                    )?;
-                }
-            }
-        }
-        return Ok(());
-    }
     if is_function_node(node) {
         let contract = unit
             .functions
@@ -239,7 +190,7 @@ pub(super) fn collect_typed_bindings(
                 });
             }
         }
-        let mut function_bindings = visible_bindings.clone();
+        let mut function_bindings = visible_bindings.to_vec();
         function_bindings.extend(parameter_bindings.iter().cloned());
         bindings.extend(parameter_bindings);
         for child in &node.children {
@@ -254,6 +205,18 @@ pub(super) fn collect_typed_bindings(
         }
         return Ok(());
     }
+    Ok(())
+}
+
+#[inline(never)]
+fn collect_for_bindings(
+    unit: &SemanticUnit,
+    matches: &super::enums::MatchContext<'_>,
+    node: &SyntaxNode,
+    visible_bindings: &mut Vec<TypedBinding>,
+    bindings: &mut Vec<TypedBinding>,
+    scope: Option<Span>,
+) -> Result<(), SemanticFailure> {
     if let [target, collection, block] = node.children.as_slice()
         && node.kind == SyntaxKind::ForStatement
         && target.kind == SyntaxKind::ForTarget
@@ -290,9 +253,101 @@ pub(super) fn collect_typed_bindings(
         collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
         return Ok(());
     }
+    Ok(())
+}
+pub(super) fn collect_typed_bindings(
+    unit: &SemanticUnit,
+    matches: &super::enums::MatchContext<'_>,
+    node: &SyntaxNode,
+    visible_bindings: &mut Vec<TypedBinding>,
+    bindings: &mut Vec<TypedBinding>,
+    scope: Option<Span>,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::ForStatement
+        && let [target, _, _] = node.children.as_slice()
+        && target.kind == SyntaxKind::ForTarget
+    {
+        return collect_for_bindings(unit, matches, node, visible_bindings, bindings, scope);
+    }
+    if is_function_node(node) {
+        return collect_function_bindings(unit, matches, node, visible_bindings, bindings);
+    }
+    if collect_scoped_bindings(unit, matches, node, visible_bindings, bindings, scope)? {
+        return Ok(());
+    }
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
+        let prior_len = visible_bindings.len();
+        analyze_binding_node(unit, node, visible_bindings, scope)?;
+        bindings.extend_from_slice(&visible_bindings[prior_len..]);
+    }
+    super::collections::retain_appended_native_origins(unit, node, visible_bindings, bindings)?;
+    for child in &node.children {
+        collect_typed_bindings(unit, matches, child, visible_bindings, bindings, scope)?;
+    }
+    Ok(())
+}
+
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "scoped declarations preserve binding visibility and diagnostic ordering"
+)]
+fn collect_scoped_bindings(
+    unit: &SemanticUnit,
+    matches: &super::enums::MatchContext<'_>,
+    node: &SyntaxNode,
+    visible_bindings: &mut Vec<TypedBinding>,
+    bindings: &mut Vec<TypedBinding>,
+    scope: Option<Span>,
+) -> Result<bool, SemanticFailure> {
+    if matches!(
+        node.kind,
+        SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TraitDeclaration
+    ) {
+        if let Some(block) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        {
+            for method in block
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
+            {
+                collect_typed_bindings(
+                    unit,
+                    matches,
+                    method,
+                    visible_bindings,
+                    bindings,
+                    Some(method.span),
+                )?;
+            }
+            for field in block
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Binding)
+            {
+                if let Some(initializer) = super::ownership::binding_initializer(field) {
+                    let mut field_bindings = visible_bindings.clone();
+                    collect_typed_bindings(
+                        unit,
+                        matches,
+                        initializer,
+                        &mut field_bindings,
+                        bindings,
+                        scope,
+                    )?;
+                }
+            }
+        }
+        return Ok(true);
+    }
     if node.kind == SyntaxKind::SelectCase {
         let [header, block] = node.children.as_slice() else {
-            return Ok(());
+            return Ok(true);
         };
         let awaited = if header.kind == SyntaxKind::Binding {
             header.children.last()
@@ -326,11 +381,11 @@ pub(super) fn collect_typed_bindings(
             infer_value_type(unit, header, visible_bindings)?;
         }
         collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::SwitchCase {
         let [header, block] = node.children.as_slice() else {
-            return Ok(());
+            return Ok(true);
         };
         if header.kind == SyntaxKind::ArgumentList {
             for expression in &header.children {
@@ -340,7 +395,7 @@ pub(super) fn collect_typed_bindings(
             infer_value_type(unit, header, visible_bindings)?;
         }
         collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::MatchStatement {
         let payloads = matches.bindings(unit, node, visible_bindings)?;
@@ -357,7 +412,7 @@ pub(super) fn collect_typed_bindings(
             for child in &node.children {
                 collect_typed_bindings(unit, matches, child, visible_bindings, bindings, scope)?;
             }
-            return Ok(());
+            return Ok(true);
         };
         let block = node
             .children
@@ -377,7 +432,7 @@ pub(super) fn collect_typed_bindings(
         bindings.push(catch_binding.clone());
         visible_bindings.push(catch_binding);
         collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::InitializationExpression {
         let mut local_bindings = visible_bindings.clone();
@@ -391,7 +446,7 @@ pub(super) fn collect_typed_bindings(
                 Some(node.span),
             )?;
         }
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::WithRegion {
         if let [acquisition, body] = node.children.as_slice() {
@@ -426,18 +481,9 @@ pub(super) fn collect_typed_bindings(
                 Some(node.span),
             )?;
         }
-        return Ok(());
+        return Ok(true);
     }
-    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
-        let prior_len = visible_bindings.len();
-        analyze_binding_node(unit, node, visible_bindings, scope)?;
-        bindings.extend_from_slice(&visible_bindings[prior_len..]);
-    }
-    super::collections::retain_appended_native_origins(unit, node, visible_bindings, bindings)?;
-    for child in &node.children {
-        collect_typed_bindings(unit, matches, child, visible_bindings, bindings, scope)?;
-    }
-    Ok(())
+    Ok(false)
 }
 
 #[expect(
@@ -1376,24 +1422,46 @@ pub(crate) fn task_expression_throwables(
     task_expression_throwables_with_inferred(package, unit, expression, &BTreeMap::new())
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "canonical escaping effects combine evaluation, deferred tasks, and protected catches"
-)]
+enum EscapingTraversal {
+    Complete(BTreeSet<String>),
+    Children(BTreeSet<String>, usize),
+}
+
 pub(super) fn escaping_throwables(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
     inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
 ) -> BTreeSet<String> {
+    let (mut errors, skip) = match escaping_node_errors(package, unit, node, inferred) {
+        EscapingTraversal::Complete(errors) => return errors,
+        EscapingTraversal::Children(errors, skip) => (errors, skip),
+    };
+    for child in node.children.iter().skip(skip) {
+        errors.extend(escaping_throwables(package, unit, child, inferred));
+    }
+    errors
+}
+
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "canonical escaping effects combine evaluation, deferred tasks, and protected catches"
+)]
+fn escaping_node_errors(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+) -> EscapingTraversal {
     if matches!(
         node.kind,
         SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
     ) {
-        return BTreeSet::new();
+        return EscapingTraversal::Complete(BTreeSet::new());
     }
     if node.kind == SyntaxKind::ThrowStatement {
-        return direct_errors(package, unit, node);
+        return EscapingTraversal::Complete(direct_errors(package, unit, node));
     }
     let mut local_errors = local_builtin_errors(package, unit, node);
     if node.kind == SyntaxKind::CallExpression
@@ -1426,13 +1494,7 @@ pub(super) fn escaping_throwables(
             .cloned()
             .unwrap_or_default();
         errors.extend(local_errors);
-        errors.extend(
-            node.children
-                .iter()
-                .skip(1)
-                .flat_map(|argument| escaping_throwables(package, unit, argument, inferred)),
-        );
-        return errors;
+        return EscapingTraversal::Children(errors, 1);
     }
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
@@ -1478,12 +1540,7 @@ pub(super) fn escaping_throwables(
             errors.extend(callable_expression_errors(unit, callback, inferred));
         }
         errors.extend(local_errors);
-        errors.extend(
-            node.children
-                .iter()
-                .flat_map(|child| escaping_throwables(package, unit, child, inferred)),
-        );
-        return errors;
+        return EscapingTraversal::Children(errors, 0);
     }
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
@@ -1495,13 +1552,7 @@ pub(super) fn escaping_throwables(
     {
         let mut errors = inferred.get(&key(span)).cloned().unwrap_or_default();
         errors.extend(local_errors);
-        errors.extend(
-            node.children
-                .iter()
-                .skip(1)
-                .flat_map(|argument| escaping_throwables(package, unit, argument, inferred)),
-        );
-        return errors;
+        return EscapingTraversal::Children(errors, 1);
     }
     if node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("await")
@@ -1515,7 +1566,7 @@ pub(super) fn escaping_throwables(
         errors.extend(task_expression_throwables_with_inferred(
             package, unit, task, inferred,
         ));
-        return errors;
+        return EscapingTraversal::Complete(errors);
     }
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
@@ -1527,13 +1578,7 @@ pub(super) fn escaping_throwables(
     {
         let mut errors = callable_expression_errors(unit, callee, inferred);
         errors.extend(local_errors);
-        errors.extend(
-            node.children
-                .iter()
-                .skip(1)
-                .flat_map(|argument| escaping_throwables(package, unit, argument, inferred)),
-        );
-        return errors;
+        return EscapingTraversal::Children(errors, 1);
     }
     if node.kind == SyntaxKind::TryStatement {
         let mut errors = node.children.first().map_or_else(BTreeSet::new, |block| {
@@ -1583,15 +1628,9 @@ pub(super) fn escaping_throwables(
             }
         }
         errors.extend(handler_errors);
-        return errors;
+        return EscapingTraversal::Complete(errors);
     }
-    let mut errors = local_errors;
-    errors.extend(
-        node.children
-            .iter()
-            .flat_map(|child| escaping_throwables(package, unit, child, inferred)),
-    );
-    errors
+    EscapingTraversal::Children(local_errors, 0)
 }
 fn projected_contract_errors(
     package: &SemanticPackage,

@@ -1,4 +1,12 @@
 use super::prelude::*;
+
+mod inference_scope;
+
+#[cfg(test)]
+pub(super) fn count_inference_work() {
+    inference_scope::count_computation();
+}
+
 pub(super) fn validate_applied_collection_type_value(
     unit: &SemanticUnit,
     value: &SyntaxNode,
@@ -270,7 +278,7 @@ pub(super) fn is_destination_directed_projected_call(
         let [receiver, member] = callee.children.as_slice() else {
             return Ok(false);
         };
-        match infer_value_type(unit, receiver, bindings)? {
+        match inference_scope::infer_receiver_type(unit, receiver, bindings)? {
             Some(ValueType::Object(identity)) => Some(format!(
                 "{}.{}",
                 identity.qualified(),
@@ -296,6 +304,22 @@ pub(super) fn is_destination_directed_projected_call(
 }
 
 pub(super) fn infer_value_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let scope = inference_scope::InferenceScope::enter(unit, node, bindings);
+    if let inference_scope::CachedInference::Break(value_type) = scope.lookup() {
+        return Ok(value_type);
+    }
+    let result = infer_value_type_uncached(unit, node, bindings);
+    if let Ok(value_type) = &result {
+        scope.record(value_type.as_ref());
+    }
+    result
+}
+
+fn infer_value_type_uncached(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
@@ -329,6 +353,8 @@ fn infer_nonbinary_value_type(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
+    #[cfg(test)]
+    inference_scope::count_computation();
     if node.kind == SyntaxKind::InitializationExpression
         && let Some(binding) = node.children.first()
         && let Some(construction) = binding.children.last()

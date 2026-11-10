@@ -4067,10 +4067,6 @@ fn invocation_scoped_bound_regions(
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one recursive refinement pass keeps projected call-result correlation atomic"
-)]
 fn collect_projected_call_result_types(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -4091,6 +4087,31 @@ fn collect_projected_call_result_types(
             pending_lenders,
         )?;
     }
+    refine_projected_call_result(
+        package,
+        unit,
+        node,
+        unit_index,
+        additions,
+        defer_unresolved_lenders,
+        pending_lenders,
+    )
+}
+
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one node keeps projected call-result correlation atomic"
+)]
+fn refine_projected_call_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    unit_index: usize,
+    additions: &mut Vec<(usize, (u32, usize, usize), ValueType)>,
+    defer_unresolved_lenders: bool,
+    pending_lenders: &mut bool,
+) -> Result<(), SemanticFailure> {
     if node.kind != SyntaxKind::CallExpression
         || unit.selected_expression_types.contains_key(&(
             node.span.file,
@@ -6058,10 +6079,6 @@ fn rust_type_text_equal(left: &str, right: &str) -> bool {
         .eq(right.chars().filter(|character| !character.is_whitespace()))
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one syntax walk makes every permitted destination context explicit"
-)]
 fn collect_projected_destinations(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -6071,6 +6088,50 @@ fn collect_projected_destinations(
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
+    if collect_projected_destination_node(
+        package,
+        unit,
+        node,
+        expected,
+        function_return,
+        unit_index,
+        pending,
+    )? {
+        return Ok(());
+    }
+    let transparent_destination = matches!(node.kind, SyntaxKind::GroupExpression)
+        || (node.kind == SyntaxKind::UnaryExpression
+            && node_text(&unit.source, node)
+                .trim_start()
+                .starts_with("await "));
+    for child in &node.children {
+        collect_projected_destinations(
+            package,
+            unit,
+            child,
+            transparent_destination.then_some(expected).flatten(),
+            function_return,
+            unit_index,
+            pending,
+        )?;
+    }
+    Ok(())
+}
+
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "destination contexts preserve specialization and diagnostic order"
+)]
+fn collect_projected_destination_node(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    expected: Option<&ValueType>,
+    function_return: Option<&ValueType>,
+    unit_index: usize,
+    pending: &mut Vec<PendingProjectedSpecialization>,
+) -> Result<bool, SemanticFailure> {
     fn collect_inputs(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -6150,7 +6211,7 @@ fn collect_projected_destinations(
                     )?;
                 }
             }
-            return Ok(());
+            return Ok(true);
         }
         for child in &node.children {
             collect_projected_destinations(
@@ -6163,7 +6224,7 @@ fn collect_projected_destinations(
                 pending,
             )?;
         }
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -6253,8 +6314,190 @@ fn collect_projected_destinations(
                 }
             }
         }
-        return Ok(());
+        return Ok(true);
     }
+    specialize_projected_destination(package, unit, node, expected, unit_index, pending)?;
+
+    if is_function_node(node) {
+        let return_type = unit
+            .invocation_scoped_function_results
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .cloned()
+            .or_else(|| {
+                unit.functions
+                    .iter()
+                    .find(|contract| contract.span == node.span)
+                    .and_then(|contract| contract.return_type.clone())
+            });
+        let graph_start = pending.len();
+        for child in &node.children {
+            collect_projected_destinations(
+                package,
+                unit,
+                child,
+                None,
+                return_type.as_ref(),
+                unit_index,
+                pending,
+            )?;
+        }
+        if matches!(
+            return_type,
+            Some(ValueType::InvocationScopedNative { concrete: true, .. })
+        ) {
+            // The complete callback, including ordinary builders around macros,
+            // closes its native loans in the final backend check.
+            for producer in &mut pending[graph_start..] {
+                producer.bounds.clear();
+            }
+        }
+        return Ok(true);
+    }
+    if node.kind == SyntaxKind::ReturnStatement {
+        for child in &node.children {
+            collect_projected_destinations(
+                package,
+                unit,
+                child,
+                function_return,
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        return Ok(true);
+    }
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
+        // The parser appends an initializer as the final binding/assignment child.
+        // Declaration metadata is otherwise final, so exclude those non-value kinds explicitly.
+        let initializer = node.children.last().filter(|child| {
+            !matches!(
+                child.kind,
+                SyntaxKind::Name
+                    | SyntaxKind::Visibility
+                    | SyntaxKind::DeclarationQualifier
+                    | SyntaxKind::TypeExpression
+                    | SyntaxKind::FieldMetadata
+            )
+        });
+        let written_destination = node
+            .children
+            .iter()
+            .any(|child| child.kind == SyntaxKind::TypeExpression)
+            .then(|| {
+                unit.typed_bindings
+                    .iter()
+                    .rev()
+                    .find(|binding| binding.span == node.span)
+                    .map(|binding| binding.value_type.clone())
+            })
+            .flatten()
+            .or_else(|| {
+                (node.kind == SyntaxKind::Assignment)
+                    .then(|| node.children.first())
+                    .flatten()
+                    .filter(|target| target.kind == SyntaxKind::MemberExpression)
+                    .and_then(|target| {
+                        infer_member_value_type(unit, target, &unit.typed_bindings)
+                            .ok()
+                            .flatten()
+                    })
+            });
+        for child in &node.children {
+            collect_projected_destinations(
+                package,
+                unit,
+                child,
+                if Some(child) == initializer {
+                    written_destination.as_ref()
+                } else {
+                    None
+                },
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        return Ok(true);
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+    {
+        if let Some(receiver) = callee.children.first()
+            && let Some(selected) = pending
+                .iter()
+                .rev()
+                .find(|selected| selected.span == node.span)
+            && let Some(destination) =
+                borrowed_receiver_destination(package, unit, receiver, &selected.substitutions)
+        {
+            collect_projected_destinations(
+                package,
+                unit,
+                receiver,
+                Some(&destination),
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        } else {
+            collect_projected_destinations(
+                package,
+                unit,
+                callee,
+                None,
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings) {
+            Ok(Some(
+                ValueType::Function(parameters, _, _)
+                | ValueType::AsyncFunction(parameters, _, _, _),
+            )) => parameters,
+            Ok(_) | Err(_) => Vec::new(),
+        };
+        for (index, argument) in arguments.children.iter().enumerate() {
+            let value = argument.children.last().unwrap_or(argument);
+            collect_projected_destinations(
+                package,
+                unit,
+                value,
+                parameter_types
+                    .get(index)
+                    .or_else(|| {
+                        parameter_types
+                            .last()
+                            .filter(|parameter| parameter.is_variadic())
+                    })
+                    .map(CallableParameterType::value_type_ref),
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+// Keep non-recursive specialization temporaries out of the recursive syntax walk.
+// In debug builds their combined frame otherwise exhausts a worker stack on
+// ordinary nested expressions, even when no native call is being specialized.
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "input- and destination-selected specialization share native bindings"
+)]
+fn specialize_projected_destination(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    expected: Option<&ValueType>,
+    unit_index: usize,
+    pending: &mut Vec<PendingProjectedSpecialization>,
+) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && let Some(function) =
@@ -7717,184 +7960,6 @@ fn collect_projected_destinations(
             projected_receiver_lifetime: function.receiver_lifetime.clone(),
             direct_projected_call: true,
         });
-    }
-
-    if is_function_node(node) {
-        let return_type = unit
-            .invocation_scoped_function_results
-            .get(&(node.span.file, node.span.start, node.span.end))
-            .cloned()
-            .or_else(|| {
-                unit.functions
-                    .iter()
-                    .find(|contract| contract.span == node.span)
-                    .and_then(|contract| contract.return_type.clone())
-            });
-        let graph_start = pending.len();
-        for child in &node.children {
-            collect_projected_destinations(
-                package,
-                unit,
-                child,
-                None,
-                return_type.as_ref(),
-                unit_index,
-                pending,
-            )?;
-        }
-        if matches!(
-            return_type,
-            Some(ValueType::InvocationScopedNative { concrete: true, .. })
-        ) {
-            // The complete callback, including ordinary builders around macros,
-            // closes its native loans in the final backend check.
-            for producer in &mut pending[graph_start..] {
-                producer.bounds.clear();
-            }
-        }
-        return Ok(());
-    }
-    if node.kind == SyntaxKind::ReturnStatement {
-        for child in &node.children {
-            collect_projected_destinations(
-                package,
-                unit,
-                child,
-                function_return,
-                function_return,
-                unit_index,
-                pending,
-            )?;
-        }
-        return Ok(());
-    }
-    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
-        // The parser appends an initializer as the final binding/assignment child.
-        // Declaration metadata is otherwise final, so exclude those non-value kinds explicitly.
-        let initializer = node.children.last().filter(|child| {
-            !matches!(
-                child.kind,
-                SyntaxKind::Name
-                    | SyntaxKind::Visibility
-                    | SyntaxKind::DeclarationQualifier
-                    | SyntaxKind::TypeExpression
-                    | SyntaxKind::FieldMetadata
-            )
-        });
-        let written_destination = node
-            .children
-            .iter()
-            .any(|child| child.kind == SyntaxKind::TypeExpression)
-            .then(|| {
-                unit.typed_bindings
-                    .iter()
-                    .rev()
-                    .find(|binding| binding.span == node.span)
-                    .map(|binding| binding.value_type.clone())
-            })
-            .flatten()
-            .or_else(|| {
-                (node.kind == SyntaxKind::Assignment)
-                    .then(|| node.children.first())
-                    .flatten()
-                    .filter(|target| target.kind == SyntaxKind::MemberExpression)
-                    .and_then(|target| {
-                        infer_member_value_type(unit, target, &unit.typed_bindings)
-                            .ok()
-                            .flatten()
-                    })
-            });
-        for child in &node.children {
-            collect_projected_destinations(
-                package,
-                unit,
-                child,
-                if Some(child) == initializer {
-                    written_destination.as_ref()
-                } else {
-                    None
-                },
-                function_return,
-                unit_index,
-                pending,
-            )?;
-        }
-        return Ok(());
-    }
-    if node.kind == SyntaxKind::CallExpression
-        && let [callee, arguments] = node.children.as_slice()
-    {
-        if let Some(receiver) = callee.children.first()
-            && let Some(selected) = pending
-                .iter()
-                .rev()
-                .find(|selected| selected.span == node.span)
-            && let Some(destination) =
-                borrowed_receiver_destination(package, unit, receiver, &selected.substitutions)
-        {
-            collect_projected_destinations(
-                package,
-                unit,
-                receiver,
-                Some(&destination),
-                function_return,
-                unit_index,
-                pending,
-            )?;
-        } else {
-            collect_projected_destinations(
-                package,
-                unit,
-                callee,
-                None,
-                function_return,
-                unit_index,
-                pending,
-            )?;
-        }
-        let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings) {
-            Ok(Some(
-                ValueType::Function(parameters, _, _)
-                | ValueType::AsyncFunction(parameters, _, _, _),
-            )) => parameters,
-            Ok(_) | Err(_) => Vec::new(),
-        };
-        for (index, argument) in arguments.children.iter().enumerate() {
-            let value = argument.children.last().unwrap_or(argument);
-            collect_projected_destinations(
-                package,
-                unit,
-                value,
-                parameter_types
-                    .get(index)
-                    .or_else(|| {
-                        parameter_types
-                            .last()
-                            .filter(|parameter| parameter.is_variadic())
-                    })
-                    .map(CallableParameterType::value_type_ref),
-                function_return,
-                unit_index,
-                pending,
-            )?;
-        }
-        return Ok(());
-    }
-    let transparent_destination = matches!(node.kind, SyntaxKind::GroupExpression)
-        || (node.kind == SyntaxKind::UnaryExpression
-            && node_text(&unit.source, node)
-                .trim_start()
-                .starts_with("await "));
-    for child in &node.children {
-        collect_projected_destinations(
-            package,
-            unit,
-            child,
-            transparent_destination.then_some(expected).flatten(),
-            function_return,
-            unit_index,
-            pending,
-        )?;
     }
     Ok(())
 }

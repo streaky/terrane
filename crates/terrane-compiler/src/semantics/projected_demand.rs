@@ -37,6 +37,32 @@ fn projected_expression_owners(
     projection: &crate::rust_interop::projection::Projection,
     source_results: &SourceResults<'_>,
 ) -> BTreeSet<ProjectedOwner> {
+    projected_expression_owners_with_receiver(
+        source,
+        node,
+        imported,
+        bindings,
+        projection,
+        source_results,
+        None,
+    )
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "owner inference preserves source and projected-member fallback precedence"
+)]
+fn projected_expression_owners_with_receiver(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    imported: &BTreeMap<String, ProjectedOwner>,
+    bindings: &BTreeMap<String, BTreeSet<ProjectedOwner>>,
+    projection: &crate::rust_interop::projection::Projection,
+    source_results: &SourceResults<'_>,
+    receiver_hint: Option<(&SyntaxNode, &BTreeSet<ProjectedOwner>)>,
+) -> BTreeSet<ProjectedOwner> {
+    #[cfg(test)]
+    super::expressions::count_inference_work();
     if node.kind == SyntaxKind::Name {
         let name = &source.text()[node.span.start..node.span.end];
         if matches!(name, "this" | "self") {
@@ -65,14 +91,20 @@ fn projected_expression_owners(
         SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
     ) && let (Some(receiver), Some(member)) = (node.children.first(), node.children.get(1))
     {
-        let receiver_owners = projected_expression_owners(
-            source,
-            receiver,
-            imported,
-            bindings,
-            projection,
-            source_results,
-        );
+        let receiver_owners = if let Some((known, owners)) = receiver_hint
+            && std::ptr::eq(known, receiver)
+        {
+            owners.clone()
+        } else {
+            projected_expression_owners(
+                source,
+                receiver,
+                imported,
+                bindings,
+                projection,
+                source_results,
+            )
+        };
         let member = &source.text()[member.span.start..member.span.end];
         let result = receiver_owners
             .into_iter()
@@ -122,13 +154,14 @@ fn projected_expression_owners(
     node.children
         .iter()
         .flat_map(|child| {
-            projected_expression_owners(
+            projected_expression_owners_with_receiver(
                 source,
                 child,
                 imported,
                 bindings,
                 projection,
                 source_results,
+                receiver_hint,
             )
         })
         .collect()
@@ -596,20 +629,33 @@ impl<'a> SourceResults<'a> {
             let mut result = BTreeSet::new();
             result.extend(self.substituted_call_owner(source, call, imported));
             let mut found = !result.is_empty();
-            for (namespace, owner) in owners {
-                if let Some(callable) = self.callable(
-                    &namespace,
-                    Some(&owner),
-                    node_text(source, member),
-                    call.span,
-                ) {
+            for (namespace, owner) in &owners {
+                if let Some(callable) =
+                    self.callable(namespace, Some(owner), node_text(source, member), call.span)
+                {
                     found = true;
                     result.extend(
                         self.result_owners(callable, source, arguments, imported, bindings),
                     );
                 }
             }
-            return found.then_some(result);
+            return Some(if found {
+                result
+            } else {
+                // The source-call probe already walked the receiver. Reuse that
+                // result in the ordinary projected-member fallback, including
+                // transparent/applied callee wrappers, rather than walking a
+                // fluent prefix again at every stage.
+                projected_expression_owners_with_receiver(
+                    source,
+                    callee,
+                    imported,
+                    bindings,
+                    projection,
+                    self,
+                    Some((receiver, &owners)),
+                )
+            });
         }
         None
     }

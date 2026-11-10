@@ -59,10 +59,6 @@ fn assigned_value_expression(node: &SyntaxNode) -> Option<&SyntaxNode> {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "call validation remains one traversal so every call form shares lexical scope and contracts"
-)]
 pub(super) fn validate_call_nodes<'a>(
     package: &SemanticPackage,
     unit: &'a SemanticUnit,
@@ -93,6 +89,153 @@ pub(super) fn validate_call_nodes<'a>(
     let function_bindings =
         entered_function.map(|contract| call_site_bindings(unit, Some(contract)));
     let scoped_bindings = function_bindings.as_deref().unwrap_or(scoped_bindings);
+    match validate_node_call_contracts(
+        package,
+        unit,
+        node,
+        contracts,
+        active_function,
+        scoped_bindings,
+    )? {
+        CallTraversal::Macro => {
+            return validate_macro_arguments(
+                package,
+                unit,
+                node,
+                contracts,
+                active_function,
+                scoped_bindings,
+            );
+        }
+        CallTraversal::Print => {
+            return validate_print_arguments(
+                package,
+                unit,
+                node,
+                contracts,
+                active_function,
+                scoped_bindings,
+            );
+        }
+        CallTraversal::Ordinary => {}
+    }
+    if validate_loop_calls(
+        package,
+        unit,
+        node,
+        contracts,
+        active_function,
+        scoped_bindings,
+    )? {
+        return Ok(());
+    }
+    validate_string_member_expression(unit, node, scoped_bindings)?;
+    validate_coercion_family_expression(unit, node)?;
+    for (index, child) in node.children.iter().enumerate() {
+        if node.kind.child_field(index, child.kind) == "name" {
+            continue;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && index == 0
+            && let Some((source, _)) = numeric_coercion_call(&unit.source, child)
+        {
+            validate_call_nodes(
+                package,
+                unit,
+                source,
+                contracts,
+                active_function,
+                scoped_bindings,
+            )?;
+            continue;
+        }
+        validate_call_nodes(
+            package,
+            unit,
+            child,
+            contracts,
+            active_function,
+            scoped_bindings,
+        )?;
+    }
+    Ok(())
+}
+
+#[inline(never)]
+fn validate_loop_calls<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    node: &SyntaxNode,
+    contracts: &BTreeMap<(u32, usize, usize), &FunctionContract>,
+    active_function: Option<&'a FunctionContract>,
+    scoped_bindings: &[TypedBinding],
+) -> Result<bool, SemanticFailure> {
+    if let [target, collection, block] = node.children.as_slice()
+        && node.kind == SyntaxKind::ForStatement
+        && target.kind == SyntaxKind::ForTarget
+    {
+        validate_call_nodes(
+            package,
+            unit,
+            collection,
+            contracts,
+            active_function,
+            scoped_bindings,
+        )?;
+        let collection_type =
+            infer_value_type(unit, collection, scoped_bindings)?.ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0016",
+                    "collection iteration requires an iterable value",
+                    collection.span,
+                )
+            })?;
+        let item_type =
+            iterable_item_type(unit, collection_type).map_err(|(code, message, span)| {
+                failure(&unit.source, code, message, span.unwrap_or(collection.span))
+            })?;
+        let mut loop_bindings = scoped_bindings.to_vec();
+        loop_bindings.extend(iteration_target_bindings(
+            unit,
+            target,
+            collection.span.end,
+            block.span,
+            item_type,
+        )?);
+        validate_call_nodes(
+            package,
+            unit,
+            block,
+            contracts,
+            active_function,
+            &loop_bindings,
+        )?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+enum CallTraversal {
+    Ordinary,
+    Macro,
+    Print,
+}
+
+// Per-call contract copies must not remain on the recursive traversal stack.
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one node validates callable forms in diagnostic precedence order"
+)]
+fn validate_node_call_contracts<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    node: &SyntaxNode,
+    contracts: &BTreeMap<(u32, usize, usize), &FunctionContract>,
+    active_function: Option<&'a FunctionContract>,
+    scoped_bindings: &[TypedBinding],
+) -> Result<CallTraversal, SemanticFailure> {
     super::expressions::validate_static_owner(unit, node)?;
     if node.kind == SyntaxKind::Name && projected_macro_for_call(package, unit, node).is_some() {
         return Err(failure(
@@ -103,7 +246,7 @@ pub(super) fn validate_call_nodes<'a>(
         ));
     }
     if node.kind == SyntaxKind::CallExpression
-        && let [callee, arguments] = node.children.as_slice()
+        && let [callee, _] = node.children.as_slice()
         && projected_macro_for_call(package, unit, callee).is_some()
     {
         if crate::syntax::call_is_unsafe(node) {
@@ -114,29 +257,7 @@ pub(super) fn validate_call_nodes<'a>(
                 node.span,
             ));
         }
-        for argument in &arguments.children {
-            if argument.children.len() > 1 {
-                return Err(failure(
-                    &unit.source,
-                    "T0012",
-                    "native macro invocations use positional expression arguments",
-                    argument.span,
-                ));
-            }
-            super::expressions::validate_applied_collection_type_value(
-                unit,
-                argument.children.last().unwrap_or(argument),
-            )?;
-            validate_call_nodes(
-                package,
-                unit,
-                argument.children.last().unwrap_or(argument),
-                contracts,
-                active_function,
-                scoped_bindings,
-            )?;
-        }
-        return Ok(());
+        return Ok(CallTraversal::Macro);
     }
     if node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("await")
@@ -235,45 +356,13 @@ pub(super) fn validate_call_nodes<'a>(
         }
     }
     if node.kind == SyntaxKind::CallExpression
-        && let [callee, arguments] = node.children.as_slice()
+        && let [callee, _] = node.children.as_slice()
         && callee.kind == SyntaxKind::Name
         && package
             .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
             .is_some_and(|symbol| symbol.identity == "/core/output::print")
     {
-        for argument in &arguments.children {
-            let value = argument.children.last().unwrap_or(argument);
-            validate_call_nodes(
-                package,
-                unit,
-                value,
-                contracts,
-                active_function,
-                scoped_bindings,
-            )?;
-            let value_type =
-                transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
-            let printable = |value_type: &ValueType| {
-                super::display::supports_display(unit, value_type, value.span.start)
-            };
-            if !value_type
-                .as_ref()
-                .is_some_and(|value_type| match value_type {
-                    ValueType::Union(arms) => arms.iter().all(printable),
-                    _ => printable(value_type),
-                })
-            {
-                return Err(failure(
-                    &unit.source,
-                    "T0035",
-                    format!(
-                        "`print` requires a text-displayable value, found {}",
-                        value_type.map_or_else(|| "unknown".to_owned(), |ty| ty.to_string())
-                    ),
-                    value.span,
-                ));
-            }
-        }
+        return Ok(CallTraversal::Print);
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -573,77 +662,83 @@ pub(super) fn validate_call_nodes<'a>(
             )?;
         }
     }
-    if let [target, collection, block] = node.children.as_slice()
-        && node.kind == SyntaxKind::ForStatement
-        && target.kind == SyntaxKind::ForTarget
-    {
+    Ok(CallTraversal::Ordinary)
+}
+
+fn validate_macro_arguments<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    node: &SyntaxNode,
+    contracts: &BTreeMap<(u32, usize, usize), &FunctionContract>,
+    active_function: Option<&'a FunctionContract>,
+    scoped_bindings: &[TypedBinding],
+) -> Result<(), SemanticFailure> {
+    let arguments = &node.children[1];
+    for argument in &arguments.children {
+        if argument.children.len() > 1 {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                "native macro invocations use positional expression arguments",
+                argument.span,
+            ));
+        }
+        super::expressions::validate_applied_collection_type_value(
+            unit,
+            argument.children.last().unwrap_or(argument),
+        )?;
         validate_call_nodes(
             package,
             unit,
-            collection,
+            argument.children.last().unwrap_or(argument),
             contracts,
             active_function,
             scoped_bindings,
         )?;
-        let collection_type =
-            infer_value_type(unit, collection, scoped_bindings)?.ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0016",
-                    "collection iteration requires an iterable value",
-                    collection.span,
-                )
-            })?;
-        let item_type =
-            iterable_item_type(unit, collection_type).map_err(|(code, message, span)| {
-                failure(&unit.source, code, message, span.unwrap_or(collection.span))
-            })?;
-        let mut loop_bindings = scoped_bindings.to_vec();
-        loop_bindings.extend(iteration_target_bindings(
-            unit,
-            target,
-            collection.span.end,
-            block.span,
-            item_type,
-        )?);
-        validate_call_nodes(
-            package,
-            unit,
-            block,
-            contracts,
-            active_function,
-            &loop_bindings,
-        )?;
-        return Ok(());
     }
-    validate_string_member_expression(unit, node, scoped_bindings)?;
-    validate_coercion_family_expression(unit, node)?;
-    for (index, child) in node.children.iter().enumerate() {
-        if node.kind.child_field(index, child.kind) == "name" {
-            continue;
-        }
-        if node.kind == SyntaxKind::CallExpression
-            && index == 0
-            && let Some((source, _)) = numeric_coercion_call(&unit.source, child)
-        {
-            validate_call_nodes(
-                package,
-                unit,
-                source,
-                contracts,
-                active_function,
-                scoped_bindings,
-            )?;
-            continue;
-        }
+    Ok(())
+}
+
+fn validate_print_arguments<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    node: &SyntaxNode,
+    contracts: &BTreeMap<(u32, usize, usize), &FunctionContract>,
+    active_function: Option<&'a FunctionContract>,
+    scoped_bindings: &[TypedBinding],
+) -> Result<(), SemanticFailure> {
+    let arguments = &node.children[1];
+    for argument in &arguments.children {
+        let value = argument.children.last().unwrap_or(argument);
         validate_call_nodes(
             package,
             unit,
-            child,
+            value,
             contracts,
             active_function,
             scoped_bindings,
         )?;
+        let value_type = transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
+        let printable = |value_type: &ValueType| {
+            super::display::supports_display(unit, value_type, value.span.start)
+        };
+        if !value_type
+            .as_ref()
+            .is_some_and(|value_type| match value_type {
+                ValueType::Union(arms) => arms.iter().all(printable),
+                _ => printable(value_type),
+            })
+        {
+            return Err(failure(
+                &unit.source,
+                "T0035",
+                format!(
+                    "`print` requires a text-displayable value, found {}",
+                    value_type.map_or_else(|| "unknown".to_owned(), |ty| ty.to_string())
+                ),
+                value.span,
+            ));
+        }
     }
     Ok(())
 }

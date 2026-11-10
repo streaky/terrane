@@ -6,9 +6,9 @@ fn inspect(
     value: std::sync::Arc<TerraneSharedCell<http::HeaderMap<http::HeaderValue>>>,
 ) {
     {
-        let __terrane_owner_3 = value.clone();
+        let __terrane_owner_1 = value.clone();
         let __terrane_source_input_0 = {
-            let __terrane_owner_5 = value.clone();
+            let __terrane_owner_3 = value.clone();
             let __terrane_call_result = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {
@@ -18,7 +18,7 @@ fn inspect(
                                 crate::TerraneForeignError,
                             > {
                                 Ok(
-                                    __terrane_owner_5
+                                    __terrane_owner_3
                                         .lock()
                                         .expect("shared reference lock poisoned")
                                         .len(),
@@ -58,7 +58,7 @@ fn inspect(
             0 /* terrane-site: src/main.trn:5:21-5:31 */,
         );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner_3
+        let __terrane_native_input_0 = &mut __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned");
         let __terrane_call_result = __terrane_raised(
@@ -94,11 +94,11 @@ fn inspect(
         __terrane_call_result
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_7 = value
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_5 = value
         .clone(); let __terrane_call_result = __terrane_raised(| | -> Result < _, crate
         ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
-        ::TerraneForeignError > { Ok(__terrane_owner_7.lock()
+        ::TerraneForeignError > { Ok(__terrane_owner_5.lock()
         .expect("shared reference lock poisoned").len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "http",
         "http::HeaderMap::len")) }; Ok:: < _, crate ::TerraneForeignError >
@@ -120,9 +120,9 @@ fn main() {
     );
     held = headers.clone();
     {
-        let __terrane_owner_11 = held.clone();
+        let __terrane_owner_7 = held.clone();
         let __terrane_source_input_0 = {
-            let __terrane_owner_13 = held.clone();
+            let __terrane_owner_9 = held.clone();
             let __terrane_call_result = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {
@@ -132,7 +132,7 @@ fn main() {
                                 crate::TerraneForeignError,
                             > {
                                 Ok(
-                                    __terrane_owner_13
+                                    __terrane_owner_9
                                         .lock()
                                         .expect("shared reference lock poisoned")
                                         .len(),
@@ -172,7 +172,7 @@ fn main() {
             4 /* terrane-site: src/main.trn:14:19-14:34 */,
         );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner_11
+        let __terrane_native_input_0 = &mut __terrane_owner_7
             .lock()
             .expect("shared reference lock poisoned");
         let __terrane_call_result = __terrane_raised(
@@ -209,9 +209,9 @@ fn main() {
     };
     alias = held.clone();
     {
-        let __terrane_owner_17 = alias.clone();
+        let __terrane_owner_11 = alias.clone();
         let __terrane_source_input_0 = {
-            let __terrane_owner_19 = held.clone();
+            let __terrane_owner_13 = held.clone();
             let __terrane_call_result = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {
@@ -221,7 +221,7 @@ fn main() {
                                 crate::TerraneForeignError,
                             > {
                                 Ok(
-                                    __terrane_owner_19
+                                    __terrane_owner_13
                                         .lock()
                                         .expect("shared reference lock poisoned")
                                         .len(),
@@ -261,7 +261,7 @@ fn main() {
             6 /* terrane-site: src/main.trn:16:21-16:30 */,
         );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner_17
+        let __terrane_native_input_0 = &mut __terrane_owner_11
             .lock()
             .expect("shared reference lock poisoned");
         let __terrane_call_result = __terrane_raised(
@@ -298,9 +298,9 @@ fn main() {
     };
     observer = std::sync::Arc::downgrade(&headers.clone());
     {
-        let __terrane_owner_23 = observer.upgrade().expect("reference expired");
+        let __terrane_owner_15 = observer.upgrade().expect("reference expired");
         let __terrane_source_input_0 = {
-            let __terrane_owner_25 = alias.clone();
+            let __terrane_owner_17 = alias.clone();
             let __terrane_call_result = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {
@@ -310,7 +310,7 @@ fn main() {
                                 crate::TerraneForeignError,
                             > {
                                 Ok(
-                                    __terrane_owner_25
+                                    __terrane_owner_17
                                         .lock()
                                         .expect("shared reference lock poisoned")
                                         .len(),
@@ -350,7 +350,7 @@ fn main() {
             8 /* terrane-site: src/main.trn:18:24-18:34 */,
         );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner_23
+        let __terrane_native_input_0 = &mut __terrane_owner_15
             .lock()
             .expect("reference lock poisoned");
         let __terrane_call_result = __terrane_raised(
@@ -387,7 +387,7 @@ fn main() {
     };
     inspect(held.clone());
     {
-        let __terrane_owner_27 = observer.upgrade().expect("reference expired");
+        let __terrane_owner_19 = observer.upgrade().expect("reference expired");
         let __terrane_call_result = __terrane_raised(
             || -> Result<_, crate::TerraneForeignError> {
                 {
@@ -397,7 +397,7 @@ fn main() {
                             crate::TerraneForeignError,
                         > {
                             Ok({
-                                let _ = __terrane_owner_27
+                                let _ = __terrane_owner_19
                                     .lock()
                                     .expect("reference lock poisoned")
                                     .clear();
@@ -423,11 +423,11 @@ fn main() {
         __terrane_call_result
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_29 = held
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_21 = held
         .clone(); let __terrane_call_result = __terrane_raised(| | -> Result < _, crate
         ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
-        ::TerraneForeignError > { Ok(__terrane_owner_29.lock()
+        ::TerraneForeignError > { Ok(__terrane_owner_21.lock()
         .expect("shared reference lock poisoned").len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "http",
         "http::HeaderMap::len")) }; Ok:: < _, crate ::TerraneForeignError >

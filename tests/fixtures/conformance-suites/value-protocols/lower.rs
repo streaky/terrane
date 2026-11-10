@@ -6689,11 +6689,11 @@ async fn test_scenario_terrane_layout_calls_async() {
     let ready: String;
     text_result = __terrane_await(
             deferred({
-                let __terrane_receiver_value_2 = &{
-                    let __terrane_receiver_value_3 = &String::from("  ready  ");
-                    terrane_string_support::trim(&__terrane_receiver_value_3)
+                let __terrane_receiver_value_0 = &{
+                    let __terrane_receiver_value_1 = &String::from("  ready  ");
+                    terrane_string_support::trim(&__terrane_receiver_value_1)
                 };
-                terrane_string_support::upper(&__terrane_receiver_value_2)
+                terrane_string_support::upper(&__terrane_receiver_value_0)
             }),
         )
         .await;
