@@ -802,8 +802,13 @@ fn record_rust_binding_reads(
     for (_, binding) in identifiers.iter().filter_map(|identifier| {
         crate::lowering::rust_value_binding_at(unit, node.span.start, identifier)
     }) {
+        let identity = unit
+            .flow_binding_ids
+            .get(&span_key(binding.span))
+            .copied()
+            .unwrap_or(binding.span);
         events
-            .entry(span_key(binding.span))
+            .entry(span_key(identity))
             .or_default()
             .push(BindingEvent::Read {
                 span: node.span,

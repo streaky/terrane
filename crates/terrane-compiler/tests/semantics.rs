@@ -2218,6 +2218,8 @@ fn redeclared_binding_reads_match_their_stores() {
     for body in [
         "    value int64 = 7\n    print; value\n    value int64 = 8\n    print; value",
         "    value int64 = 7\n    print; value\n    value string = 'next'\n    print; value",
+        "    value int64 = 7\n    print; value\n    value int64 = 8\n    copy int64 = rust\n        value\n    print; copy",
+        "    value int64 = 7\n    print; value\n    value int64 = 8\n    copy int64 = unsafe rust\n        value\n    print; copy",
         "    switch flag\n        case true\n            value int64 = 7\n            print; value\n        case false\n            value int64 = 0\n            if not flag\n                value = 1\n            print; value",
         "    switch flag\n        case true\n            closed bool = false\n            while not closed\n                closed = true\n            print; closed\n        case false\n            if not flag\n                closed bool = false\n                while not closed\n                    closed = true\n                if not closed\n                    print; 0",
         "    if flag\n        value int64 = 7\n    else\n        value int64 = 8\n    print; value",
@@ -2226,6 +2228,26 @@ fn redeclared_binding_reads_match_their_stores() {
         let source = format!(
             "namespace app\nfunction probe; flag bool\n{body}\nfunction main;\n    probe; true\n"
         );
+        let compilation = terrane_compiler::compile("main.trn", source.clone()).unwrap();
+        let unread = compilation
+            .warnings
+            .iter()
+            .filter(|warning| matches!(warning.code.as_ref(), "W4001" | "W4002"))
+            .collect::<Vec<_>>();
+        assert!(unread.is_empty(), "{source}\n{unread:?}");
+    }
+}
+
+#[test]
+fn unused_loop_targets_ignore_sibling_initialization() {
+    for body in [
+        "    for value in 'ab'\n        print; 1",
+        "    for value in 'ab'\n        print; 1\n    for value in 'cd'\n        print; 2",
+        "    for value in 'ab'\n        print; value\n    for value in 'cd'\n        print; 2",
+        "    for value in 'ab'\n        print; 1\n    for value in 'cd'\n        print; value",
+        "    for value in 'ab'\n        for value in 'cd'\n            print; value",
+    ] {
+        let source = format!("namespace app\nfunction main;\n{body}\n");
         let compilation = terrane_compiler::compile("main.trn", source.clone()).unwrap();
         let unread = compilation
             .warnings
@@ -2258,6 +2280,21 @@ fn redeclared_binding_dead_stores_still_warn_once() {
             "    value int64 = 7\n    print; value\n    value int64 = 8\n    value = 9\n    print; value",
             "W4002",
             "value int64 = 8",
+        ),
+        (
+            "    value int64 = 7\n    value int64 = 8\n    copy int64 = rust\n        value\n    print; copy",
+            "W4002",
+            "value int64 = 7",
+        ),
+        (
+            "    value int64 = 7\n    value int64 = 8\n    copy int64 = unsafe rust\n        value\n    print; copy",
+            "W4002",
+            "value int64 = 7",
+        ),
+        (
+            "    for value in 'ab'\n        value = 'x'\n        print; value\n    for value in 'cd'\n        print; 1",
+            "W4002",
+            "value",
         ),
         ("    unused int64 = 7", "W4001", "unused int64 = 7"),
     ] {

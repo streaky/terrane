@@ -339,6 +339,20 @@ pub(crate) fn warnings(
                 {
                     continue;
                 }
+                // A fresh iteration target is allowed to be unused. Sharing
+                // storage with another loop must not turn that into a dead
+                // store, but an explicit overwrite still warrants W4002.
+                if loop_targets.contains(&span_key(*store_span))
+                    && !events[index + 1..]
+                        .iter()
+                        .take_while(|event| {
+                            !matches!(event, BindingEvent::Write { span, .. }
+                                if loop_targets.contains(&span_key(*span)))
+                        })
+                        .any(|event| matches!(event, BindingEvent::Write { .. }))
+                {
+                    continue;
+                }
                 let later_store = events[index + 1..]
                     .iter()
                     .any(|event| matches!(event, BindingEvent::Write { .. }));
