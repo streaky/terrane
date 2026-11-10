@@ -498,34 +498,16 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         loop_exits: &mut LoopMoveExits,
     ) -> Result<(), SemanticFailure> {
         validate_node_reads(package, unit, node, write_place)?;
-        if matches!(
-            node.kind,
-            SyntaxKind::RustBlock
-                | SyntaxKind::UnsafeRustBlock
-                | SyntaxKind::FunctionDeclaration
-                | SyntaxKind::AnonymousFunction
-                | SyntaxKind::UnaryExpression
-                | SyntaxKind::CallExpression
-                | SyntaxKind::Name
-                | SyntaxKind::Binding
-                | SyntaxKind::Assignment
-                | SyntaxKind::TryStatement
-                | SyntaxKind::MatchStatement
-                | SyntaxKind::SwitchStatement
-                | SyntaxKind::SelectStatement
-                | SyntaxKind::IfStatement
-                | SyntaxKind::WhileStatement
-                | SyntaxKind::ForStatement
-        ) {
-            visit_operation(
-                package,
-                unit,
-                node,
-                moved,
-                write_place,
-                resource_objects,
-                loop_exits,
-            )
+        if visit_operation(
+            package,
+            unit,
+            node,
+            moved,
+            write_place,
+            resource_objects,
+            loop_exits,
+        )? {
+            Ok(())
         } else {
             visit_children(
                 package,
@@ -666,10 +648,6 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     }
 
     #[inline(never)]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
-    )]
     fn visit_operation(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -678,6 +656,38 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         write_place: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
         loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
+        validate_call_values(package, unit, node)?;
+        Ok(
+            visit_deferred(package, unit, node, moved, resource_objects, loop_exits)?
+                || visit_transfers(package, unit, node, moved, resource_objects, loop_exits)?
+                || visit_binding(
+                    package,
+                    unit,
+                    node,
+                    moved,
+                    write_place,
+                    resource_objects,
+                    loop_exits,
+                )?
+                || visit_try(package, unit, node, moved, resource_objects, loop_exits)?
+                || visit_match(package, unit, node, moved, resource_objects, loop_exits)?
+                || visit_switch(package, unit, node, moved, resource_objects, loop_exits)?
+                || visit_select(package, unit, node, moved, resource_objects, loop_exits)?
+                || visit_if(package, unit, node, moved, resource_objects, loop_exits)?
+                || visit_loop(package, unit, node, moved, resource_objects, loop_exits)?,
+        )
+    }
+
+    #[inline(never)]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "call read checks retain diagnostic precedence"
+    )]
+    fn validate_call_values(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
     ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
@@ -839,6 +849,18 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 }
             }
         }
+        Ok(())
+    }
+
+    #[inline(never)]
+    fn visit_deferred(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if matches!(
             node.kind,
             SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
@@ -874,7 +896,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     node.span,
                 ));
             }
-            return Ok(());
+            return Ok(true);
         }
         if matches!(
             node.kind,
@@ -926,8 +948,24 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 moved.extend(captured);
                 moved.extend(owned_captures);
             }
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+
+    #[inline(never)]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "call transfer cases retain diagnostic precedence"
+    )]
+    fn visit_transfers(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
             && unary_operator_text(unit, node).as_deref() == Some("move")
@@ -939,7 +977,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             {
                 return Err(moved_binding_failure(unit, binding, operand.span, true));
             }
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
@@ -962,7 +1000,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 loop_exits,
             )?;
             moved.insert(binding);
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first().map(ungroup)
@@ -988,7 +1026,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             moved.insert(binding);
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
@@ -1024,7 +1062,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             moved.insert(binding);
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
@@ -1051,7 +1089,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             moved.insert(binding);
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
@@ -1091,7 +1129,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             moved.insert(binding);
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
@@ -1160,7 +1198,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             moved.insert(binding);
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
@@ -1208,7 +1246,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         moved.insert(binding);
                     }
                 }
-                return Ok(());
+                return Ok(true);
             }
         }
         if node.kind == SyntaxKind::CallExpression
@@ -1239,7 +1277,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             moved.extend(transferred);
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
@@ -1276,7 +1314,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(transferred) = transferred {
                 moved.insert(transferred);
             }
-            return Ok(());
+            return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
@@ -1412,8 +1450,21 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 }
             }
             moved.extend(transferred);
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+
+    #[inline(never)]
+    fn visit_binding(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        write_place: bool,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if node.kind == SyntaxKind::Name && !write_place {
             let name = node_text(&unit.source, node);
             if let Some(binding) = binding_at(unit, name, node.span.start)
@@ -1421,7 +1472,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             {
                 return Err(moved_binding_failure(unit, binding, node.span, false));
             }
-            return Ok(());
+            return Ok(true);
         }
         if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
             let transferred = node
@@ -1501,8 +1552,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .unwrap_or(binding);
                 moved.remove(&binding);
             }
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+
+    #[inline(never)]
+    fn visit_try(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if node.kind == SyntaxKind::TryStatement {
             let entry = moved.clone();
             let try_block = node
@@ -1600,11 +1663,23 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             loop_exits.merge(completions);
             moved.clear();
             moved.extend(branches.into_iter().flatten());
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+
+    #[inline(never)]
+    fn visit_match(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if node.kind == SyntaxKind::MatchStatement {
             let Some(scrutinee) = node.children.first() else {
-                return Ok(());
+                return Ok(true);
             };
             let mut entry = moved.clone();
             visit(
@@ -1670,8 +1745,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             moved.clear();
             moved.extend(branches.into_iter().flatten());
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+
+    #[inline(never)]
+    fn visit_switch(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if node.kind == SyntaxKind::SwitchStatement {
             let mut entry = moved.clone();
             if let Some(selector) = node.switch_selector() {
@@ -1739,8 +1826,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             moved.clear();
             moved.extend(branches.into_iter().flatten());
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+
+    #[inline(never)]
+    fn visit_select(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if node.kind == SyntaxKind::SelectStatement {
             let mut entry = moved.clone();
             for case in &node.children {
@@ -1774,9 +1873,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             moved.clear();
             moved.extend(branches.into_iter().flatten());
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
 
+    #[inline(never)]
+    fn visit_if(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if node.kind == SyntaxKind::IfStatement {
             let mut entry = moved.clone();
             for child in &node.children {
@@ -1817,8 +1927,24 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
             moved.clear();
             moved.extend(branches.into_iter().flatten());
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+
+    #[inline(never)]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "loop move joins preserve all completion paths"
+    )]
+    fn visit_loop(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<bool, SemanticFailure> {
         if matches!(
             node.kind,
             SyntaxKind::WhileStatement | SyntaxKind::ForStatement
@@ -1962,18 +2088,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 loop_exits.merge(body_exits);
             }
             *moved = entry;
-            return Ok(());
+            return Ok(true);
         }
-        visit_children(
-            package,
-            unit,
-            node,
-            moved,
-            write_place,
-            resource_objects,
-            loop_exits,
-        )?;
-        Ok(())
+        Ok(false)
     }
 
     super::field_moves::validate(package)?;

@@ -894,13 +894,14 @@ function main;
 
 #[test]
 fn nested_expression_analysis_uses_default_worker_stack() {
-    // A left-associated expression has a deeper syntax tree than its layout
-    // suggests. Native specialization must not add a large frame at every node.
-    let expression = std::iter::repeat_n("value", 64)
+    // A left-associated expression and nested calls stress both traversal
+    // shapes in the same default-stack server process.
+    let operands = std::iter::repeat_n("value", 128)
         .collect::<Vec<_>>()
         .join(" and ");
+    let calls = (0..32).fold("value".to_owned(), |inner, _| format!("(wrap; {inner})"));
     let text = format!(
-        "namespace nested-analysis\nfunction probe bool; value bool\n    return {expression}\n"
+        "namespace nested-analysis\nfunction wrap bool; value bool\n    return value\nfunction probe bool; value bool\n    return {calls} and {operands}\n"
     );
     let uri = "file:///tmp/nested-destination-analysis.trn";
     let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))

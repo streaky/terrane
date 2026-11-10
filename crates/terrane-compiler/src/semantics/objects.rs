@@ -4067,10 +4067,6 @@ fn invocation_scoped_bound_regions(
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one recursive refinement pass keeps projected call-result correlation atomic"
-)]
 fn collect_projected_call_result_types(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -4091,6 +4087,31 @@ fn collect_projected_call_result_types(
             pending_lenders,
         )?;
     }
+    refine_projected_call_result(
+        package,
+        unit,
+        node,
+        unit_index,
+        additions,
+        defer_unresolved_lenders,
+        pending_lenders,
+    )
+}
+
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one node keeps projected call-result correlation atomic"
+)]
+fn refine_projected_call_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    unit_index: usize,
+    additions: &mut Vec<(usize, (u32, usize, usize), ValueType)>,
+    defer_unresolved_lenders: bool,
+    pending_lenders: &mut bool,
+) -> Result<(), SemanticFailure> {
     if node.kind != SyntaxKind::CallExpression
         || unit.selected_expression_types.contains_key(&(
             node.span.file,
@@ -6058,10 +6079,6 @@ fn rust_type_text_equal(left: &str, right: &str) -> bool {
         .eq(right.chars().filter(|character| !character.is_whitespace()))
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one syntax walk makes every permitted destination context explicit"
-)]
 fn collect_projected_destinations(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -6071,6 +6088,50 @@ fn collect_projected_destinations(
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
+    if collect_projected_destination_node(
+        package,
+        unit,
+        node,
+        expected,
+        function_return,
+        unit_index,
+        pending,
+    )? {
+        return Ok(());
+    }
+    let transparent_destination = matches!(node.kind, SyntaxKind::GroupExpression)
+        || (node.kind == SyntaxKind::UnaryExpression
+            && node_text(&unit.source, node)
+                .trim_start()
+                .starts_with("await "));
+    for child in &node.children {
+        collect_projected_destinations(
+            package,
+            unit,
+            child,
+            transparent_destination.then_some(expected).flatten(),
+            function_return,
+            unit_index,
+            pending,
+        )?;
+    }
+    Ok(())
+}
+
+#[inline(never)]
+#[expect(
+    clippy::too_many_lines,
+    reason = "destination contexts preserve specialization and diagnostic order"
+)]
+fn collect_projected_destination_node(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    expected: Option<&ValueType>,
+    function_return: Option<&ValueType>,
+    unit_index: usize,
+    pending: &mut Vec<PendingProjectedSpecialization>,
+) -> Result<bool, SemanticFailure> {
     fn collect_inputs(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -6150,7 +6211,7 @@ fn collect_projected_destinations(
                     )?;
                 }
             }
-            return Ok(());
+            return Ok(true);
         }
         for child in &node.children {
             collect_projected_destinations(
@@ -6163,7 +6224,7 @@ fn collect_projected_destinations(
                 pending,
             )?;
         }
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -6253,7 +6314,7 @@ fn collect_projected_destinations(
                 }
             }
         }
-        return Ok(());
+        return Ok(true);
     }
     specialize_projected_destination(package, unit, node, expected, unit_index, pending)?;
 
@@ -6290,7 +6351,7 @@ fn collect_projected_destinations(
                 producer.bounds.clear();
             }
         }
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::ReturnStatement {
         for child in &node.children {
@@ -6304,7 +6365,7 @@ fn collect_projected_destinations(
                 pending,
             )?;
         }
-        return Ok(());
+        return Ok(true);
     }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
         // The parser appends an initializer as the final binding/assignment child.
@@ -6357,7 +6418,7 @@ fn collect_projected_destinations(
                 pending,
             )?;
         }
-        return Ok(());
+        return Ok(true);
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -6416,25 +6477,9 @@ fn collect_projected_destinations(
                 pending,
             )?;
         }
-        return Ok(());
+        return Ok(true);
     }
-    let transparent_destination = matches!(node.kind, SyntaxKind::GroupExpression)
-        || (node.kind == SyntaxKind::UnaryExpression
-            && node_text(&unit.source, node)
-                .trim_start()
-                .starts_with("await "));
-    for child in &node.children {
-        collect_projected_destinations(
-            package,
-            unit,
-            child,
-            transparent_destination.then_some(expected).flatten(),
-            function_return,
-            unit_index,
-            pending,
-        )?;
-    }
-    Ok(())
+    Ok(false)
 }
 
 // Keep non-recursive specialization temporaries out of the recursive syntax walk.
