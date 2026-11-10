@@ -3,3 +3,11 @@ cleanup-a
 winner
 winner
 true9
+true
+true
+cleanup-b
+cleanup-c
+cleanup-a
+none
+winner
+true9

@@ -2,6 +2,24 @@
 include!("lower.support.rs");
 // Source: case.trn
 // Namespace: select-loser-cleanup
+#[allow(dead_code)]
+#[derive(Clone)]
+enum TerraneUnionF0S1564 {
+    Arm0(()),
+    Arm1(String),
+}
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S1564 {
+    fn write_scalar(&self, output: &mut String) {
+        match self {
+            Self::Arm0(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+            Self::Arm1(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+        }
+    }
+}
 async fn ready() -> String {
     return String::from("winner");
 }
@@ -241,9 +259,12 @@ fn main() {
                     );
                 }
                 1 => {
-                    let _ = __terrane_select_result_432_1
-                        .take()
-                        .expect("selected case owns its ready result");
+                    let _ = value
+                        .insert(
+                            __terrane_select_result_432_1
+                                .take()
+                                .expect("selected case owns its ready result"),
+                        );
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&value.as_ref()
                         .expect("flow-proven available binding"))
@@ -392,5 +413,350 @@ fn main() {
                 value, _ => unreachable!("flow-proven storage refinement") })
             );
         }
+        __terrane_await(second_arm_wins()).await;
     });
+}
+async fn second_arm_wins() {
+    let cleanup_pair_a: TerraneChannelPair<terrane_int_support::Int>;
+    let cleanup_pair_b: TerraneChannelPair<terrane_int_support::Int>;
+    let primed: TerraneChannelSendOutcome<terrane_int_support::Int>;
+    let cleanup_pair_c: TerraneChannelPair<terrane_int_support::Int>;
+    let mut value: Option<()> = None;
+    let mut winner: TerraneUnionF0S1564;
+    let waiter_pair: TerraneChannelPair<terrane_int_support::Int>;
+    let waiter_tx: TerraneChannelSender<terrane_int_support::Int>;
+    let waiter_rx: TerraneChannelReceiver<terrane_int_support::Int>;
+    let mut received: TerraneChannelReceiveOutcome<terrane_int_support::Int>;
+    let sent: TerraneChannelSendOutcome<terrane_int_support::Int>;
+    let value_2: Option<terrane_int_support::Int>;
+    let mut __terrane_select_cursor_1368 = 0usize;
+    let mut __terrane_select_cursor_1765 = 0usize;
+    cleanup_pair_a = TerraneChannelPair::new(
+        terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
+            )
+            .expect("semantic channel capacity"),
+        TerraneChannelOverflow::Block,
+    );
+    cleanup_pair_b = TerraneChannelPair::new(
+        terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(1_i128),
+            )
+            .expect("semantic channel capacity"),
+        TerraneChannelOverflow::Block,
+    );
+    primed = __terrane_await(
+            cleanup_pair_b.sender.send(terrane_int_support::Int::from(3_i128)),
+        )
+        .await;
+    println!("{}", terrane_scalar_support::scalar_text(&primed.accepted));
+    cleanup_pair_c = TerraneChannelPair::new(
+        terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
+            )
+            .expect("semantic channel capacity"),
+        TerraneChannelOverflow::Block,
+    );
+    {
+        let mut __terrane_select_guard_1368 = __terrane_finally_guard();
+        let __terrane_select_control_1368_0 = __terrane_select_control();
+        let mut __terrane_select_future_1368_0 = std::pin::pin!(
+            __terrane_select_operation(__terrane_select_control_1368_0.clone(),
+            blocked(String::from("cleanup-a"), cleanup_pair_a.receiver))
+        );
+        let mut __terrane_select_result_1368_0 = None;
+        let __terrane_select_control_1368_1 = __terrane_select_control();
+        let mut __terrane_select_future_1368_1 = std::pin::pin!(
+            __terrane_select_operation(__terrane_select_control_1368_1.clone(),
+            blocked(String::from("cleanup-b"), cleanup_pair_b.receiver))
+        );
+        let mut __terrane_select_result_1368_1 = None;
+        let __terrane_select_control_1368_2 = __terrane_select_control();
+        let mut __terrane_select_future_1368_2 = std::pin::pin!(
+            __terrane_select_operation(__terrane_select_control_1368_2.clone(),
+            blocked(String::from("cleanup-c"), cleanup_pair_c.receiver))
+        );
+        let mut __terrane_select_result_1368_2 = None;
+        let __terrane_select_winner_1368 = std::future::poll_fn(|
+                __terrane_select_context|
+            {
+                if __terrane_cancellation_is_requested() {
+                    return std::task::Poll::Ready(usize::MAX);
+                }
+                for __terrane_select_offset in 0..3usize {
+                    let __terrane_select_candidate = (__terrane_select_cursor_1368
+                        + __terrane_select_offset) % 3usize;
+                    match __terrane_select_candidate {
+                        0 => {
+                            match Future::poll(
+                                __terrane_select_future_1368_0.as_mut(),
+                                __terrane_select_context,
+                            ) {
+                                std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                    __terrane_select_result_1368_0 = Some(
+                                        __terrane_select_value,
+                                    );
+                                    return std::task::Poll::Ready(0usize);
+                                }
+                                std::task::Poll::Ready(None) => {
+                                    unreachable!(
+                                        "case cancellation starts only after winner selection"
+                                    )
+                                }
+                                std::task::Poll::Pending => {}
+                            }
+                        }
+                        1 => {
+                            match Future::poll(
+                                __terrane_select_future_1368_1.as_mut(),
+                                __terrane_select_context,
+                            ) {
+                                std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                    __terrane_select_result_1368_1 = Some(
+                                        __terrane_select_value,
+                                    );
+                                    return std::task::Poll::Ready(1usize);
+                                }
+                                std::task::Poll::Ready(None) => {
+                                    unreachable!(
+                                        "case cancellation starts only after winner selection"
+                                    )
+                                }
+                                std::task::Poll::Pending => {}
+                            }
+                        }
+                        2 => {
+                            match Future::poll(
+                                __terrane_select_future_1368_2.as_mut(),
+                                __terrane_select_context,
+                            ) {
+                                std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                    __terrane_select_result_1368_2 = Some(
+                                        __terrane_select_value,
+                                    );
+                                    return std::task::Poll::Ready(2usize);
+                                }
+                                std::task::Poll::Ready(None) => {
+                                    unreachable!(
+                                        "case cancellation starts only after winner selection"
+                                    )
+                                }
+                                std::task::Poll::Pending => {}
+                            }
+                        }
+                        _ => unreachable!("select candidate is within the case count"),
+                    }
+                }
+                std::task::Poll::Pending
+            })
+            .await;
+        if __terrane_select_winner_1368 == usize::MAX {
+            __terrane_select_control_1368_2.request_cancel();
+            __terrane_select_control_1368_1.request_cancel();
+            __terrane_select_control_1368_0.request_cancel();
+            let _ = __terrane_select_future_1368_2.as_mut().await;
+            let _ = __terrane_select_future_1368_1.as_mut().await;
+            let _ = __terrane_select_future_1368_0.as_mut().await;
+            __terrane_wait_projected_cleanups().await;
+            __terrane_select_guard_1368.finish();
+            __terrane_finish_cancelled_select(__terrane_select_guard_1368).await;
+        }
+        __terrane_select_cursor_1368 = (__terrane_select_winner_1368 + 1usize) % 3usize;
+        match __terrane_select_winner_1368 {
+            0 => {
+                __terrane_select_control_1368_2.request_cancel();
+                __terrane_select_control_1368_1.request_cancel();
+                let _ = __terrane_select_future_1368_2.as_mut().await;
+                let _ = __terrane_select_future_1368_1.as_mut().await;
+            }
+            1 => {
+                __terrane_select_control_1368_2.request_cancel();
+                __terrane_select_control_1368_0.request_cancel();
+                let _ = __terrane_select_future_1368_2.as_mut().await;
+                let _ = __terrane_select_future_1368_0.as_mut().await;
+            }
+            2 => {
+                __terrane_select_control_1368_1.request_cancel();
+                __terrane_select_control_1368_0.request_cancel();
+                let _ = __terrane_select_future_1368_1.as_mut().await;
+                let _ = __terrane_select_future_1368_0.as_mut().await;
+            }
+            _ => unreachable!("selected winner is within the case count"),
+        }
+        __terrane_wait_projected_cleanups().await;
+        __terrane_select_guard_1368.finish();
+        match __terrane_select_winner_1368 {
+            0 => {
+                let _ = value
+                    .insert(
+                        __terrane_select_result_1368_0
+                            .take()
+                            .expect("selected case owns its ready result"),
+                    );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&value.as_ref()
+                    .expect("flow-proven available binding"))
+                );
+            }
+            1 => {
+                let _ = value
+                    .insert(
+                        __terrane_select_result_1368_1
+                            .take()
+                            .expect("selected case owns its ready result"),
+                    );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&value.as_ref()
+                    .expect("flow-proven available binding"))
+                );
+            }
+            2 => {
+                winner = TerraneUnionF0S1564::Arm0(
+                    __terrane_select_result_1368_2
+                        .take()
+                        .expect("selected case owns its ready result"),
+                );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&* match &winner {
+                    TerraneUnionF0S1564::Arm0(value) => value, _ =>
+                    unreachable!("flow-proven storage refinement") })
+                );
+            }
+            _ => unreachable!("selected winner is within the case count"),
+        }
+    }
+    waiter_pair = TerraneChannelPair::new(
+        terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(1_i128),
+            )
+            .expect("semantic channel capacity"),
+        TerraneChannelOverflow::Block,
+    );
+    waiter_tx = waiter_pair.sender;
+    waiter_rx = waiter_pair.receiver;
+    {
+        let mut __terrane_select_guard_1765 = __terrane_finally_guard();
+        let __terrane_select_control_1765_0 = __terrane_select_control();
+        let mut __terrane_select_future_1765_0 = std::pin::pin!(
+            __terrane_select_operation(__terrane_select_control_1765_0.clone(),
+            Box::pin(waiter_rx.receive()))
+        );
+        let mut __terrane_select_result_1765_0 = None;
+        let __terrane_select_control_1765_1 = __terrane_select_control();
+        let mut __terrane_select_future_1765_1 = std::pin::pin!(
+            __terrane_select_operation(__terrane_select_control_1765_1.clone(), ready())
+        );
+        let mut __terrane_select_result_1765_1 = None;
+        let __terrane_select_winner_1765 = std::future::poll_fn(|
+                __terrane_select_context|
+            {
+                if __terrane_cancellation_is_requested() {
+                    return std::task::Poll::Ready(usize::MAX);
+                }
+                for __terrane_select_offset in 0..2usize {
+                    let __terrane_select_candidate = (__terrane_select_cursor_1765
+                        + __terrane_select_offset) % 2usize;
+                    match __terrane_select_candidate {
+                        0 => {
+                            match Future::poll(
+                                __terrane_select_future_1765_0.as_mut(),
+                                __terrane_select_context,
+                            ) {
+                                std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                    __terrane_select_result_1765_0 = Some(
+                                        __terrane_select_value,
+                                    );
+                                    return std::task::Poll::Ready(0usize);
+                                }
+                                std::task::Poll::Ready(None) => {
+                                    unreachable!(
+                                        "case cancellation starts only after winner selection"
+                                    )
+                                }
+                                std::task::Poll::Pending => {}
+                            }
+                        }
+                        1 => {
+                            match Future::poll(
+                                __terrane_select_future_1765_1.as_mut(),
+                                __terrane_select_context,
+                            ) {
+                                std::task::Poll::Ready(Some(__terrane_select_value)) => {
+                                    __terrane_select_result_1765_1 = Some(
+                                        __terrane_select_value,
+                                    );
+                                    return std::task::Poll::Ready(1usize);
+                                }
+                                std::task::Poll::Ready(None) => {
+                                    unreachable!(
+                                        "case cancellation starts only after winner selection"
+                                    )
+                                }
+                                std::task::Poll::Pending => {}
+                            }
+                        }
+                        _ => unreachable!("select candidate is within the case count"),
+                    }
+                }
+                std::task::Poll::Pending
+            })
+            .await;
+        if __terrane_select_winner_1765 == usize::MAX {
+            __terrane_select_control_1765_1.request_cancel();
+            __terrane_select_control_1765_0.request_cancel();
+            let _ = __terrane_select_future_1765_1.as_mut().await;
+            let _ = __terrane_select_future_1765_0.as_mut().await;
+            __terrane_wait_projected_cleanups().await;
+            __terrane_select_guard_1765.finish();
+            __terrane_finish_cancelled_select(__terrane_select_guard_1765).await;
+        }
+        __terrane_select_cursor_1765 = (__terrane_select_winner_1765 + 1usize) % 2usize;
+        match __terrane_select_winner_1765 {
+            0 => {
+                __terrane_select_control_1765_1.request_cancel();
+                let _ = __terrane_select_future_1765_1.as_mut().await;
+            }
+            1 => {
+                __terrane_select_control_1765_0.request_cancel();
+                let _ = __terrane_select_future_1765_0.as_mut().await;
+            }
+            _ => unreachable!("selected winner is within the case count"),
+        }
+        __terrane_wait_projected_cleanups().await;
+        __terrane_select_guard_1765.finish();
+        match __terrane_select_winner_1765 {
+            0 => {
+                received = __terrane_select_result_1765_0
+                    .take()
+                    .expect("selected case owns its ready result");
+                println!("{}", terrane_scalar_support::scalar_text(&received.available));
+            }
+            1 => {
+                winner = TerraneUnionF0S1564::Arm1(
+                    __terrane_select_result_1765_1
+                        .take()
+                        .expect("selected case owns its ready result"),
+                );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&match &winner {
+                    TerraneUnionF0S1564::Arm1(value) => value, _ =>
+                    unreachable!("flow-proven storage refinement") })
+                );
+            }
+            _ => unreachable!("selected winner is within the case count"),
+        }
+    }
+    sent = __terrane_await(
+            Box::pin(waiter_tx.send(terrane_int_support::Int::from(9_i128))),
+        )
+        .await;
+    received = __terrane_await(Box::pin(waiter_rx.receive())).await;
+    value_2 = received.value;
+    if (&value_2).is_some() {
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&sent.accepted),
+            terrane_scalar_support::scalar_text(&match &value_2 { Some(value) => value, _
+            => unreachable!("flow-proven storage refinement") })
+        );
+    }
 }
