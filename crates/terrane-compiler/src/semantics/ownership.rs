@@ -486,10 +486,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
     }
 
-    #[expect(
-        clippy::too_many_lines,
-        reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
-    )]
+    // Branch/call bookkeeping belongs only to those nodes, not every operand
+    // frame of a left-associated expression on a default-stack editor worker.
     fn visit(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -498,6 +496,55 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         write_place: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
         loop_exits: &mut LoopMoveExits,
+    ) -> Result<(), SemanticFailure> {
+        validate_node_reads(package, unit, node, write_place)?;
+        if matches!(
+            node.kind,
+            SyntaxKind::RustBlock
+                | SyntaxKind::UnsafeRustBlock
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::AnonymousFunction
+                | SyntaxKind::UnaryExpression
+                | SyntaxKind::CallExpression
+                | SyntaxKind::Name
+                | SyntaxKind::Binding
+                | SyntaxKind::Assignment
+                | SyntaxKind::TryStatement
+                | SyntaxKind::MatchStatement
+                | SyntaxKind::SwitchStatement
+                | SyntaxKind::SelectStatement
+                | SyntaxKind::IfStatement
+                | SyntaxKind::WhileStatement
+                | SyntaxKind::ForStatement
+        ) {
+            visit_operation(
+                package,
+                unit,
+                node,
+                moved,
+                write_place,
+                resource_objects,
+                loop_exits,
+            )
+        } else {
+            visit_children(
+                package,
+                unit,
+                node,
+                moved,
+                write_place,
+                resource_objects,
+                loop_exits,
+            )
+        }
+    }
+
+    #[inline(never)]
+    fn validate_node_reads(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        write_place: bool,
     ) -> Result<(), SemanticFailure> {
         if !write_place {
             validate_static_callable_field_read(package, unit, node)?;
@@ -565,6 +612,73 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         {
             validate_field_snapshot(package, unit, operand)?;
         }
+        Ok(())
+    }
+
+    fn visit_children(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        write_place: bool,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<(), SemanticFailure> {
+        for (index, child) in node.children.iter().enumerate() {
+            if !super::scope_flow::is_flow_value_child(node, index, child) {
+                continue;
+            }
+            visit(
+                package,
+                unit,
+                child,
+                moved,
+                write_place && node.kind == SyntaxKind::GroupExpression,
+                resource_objects,
+                loop_exits,
+            )?;
+            if matches!(node.kind, SyntaxKind::Block | SyntaxKind::ElseClause)
+                && !super::scope_validation::statement_may_fall_through(child)
+            {
+                break;
+            }
+        }
+        match node.kind {
+            SyntaxKind::BreakStatement => loop_exits
+                .breaks
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ContinueStatement => loop_exits
+                .continues
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ReturnStatement => loop_exits
+                .returns
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            SyntaxKind::ThrowStatement => loop_exits
+                .throws
+                .get_or_insert_with(BTreeSet::new)
+                .extend(moved.iter().copied()),
+            _ => {}
+        }
+        Ok(())
+    }
+
+    #[inline(never)]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
+    )]
+    fn visit_operation(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        write_place: bool,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+        loop_exits: &mut LoopMoveExits,
+    ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
         {
@@ -1850,44 +1964,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             *moved = entry;
             return Ok(());
         }
-        for (index, child) in node.children.iter().enumerate() {
-            if !super::scope_flow::is_flow_value_child(node, index, child) {
-                continue;
-            }
-            visit(
-                package,
-                unit,
-                child,
-                moved,
-                write_place && node.kind == SyntaxKind::GroupExpression,
-                resource_objects,
-                loop_exits,
-            )?;
-            if matches!(node.kind, SyntaxKind::Block | SyntaxKind::ElseClause)
-                && !super::scope_validation::statement_may_fall_through(child)
-            {
-                break;
-            }
-        }
-        match node.kind {
-            SyntaxKind::BreakStatement => loop_exits
-                .breaks
-                .get_or_insert_with(BTreeSet::new)
-                .extend(moved.iter().copied()),
-            SyntaxKind::ContinueStatement => loop_exits
-                .continues
-                .get_or_insert_with(BTreeSet::new)
-                .extend(moved.iter().copied()),
-            SyntaxKind::ReturnStatement => loop_exits
-                .returns
-                .get_or_insert_with(BTreeSet::new)
-                .extend(moved.iter().copied()),
-            SyntaxKind::ThrowStatement => loop_exits
-                .throws
-                .get_or_insert_with(BTreeSet::new)
-                .extend(moved.iter().copied()),
-            _ => {}
-        }
+        visit_children(
+            package,
+            unit,
+            node,
+            moved,
+            write_place,
+            resource_objects,
+            loop_exits,
+        )?;
         Ok(())
     }
 

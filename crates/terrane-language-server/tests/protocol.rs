@@ -891,3 +891,73 @@ function main;
     drop(stdin);
     assert!(child.wait().unwrap().success());
 }
+
+#[test]
+fn nested_expression_analysis_uses_default_worker_stack() {
+    // A left-associated expression has a deeper syntax tree than its layout
+    // suggests. Native specialization must not add a large frame at every node.
+    let expression = std::iter::repeat_n("value", 64)
+        .collect::<Vec<_>>()
+        .join(" and ");
+    let text = format!(
+        "namespace nested-analysis\nfunction probe bool; value bool\n    return {expression}\n"
+    );
+    let uri = "file:///tmp/nested-destination-analysis.trn";
+    let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
+        .env_remove("RUST_MIN_STACK")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}),
+    );
+    let _ = receive_response(&mut stdout, 1);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
+    );
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","method":"textDocument/didOpen",
+            "params":{"textDocument":{"uri":uri,"languageId":"terrane","version":1,"text":text}}
+        }),
+    );
+    let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
+    assert_eq!(
+        diagnostics["params"]["diagnostics"],
+        json!([]),
+        "{diagnostics}"
+    );
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":2,"method":"textDocument/documentSymbol",
+            "params":{"textDocument":{"uri":uri}}
+        }),
+    );
+    let symbols = receive_response(&mut stdout, 2);
+    assert!(
+        symbols["result"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|symbol| symbol["name"] == "probe"),
+        "{symbols}"
+    );
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":3,"method":"shutdown","params":null}),
+    );
+    let _ = receive_response(&mut stdout, 3);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"exit","params":null}),
+    );
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
