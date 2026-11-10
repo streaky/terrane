@@ -19,11 +19,30 @@ fn rust_type_contains_infer(rust_type: &str) -> bool {
         return false;
     }
     let Ok(ty) = syn::parse_str::<syn::Type>(rust_type) else {
-        return false;
+        return true;
     };
     let mut infer = Infer(false);
     syn::visit::Visit::visit_type(&mut infer, &ty);
     infer.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rust_type_contains_infer;
+
+    #[test]
+    fn import_inference_guard_fails_closed_without_rejecting_lifetimes_or_names() {
+        for (path, expected) in [
+            ("native::Owner<_>", true),
+            ("native::Owner<Option<_>>", true),
+            ("native::Owner<_,", true),
+            ("native::Owner<'_>", false),
+            ("native::Owner<has_underscore>", false),
+            ("native::Owner<u8>", false),
+        ] {
+            assert_eq!(rust_type_contains_infer(path), expected, "{path}");
+        }
+    }
 }
 
 fn native_import_target(
