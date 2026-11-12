@@ -120,7 +120,6 @@ impl TestPackage {
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Vec<PackageLoadError>> {
         let package = Package::load(path)?;
         let root = package.root.clone();
-        let manifest_path = root.join(crate::MANIFEST_FILE_NAME);
         let configuration = package.testing.clone();
 
         let mut paths = BTreeMap::<PathBuf, TestTier>::new();
@@ -142,12 +141,7 @@ impl TestPackage {
                 ));
             }
         }
-        let first_test_id = u32::try_from(package.units.len()).map_err(|_| {
-            vec![test_load_error(
-                manifest_path.clone(),
-                "package has too many source units".to_owned(),
-            )]
-        })?;
+        let first_test_id = package.next_source_id();
         let mut tier_units = BTreeMap::<TestTier, Vec<SourceUnit>>::new();
         for (offset, (relative_path, tier)) in paths.into_iter().enumerate() {
             let source_path = root.join(&relative_path);

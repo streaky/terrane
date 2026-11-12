@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -780,6 +781,52 @@ fn discovered_test_tiers_lower_without_rediscovery_warnings() {
             .rust
             .contains("match selected.as_str()")
     );
+}
+
+#[test]
+fn discovered_tests_keep_production_index_expression_source_provenance() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace acme/lib\nfrom /core/collections import list\npublic function digit int; values list of int\n    return values[0]\n",
+    );
+    workspace.write(
+        "app/package.toml",
+        "package = \"indexed-discovery\"\nprelude = false\n[namespaces]\napp = \"src\"\n[rust-modules]\nadapter = \"rust/adapter.rs\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfrom /acme/lib import digit\n",
+    );
+    workspace.write("app/rust/adapter.rs", "pub fn adapter() {}\n");
+    workspace.write(
+        "app/tests/unit/case.trn",
+        "namespace app\nfrom /acme/lib import digit\nfrom /core/collections import list\nfunction test-digit;\n    digit; (list; 7)\n",
+    );
+
+    let test_package = TestPackage::load(workspace.0.join("app")).unwrap();
+    let tier = &test_package.tier_packages[&TestTier::Unit];
+    let mut source_ids = BTreeSet::new();
+    for unit in &tier.units {
+        assert!(source_ids.insert(unit.source.id()), "duplicate source ID");
+    }
+    for module in &tier.authored_rust_modules {
+        assert!(source_ids.insert(module.source.id()), "duplicate source ID");
+    }
+
+    let mut discovered = discover_test_package(&test_package, CompilerOptions::default()).unwrap();
+    assert_eq!(discovered.len(), 1);
+    assert_eq!(discovered[0].cases.len(), 1);
+    assert_eq!(discovered[0].cases[0].identity, "/app::test-digit");
+    let compiled =
+        compile_discovered_test_tier(discovered.pop().unwrap(), CompilerOptions::default())
+            .unwrap();
+    assert_eq!(compiled.cases.len(), 1);
+    assert_eq!(compiled.cases[0].identity, "/app::test-digit");
 }
 
 #[test]
