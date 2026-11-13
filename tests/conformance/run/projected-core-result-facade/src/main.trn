@@ -3,6 +3,7 @@ namespace app
 from /deps/facade import parse, maybe, pick, describe, character, text, Either as AliasResult
 from /deps/facade import external, renamed, external_maybe, nested, Reader, reader, Failure, opaque
 from /deps/facade import Duration, duration
+from /deps/facade import Response, response
 from /core/errors import throwable, dependency-error
 from /core/collections import list
 
@@ -62,3 +63,5 @@ async function main;
     print; (elapsed.as_secs;)
     constructed = Duration::from_secs; 5
     print; (constructed.as_secs;)
+    packet Response = response;
+    print; packet.value

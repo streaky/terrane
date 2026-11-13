@@ -154,7 +154,7 @@ pub(super) fn hydrate(
         .collect::<Vec<_>>();
     let patches = documents
         .iter()
-        .map(|document| plan(document, &documents, &wanted))
+        .map(|document| plan(document, &documents, &wanted, metadata))
         .collect::<Vec<_>>();
     let changed = patches.iter().any(|patch| !patch.items.is_empty());
     for (document, patch) in rustdocs
@@ -189,6 +189,7 @@ fn plan(
     target: &RustdocCrate,
     documents: &[&RustdocCrate],
     wanted: &BTreeSet<Vec<String>>,
+    metadata: &serde_json::Value,
 ) -> Patch {
     let mut import = Import {
         target,
@@ -218,7 +219,19 @@ fn plan(
         else {
             continue;
         };
-        let mut definitions = documents.iter().filter_map(|document| {
+        if summary.kind != ItemKind::TypeAlias {
+            continue;
+        }
+        if let Some(owner) = summary.path.first()
+            && !matches!(owner.as_str(), "std" | "core" | "alloc")
+            && super::reexports::resolved_library_package(metadata, owner).is_err()
+        {
+            continue;
+        }
+        // Prefer the declared defining document. Supplemental copies of the
+        // same locked crate can use different Rustdoc IDs; raw AST equality
+        // across those documents is not an ambiguity test.
+        let Some((source, definition)) = documents.iter().find_map(|document| {
             document
                 .paths
                 .iter()
@@ -230,15 +243,9 @@ fn plan(
                         .filter(|item| matches!(item.inner, ItemEnum::TypeAlias(_)))
                         .map(|item| (*document, item))
                 })
-        });
-        let Some((source, definition)) = definitions.next() else {
+        }) else {
             continue;
         };
-        // Different documents can contain the same definition after reexports;
-        // reject genuinely conflicting definitions rather than choosing by order.
-        if definitions.any(|(_, item)| item.inner != definition.inner) {
-            continue;
-        }
         let mut item = definition.clone();
         item.id = id;
         item.crate_id = summary.crate_id;
@@ -575,3 +582,6 @@ fn map_generics(generics: &mut Generics, visit: &mut impl FnMut(&mut RustdocPath
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

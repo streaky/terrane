@@ -29,3 +29,9 @@ impl std::error::Error for OpaqueFailure {}
 pub trait Index<Row> {
     fn index(&self, row: &Row) -> Result<i64>;
 }
+
+pub struct Packet<T> {
+    pub value: T,
+}
+
+pub type Response<T = i64> = Packet<T>;

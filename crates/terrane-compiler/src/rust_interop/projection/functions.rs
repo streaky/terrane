@@ -790,6 +790,10 @@ pub(super) fn project_function_inner(
             }
             None => (None, false, false, generic_types.clone()),
         };
+    let imported_alias_output = effective_output.as_ref().filter(|output| {
+        matches!(output, Type::ResolvedPath(path)
+            if index.get(&path.id).is_some_and(|item| item.crate_id != 0 && matches!(item.inner, ItemEnum::TypeAlias(_))))
+    }).map(|output| (output.clone(), output_generic_types.clone()));
     let (effective_output, output_generic_types) = match effective_output {
         Some(output) => {
             let (output, generics) =
@@ -822,6 +826,22 @@ pub(super) fn project_function_inner(
     let mut error = None;
     let mut error_optional_depth = 0;
     let project_output = |ty: &Type, generics: &BTreeMap<String, ProjectedType>| {
+        let original = (ty, generics);
+        let expanded = if matches!(ty, Type::ResolvedPath(path)
+            if index.get(&path.id).is_some_and(|item| matches!(item.inner, ItemEnum::TypeAlias(_))))
+        {
+            Some(expand_output_alias(
+                ty.clone(),
+                index,
+                paths,
+                generics.clone(),
+            )?)
+        } else {
+            None
+        };
+        let (ty, generics) = expanded
+            .as_ref()
+            .map_or(original, |(ty, generics)| (ty, generics));
         if type_contains_borrowed_ref(ty) {
             return project_borrowed_graph_type(ty, index, paths, generics);
         }
@@ -835,7 +855,9 @@ pub(super) fn project_function_inner(
                         .to_owned(),
                 );
             }
-            Ok(projected)
+            super::types::retain_imported_nominal_identity(
+                original.0, projected, index, paths, original.1,
+            )
         }
     };
     let result = if let Some(output) = effective_output.as_ref() {
@@ -917,7 +939,12 @@ pub(super) fn project_function_inner(
                 ))
             }
         } else {
-            project_output(output, &output_generic_types).or_else(|reason| {
+            let (source_output, source_generics) = imported_alias_output
+                .as_ref()
+                .map_or((output, &output_generic_types), |(output, generics)| {
+                    (output, generics)
+                });
+            project_output(source_output, source_generics).or_else(|reason| {
                 // An open nominal fallback must not erase a lifetime contract
                 // rejected by the scoped-output classifier above.
                 if type_contains_lifetime_argument(output) {

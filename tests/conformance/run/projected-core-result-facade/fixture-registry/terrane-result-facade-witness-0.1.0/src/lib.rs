@@ -3,6 +3,7 @@ pub use std::result::Result as Outcome;
 pub use std::char::from_u32 as character;
 pub use std::str::from_utf8 as text;
 pub use terrane_outcome_alias_witness::Failure;
+pub use terrane_outcome_alias_witness::Response;
 
 pub enum Either<L, R> {
     Left(L),
@@ -80,5 +81,9 @@ impl terrane_outcome_alias_witness::Index<Reader> for &str {
     fn index(&self, _row: &Reader) -> terrane_outcome_alias_witness::Result<i64> {
         Ok(self.len() as i64)
     }
+}
+
+pub fn response() -> terrane_outcome_alias_witness::Response {
+    terrane_outcome_alias_witness::Packet { value: 6 }
 }
 
