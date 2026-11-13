@@ -25,3 +25,7 @@ impl std::fmt::Display for OpaqueFailure {
 }
 
 impl std::error::Error for OpaqueFailure {}
+
+pub trait Index<Row> {
+    fn index(&self, row: &Row) -> Result<i64>;
+}

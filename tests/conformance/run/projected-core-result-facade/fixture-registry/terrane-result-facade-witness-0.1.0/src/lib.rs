@@ -76,3 +76,9 @@ pub fn duration() -> std::time::Duration {
     std::time::Duration::from_secs(4)
 }
 
+impl terrane_outcome_alias_witness::Index<Reader> for &str {
+    fn index(&self, _row: &Reader) -> terrane_outcome_alias_witness::Result<i64> {
+        Ok(self.len() as i64)
+    }
+}
+
