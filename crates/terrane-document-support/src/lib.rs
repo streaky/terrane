@@ -72,8 +72,13 @@ impl DataResult {
             document: None,
         }
     }
-    /// Borrow the parsed tree for a concrete native Serde adapter without
-    /// reparsing encoded JSON or copying the snapshot.
+    /// Borrow this result's parsed document tree without reparsing the compatibility
+    /// `encoded` snapshot or cloning the tree. Returns `None` when parsing failed.
+    ///
+    /// The returned reference is read-only and is valid only while this result is
+    /// borrowed. It is intended for concrete native adapters that can deserialize
+    /// directly from the tree.
+    #[must_use]
     pub fn value(&self) -> Option<&Document> {
         self.document.as_deref()
     }
