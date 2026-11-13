@@ -289,8 +289,10 @@ fn main() {
         )
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(pair_payload.item_n0.clone() +
-        pair_payload.item_n1.clone()))
+        "{}",
+        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(i128::from(*
+        &pair_payload.item_n0)) + terrane_int_support::Int::from(i128::from(*
+        &pair_payload.item_n1))))
     );
     pair = {
         let __terrane_conversion_input_0 = pair_payload;

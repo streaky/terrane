@@ -213,7 +213,7 @@ fn main() {
     {
         let __terrane_value = __terrane_raised(
             || -> Result<_, crate::TerraneForeignError> {
-                let __terrane_field_value = terrane_int_support::Int::from(
+                let __terrane_field_value: terrane_int_support::Int = terrane_int_support::Int::from(
                     i128::from(*&numeric.payload),
                 ) + terrane_int_support::Int::from(2_i128);
                 Ok(
@@ -249,7 +249,7 @@ fn main() {
             {
                 let __terrane_value = __terrane_raised_completion!(
                     | | -> Result < _, crate ::TerraneForeignError > { let
-                    __terrane_field_value =
+                    __terrane_field_value : terrane_int_support::Int =
                     terrane_int_support::Int::from(9223372036854775808_i128);
                     Ok(terrane_int_support::coerce:: < i64 > (&__terrane_field_value)
                     .map_err(| error | crate ::TerraneForeignError(crate

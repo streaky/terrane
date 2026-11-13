@@ -592,7 +592,7 @@ pub struct EventOptional {
 }
 impl EventOptional {
     pub fn terrane_construct(
-        value: impl Into<Option<u32>>,
+        value: impl Into<Option<terrane_int_support::Int>>,
         label_value: impl Into<Option<String>>,
     ) -> Self {
         Self {
