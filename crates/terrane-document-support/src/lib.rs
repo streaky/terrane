@@ -72,7 +72,9 @@ impl DataResult {
             document: None,
         }
     }
-    fn value(&self) -> Option<&Document> {
+    /// Borrow the parsed tree for a concrete native Serde adapter without
+    /// reparsing encoded JSON or copying the snapshot.
+    pub fn value(&self) -> Option<&Document> {
         self.document.as_deref()
     }
 }

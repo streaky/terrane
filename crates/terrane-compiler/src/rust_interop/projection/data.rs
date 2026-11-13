@@ -52,6 +52,11 @@ pub(super) fn normalize_projected_items(
 
 fn exact_projected_field_type(ty: ProjectedType) -> ProjectedType {
     match ty {
+        // Pointer-sized integers have no fixed-width source descriptor. Retain
+        // their checked adaptive facade and their exact native ABI spelling.
+        ProjectedType::RustInt(name) if matches!(name.as_str(), "usize" | "isize") => {
+            ProjectedType::RustInt(name)
+        }
         ProjectedType::RustInt(name) => ProjectedType::FixedInt(name),
         ProjectedType::Sequence { rust_path, item } => ProjectedType::Sequence {
             rust_path,

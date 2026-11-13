@@ -823,9 +823,7 @@ pub(super) fn project_function_inner(
         }
     };
     let result = if let Some(output) = effective_output.as_ref() {
-        if resolved_name(output, paths)
-            .is_some_and(|name| name.ends_with("::Result") || name == "Result")
-        {
+        if output_is_named(output, paths, "Result") {
             let arguments = type_arguments(output);
             let value = arguments
                 .first()
@@ -852,16 +850,12 @@ pub(super) fn project_function_inner(
             projected
         } else if type_contains_borrowed_ref(output) {
             project_output(output)?
-        } else if resolved_name(output, paths)
-            .is_some_and(|name| name.ends_with("::Option") || name == "Option")
-        {
+        } else if output_is_named(output, paths, "Option") {
             let arguments = type_arguments(output);
             let value = arguments
                 .first()
                 .ok_or_else(|| "Option has no value type".to_owned())?;
-            if resolved_name(value, paths)
-                .is_some_and(|name| name.ends_with("::Result") || name == "Result")
-            {
+            if output_is_named(value, paths, "Result") {
                 let arguments = type_arguments(value);
                 let success = arguments
                     .first()
@@ -1157,9 +1151,144 @@ fn safe_parameter_name(name: &str) -> String {
     }
 }
 
+fn output_is_named(ty: &Type, paths: &HashMap<Id, ItemSummary>, name: &str) -> bool {
+    let Type::ResolvedPath(path) = ty else {
+        return false;
+    };
+    // Public facade paths can rename a declaration. The Rustdoc reference still
+    // spells its native constructor, so boundary recognition must retain it.
+    path.path.rsplit("::").next() == Some(name)
+        || paths
+            .get(&path.id)
+            .and_then(|summary| summary.path.last())
+            .is_some_and(|segment| segment == name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rustdoc_types::GenericArg;
+
+    fn output_function(output: Type) -> Function {
+        Function {
+            sig: rustdoc_types::FunctionSignature {
+                inputs: Vec::new(),
+                output: Some(output),
+                is_c_variadic: false,
+            },
+            generics: rustdoc_types::Generics {
+                params: Vec::new(),
+                where_predicates: Vec::new(),
+            },
+            header: rustdoc_types::FunctionHeader {
+                is_const: false,
+                is_unsafe: false,
+                is_async: false,
+                abi: rustdoc_types::Abi::Rust,
+            },
+            has_body: true,
+            default_unstable: None,
+        }
+    }
+
+    #[test]
+    fn renamed_outputs_keep_boundaries() {
+        let container = |name: &str, id, arguments: Vec<Type>| {
+            Type::ResolvedPath(rustdoc_types::Path {
+                path: name.to_owned(),
+                id: Id(id),
+                args: Some(Box::new(GenericArgs::AngleBracketed {
+                    args: arguments.into_iter().map(GenericArg::Type).collect(),
+                    constraints: Vec::new(),
+                })),
+            })
+        };
+        let value = Type::Primitive("i64".to_owned());
+        let error = Type::ResolvedPath(rustdoc_types::Path {
+            path: "std::io::Error".to_owned(),
+            id: Id(2),
+            args: None,
+        });
+        for renamed in [false, true] {
+            let paths = HashMap::from([
+                (
+                    Id(1),
+                    ItemSummary {
+                        crate_id: 1,
+                        path: if renamed {
+                            vec!["facade".to_owned(), "Outcome".to_owned()]
+                        } else {
+                            vec!["core".to_owned(), "result".to_owned(), "Result".to_owned()]
+                        },
+                        kind: rustdoc_types::ItemKind::Enum,
+                    },
+                ),
+                (
+                    Id(2),
+                    ItemSummary {
+                        crate_id: 1,
+                        path: vec!["std".to_owned(), "io".to_owned(), "Error".to_owned()],
+                        kind: rustdoc_types::ItemKind::Struct,
+                    },
+                ),
+                (
+                    Id(3),
+                    ItemSummary {
+                        crate_id: 1,
+                        path: if renamed {
+                            vec!["facade".to_owned(), "Maybe".to_owned()]
+                        } else {
+                            vec!["core".to_owned(), "option".to_owned(), "Option".to_owned()]
+                        },
+                        kind: rustdoc_types::ItemKind::Enum,
+                    },
+                ),
+            ]);
+            let fallible = container("Result", 1, vec![value.clone(), error.clone()]);
+            for (case, output, result, error) in [
+                (
+                    "result",
+                    fallible.clone(),
+                    ProjectedType::Int,
+                    Some("std::io::Error"),
+                ),
+                (
+                    "option",
+                    container("Option", 3, vec![value.clone()]),
+                    ProjectedType::Optional(Box::new(ProjectedType::Int)),
+                    None,
+                ),
+                (
+                    "optional-result",
+                    container("Option", 3, vec![fallible]),
+                    ProjectedType::Optional(Box::new(ProjectedType::Int)),
+                    Some("std::io::Error"),
+                ),
+            ] {
+                let function = output_function(output);
+                let projected = project_function(
+                    &function,
+                    &HashMap::new(),
+                    &paths,
+                    &BTreeMap::new(),
+                    Some("read"),
+                    false,
+                )
+                .unwrap();
+                assert_eq!(projected.result, result, "{case}, renamed={renamed}");
+                assert_eq!(
+                    projected.error.as_deref(),
+                    error,
+                    "{case}, renamed={renamed}"
+                );
+                assert_eq!(
+                    projected.error_optional_depth,
+                    usize::from(case == "optional-result"),
+                    "{case}, renamed={renamed}",
+                );
+            }
+        }
+    }
 
     #[test]
     fn c_variadic_tail_is_not_fixed_arity() {

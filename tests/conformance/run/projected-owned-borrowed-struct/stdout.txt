@@ -3,3 +3,8 @@ defaults:none:2
 indexed:8:none:42
 noted:9:retained:none
 zero:10:both:0
+7:-2:Some(3):[-5, 6]
+9:-2:9:-2:None:[-5, 6]
+10
+view:4:Some(-3)
+view:11:None

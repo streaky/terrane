@@ -509,7 +509,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 13] = [
+    pub static SITES: [Site; 23] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:7:29-7:152) */
         { Site { function: 0, file: 0, line: 7, column: 29, end_line: 7, end_column: 152 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:8:19-8:68) */
@@ -536,6 +536,26 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 18, column: 18, end_line: 18, end_column: 93 } },
         /* terrane-site-row: site 12: /app::main (src/main.trn:19:13-19:34) */
         { Site { function: 0, file: 0, line: 19, column: 13, end_line: 19, end_column: 34 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:20:13-20:95) */
+        { Site { function: 0, file: 0, line: 20, column: 13, end_line: 20, end_column: 95 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:21:13-21:35) */
+        { Site { function: 0, file: 0, line: 21, column: 13, end_line: 21, end_column: 35 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:22:5-22:20) */
+        { Site { function: 0, file: 0, line: 22, column: 5, end_line: 22, end_column: 20 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:23:5-23:26) */
+        { Site { function: 0, file: 0, line: 23, column: 5, end_line: 23, end_column: 26 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:24:49-24:71) */
+        { Site { function: 0, file: 0, line: 24, column: 49, end_line: 24, end_column: 71 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:27:22-27:90) */
+        { Site { function: 0, file: 0, line: 27, column: 22, end_line: 27, end_column: 90 } },
+        /* terrane-site-row: site 19: /app::main (src/main.trn:28:13-28:53) */
+        { Site { function: 0, file: 0, line: 28, column: 13, end_line: 28, end_column: 53 } },
+        /* terrane-site-row: site 20: /app::main (src/main.trn:29:5-29:30) */
+        { Site { function: 0, file: 0, line: 29, column: 5, end_line: 29, end_column: 30 } },
+        /* terrane-site-row: site 21: /app::main (src/main.trn:30:5-30:32) */
+        { Site { function: 0, file: 0, line: 30, column: 5, end_line: 30, end_column: 32 } },
+        /* terrane-site-row: site 22: /app::main (src/main.trn:31:13-31:53) */
+        { Site { function: 0, file: 0, line: 31, column: 13, end_line: 31, end_column: 53 } },
     ];
     #[cold]
     #[inline(never)]
@@ -551,6 +571,37 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/terrane-borrowed-struct-witness.trn
 // Namespace: deps/terrane-borrowed-struct-witness
+pub struct BorrowedSizes {
+    native_label: String,
+    count: usize,
+    delta: Option<isize>,
+}
+impl BorrowedSizes {
+    pub fn terrane_construct(
+        native_label: String,
+        count: terrane_int_support::Int,
+        delta: impl Into<Option<terrane_int_support::Int>>,
+    ) -> Result<Self, crate::TerraneForeignError> {
+        Ok(Self {
+            native_label: native_label,
+            count: terrane_int_support::coerce::<usize>(&count)
+                .map_err(|error| crate::TerraneForeignError(
+                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                ))?,
+            delta: delta
+                .into()
+                .map(|value| -> Result<isize, crate::TerraneForeignError> {
+                    Ok(
+                        terrane_int_support::coerce::<isize>(&value)
+                            .map_err(|error| crate::TerraneForeignError(
+                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                            ))?,
+                    )
+                })
+                .transpose()?,
+        })
+    }
+}
 pub struct Descriptor {
     native_label: String,
     values: Vec<String>,
@@ -590,6 +641,7 @@ impl Descriptor {
         })
     }
 }
+pub use terrane_borrowed_struct_witness::NativeSizes;
 pub use terrane_borrowed_struct_witness::Owned;
 pub fn consume(descriptor: Descriptor) -> Result<String, crate::TerraneForeignError> {
     let __terrane_view_descriptor = terrane_borrowed_struct_witness::Descriptor {
@@ -641,6 +693,31 @@ pub fn summarize(descriptor: &Descriptor) -> Result<String, crate::TerraneForeig
         }
     }
 }
+pub fn summarize_borrowed_sizes(
+    value: &BorrowedSizes,
+) -> Result<String, crate::TerraneForeignError> {
+    let __terrane_view_value = terrane_borrowed_struct_witness::BorrowedSizes {
+        label: value.native_label.as_str(),
+        count: value.count,
+        delta: value.delta,
+    };
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_borrowed_struct_witness::summarize_borrowed_sizes(
+            &__terrane_view_value,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-borrowed-struct-witness",
+                    "terrane_borrowed_struct_witness::summarize_borrowed_sizes",
+                ),
+            )
+        }
+    }
+}
 pub fn summarize_owned(value: &Owned) -> Result<String, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_borrowed_struct_witness::summarize_owned(
@@ -654,6 +731,26 @@ pub fn summarize_owned(value: &Owned) -> Result<String, crate::TerraneForeignErr
                     payload,
                     "terrane-borrowed-struct-witness",
                     "terrane_borrowed_struct_witness::summarize_owned",
+                ),
+            )
+        }
+    }
+}
+pub fn summarize_sizes(
+    value: &NativeSizes,
+) -> Result<String, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_borrowed_struct_witness::summarize_sizes(
+            value,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-borrowed-struct-witness",
+                    "terrane_borrowed_struct_witness::summarize_sizes",
                 ),
             )
         }

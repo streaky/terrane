@@ -14,11 +14,11 @@ fn has_owned_leaf(conversion: &Conversion) -> bool {
 }
 
 pub(super) fn required(conversion: &Conversion) -> bool {
-    super::borrows(conversion) && has_owned_leaf(conversion)
+    conversion.has_borrowed_leaves() && has_owned_leaf(conversion)
 }
 
 pub(super) fn owners(source: &str, conversion: &Conversion) -> String {
-    if !super::borrows(conversion) {
+    if !conversion.has_borrowed_leaves() {
         return format!("Some({source})");
     }
     match conversion {
@@ -51,7 +51,7 @@ pub(super) fn owners(source: &str, conversion: &Conversion) -> String {
 }
 
 pub(super) fn native_view(stage: &str, ty: &ProjectedType, conversion: &Conversion) -> String {
-    if !super::borrows(conversion) {
+    if !conversion.has_borrowed_leaves() {
         return format!("({stage}).take().expect(\"descriptor owned leaf is transferred once\")");
     }
     match conversion {

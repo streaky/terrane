@@ -45,6 +45,7 @@ pub(super) fn source_type(ty: &ProjectedType) -> String {
             source_type(value)
         ),
         ProjectedType::Char => "String".to_owned(),
+        ProjectedType::RustInt(_) => "terrane_int_support::Int".to_owned(),
         _ => ty.rust_type(),
     }
 }
@@ -64,16 +65,6 @@ fn copy_value(ty: &ProjectedType) -> bool {
     }
 }
 
-fn borrows(conversion: &Conversion) -> bool {
-    match conversion {
-        Conversion::Identity | Conversion::OptionalOwned | Conversion::OwnedNative { .. } => false,
-        Conversion::Optional(inner) | Conversion::Sequence(inner) => borrows(inner),
-        Conversion::Tuple(items) => items.iter().any(borrows),
-        Conversion::Mapping { key, value } => borrows(key) || borrows(value),
-        _ => true,
-    }
-}
-
 /// `source` names native owned backing storage, never a temporary source value.
 /// Moving only independent owned fields preserves lenders in other fields.
 pub(super) fn native_field(
@@ -89,7 +80,7 @@ pub(super) fn native_field(
             format!("({source}).clone()")
         };
     }
-    if !borrows(conversion) {
+    if !conversion.has_borrowed_leaves() {
         return if consuming || copy_value(ty) {
             source.to_owned()
         } else {

@@ -397,6 +397,11 @@ impl Emitter<'_> {
             }
             _ => None,
         };
+        let source_field_type = native_field_type
+            .as_ref()
+            .filter(|projected| !projected.has_identity_representation())
+            .and_then(|_| value_type.as_ref())
+            .map(|value_type| rust_value_type(self.package, value_type.clone()));
         let value = if let Some(binding) = union_binding {
             self.union_value(&binding, right)
         } else if let Some(value_type) = value_type {
@@ -417,8 +422,11 @@ impl Emitter<'_> {
         {
             let converted =
                 projected_argument_expression("__terrane_field_value", projected, self.package);
+            let annotation = source_field_type
+                .as_ref()
+                .map_or(String::new(), |ty| format!(": {ty}"));
             self.fallible(
-                format!("(|| -> Result<_, crate::TerraneForeignError> {{ let __terrane_field_value = {value}; Ok({converted}) }})()"),
+                format!("(|| -> Result<_, crate::TerraneForeignError> {{ let __terrane_field_value{annotation} = {value}; Ok({converted}) }})()"),
                 node,
             )
         } else {

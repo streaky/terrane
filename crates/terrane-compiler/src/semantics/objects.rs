@@ -8656,7 +8656,7 @@ pub(crate) fn destination_projected_type(
 }
 
 /// Apply the already-selected owner arguments to its native field contract.
-pub(crate) fn projected_owned_field_type(
+pub(crate) fn projected_stored_field_type(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
     name: &str,
@@ -8664,10 +8664,13 @@ pub(crate) fn projected_owned_field_type(
     let (_, fields, borrowed_view) = package
         .projection
         .projected_struct(&identity.namespace, &identity.name)?;
-    if borrowed_view {
+    let field = fields.iter().find(|field| field.name == name)?;
+    // Borrowed descriptors also keep owned slots in their native representation.
+    // Borrowed leaves instead use backing storage (String for &str, Vec for slices).
+    if borrowed_view && field.conversion.has_borrowed_leaves() {
         return None;
     }
-    let mut projected = fields.iter().find(|field| field.name == name)?.ty.clone();
+    let mut projected = field.ty.clone();
     for (parameter, value_type) in &identity.native_arguments {
         let selected = destination_projected_type(package, value_type).ok()?;
         projected = substitute_projected_generic(&projected, parameter, &selected);

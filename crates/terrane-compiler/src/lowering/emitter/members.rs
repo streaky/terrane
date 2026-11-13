@@ -1583,7 +1583,7 @@ impl Emitter<'_> {
         let ValueType::Object(identity) = self.receiver_value_type(receiver)? else {
             return None;
         };
-        crate::semantics::projected_owned_field_type(self.package, &identity, self.text(member))
+        crate::semantics::projected_stored_field_type(self.package, &identity, self.text(member))
     }
 
     fn native_field_result(

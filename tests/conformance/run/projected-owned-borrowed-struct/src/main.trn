@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-borrowed-struct-witness import Descriptor, Owned, consume, summarize, summarize_owned
+from /deps/terrane-borrowed-struct-witness import Descriptor, Owned, NativeSizes, BorrowedSizes, consume, summarize, summarize_owned, summarize_sizes, summarize_borrowed_sizes
 from /core/collections import list
 
 function main;
@@ -17,3 +17,15 @@ function main;
     print; (summarize_owned; noted)
     zero Owned = instance Owned; native-label = 'zero', count = 10, note = 'both', index = 0
     print; (summarize_owned; zero)
+    sizes = instance NativeSizes; count = 7, delta = -2, optional = 3, offsets = (list; -5, 6)
+    print; (summarize_sizes; sizes)
+    sizes.count = 9
+    sizes.optional = none
+    print; sizes.count, ':', sizes.delta, ':', (summarize_sizes; sizes)
+    observed int = sizes.count
+    print; observed + 1
+    borrowed-sizes = instance BorrowedSizes; native-label = 'view', count = 4, delta = -3
+    print; (summarize_borrowed_sizes; borrowed-sizes)
+    borrowed-sizes.count = 11
+    borrowed-sizes.delta = none
+    print; (summarize_borrowed_sizes; borrowed-sizes)
