@@ -400,7 +400,7 @@ impl Emitter<'_> {
         let source_field_type = native_field_type
             .as_ref()
             .filter(|projected| !projected.has_identity_representation())
-            .and_then(|_| value_type.as_ref())
+            .and(value_type.as_ref())
             .map(|value_type| rust_value_type(self.package, value_type.clone()));
         let value = if let Some(binding) = union_binding {
             self.union_value(&binding, right)

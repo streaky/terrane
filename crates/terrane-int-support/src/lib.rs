@@ -1202,6 +1202,8 @@ fn terrane_numeric_type(rust_type: &str) -> &'static str {
         "u32" => "uint32",
         "u64" => "uint64",
         "u128" => "uint128",
+        "usize" => "native usize",
+        "isize" => "native isize",
         "f32" => "float32",
         "f64" => "float64",
         "Int" => "int",

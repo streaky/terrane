@@ -6,5 +6,13 @@ zero:10:both:0
 7:-2:Some(3):[-5, 6]
 9:-2:9:-2:None:[-5, 6]
 10
+true
+12
+9:-2:Some(12):[13, -14]
+value -1 of type int cannot arrive exactly as native usize: the value is outside the destination range
+9
 view:4:Some(-3)
+5:-3
+borrowed count compared
 view:11:None
+true
