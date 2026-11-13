@@ -65,11 +65,7 @@ fn named_event(incoming: &Event) {
 fn add_tracked(
     listeners: &Registry,
     state: std::sync::Arc<TerraneSharedCell<Counter>>,
-) -> std::sync::Weak<
-    dyn terrane_retained_callback_api::EventListener<
-        terrane_retained_callback_api::Event,
-    > + core::marker::Send + core::marker::Sync,
-> {
+) -> terrane_retained_callback_api::WeakListener<terrane_retained_callback_api::Event> {
     let owned: Signal;
     let callback: std::sync::Arc<dyn Fn(&Event) -> () + Send + Sync>;
     owned = __terrane_raised(
@@ -252,10 +248,8 @@ fn main() {
             terrane_retained_callback_api::Event,
         > + core::marker::Send + core::marker::Sync,
     >;
-    let tracked: std::sync::Weak<
-        dyn terrane_retained_callback_api::EventListener<
-            terrane_retained_callback_api::Event,
-        > + core::marker::Send + core::marker::Sync,
+    let tracked: terrane_retained_callback_api::WeakListener<
+        terrane_retained_callback_api::Event,
     >;
     let weak_owner: WeakRegistry;
     let reentrant: std::sync::Arc<dyn Fn(&Event) -> () + Send + Sync>;
@@ -264,10 +258,8 @@ fn main() {
             terrane_retained_callback_api::Event,
         > + core::marker::Send + core::marker::Sync,
     >;
-    let destroyed: std::sync::Weak<
-        dyn terrane_retained_callback_api::EventListener<
-            terrane_retained_callback_api::Event,
-        > + core::marker::Send + core::marker::Sync,
+    let destroyed: terrane_retained_callback_api::WeakListener<
+        terrane_retained_callback_api::Event,
     >;
     let changes: terrane_int_support::Int;
     let change: TerraneOwnedMutableInputsM<MutableEvent, ()>;

@@ -21,15 +21,12 @@ impl TerraneNsAppMutableAliasIdentity2F617070006D757461626C652D616C696173 {
         }
     }
 }
-fn mutate_collision_alias(
-    value: &mut TerraneNsDepsApiMutableAliasIdentity2F646570732F617069004D757461626C65416C696173,
-    replacement: u8,
-) {
+fn mutate_collision_alias(value: &mut api::MutableAlias, replacement: u8) {
     {
         value.set_value(replacement);
     }
 }
-fn mutate_default_alias(value: &mut Alias, replacement: u8) {
+fn mutate_default_alias(value: &mut api::Alias<u8>, replacement: u8) {
     {
         let __terrane_conversion_input_0 = replacement;
         __terrane_raised(
@@ -64,20 +61,20 @@ fn mutate_default_alias(value: &mut Alias, replacement: u8) {
     };
 }
 fn main() {
-    let defaulted: owner::Holder<u8>;
+    let defaulted: api::Alias<u8>;
     let facade: owner::Holder<u8>;
     let second_facade: owner::Holder<u8>;
     let declared_owner: owner::Holder<u8>;
     let underlying: owner::Holder<u8>;
-    let round_trip: owner::Holder<u8>;
-    let selected: owner::Holder<String>;
-    let default_text: owner::Holder<String>;
+    let round_trip: api::Alias<u8>;
+    let selected: api::Alias<String>;
+    let default_text: api::StringAlias<String>;
     let provider_input: u8;
     let facade_input: u8;
     let provider_value: PublicValue;
     let facade_value: PublicValue;
     let borrowed: owner::Holder<u8>;
-    let borrowed_string: owner::Holder<String>;
+    let borrowed_string: api::Alias<String>;
     let holder: StringHolder;
     let mut counter: owner::Holder<u8>;
     let source_value: TerraneNsAppMutableAliasIdentity2F617070006D757461626C652D616C696173;
@@ -276,7 +273,7 @@ fn consume_borrowed(value: &owner::Holder<u8>) -> u8 {
         23 /* terrane-site: src/main.trn:64:12-64:29 */,
     );
 }
-fn consume_borrowed_string(value: &owner::Holder<String>) -> String {
+fn consume_borrowed_string(value: &api::Alias<String>) -> String {
     return __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
             {
@@ -303,8 +300,8 @@ fn consume_borrowed_string(value: &owner::Holder<String>) -> String {
         24 /* terrane-site: src/main.trn:66:12-66:29 */,
     );
 }
-fn consume_aliased_ref(value: &owner::Holder<String>) -> String {
-    let alias: &owner::Holder<String>;
+fn consume_aliased_ref(value: &api::Alias<String>) -> String {
+    let alias: &api::Alias<String>;
     alias = value;
     return __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -333,17 +330,17 @@ fn consume_aliased_ref(value: &owner::Holder<String>) -> String {
     );
 }
 pub struct StringHolder {
-    pub item: Option<owner::Holder<String>>,
+    pub item: Option<api::Alias<String>>,
 }
 impl StringHolder {
-    pub fn terrane_construct(item: owner::Holder<String>) -> Self {
+    pub fn terrane_construct(item: api::Alias<String>) -> Self {
         let mut __terrane_constructed_value = Self { item: None };
         __terrane_constructed_value.construct(item);
         __terrane_constructed_value
     }
-    pub fn construct(&mut self, item: owner::Holder<String>) {
+    pub fn construct(&mut self, item: api::Alias<String>) {
         {
-            let __terrane_value: owner::Holder<String> = item;
+            let __terrane_value: api::Alias<String> = item;
             self.item = Some(__terrane_value);
         }
     }

@@ -341,7 +341,7 @@ impl SharedCommand {
     }
     pub fn dispatch(
         &self,
-        service: &std::sync::Arc<witness::Executor>,
+        service: &witness::SharedExecutor,
         input: Alpha,
     ) -> Result<AlphaReply, TerraneError> {
         return Ok({
@@ -391,43 +391,32 @@ impl SharedCommand {
         });
     }
 }
-impl CommandProtocol<
-    witness::Alpha,
-    witness::AlphaReply,
-    std::sync::Arc<witness::Executor>,
-> for SharedCommand {
+impl CommandProtocol<witness::Alpha, witness::AlphaReply, witness::SharedExecutor>
+for SharedCommand {
     fn clone_box(
         &self,
     ) -> Box<
-        dyn CommandProtocol<
-            witness::Alpha,
-            witness::AlphaReply,
-            std::sync::Arc<witness::Executor>,
-        >,
+        dyn CommandProtocol<witness::Alpha, witness::AlphaReply, witness::SharedExecutor>,
     > {
         Box::new(self.clone())
     }
     fn separate_box(
         &self,
     ) -> Box<
-        dyn CommandProtocol<
-            witness::Alpha,
-            witness::AlphaReply,
-            std::sync::Arc<witness::Executor>,
-        >,
+        dyn CommandProtocol<witness::Alpha, witness::AlphaReply, witness::SharedExecutor>,
     > {
         Box::new(self.clone())
     }
     fn dispatch(
         &self,
-        service: &std::sync::Arc<witness::Executor>,
+        service: &witness::SharedExecutor,
         input: witness::Alpha,
     ) -> Result<witness::AlphaReply, TerraneError> {
         SharedCommand::dispatch(&*self, service, input)
     }
 }
 impl From<SharedCommand>
-for Command<witness::Alpha, witness::AlphaReply, std::sync::Arc<witness::Executor>> {
+for Command<witness::Alpha, witness::AlphaReply, witness::SharedExecutor> {
     fn from(value: SharedCommand) -> Self {
         Self(Box::new(value))
     }

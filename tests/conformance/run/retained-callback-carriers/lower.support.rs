@@ -1364,7 +1364,11 @@ pub fn terrane_static_trn_5265676973747279_clone_token(
         > + core::marker::Send + core::marker::Sync,
     >,
 ) -> Result<
-    terrane_retained_callback_api::WeakListener<terrane_retained_callback_api::Event>,
+    std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
+    >,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
