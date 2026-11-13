@@ -636,13 +636,13 @@ fn write_enum_payload(
         if index != 0 {
             output.push_str(", ");
         }
-        write!(
-            output,
-            "{}: {}",
-            rust_name(&field.name),
-            projected_field_abi_type(&field.ty)
-        )
-        .expect("writing cannot fail");
+        let ty = match &field.ty {
+            crate::rust_interop::projection::ProjectedType::Optional(inner) => {
+                format!("impl Into<Option<{}>>", projected_owned_field_type(inner))
+            }
+            ty => projected_owned_field_type(ty),
+        };
+        write!(output, "{}: {}", rust_name(&field.name), ty).expect("writing cannot fail");
     }
     write!(output, ") -> Self {{ Self {{ ").expect("writing cannot fail");
     for field in fields {
