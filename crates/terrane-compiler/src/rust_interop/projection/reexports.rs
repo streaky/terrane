@@ -35,15 +35,8 @@ pub(super) fn provider_fragment_public_paths(
     public_paths.extend(provider.canonical_public_paths.clone());
     // Outcome wrappers are semantic boundaries, not nominal facade owners. Keep
     // their defining identities available to all type and effect classifiers.
-    public_paths.retain(|path, _| {
-        !matches!(
-            path.as_str(),
-            "core::result::Result"
-                | "std::result::Result"
-                | "core::option::Option"
-                | "std::option::Option"
-        )
-    });
+    public_paths
+        .retain(|path, _| super::functions::native_output_container(path.split("::")).is_none());
     public_paths
 }
 

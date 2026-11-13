@@ -1151,19 +1151,32 @@ fn safe_parameter_name(name: &str) -> String {
     }
 }
 
+pub(super) fn native_output_container<'a>(
+    path: impl IntoIterator<Item = &'a str>,
+) -> Option<&'static str> {
+    let mut path = path.into_iter();
+    match (
+        path.next(),
+        path.next(),
+        path.next(),
+        path.next(),
+        path.next(),
+    ) {
+        (Some("core" | "std"), Some("result" | "io"), Some("Result"), None, None)
+        | (Some("core" | "std"), Some("io"), Some("error"), Some("Result"), None) => Some("Result"),
+        (Some("core" | "std"), Some("option"), Some("Option"), None, None) => Some("Option"),
+        _ => None,
+    }
+}
+
 fn output_is_named(ty: &Type, paths: &HashMap<Id, ItemSummary>, name: &str) -> bool {
     let Type::ResolvedPath(path) = ty else {
         return false;
     };
-    paths.get(&path.id).is_some_and(|summary| {
-        matches!(
-            summary.path.as_slice(),
-            [root, module, item]
-                if matches!(root.as_str(), "core" | "std")
-                    && item == name
-                    && matches!((module.as_str(), name), ("result", "Result") | ("option", "Option"))
-        )
-    })
+    paths
+        .get(&path.id)
+        .and_then(|summary| native_output_container(summary.path.iter().map(String::as_str)))
+        == Some(name)
 }
 
 #[cfg(test)]
