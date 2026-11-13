@@ -1,4 +1,4 @@
-package = "projected-undeclared-error-owner"
+package = "projected-opaque-error-owner"
 
 [namespaces]
 app = "src"

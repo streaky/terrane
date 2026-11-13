@@ -102,18 +102,9 @@ fn projected_error_identity(
     if let Type::Generic(name) = error
         && let Some(projected @ ProjectedType::Foreign { .. }) = generics.get(name)
     {
-        let identity = projected.rust_type();
-        let exposed = super::rust_path_owner(&identity).is_some_and(|owner| {
-            matches!(owner, "core" | "std" | "alloc")
-                || paths.values().any(|summary| {
-                    summary.crate_id == 0
-                        && summary.kind == rustdoc_types::ItemKind::Module
-                        && summary.path.as_slice() == [owner]
-                })
-        });
-        // A public concrete default keeps its descriptor. An opaque external
-        // default retains the established generic dependency-error channel.
-        return exposed.then_some(identity);
+        // Visibility is decided from the complete canonical facade inventory,
+        // after all defining documents and re-export providers are projected.
+        return Some(projected.rust_type());
     }
     if let Ok((expanded, _)) = expand_output_alias(error.clone(), index, paths, generics.clone()) {
         // A boxed dynamic error has no single named native error item to project. Keep the

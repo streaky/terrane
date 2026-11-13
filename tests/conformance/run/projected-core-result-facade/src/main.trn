@@ -5,6 +5,8 @@ from /deps/facade import external, renamed, external_maybe, nested, Reader, read
 from /deps/facade import Duration, duration
 from /deps/facade import Response, response
 from /deps/facade import new_version, NewFailure
+from /deps/facade import opaque_transitive, public_transitive, TransitiveFailure
+from /deps/facade import bridge_reader, BridgeReader, old_transitive, OldHiddenFailure
 from /core/errors import throwable, dependency-error
 from /core/collections import list
 
@@ -71,3 +73,34 @@ async function main;
         print; (new_version; false)
     catch NewFailure
         print; 'typed newer failure'
+    print; (opaque_transitive; true)
+    try
+        print; (opaque_transitive; false)
+    catch dependency-error as error
+        print; error.message
+    print; (public_transitive; true)
+    try
+        print; (public_transitive; false)
+    catch TransitiveFailure as error
+        print; 'public transitive: ' + error.message
+    print; (old_transitive; true)
+    try
+        print; (old_transitive; false)
+    catch OldHiddenFailure
+        print; 'typed old hidden failure'
+    bridge = bridge_reader;
+    print; (BridgeReader::opaque_static; true)
+    try
+        print; (BridgeReader::opaque_static; false)
+    catch dependency-error as error
+        print; (error.message.contains; 'transitive hidden failure')
+    print; (bridge.typed; true)
+    try
+        print; (bridge.typed; false)
+    catch TransitiveFailure
+        print; 'typed transitive method failure'
+    print; (await bridge.opaque_async; true)
+    try
+        print; (await bridge.opaque_async; false)
+    catch dependency-error as error
+        print; (error.message.contains; 'transitive hidden failure')

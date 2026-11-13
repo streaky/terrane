@@ -25,3 +25,15 @@ true
 6
 7
 typed newer failure
+8
+Rust dependency `facade` member `facade::opaque_transitive` failed: transitive hidden failure
+9
+public transitive: transitive public failure
+10
+typed old hidden failure
+8
+true
+9
+typed transitive method failure
+8
+true

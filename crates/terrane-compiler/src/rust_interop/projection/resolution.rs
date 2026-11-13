@@ -370,8 +370,10 @@ pub fn resolve(
                     canonical_path,
                 );
             }
-            let fragment_public_paths =
-                provider_fragment_public_paths(&declared_public_paths, provider);
+            let fragment_public_paths = provider_fragment_public_paths(
+                &canonical_public_paths[provider.dependency_index],
+                provider,
+            );
             let mut fragment = project_rustdoc(
                 dependencies
                     .get(provider.dependency_index)
@@ -599,6 +601,9 @@ fn normalize_projected_round(
             &dependency.name.replace('-', "_"),
         );
     }
+    // Reconcile complete public error identities before reachability can reject
+    // an opaque error owner or bind it as an unnecessary private dependency.
+    canonicalize_projected_type_names(projected);
     if discover_bound_dependencies {
         *bound_dependencies =
             recursive_owner_dependencies(projected, dependencies, workspace, false)?;
@@ -617,7 +622,6 @@ fn normalize_projected_round(
         workspace,
         false,
     )?;
-    canonicalize_projected_type_names(projected);
     bound_dependencies.sort_by(|left, right| left.name.cmp(&right.name));
     if enforce_error_owner_reachability {
         enforce_transitive_reachability(

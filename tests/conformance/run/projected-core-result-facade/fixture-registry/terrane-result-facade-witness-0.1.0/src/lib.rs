@@ -5,6 +5,11 @@ pub use std::str::from_utf8 as text;
 pub use terrane_outcome_alias_witness::Failure;
 pub use terrane_outcome_alias_witness::Response;
 pub use newer::NewFailure;
+pub use old_hidden::OldHiddenFailure;
+pub use terrane_transitive_alias_bridge::{
+    opaque_transitive, public_transitive, bridge_reader, TransitiveReader as BridgeReader,
+    NewFailure as TransitiveFailure,
+};
 
 pub enum Either<L, R> {
     Left(L),
@@ -90,5 +95,9 @@ pub fn response() -> terrane_outcome_alias_witness::Response {
 
 pub fn new_version(ok: bool) -> newer::Result<i64> {
     if ok { Ok(7) } else { Err(NewFailure) }
+}
+
+pub fn old_transitive(ok: bool) -> old_hidden::Result<i64> {
+    if ok { Ok(10) } else { Err(OldHiddenFailure) }
 }
 

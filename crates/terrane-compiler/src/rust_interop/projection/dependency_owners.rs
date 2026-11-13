@@ -318,6 +318,11 @@ fn unsupported_projected_error<'a>(
     reason = "one recursive metadata pass keeps all native names and error identities canonical"
 )]
 pub(super) fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
+    let declared = projected
+        .iter()
+        .flat_map(|dependency| [&dependency.name, &dependency.package])
+        .map(|name| name.replace('-', "_"))
+        .collect::<BTreeSet<_>>();
     let mut names = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -373,22 +378,6 @@ pub(super) fn canonicalize_projected_type_names(projected: &mut [ProjectedDepend
             })
         })
         .collect::<BTreeMap<_, _>>();
-    let mut unique_error_paths = BTreeMap::<String, Option<String>>::new();
-    for item in projected
-        .iter()
-        .flat_map(|dependency| &dependency.items)
-        .filter(|item| {
-            matches!(
-                item.kind,
-                ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
-            )
-        })
-    {
-        unique_error_paths
-            .entry(item.name.clone())
-            .and_modify(|path| *path = None)
-            .or_insert_with(|| Some(item.rust_path.clone()));
-    }
     let canonicalize_function = |function: &mut ProjectedFunction| {
         if let Some(path) = &mut function.native_path {
             canonicalize_qualified_call_owner(path, &error_paths);
@@ -409,13 +398,15 @@ pub(super) fn canonicalize_projected_type_names(projected: &mut [ProjectedDepend
             canonicalize_projected_type_name(ty, &names);
         }
         if let Some(error) = &mut function.error {
-            let canonical = error_paths.get(error).cloned().or_else(|| {
-                rust_path_owner(error)?;
-                let name = error.rsplit("::").next()?;
-                unique_error_paths.get(name)?.clone()
-            });
-            if let Some(canonical) = canonical {
-                error.clone_from(&canonical);
+            if let Some(canonical) = error_paths.get(error) {
+                error.clone_from(canonical);
+            } else if !names.contains_key(error)
+                && rust_path_owner(error).is_some_and(|owner| !owner_is_reachable(owner, &declared))
+            {
+                // An opaque error is not a source type dependency. Preserve the
+                // fallible boundary and its contextual dependency-error message.
+                // Never infer descriptor identity from a coincident short name.
+                "Error".clone_into(error);
             }
         }
     };
