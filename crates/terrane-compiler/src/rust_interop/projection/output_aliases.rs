@@ -69,6 +69,8 @@ pub(super) fn extend_public_aliases(
     let mut changed = false;
     for provider in reexports.iter().flat_map(|owner| &owner.providers) {
         for (native, public) in &provider.canonical_public_paths {
+            // Signature-only source names are not actual Rust facade exports.
+            let public = provider.rust_path_aliases.get(public).unwrap_or(public);
             if super::functions::native_output_container(native.split("::")).is_none()
                 && let std::collections::btree_map::Entry::Vacant(entry) =
                     canonical[provider.dependency_index].entry(native.clone())

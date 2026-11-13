@@ -72,3 +72,7 @@ pub fn opaque(ok: bool) -> terrane_outcome_alias_witness::OpaqueResult<i64> {
     if ok { Ok(4) } else { Err(terrane_outcome_alias_witness::OpaqueFailure) }
 }
 
+pub fn duration() -> std::time::Duration {
+    std::time::Duration::from_secs(4)
+}
+

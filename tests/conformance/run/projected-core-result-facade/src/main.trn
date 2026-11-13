@@ -2,6 +2,7 @@ namespace app
 
 from /deps/facade import parse, maybe, pick, describe, character, text, Either as AliasResult
 from /deps/facade import external, renamed, external_maybe, nested, Reader, reader, Failure, opaque
+from /deps/facade import Duration, duration
 from /core/errors import throwable, dependency-error
 from /core/collections import list
 
@@ -57,3 +58,7 @@ async function main;
         print; (opaque; false)
     catch dependency-error as error
         print; (error.message.contains; 'opaque alias failed')
+    elapsed = duration;
+    print; (elapsed.as_secs;)
+    constructed = Duration::from_secs; 5
+    print; (constructed.as_secs;)

@@ -290,10 +290,6 @@ pub fn resolve(
         &target,
         sandbox,
     )? {
-        super::output_aliases::extend_public_aliases(
-            &reexport_rustdocs,
-            &mut canonical_public_paths,
-        );
         for (index, (dependency, document, public_paths)) in rustdocs.iter().enumerate() {
             projected[index] = project_rustdoc(
                 dependency,
@@ -308,8 +304,9 @@ pub fn resolve(
                 alias_documents.insert(name.to_owned(), owner.document);
             }
         }
-        // Expanded success payloads can expose additional native owners. Reuse
-        // the already decoded documents while rebuilding their provider views.
+        // Expanded payloads can expose additional owners. Reuse decoded documents
+        // and keep defining paths until discovery finishes: early public aliases
+        // would hide signature-only owners from their defining-document lookup.
         reexport_rustdocs = external_reexport_rustdocs(
             &workspace,
             &rustdocs,

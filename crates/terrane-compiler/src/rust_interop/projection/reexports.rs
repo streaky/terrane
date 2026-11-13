@@ -32,7 +32,15 @@ pub(super) fn provider_fragment_public_paths(
     let mut public_paths = declared_public_paths.clone();
     // Provider aliases override declared-owner paths only inside this facade fragment. Unmapped
     // owner paths remain owner-rooted and are declined by ordinary transitive reachability.
-    public_paths.extend(provider.canonical_public_paths.clone());
+    public_paths.extend(
+        provider
+            .canonical_public_paths
+            .iter()
+            .map(|(native, public)| {
+                let physical = provider.rust_path_aliases.get(public).unwrap_or(public);
+                (native.clone(), physical.clone())
+            }),
+    );
     // Outcome wrappers are semantic boundaries, not nominal facade owners. Keep
     // their defining identities available to all type and effect classifiers.
     public_paths

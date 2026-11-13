@@ -20,3 +20,5 @@ typed method failure
 typed async failure
 4
 true
+4
+5
