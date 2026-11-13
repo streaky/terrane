@@ -1155,13 +1155,15 @@ fn output_is_named(ty: &Type, paths: &HashMap<Id, ItemSummary>, name: &str) -> b
     let Type::ResolvedPath(path) = ty else {
         return false;
     };
-    // Public facade paths can rename a declaration. The Rustdoc reference still
-    // spells its native constructor, so boundary recognition must retain it.
-    path.path.rsplit("::").next() == Some(name)
-        || paths
-            .get(&path.id)
-            .and_then(|summary| summary.path.last())
-            .is_some_and(|segment| segment == name)
+    paths.get(&path.id).is_some_and(|summary| {
+        matches!(
+            summary.path.as_slice(),
+            [root, module, item]
+                if matches!(root.as_str(), "core" | "std")
+                    && item == name
+                    && matches!((module.as_str(), name), ("result", "Result") | ("option", "Option"))
+        )
+    })
 }
 
 #[cfg(test)]
@@ -1192,7 +1194,7 @@ mod tests {
     }
 
     #[test]
-    fn renamed_outputs_keep_boundaries() {
+    fn output_alias_boundaries() {
         let container = |name: &str, id, arguments: Vec<Type>| {
             Type::ResolvedPath(rustdoc_types::Path {
                 path: name.to_owned(),
@@ -1215,11 +1217,7 @@ mod tests {
                     Id(1),
                     ItemSummary {
                         crate_id: 1,
-                        path: if renamed {
-                            vec!["facade".to_owned(), "Outcome".to_owned()]
-                        } else {
-                            vec!["core".to_owned(), "result".to_owned(), "Result".to_owned()]
-                        },
+                        path: vec!["core".to_owned(), "result".to_owned(), "Result".to_owned()],
                         kind: rustdoc_types::ItemKind::Enum,
                     },
                 ),
@@ -1235,16 +1233,16 @@ mod tests {
                     Id(3),
                     ItemSummary {
                         crate_id: 1,
-                        path: if renamed {
-                            vec!["facade".to_owned(), "Maybe".to_owned()]
-                        } else {
-                            vec!["core".to_owned(), "option".to_owned(), "Option".to_owned()]
-                        },
+                        path: vec!["core".to_owned(), "option".to_owned(), "Option".to_owned()],
                         kind: rustdoc_types::ItemKind::Enum,
                     },
                 ),
             ]);
-            let fallible = container("Result", 1, vec![value.clone(), error.clone()]);
+            let fallible = container(
+                if renamed { "Outcome" } else { "Result" },
+                1,
+                vec![value.clone(), error.clone()],
+            );
             for (case, output, result, error) in [
                 (
                     "result",
@@ -1254,13 +1252,17 @@ mod tests {
                 ),
                 (
                     "option",
-                    container("Option", 3, vec![value.clone()]),
+                    container(
+                        if renamed { "Maybe" } else { "Option" },
+                        3,
+                        vec![value.clone()],
+                    ),
                     ProjectedType::Optional(Box::new(ProjectedType::Int)),
                     None,
                 ),
                 (
                     "optional-result",
-                    container("Option", 3, vec![fallible]),
+                    container(if renamed { "Maybe" } else { "Option" }, 3, vec![fallible]),
                     ProjectedType::Optional(Box::new(ProjectedType::Int)),
                     Some("std::io::Error"),
                 ),

@@ -1,0 +1,10 @@
+41
+caught: Rust dependency `facade` member `facade::parse` failed: invalid digit found in string
+true
+true
+left 1
+right right
+A
+true
+utf8
+invalid utf8 caught

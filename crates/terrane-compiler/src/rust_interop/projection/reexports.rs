@@ -33,6 +33,17 @@ pub(super) fn provider_fragment_public_paths(
     // Provider aliases override declared-owner paths only inside this facade fragment. Unmapped
     // owner paths remain owner-rooted and are declined by ordinary transitive reachability.
     public_paths.extend(provider.canonical_public_paths.clone());
+    // Outcome wrappers are semantic boundaries, not nominal facade owners. Keep
+    // their defining identities available to all type and effect classifiers.
+    public_paths.retain(|path, _| {
+        !matches!(
+            path.as_str(),
+            "core::result::Result"
+                | "std::result::Result"
+                | "core::option::Option"
+                | "std::option::Option"
+        )
+    });
     public_paths
 }
 

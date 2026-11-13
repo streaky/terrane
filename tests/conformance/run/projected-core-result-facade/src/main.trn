@@ -1,0 +1,30 @@
+namespace app
+
+from /deps/facade import parse, maybe, pick, describe, character, text, Either as AliasResult
+from /core/errors import throwable
+from /core/collections import list
+
+function main;
+    good int = parse; '41'
+    print; good
+    try
+        print; (parse; 'bad')
+    catch throwable as error
+        print; 'caught: ' + error.message
+    present int|none = maybe; true
+    print; present != none
+    absent int|none = maybe; false
+    print; absent == none
+    chosen = pick; true
+    print; (describe; chosen)
+    nominal AliasResult of (int64, string) = pick; false
+    print; (describe; nominal)
+    letter string|none = character; 65
+    print; letter
+    invalid string|none = character; 1114112
+    print; invalid == none
+    print; (text; (list; 117, 116, 102, 56))
+    try
+        print; (text; (list; 255))
+    catch throwable
+        print; 'invalid utf8 caught'
