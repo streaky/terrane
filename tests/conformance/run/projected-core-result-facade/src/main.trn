@@ -1,10 +1,11 @@
 namespace app
 
 from /deps/facade import parse, maybe, pick, describe, character, text, Either as AliasResult
-from /core/errors import throwable
+from /deps/facade import external, renamed, external_maybe, nested, Reader, reader, Failure, opaque
+from /core/errors import throwable, dependency-error
 from /core/collections import list
 
-function main;
+async function main;
     good int = parse; '41'
     print; good
     try
@@ -28,3 +29,31 @@ function main;
         print; (text; (list; 255))
     catch throwable
         print; 'invalid utf8 caught'
+    print; (external; true), ':', (renamed; true)
+    try
+        print; (external; false)
+    catch Failure
+        print; 'typed external failure'
+    print; (external_maybe; true)
+    print; (external_maybe; false) == none
+    print; (nested; false, false) == none
+    print; (nested; true, true)
+    try
+        print; (nested; true, false)
+    catch Failure
+        print; 'typed nested failure'
+    owner = reader;
+    print; (Reader::open; true), ':', (owner.read; true), ':', (await owner.asynchronous; true)
+    try
+        print; (owner.read; false)
+    catch Failure
+        print; 'typed method failure'
+    try
+        print; (await owner.asynchronous; false)
+    catch Failure
+        print; 'typed async failure'
+    print; (opaque; true)
+    try
+        print; (opaque; false)
+    catch dependency-error as error
+        print; (error.message.contains; 'opaque alias failed')

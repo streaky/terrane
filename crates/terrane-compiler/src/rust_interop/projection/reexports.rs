@@ -148,7 +148,7 @@ pub(super) fn generate_rustdoc(
     Ok(document)
 }
 
-fn cached_owner_rustdoc(
+pub(super) fn cached_owner_rustdoc(
     workspace: &Path,
     package_spec: &str,
     crate_name: &str,
@@ -383,6 +383,7 @@ pub(super) fn external_reexport_rustdocs(
     containment: Containment,
     demands: Option<&BTreeSet<(String, String)>>,
     declines: &mut [Vec<DeclinedItem>],
+    documents: &mut BTreeMap<String, RustdocCrate>,
 ) -> Result<Vec<ReexportRustdoc>, ProjectionError> {
     // Aggregate every demanded facade binding by concrete owner so one projection run emits
     // and parses at most one supplemental rustdoc document per resolved owner package.
@@ -629,7 +630,9 @@ pub(super) fn external_reexport_rustdocs(
     requests
         .into_iter()
         .map(|(crate_name, request)| {
-            let document = if crate_name == "core" {
+            let document = if let Some(document) = documents.remove(&crate_name) {
+                document
+            } else if crate_name == "core" {
                 terrane_rust_analysis::core_rustdoc(&workspace.join("rust-survey/sysroot"), target)
                     .map_err(|error| ProjectionError {
                         message: error.message,
@@ -826,7 +829,7 @@ pub(super) fn external_reexport_rustdocs(
         })
         .collect()
 }
-fn resolved_library_package(
+pub(super) fn resolved_library_package(
     metadata: &serde_json::Value,
     crate_name: &str,
 ) -> Result<(String, String), String> {

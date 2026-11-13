@@ -211,6 +211,7 @@ fn io_error_reexport_ignores_owner() {
             Containment::Unavailable,
             None,
             &mut declines,
+            &mut BTreeMap::new(),
         )
         .unwrap();
 

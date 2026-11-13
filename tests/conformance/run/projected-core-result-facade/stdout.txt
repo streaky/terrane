@@ -8,3 +8,15 @@ A
 true
 utf8
 invalid utf8 caught
+2:2
+typed external failure
+3
+true
+true
+2
+typed nested failure
+2:2:2
+typed method failure
+typed async failure
+4
+true

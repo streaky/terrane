@@ -1668,6 +1668,18 @@ pub(super) fn expand_output_alias(
             ..
         }) = index.get(&path.id)
         else {
+            if let Some(summary) = paths.get(&path.id)
+                && summary.kind == rustdoc_types::ItemKind::TypeAlias
+                && super::functions::native_output_container(
+                    summary.path.iter().map(String::as_str),
+                )
+                .is_none()
+            {
+                return Err(format!(
+                    "output type alias `{}` has no available unambiguous definition in its defining Rustdoc document",
+                    summary.path.join("::")
+                ));
+            }
             return Ok((output, generics));
         };
         generics =

@@ -243,7 +243,7 @@ pub fn resolve(
                 .or_insert_with(|| public_path.clone());
         }
     }
-    let canonical_public_paths = vec![declared_public_paths.clone(); dependencies.len()];
+    let mut canonical_public_paths = vec![declared_public_paths.clone(); dependencies.len()];
     let mut projected = rustdocs
         .iter()
         .enumerate()
@@ -268,7 +268,8 @@ pub fn resolve(
         .collect::<Vec<_>>();
     let reexports =
         crate::compilation_progress::start("resolving external reexport owners", root.display());
-    let reexport_rustdocs = external_reexport_rustdocs(
+    let mut alias_documents = BTreeMap::new();
+    let mut reexport_rustdocs = external_reexport_rustdocs(
         &workspace,
         &rustdocs,
         &projected,
@@ -277,8 +278,64 @@ pub fn resolve(
         sandbox,
         demands,
         &mut reexport_declines,
+        &mut alias_documents,
     )?;
     reexports.finish();
+    if super::output_aliases::hydrate(
+        &mut rustdocs,
+        &mut reexport_rustdocs,
+        &mut alias_documents,
+        &workspace,
+        &metadata,
+        &target,
+        sandbox,
+    )? {
+        super::output_aliases::extend_public_aliases(
+            &reexport_rustdocs,
+            &mut canonical_public_paths,
+        );
+        for (index, (dependency, document, public_paths)) in rustdocs.iter().enumerate() {
+            projected[index] = project_rustdoc(
+                dependency,
+                document,
+                public_paths,
+                &canonical_public_paths[index],
+                true,
+            );
+        }
+        for owner in reexport_rustdocs {
+            if let Some(name) = super::output_aliases::document_name(&owner.document) {
+                alias_documents.insert(name.to_owned(), owner.document);
+            }
+        }
+        // Expanded success payloads can expose additional native owners. Reuse
+        // the already decoded documents while rebuilding their provider views.
+        reexport_rustdocs = external_reexport_rustdocs(
+            &workspace,
+            &rustdocs,
+            &projected,
+            &metadata,
+            &target,
+            sandbox,
+            demands,
+            &mut reexport_declines,
+            &mut alias_documents,
+        )?;
+        if super::output_aliases::extend_public_aliases(
+            &reexport_rustdocs,
+            &mut canonical_public_paths,
+        ) {
+            for (index, (dependency, document, public_paths)) in rustdocs.iter().enumerate() {
+                projected[index] = project_rustdoc(
+                    dependency,
+                    document,
+                    public_paths,
+                    &canonical_public_paths[index],
+                    true,
+                );
+            }
+        }
+    }
     let owners = crate::compilation_progress::start(
         "reconciling projected owners and dependencies",
         root.display(),
