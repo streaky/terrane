@@ -120,6 +120,7 @@ pub(super) fn generate_rustdoc(
         "target/rustdoc-57",
         "--offline",
         "--frozen",
+        "--message-format=json",
     ];
     if let Some(target) = target {
         rustdoc_args.extend(["--target", target]);
@@ -395,7 +396,11 @@ pub(super) fn external_reexport_rustdocs(
 ) -> Result<Vec<ReexportRustdoc>, ProjectionError> {
     // Aggregate every demanded facade binding by concrete owner so one projection run emits
     // and parses at most one supplemental rustdoc document per resolved owner package.
-    let mut requests = BTreeMap::<String, ReexportRequest>::new();
+    let packages = super::package_identities::Packages::new(
+        metadata,
+        super::package_identities::read_artifacts(workspace)?,
+    );
+    let mut requests = BTreeMap::<(String, String), ReexportRequest>::new();
     for (dependency_index, (dependency, document, public_paths)) in rustdocs.iter().enumerate() {
         for (id, public_path) in public_paths {
             let Some(summary) = document.paths.get(id) else {
@@ -454,7 +459,7 @@ pub(super) fn external_reexport_rustdocs(
             }
             if owner_crate_name == "core" {
                 let request = requests
-                    .entry(owner_crate_name)
+                    .entry((String::new(), owner_crate_name))
                     .or_insert_with(|| ReexportRequest {
                         package_spec: String::new(),
                         package_name: "core".to_owned(),
@@ -473,8 +478,8 @@ pub(super) fn external_reexport_rustdocs(
                     .or_insert_with(|| public_path.clone());
                 continue;
             }
-            let (package_name, version) =
-                match resolved_library_package(metadata, &owner_crate_name) {
+            let (package_spec, package_name) =
+                match resolved_document_owner(&packages, document, summary.crate_id) {
                     Ok(package) => package,
                     Err(reason) => {
                         declines[dependency_index].push(DeclinedItem {
@@ -485,9 +490,9 @@ pub(super) fn external_reexport_rustdocs(
                     }
                 };
             let request = requests
-                .entry(owner_crate_name)
+                .entry((package_spec.clone(), owner_crate_name))
                 .or_insert_with(|| ReexportRequest {
-                    package_spec: format!("{package_name}@{version}"),
+                    package_spec,
                     package_name,
                     aliases: BTreeMap::new(),
                     named_aliases: BTreeMap::new(),
@@ -523,8 +528,8 @@ pub(super) fn external_reexport_rustdocs(
             let (package_spec, package_name) = if owner_crate == "core" {
                 (String::new(), "core".to_owned())
             } else {
-                match resolved_library_package(metadata, &reexport.crate_name) {
-                    Ok((name, version)) => (format!("{name}@{version}"), name),
+                match resolved_document_owner(&packages, document, reexport.crate_id) {
+                    Ok(package) => package,
                     Err(reason) => {
                         declines[dependency_index].push(DeclinedItem {
                             rust_path: reexport.public_path,
@@ -534,17 +539,16 @@ pub(super) fn external_reexport_rustdocs(
                     }
                 }
             };
-            let request =
-                requests
-                    .entry(owner_crate.to_owned())
-                    .or_insert_with(|| ReexportRequest {
-                        package_spec,
-                        package_name,
-                        aliases: BTreeMap::new(),
-                        named_aliases: BTreeMap::new(),
-                        prefixes: BTreeMap::new(),
-                        signature_paths: BTreeMap::new(),
-                    });
+            let request = requests
+                .entry((package_spec.clone(), owner_crate.to_owned()))
+                .or_insert_with(|| ReexportRequest {
+                    package_spec,
+                    package_name,
+                    aliases: BTreeMap::new(),
+                    named_aliases: BTreeMap::new(),
+                    prefixes: BTreeMap::new(),
+                    signature_paths: BTreeMap::new(),
+                });
             if reexport.expands_descendants {
                 request
                     .prefixes
@@ -596,7 +600,7 @@ pub(super) fn external_reexport_rustdocs(
             let (package_spec, package_name) = if external.name == "core" {
                 (String::new(), "core".to_owned())
             } else {
-                let (name, version) = match resolved_library_package(metadata, &external.name) {
+                match resolved_document_owner(&packages, document, summary.crate_id) {
                     Ok(package) => package,
                     Err(reason) => {
                         declines[dependency_index].push(DeclinedItem {
@@ -605,20 +609,18 @@ pub(super) fn external_reexport_rustdocs(
                         });
                         continue;
                     }
-                };
-                (format!("{name}@{version}"), name)
+                }
             };
-            let request =
-                requests
-                    .entry(external.name.clone())
-                    .or_insert_with(|| ReexportRequest {
-                        package_spec,
-                        package_name,
-                        aliases: BTreeMap::new(),
-                        named_aliases: BTreeMap::new(),
-                        prefixes: BTreeMap::new(),
-                        signature_paths: BTreeMap::new(),
-                    });
+            let request = requests
+                .entry((package_spec.clone(), external.name.clone()))
+                .or_insert_with(|| ReexportRequest {
+                    package_spec,
+                    package_name,
+                    aliases: BTreeMap::new(),
+                    named_aliases: BTreeMap::new(),
+                    prefixes: BTreeMap::new(),
+                    signature_paths: BTreeMap::new(),
+                });
             // Real demanded Rust reexports outrank names inferred from signatures.
             // The latter may not even be exported by the facade.
             let public_path = request
@@ -637,8 +639,13 @@ pub(super) fn external_reexport_rustdocs(
 
     requests
         .into_iter()
-        .map(|(crate_name, request)| {
-            let document = if let Some(document) = documents.remove(&crate_name) {
+        .map(|((package_id, crate_name), request)| {
+            let cache_key = if package_id.is_empty() {
+                &crate_name
+            } else {
+                &package_id
+            };
+            let document = if let Some(document) = documents.remove(cache_key) {
                 document
             } else if crate_name == "core" {
                 terrane_rust_analysis::core_rustdoc(&workspace.join("rust-survey/sysroot"), target)
@@ -664,12 +671,7 @@ pub(super) fn external_reexport_rustdocs(
                 .copied()
                 .collect::<BTreeSet<_>>();
             for (dependency_index, (_, direct_document, _)) in rustdocs.iter().enumerate() {
-                if direct_document
-                    .paths
-                    .get(&direct_document.root)
-                    .and_then(|root| root.path.first())
-                    == Some(&crate_name)
-                {
+                if packages.document(direct_document) == Some(cache_key.as_str()) {
                     provider_indices.insert(dependency_index);
                 }
             }
@@ -677,12 +679,8 @@ pub(super) fn external_reexport_rustdocs(
                 .into_iter()
                 .filter_map(|dependency_index| {
                     let dependency = rustdocs[dependency_index].0;
-                    let direct_owner = rustdocs[dependency_index]
-                        .1
-                        .paths
-                        .get(&rustdocs[dependency_index].1.root)
-                        .and_then(|root| root.path.first())
-                        == Some(&crate_name);
+                    let direct_owner = packages.document(&rustdocs[dependency_index].1)
+                        == Some(cache_key.as_str());
                     let aliases = request.aliases.get(&dependency_index);
                     let prefixes = request.prefixes.get(&dependency_index);
                     let mut public_paths = BTreeMap::new();
@@ -837,65 +835,21 @@ pub(super) fn external_reexport_rustdocs(
         })
         .collect()
 }
-pub(super) fn resolved_library_package(
-    metadata: &serde_json::Value,
-    crate_name: &str,
+fn resolved_document_owner(
+    packages: &super::package_identities::Packages<'_>,
+    document: &RustdocCrate,
+    crate_id: u32,
 ) -> Result<(String, String), String> {
-    let packages = metadata
-        .get("packages")
-        .and_then(serde_json::Value::as_array)
-        .ok_or_else(|| "resolved Cargo metadata has no package list".to_owned())?;
-    let matches = packages
-        .iter()
-        .filter(|package| {
-            package
-                .get("targets")
-                .and_then(serde_json::Value::as_array)
-                .is_some_and(|targets| {
-                    targets.iter().any(|target| {
-                        target.get("name").and_then(serde_json::Value::as_str) == Some(crate_name)
-                            && target
-                                .get("kind")
-                                .and_then(serde_json::Value::as_array)
-                                .is_some_and(|kinds| {
-                                    kinds.iter().any(|kind| {
-                                        kind.as_str().is_some_and(|kind| {
-                                            matches!(
-                                                kind,
-                                                "lib"
-                                                    | "rlib"
-                                                    | "dylib"
-                                                    | "cdylib"
-                                                    | "staticlib"
-                                                    | "proc-macro"
-                                            )
-                                        })
-                                    })
-                                })
-                    })
-                })
-        })
-        .filter_map(|package| {
-            Some((
-                package.get("name")?.as_str()?.to_owned(),
-                package.get("version")?.as_str()?.to_owned(),
-            ))
-        })
-        .collect::<Vec<_>>();
-    match matches.as_slice() {
-        [(package, version)] => Ok((package.clone(), version.clone())),
-        [] => Err(format!(
-            "external reexport owner `{crate_name}` has no resolved library package"
-        )),
-        _ => Err(format!(
-            "external reexport owner `{crate_name}` is ambiguous across resolved packages: {}",
-            matches
-                .iter()
-                .map(|(package, version)| format!("{package}@{version}"))
-                .collect::<Vec<_>>()
-                .join(", ")
-        )),
-    }
+    let identity = packages.document(document)
+        .and_then(|package| packages.reference(document, package, crate_id))
+        .ok_or_else(|| format!("external reexport crate {crate_id} has no unambiguous resolved Cargo dependency edge"))?;
+    let package = packages
+        .package(identity)
+        .ok_or_else(|| format!("external reexport package `{identity}` is unavailable"))?;
+    let name = package["name"]
+        .as_str()
+        .ok_or_else(|| format!("external reexport package `{identity}` has no name"))?;
+    Ok((identity.to_owned(), name.to_owned()))
 }
 #[cfg(test)]
 mod tests;

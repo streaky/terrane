@@ -109,6 +109,7 @@ pub fn public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ExternalReexport {
+    pub crate_id: u32,
     pub crate_name: String,
     pub canonical_path: String,
     pub public_path: String,
@@ -183,6 +184,7 @@ fn visit_public_surface(
             {
                 if let Some(external) = document.external_crates.get(&summary.crate_id) {
                     surface.external_reexports.push(ExternalReexport {
+                        crate_id: summary.crate_id,
                         crate_name: external.name.clone(),
                         canonical_path: summary.path.join("::"),
                         public_path: candidate.join("::"),
@@ -549,12 +551,14 @@ mod tests {
             external_reexports(&document),
             vec![
                 ExternalReexport {
+                    crate_id: 1,
                     crate_name: "owner".to_owned(),
                     canonical_path: "owner::values".to_owned(),
                     public_path: "facade::prelude".to_owned(),
                     expands_descendants: true,
                 },
                 ExternalReexport {
+                    crate_id: 1,
                     crate_name: "owner".to_owned(),
                     canonical_path: "owner::values".to_owned(),
                     public_path: "facade::values".to_owned(),

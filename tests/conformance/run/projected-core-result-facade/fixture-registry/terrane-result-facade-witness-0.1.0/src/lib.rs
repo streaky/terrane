@@ -4,6 +4,7 @@ pub use std::char::from_u32 as character;
 pub use std::str::from_utf8 as text;
 pub use terrane_outcome_alias_witness::Failure;
 pub use terrane_outcome_alias_witness::Response;
+pub use newer::NewFailure;
 
 pub enum Either<L, R> {
     Left(L),
@@ -85,5 +86,9 @@ impl terrane_outcome_alias_witness::Index<Reader> for &str {
 
 pub fn response() -> terrane_outcome_alias_witness::Response {
     terrane_outcome_alias_witness::Packet { value: 6 }
+}
+
+pub fn new_version(ok: bool) -> newer::Result<i64> {
+    if ok { Ok(7) } else { Err(NewFailure) }
 }
 

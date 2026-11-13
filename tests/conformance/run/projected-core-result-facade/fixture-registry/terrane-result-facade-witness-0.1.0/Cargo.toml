@@ -8,3 +8,4 @@ path = "src/lib.rs"
 
 [dependencies]
 terrane-outcome-alias-witness = { path = "../terrane-outcome-alias-witness-0.1.0" }
+newer = { package = "terrane-outcome-alias-witness", path = "../terrane-outcome-alias-witness-0.2.0" }

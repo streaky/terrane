@@ -19,7 +19,7 @@ fn main() {
         let packet: facade::Response<i64>;
         good = __terrane_raised(
             parse("41"),
-            0 /* terrane-site: src/main.trn:11:16-11:27 */,
+            0 /* terrane-site: src/main.trn:12:16-12:27 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&good));
         let __terrane_completion_0: TerraneCompletion<()> = (|| {
@@ -27,7 +27,7 @@ fn main() {
                 println!(
                     "{}",
                     terrane_scalar_support::scalar_text(&__terrane_raised_completion!(parse("bad"),
-                    1 /* terrane-site: src/main.trn:14:17-14:29 */))
+                    1 /* terrane-site: src/main.trn:15:17-15:29 */))
                 );
                 TerraneCompletion::Normal
             })();
@@ -71,7 +71,7 @@ fn main() {
             let __terrane_conversion_input_0 = true;
             __terrane_raised(
                 maybe(__terrane_conversion_input_0),
-                2 /* terrane-site: src/main.trn:17:24-17:35 */,
+                2 /* terrane-site: src/main.trn:18:24-18:35 */,
             )
         };
         println!("{}", terrane_scalar_support::scalar_text(&(&present).is_some()));
@@ -79,7 +79,7 @@ fn main() {
             let __terrane_conversion_input_0 = false;
             __terrane_raised(
                 maybe(__terrane_conversion_input_0),
-                3 /* terrane-site: src/main.trn:19:23-19:35 */,
+                3 /* terrane-site: src/main.trn:20:23-20:35 */,
             )
         };
         println!("{}", terrane_scalar_support::scalar_text(&(&absent).is_none()));
@@ -87,31 +87,31 @@ fn main() {
             let __terrane_conversion_input_0 = true;
             __terrane_raised(
                 pick(__terrane_conversion_input_0),
-                4 /* terrane-site: src/main.trn:21:14-21:24 */,
+                4 /* terrane-site: src/main.trn:22:14-22:24 */,
             )
         };
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(describe(&chosen),
-            5 /* terrane-site: src/main.trn:22:13-22:29 */))
+            5 /* terrane-site: src/main.trn:23:13-23:29 */))
         );
         nominal = {
             let __terrane_conversion_input_0 = false;
             __terrane_raised(
                 pick(__terrane_conversion_input_0),
-                6 /* terrane-site: src/main.trn:23:46-23:57 */,
+                6 /* terrane-site: src/main.trn:24:46-24:57 */,
             )
         };
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(describe(&nominal),
-            7 /* terrane-site: src/main.trn:24:13-24:30 */))
+            7 /* terrane-site: src/main.trn:25:13-25:30 */))
         );
         letter = {
             let __terrane_conversion_input_0 = terrane_int_support::Int::from(65_i128);
             __terrane_raised(
                 character(__terrane_conversion_input_0),
-                8 /* terrane-site: src/main.trn:25:26-25:39 */,
+                8 /* terrane-site: src/main.trn:26:26-26:39 */,
             )
         };
         println!(
@@ -127,7 +127,7 @@ fn main() {
             );
             __terrane_raised(
                 character(__terrane_conversion_input_0),
-                9 /* terrane-site: src/main.trn:27:27-27:45 */,
+                9 /* terrane-site: src/main.trn:28:27-28:45 */,
             )
         };
         println!("{}", terrane_scalar_support::scalar_text(&(&invalid).is_none()));
@@ -138,7 +138,7 @@ fn main() {
             terrane_int_support::Int::from(116_i128),
             terrane_int_support::Int::from(102_i128),
             terrane_int_support::Int::from(56_i128)]);
-            __terrane_raised(text(__terrane_conversion_input_0), 10 /* terrane-site: src/main.trn:29:13-29:44 */) })
+            __terrane_raised(text(__terrane_conversion_input_0), 10 /* terrane-site: src/main.trn:30:13-30:44 */) })
         );
         let __terrane_completion_1: TerraneCompletion<()> = (|| {
             let __terrane_try_1: TerraneCompletion<()> = (|| {
@@ -148,7 +148,7 @@ fn main() {
                     terrane_int_support::Int >
                     ::new(vec![terrane_int_support::Int::from(255_i128)]);
                     __terrane_raised_completion!(text(__terrane_conversion_input_0),
-                    11 /* terrane-site: src/main.trn:31:17-31:34 */) })
+                    11 /* terrane-site: src/main.trn:32:17-32:34 */) })
                 );
                 TerraneCompletion::Normal
             })();
@@ -184,10 +184,10 @@ fn main() {
             "{}{}{}", terrane_scalar_support::scalar_text(&{ let
             __terrane_conversion_input_0 = true;
             __terrane_raised(external(__terrane_conversion_input_0),
-            12 /* terrane-site: src/main.trn:34:13-34:27 */) }), String::from(":"),
+            12 /* terrane-site: src/main.trn:35:13-35:27 */) }), String::from(":"),
             terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
             true; __terrane_raised(renamed(__terrane_conversion_input_0),
-            13 /* terrane-site: src/main.trn:34:36-34:49 */) })
+            13 /* terrane-site: src/main.trn:35:36-35:49 */) })
         );
         let __terrane_completion_2: TerraneCompletion<()> = (|| {
             let __terrane_try_2: TerraneCompletion<()> = (|| {
@@ -195,7 +195,7 @@ fn main() {
                     "{}", terrane_scalar_support::scalar_text(&{ let
                     __terrane_conversion_input_0 = false;
                     __terrane_raised_completion!(external(__terrane_conversion_input_0),
-                    14 /* terrane-site: src/main.trn:36:17-36:32 */) })
+                    14 /* terrane-site: src/main.trn:37:17-37:32 */) })
                 );
                 TerraneCompletion::Normal
             })();
@@ -234,7 +234,7 @@ fn main() {
             "{}", { let mut __terrane_text = String::new(); match &{ let
             __terrane_conversion_input_0 = true;
             __terrane_raised(external_maybe(__terrane_conversion_input_0),
-            15 /* terrane-site: src/main.trn:39:13-39:33 */) } {
+            15 /* terrane-site: src/main.trn:40:13-40:33 */) } {
             Some(__terrane_present) => {
             terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_present, &mut
             __terrane_text); }, None => __terrane_text.push_str("none"), } __terrane_text
@@ -243,19 +243,19 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0
             = false; __terrane_raised(external_maybe(__terrane_conversion_input_0),
-            16 /* terrane-site: src/main.trn:40:13-40:34 */) } .is_none())
+            16 /* terrane-site: src/main.trn:41:13-41:34 */) } .is_none())
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0
             = false; let __terrane_conversion_input_1 = false;
             __terrane_raised(nested(__terrane_conversion_input_0,
-            __terrane_conversion_input_1), 17 /* terrane-site: src/main.trn:41:13-41:33 */) } .is_none())
+            __terrane_conversion_input_1), 17 /* terrane-site: src/main.trn:42:13-42:33 */) } .is_none())
         );
         println!(
             "{}", { let mut __terrane_text = String::new(); match &{ let
             __terrane_conversion_input_0 = true; let __terrane_conversion_input_1 = true;
             __terrane_raised(nested(__terrane_conversion_input_0,
-            __terrane_conversion_input_1), 18 /* terrane-site: src/main.trn:42:13-42:31 */) } { Some(__terrane_present) => {
+            __terrane_conversion_input_1), 18 /* terrane-site: src/main.trn:43:13-43:31 */) } { Some(__terrane_present) => {
             terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_present, &mut
             __terrane_text); }, None => __terrane_text.push_str("none"), } __terrane_text
             }
@@ -267,7 +267,7 @@ fn main() {
                     __terrane_conversion_input_0 = true; let __terrane_conversion_input_1
                     = false;
                     __terrane_raised_completion!(nested(__terrane_conversion_input_0,
-                    __terrane_conversion_input_1), 19 /* terrane-site: src/main.trn:44:17-44:36 */) } { Some(__terrane_present) => {
+                    __terrane_conversion_input_1), 19 /* terrane-site: src/main.trn:45:17-45:36 */) } { Some(__terrane_present) => {
                     terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_present,
                     &mut __terrane_text); }, None => __terrane_text.push_str("none"), }
                     __terrane_text }
@@ -307,13 +307,13 @@ fn main() {
         }
         owner = __terrane_raised(
             reader(),
-            20 /* terrane-site: src/main.trn:47:13-47:20 */,
+            20 /* terrane-site: src/main.trn:48:13-48:20 */,
         );
         println!(
             "{}{}{}{}{}", terrane_scalar_support::scalar_text(&{ let
             __terrane_conversion_input_0 = true;
             __terrane_raised(terrane_static_trn_526561646572_open(__terrane_conversion_input_0),
-            21 /* terrane-site: src/main.trn:48:13-48:31 */) }), String::from(":"),
+            21 /* terrane-site: src/main.trn:49:13-49:31 */) }), String::from(":"),
             terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
             true; __terrane_raised(| | -> Result < _, crate ::TerraneForeignError > {
             match match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
@@ -324,7 +324,7 @@ fn main() {
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
             Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
             ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))) } } (),
-            22 /* terrane-site: src/main.trn:48:40-48:56 */) }), String::from(":"),
+            22 /* terrane-site: src/main.trn:49:40-49:56 */) }), String::from(":"),
             terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({ let
             __terrane_future = { let __terrane_call = (&owner).asynchronous(true);
             Box::pin(async move { match crate
@@ -335,8 +335,8 @@ fn main() {
             Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
             ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))) } }) };
             async move { __terrane_raised_err(__terrane_future. await,
-            23 /* terrane-site: src/main.trn:48:71-48:95 */) } }). await,
-            23 /* terrane-site: src/main.trn:48:71-48:95 */))
+            23 /* terrane-site: src/main.trn:49:71-49:95 */) } }). await,
+            23 /* terrane-site: src/main.trn:49:71-49:95 */))
         );
         let __terrane_completion_4: TerraneCompletion<()> = (|| {
             let __terrane_try_4: TerraneCompletion<()> = (|| {
@@ -354,7 +354,7 @@ fn main() {
                     Err(crate ::TerraneForeignError(crate
                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                     .to_string(), crate ::TERRANE_NO_SITE))) } } (),
-                    24 /* terrane-site: src/main.trn:50:17-50:34 */) })
+                    24 /* terrane-site: src/main.trn:51:17-51:34 */) })
                 );
                 TerraneCompletion::Normal
             })();
@@ -403,7 +403,7 @@ fn main() {
                     Err(crate ::TerraneForeignError(crate
                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                     .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
-                    __terrane_raised_err(__terrane_future. await, 25 /* terrane-site: src/main.trn:54:23-54:48 */) } }). await, 25 /* terrane-site: src/main.trn:54:23-54:48 */))
+                    __terrane_raised_err(__terrane_future. await, 25 /* terrane-site: src/main.trn:55:23-55:48 */) } }). await, 25 /* terrane-site: src/main.trn:55:23-55:48 */))
                 );
                 TerraneCompletion::Normal
             }
@@ -443,7 +443,7 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0
             = true; __terrane_raised(opaque(__terrane_conversion_input_0),
-            26 /* terrane-site: src/main.trn:57:13-57:25 */) })
+            26 /* terrane-site: src/main.trn:58:13-58:25 */) })
         );
         let __terrane_completion_6: TerraneCompletion<()> = (|| {
             let __terrane_try_6: TerraneCompletion<()> = (|| {
@@ -451,7 +451,7 @@ fn main() {
                     "{}", terrane_scalar_support::scalar_text(&{ let
                     __terrane_conversion_input_0 = false;
                     __terrane_raised_completion!(opaque(__terrane_conversion_input_0),
-                    27 /* terrane-site: src/main.trn:59:17-59:30 */) })
+                    27 /* terrane-site: src/main.trn:60:17-60:30 */) })
                 );
                 TerraneCompletion::Normal
             })();
@@ -496,7 +496,7 @@ fn main() {
         }
         elapsed = __terrane_raised(
             duration(),
-            28 /* terrane-site: src/main.trn:62:15-62:24 */,
+            28 /* terrane-site: src/main.trn:63:15-63:24 */,
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
@@ -507,7 +507,7 @@ fn main() {
             ::__terrane_dependency_panic(payload, "core",
             "core::time::Duration::as_secs")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from_u128(value as u128)) } } (),
-            29 /* terrane-site: src/main.trn:63:13-63:29 */))
+            29 /* terrane-site: src/main.trn:64:13-64:29 */))
         );
         constructed = {
             let __terrane_conversion_input_0 = terrane_int_support::Int::from(5_i128);
@@ -515,7 +515,7 @@ fn main() {
                 terrane_static_trn_4475726174696f6e_from_secs(
                     __terrane_conversion_input_0,
                 ),
-                30 /* terrane-site: src/main.trn:64:19-64:41 */,
+                30 /* terrane-site: src/main.trn:65:19-65:41 */,
             )
         };
         println!(
@@ -527,12 +527,58 @@ fn main() {
             ::__terrane_dependency_panic(payload, "core",
             "core::time::Duration::as_secs")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from_u128(value as u128)) } } (),
-            31 /* terrane-site: src/main.trn:65:13-65:33 */))
+            31 /* terrane-site: src/main.trn:66:13-66:33 */))
         );
         packet = __terrane_raised(
             response(),
-            32 /* terrane-site: src/main.trn:66:23-66:32 */,
+            32 /* terrane-site: src/main.trn:67:23-67:32 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&packet.value));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0
+            = true; __terrane_raised(new_version(__terrane_conversion_input_0),
+            33 /* terrane-site: src/main.trn:69:13-69:30 */) })
+        );
+        let __terrane_completion_7: TerraneCompletion<()> = (|| {
+            let __terrane_try_7: TerraneCompletion<()> = (|| {
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&{ let
+                    __terrane_conversion_input_0 = false;
+                    __terrane_raised_completion!(new_version(__terrane_conversion_input_0),
+                    34 /* terrane-site: src/main.trn:71:17-71:35 */) })
+                );
+                TerraneCompletion::Normal
+            })();
+            match __terrane_try_7 {
+                TerraneCompletion::Return(value) => {
+                    return TerraneCompletion::Return(value);
+                }
+                TerraneCompletion::Break => return TerraneCompletion::Break,
+                TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                TerraneCompletion::Normal => {}
+                TerraneCompletion::Error(__terrane_error_7) => {
+                    let mut __terrane_handled_7 = false;
+                    if !__terrane_handled_7
+                        && __terrane_error_7.kind
+                            == TerraneErrorKind::Custom(DescriptorId(3))
+                    {
+                        __terrane_handled_7 = true;
+                        println!("{}", String::from("typed newer failure"));
+                    }
+                    if !__terrane_handled_7 {
+                        return TerraneCompletion::Error(__terrane_error_7);
+                    }
+                }
+            }
+            TerraneCompletion::Normal
+        })();
+        match __terrane_completion_7 {
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Return(value) => return value,
+            TerraneCompletion::Error(error) => __terrane_uncaught(error),
+            TerraneCompletion::Break | TerraneCompletion::Continue => {
+                __terrane_generated_defect("loop control escaped a non-loop try")
+            }
+        }
     });
 }

@@ -119,6 +119,13 @@ fn defining_document(offset: u32) -> RustdocCrate {
 fn copies_do_not_conflict() {
     let first = defining_document(10);
     let second = defining_document(100);
+    let mut other_version = defining_document(200);
+    other_version.crate_version = Some("2.0.0".to_owned());
+    for summary in other_version.paths.values_mut() {
+        if summary.path == ["std", "io", "Error"] {
+            summary.path = vec!["std".to_owned(), "fmt".to_owned(), "Error".to_owned()];
+        }
+    }
     let mut target = document("consumer");
     target.external_crates.insert(
         1,
@@ -137,14 +144,31 @@ fn copies_do_not_conflict() {
             kind: ItemKind::TypeAlias,
         },
     );
-    let metadata = serde_json::json!({"packages": [{
-        "name": "owner", "version": "1.0.0", "targets": [{"name": "owner", "kind": ["lib"]}]
-    }]});
-    let imports = plan(
-        &target,
-        &[&first, &second],
-        &BTreeSet::from([path]),
+    let metadata = serde_json::json!({
+        "packages": [
+            {"id": "owner", "name": "owner", "version": "1.0.0", "targets": [{"name": "owner", "kind": ["lib"]}]},
+            {"id": "new-owner", "name": "owner", "version": "2.0.0", "targets": [{"name": "owner", "kind": ["lib"]}]},
+            {"id": "consumer", "name": "consumer", "version": "1.0.0", "targets": [{"name": "consumer", "kind": ["lib"]}]}
+        ],
+        "resolve": {"nodes": [
+            {"id": "consumer", "deps": [{"name": "owner", "pkg": "owner"}, {"name": "newer", "pkg": "new-owner"}]},
+            {"id": "owner", "deps": []}, {"id": "new-owner", "deps": []}
+        ]}
+    });
+    let packages = super::super::package_identities::Packages::new(
         &metadata,
+        BTreeMap::from([(std::path::PathBuf::from("/owner.rlib"), "owner".to_owned())]),
+    );
+    let imports = plan(
+        "consumer",
+        &target,
+        &[
+            ("new-owner", &other_version),
+            ("owner", &first),
+            ("owner", &second),
+        ],
+        &BTreeSet::from([path]),
+        &packages,
     );
     target.index.extend(imports.items);
     target.paths.extend(imports.paths);

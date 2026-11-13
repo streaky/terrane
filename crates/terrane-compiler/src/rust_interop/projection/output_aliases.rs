@@ -94,6 +94,10 @@ pub(super) fn hydrate(
     target: &str,
     containment: Containment,
 ) -> Result<bool, ProjectionError> {
+    let packages = super::package_identities::Packages::new(
+        metadata,
+        super::package_identities::read_artifacts(workspace)?,
+    );
     let mut attempted = BTreeSet::new();
     let mut wanted = BTreeSet::new();
     loop {
@@ -102,48 +106,49 @@ pub(super) fn hydrate(
             .map(|(_, doc, _)| doc)
             .chain(reexports.iter().map(|owner| &owner.document))
             .chain(owners.values())
+            .filter_map(|doc| packages.document(doc).map(|package| (package, doc)))
             .collect::<Vec<_>>();
         let mut needed = BTreeSet::new();
         let mut expanded = false;
-        for document in &documents {
+        for (package, document) in &documents {
             // Include imported alias targets even when the defining crate has no
             // function using that alias itself.
             for id in alias_references(document, &wanted) {
                 let summary = &document.paths[&id];
                 expanded |= wanted.insert(summary.path.clone());
-                if let Some(owner) = document.external_crates.get(&summary.crate_id)
-                    && !matches!(owner.name.as_str(), "core" | "std" | "alloc")
-                    && !documents
-                        .iter()
-                        .any(|doc| document_name(doc) == Some(owner.name.as_str()))
-                    && !attempted.contains(&owner.name)
+                if let Some(owner) = packages.reference(document, package, summary.crate_id)
+                    && !matches!(owner, "core" | "std" | "alloc")
+                    && !documents.iter().any(|(package, _)| *package == owner)
+                    && !attempted.contains(owner)
                 {
-                    needed.insert(owner.name.clone());
+                    needed.insert(owner);
                 }
             }
         }
         if needed.is_empty() && !expanded {
             break;
         }
-        for name in needed {
-            attempted.insert(name.clone());
-            let Ok((package, version)) =
-                super::reexports::resolved_library_package(metadata, &name)
-            else {
-                // Admission reports the exact unresolved alias at its use, rather
-                // than treating an unavailable definition as a nominal result.
+        for identity in needed {
+            attempted.insert(identity);
+            let Some(package) = packages.package(identity) else {
+                continue;
+            };
+            let Some(name) = package["name"].as_str() else {
+                continue;
+            };
+            let Some(crate_name) = packages.library_name(identity) else {
                 continue;
             };
             let document = super::reexports::cached_owner_rustdoc(
                 workspace,
-                &format!("{package}@{version}"),
-                &name,
-                &package,
+                identity,
+                crate_name,
+                name,
                 target,
                 containment,
                 metadata,
             )?;
-            owners.insert(name, document);
+            owners.insert(identity.to_owned(), document);
         }
     }
     let documents = rustdocs
@@ -151,10 +156,11 @@ pub(super) fn hydrate(
         .map(|(_, doc, _)| doc)
         .chain(reexports.iter().map(|owner| &owner.document))
         .chain(owners.values())
+        .filter_map(|doc| packages.document(doc).map(|package| (package, doc)))
         .collect::<Vec<_>>();
     let patches = documents
         .iter()
-        .map(|document| plan(document, &documents, &wanted, metadata))
+        .map(|(package, document)| plan(package, document, &documents, &wanted, &packages))
         .collect::<Vec<_>>();
     let changed = patches.iter().any(|patch| !patch.items.is_empty());
     for (document, patch) in rustdocs
@@ -162,6 +168,7 @@ pub(super) fn hydrate(
         .map(|(_, doc, _)| doc)
         .chain(reexports.iter_mut().map(|owner| &mut owner.document))
         .chain(owners.values_mut())
+        .filter_map(|document| packages.document(document).map(|_| document))
         .zip(patches)
     {
         document.index.extend(patch.items);
@@ -178,21 +185,28 @@ struct Patch {
     crates: HashMap<u32, ExternalCrate>,
 }
 
-struct Import<'a> {
-    target: &'a RustdocCrate,
+struct Import<'doc, 'metadata> {
+    target: &'doc RustdocCrate,
+    target_package: &'doc str,
+    packages: &'doc super::package_identities::Packages<'metadata>,
+    crate_packages: BTreeMap<u32, &'metadata str>,
     patch: Patch,
     next_id: u32,
     next_crate: u32,
 }
 
 fn plan(
+    target_package: &str,
     target: &RustdocCrate,
-    documents: &[&RustdocCrate],
+    documents: &[(&str, &RustdocCrate)],
     wanted: &BTreeSet<Vec<String>>,
-    metadata: &serde_json::Value,
+    packages: &super::package_identities::Packages<'_>,
 ) -> Patch {
     let mut import = Import {
         target,
+        target_package,
+        packages,
+        crate_packages: BTreeMap::new(),
         patch: Patch::default(),
         next_id: target
             .index
@@ -222,28 +236,28 @@ fn plan(
         if summary.kind != ItemKind::TypeAlias {
             continue;
         }
-        if let Some(owner) = summary.path.first()
-            && !matches!(owner.as_str(), "std" | "core" | "alloc")
-            && super::reexports::resolved_library_package(metadata, owner).is_err()
-        {
+        let Some(package) = import.crate_package(summary.crate_id) else {
             continue;
-        }
-        // Prefer the declared defining document. Supplemental copies of the
-        // same locked crate can use different Rustdoc IDs; raw AST equality
-        // across those documents is not an ambiguity test.
-        let Some((source, definition)) = documents.iter().find_map(|document| {
-            document
-                .paths
-                .iter()
-                .find_map(|(source_id, source_summary)| {
-                    (source_summary.path == summary.path
-                        && source_summary.kind == ItemKind::TypeAlias)
-                        .then(|| document.index.get(source_id))
-                        .flatten()
-                        .filter(|item| matches!(item.inner, ItemEnum::TypeAlias(_)))
-                        .map(|item| (*document, item))
-                })
-        }) else {
+        };
+        // Only a document for the exact resolved package can supply a definition.
+        let Some((source_package, source, definition)) =
+            documents.iter().find_map(|(source_package, document)| {
+                if *source_package != package {
+                    return None;
+                }
+                document
+                    .paths
+                    .iter()
+                    .find_map(|(source_id, source_summary)| {
+                        (source_summary.path == summary.path
+                            && source_summary.kind == ItemKind::TypeAlias)
+                            .then(|| document.index.get(source_id))
+                            .flatten()
+                            .filter(|item| matches!(item.inner, ItemEnum::TypeAlias(_)))
+                            .map(|item| (*source_package, *document, item))
+                    })
+            })
+        else {
             continue;
         };
         let mut item = definition.clone();
@@ -255,7 +269,7 @@ fn plan(
         };
         let mut error = false;
         let mut remap = |path: &mut RustdocPath| {
-            if let Some(mapped) = import.path(source, path.id) {
+            if let Some(mapped) = import.path(source_package, source, path.id) {
                 path.id = mapped;
                 pending.push(mapped);
             } else {
@@ -271,39 +285,53 @@ fn plan(
     import.patch
 }
 
-impl Import<'_> {
-    fn path(&mut self, source: &RustdocCrate, id: Id) -> Option<Id> {
+impl<'metadata> Import<'_, 'metadata> {
+    fn crate_package(&self, crate_id: u32) -> Option<&'metadata str> {
+        self.crate_packages.get(&crate_id).copied().or_else(|| {
+            self.packages
+                .reference(self.target, self.target_package, crate_id)
+        })
+    }
+
+    fn path(&mut self, source_package: &'_ str, source: &RustdocCrate, id: Id) -> Option<Id> {
         let summary = source.paths.get(&id)?;
-        if let Some((id, _)) = self
-            .target
-            .paths
-            .iter()
-            .chain(&self.patch.paths)
-            .find(|(_, candidate)| candidate.path == summary.path && candidate.kind == summary.kind)
+        let package = self
+            .packages
+            .reference(source, source_package, summary.crate_id)?;
+        if let Some((id, _)) =
+            self.target
+                .paths
+                .iter()
+                .chain(&self.patch.paths)
+                .find(|(_, candidate)| {
+                    candidate.path == summary.path
+                        && candidate.kind == summary.kind
+                        && self.crate_package(candidate.crate_id) == Some(package)
+                })
         {
             return Some(*id);
         }
         let mut summary = summary.clone();
-        let name = if summary.crate_id == 0 {
-            document_name(source)?
-        } else {
-            &source.external_crates.get(&summary.crate_id)?.name
-        };
-        summary.crate_id = if document_name(self.target) == Some(name) {
+        summary.crate_id = if self.target_package == package {
             0
-        } else if let Some((id, _)) = self
+        } else if let Some(id) = self
             .target
             .external_crates
-            .iter()
-            .chain(&self.patch.crates)
-            .find(|(_, ext)| ext.name == name)
+            .keys()
+            .chain(self.patch.crates.keys())
+            .find(|id| self.crate_package(**id) == Some(package))
         {
             *id
         } else {
-            let external = source.external_crates.get(&summary.crate_id)?.clone();
+            let external = if summary.crate_id == 0 {
+                self.packages.root_external(source, package)
+            } else {
+                source.external_crates.get(&summary.crate_id)?.clone()
+            };
             let id = self.next_crate;
             self.next_crate += 1;
             self.patch.crates.insert(id, external);
+            self.crate_packages.insert(id, package);
             id
         };
         let id = Id(self.next_id);

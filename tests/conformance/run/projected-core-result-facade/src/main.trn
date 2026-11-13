@@ -4,6 +4,7 @@ from /deps/facade import parse, maybe, pick, describe, character, text, Either a
 from /deps/facade import external, renamed, external_maybe, nested, Reader, reader, Failure, opaque
 from /deps/facade import Duration, duration
 from /deps/facade import Response, response
+from /deps/facade import new_version, NewFailure
 from /core/errors import throwable, dependency-error
 from /core/collections import list
 
@@ -65,3 +66,8 @@ async function main;
     print; (constructed.as_secs;)
     packet Response = response;
     print; packet.value
+    print; (new_version; true)
+    try
+        print; (new_version; false)
+    catch NewFailure
+        print; 'typed newer failure'

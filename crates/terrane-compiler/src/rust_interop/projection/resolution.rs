@@ -202,22 +202,34 @@ pub fn resolve(
     let overlays = namespace_overlays_from_metadata(&metadata, dependencies)?;
     metadata_progress.finish();
 
+    let packages = super::package_identities::Packages::new(&metadata, BTreeMap::new());
     let mut rustdocs = Vec::new();
     for dependency in dependencies {
-        let package_spec = dependency.version.strip_prefix('=').map_or_else(
-            || dependency.package.clone(),
-            |version| format!("{}@{version}", dependency.package),
-        );
-        let crate_name = dependency.package.replace('-', "_");
+        let package_spec = packages
+            .direct(&dependency.name)
+            .ok_or_else(|| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has no resolved Cargo package edge",
+                    dependency.name
+                ),
+            })?;
+        let crate_name = packages
+            .library_name(package_spec)
+            .ok_or_else(|| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has no resolved Cargo library target",
+                    dependency.name
+                ),
+            })?;
         let document = generate_rustdoc(
             &workspace,
-            &package_spec,
-            &crate_name,
+            package_spec,
+            crate_name,
             &dependency.package,
             super::reexports::rustdoc_target(
                 &metadata,
-                &package_spec,
-                &crate_name,
+                package_spec,
+                crate_name,
                 &dependency.package,
                 &target,
             ),
@@ -299,9 +311,13 @@ pub fn resolve(
                 true,
             );
         }
+        let packages = super::package_identities::Packages::new(
+            &metadata,
+            super::package_identities::read_artifacts(&workspace)?,
+        );
         for owner in reexport_rustdocs {
-            if let Some(name) = super::output_aliases::document_name(&owner.document) {
-                alias_documents.insert(name.to_owned(), owner.document);
+            if let Some(identity) = packages.document(&owner.document) {
+                alias_documents.insert(identity.to_owned(), owner.document);
             }
         }
         // Expanded payloads can expose additional owners. Reuse decoded documents

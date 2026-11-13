@@ -68,6 +68,7 @@ mod methods;
 mod namespace_overlays;
 mod output_aliases;
 mod owning_callbacks;
+mod package_identities;
 mod partial;
 mod reexports;
 mod resolution;
@@ -164,7 +165,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "358";
+const PROJECTION_SCHEMA: &str = "359";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
