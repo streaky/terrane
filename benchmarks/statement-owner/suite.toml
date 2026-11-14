@@ -1,0 +1,21 @@
+format = 2
+name = "IR-backed shared statement-owner borrowing"
+[measurement]
+warmups = 3
+runs = 21
+setup-timeout-seconds = 900
+runtime-timeout-seconds = 60
+[[lanes]]
+path = "lanes/before.toml"
+[[lanes]]
+path = "lanes/after.toml"
+[[groups]]
+id = "owner"
+name = "Owner lending and fallback control"
+lanes = ["before", "after"]
+[[groups.problems]]
+path = "problems/local"
+[[groups.problems]]
+path = "problems/parameter"
+[[groups.problems]]
+path = "problems/fallback"
