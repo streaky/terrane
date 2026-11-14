@@ -53,7 +53,7 @@ async fn child(
     observer: std::sync::Arc<TerraneSharedCell<State>>,
 ) -> terrane_int_support::Int {
     {
-        let __terrane_owner_0 = observer.clone();
+        let __terrane_owner_0 = &observer;
         let __terrane_value: bool = true;
         __terrane_owner_0
             .lock()
@@ -81,7 +81,7 @@ async fn child(
                             .await;
                     }
                     {
-                        let __terrane_owner_1 = observer.clone();
+                        let __terrane_owner_1 = &observer;
                         let __terrane_value: bool = true;
                         __terrane_owner_1
                             .lock()
@@ -114,7 +114,7 @@ async fn child(
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         {
-            let __terrane_owner_2 = observer.clone();
+            let __terrane_owner_2 = &observer;
             let __terrane_value: bool = true;
             __terrane_owner_2
                 .lock()

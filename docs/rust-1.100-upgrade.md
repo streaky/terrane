@@ -122,6 +122,44 @@ Stable allocator-aware `Vec` and `Box` were exercised with `System`. Lexer/parse
 
 Other new unsafe/ZST APIs do not relax Terrane's unsafe permissions or native ABI admission. Stable sample-profile optimization is not enabled by default and does not replace the profiler. Platform-specific ABI changes still require evidence on their respective targets; Linux execution does not establish Windows, ARM or WASI behavior.
 
+### Stable shared-owner follow-on
+
+The allocator investigation also identified avoidable temporary owner clones in
+generated shared field writes. A subsequent canonical-IR owner-loan change
+(`9f857a0a` before, `ec074bd6` after) was measured using the actual compilers and
+their unchanged emitted Rust, not the allocator prototype:
+
+| Write-heavy workload | Before median | After median | Elapsed-time change |
+| --- | ---: | ---: | ---: |
+| Local alias | 237.752 ms | 226.518 ms | −4.73% |
+| Shared parameter | 235.850 ms | 229.995 ms | −2.48% |
+| Byte-identical clone fallback | 235.949 ms | 236.161 ms | +0.09% |
+
+These were 2,000,000-iteration single-threaded loops on one pinned CPU, using
+Rust 1.100.0, optimization level 3, fat LTO and one codegen unit. Three normalized
+cohorts provided 63 measured executions per compiler/workload, with the final
+cohort reversing execution order. Correctness checks passed. Local-alias cohort
+improvements ranged from 1.85% to 4.79%; these are not application-wide guarantees,
+hardware-cycle measurements or memory savings. An initial cohort whose identical
+fallback shifted materially was excluded before interpreting gains.
+
+The one-off harness and raw samples are preserved in commit `3b2dee71`; their
+subsequent removal (`c8d68493`) was deliberate because these experiments do not
+belong among maintained benchmark suites. This summary survives a squash without
+restoring the harness or adopting nightly allocator APIs. The measurements apply
+to the named compiler revisions, not to later precision repairs or additional
+unmeasured source shapes.
+
+The single capability-level changelog entry is retained for this measured
+lowering improvement; routine proof repairs do not receive separate entries.
+The later precision/coverage repairs passed clean committed full-workspace
+validation at `10047a41`: **2,933 passed, 0 failed, 0 ignored**, with Cargo wall
+time 875.15 seconds. All-targets warning-denied Clippy, focused conformance,
+formatting and manual catalog checks also passed. Full-corpus regeneration
+changed only 27 statement-owner clone-to-borrow lines across 14 additional
+lowering artifacts; their RHS evaluation, lock placement and support sidecars
+were unchanged. The scoreboard retains the exact run provenance.
+
 ## Verification
 
 Focused verification:

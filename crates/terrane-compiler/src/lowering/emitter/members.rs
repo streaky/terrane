@@ -548,6 +548,17 @@ impl Emitter<'_> {
         }
     }
 
+    fn borrowed_statement_owner(&self, receiver: &SyntaxNode) -> Option<String> {
+        let receiver = crate::semantics::ungrouped_expression(receiver);
+        let loan = self.unit.statement_owner_loans.get(&(
+            receiver.span.file,
+            receiver.span.start,
+            receiver.span.end,
+        ))?;
+        let binding = self.unit.typed_bindings.get(loan.binding_index)?;
+        Some(self.available_storage_reference(binding, receiver, false))
+    }
+
     fn guarded_receiver_parts(
         &mut self,
         receiver: &SyntaxNode,
@@ -559,7 +570,8 @@ impl Emitter<'_> {
             Some(ValueType::SharedReference(_))
         ) {
             let owner = if mutable {
-                format!("({}).clone()", self.expression(receiver))
+                self.borrowed_statement_owner(receiver)
+                    .unwrap_or_else(|| format!("({}).clone()", self.expression(receiver)))
             } else {
                 self.borrowed_receiver_handle(receiver)
             };
@@ -576,7 +588,8 @@ impl Emitter<'_> {
             )
         } else if self.reference_backed_name(receiver).is_some() {
             let owner = if mutable {
-                self.reference_storage_expression(receiver)
+                self.borrowed_statement_owner(receiver)
+                    .unwrap_or_else(|| self.reference_storage_expression(receiver))
             } else {
                 self.borrowed_receiver_handle(receiver)
             };

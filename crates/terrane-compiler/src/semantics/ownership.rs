@@ -1,26 +1,18 @@
-use super::prelude::*;
+use super::{prelude::*, types::ungrouped_expression};
+#[cfg(test)]
+mod evaluation_tests;
 mod exclusive_loans;
 use exclusive_loans::{
     OwnerAccessWindow, first_owner_access_between, has_exclusive_lineage, owner_paths_overlap,
     owner_place_path, reference_descends_from,
 };
 
-fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
-    while node.kind == SyntaxKind::GroupExpression {
-        let Some(child) = node.children.first() else {
-            break;
-        };
-        node = child;
-    }
-    node
-}
-
 fn requires_noncopyable_projection_access(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<bool, SemanticFailure> {
-    let value = ungroup(value);
+    let value = ungrouped_expression(value);
     if !matches!(
         value.kind,
         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
@@ -59,7 +51,7 @@ fn is_instance_field(
     unit: &SemanticUnit,
     callee: &SyntaxNode,
 ) -> Result<bool, SemanticFailure> {
-    let callee = ungroup(callee);
+    let callee = ungrouped_expression(callee);
     if callee.kind != SyntaxKind::MemberExpression {
         return Ok(false);
     }
@@ -98,7 +90,7 @@ fn validate_callable_field_invocation(
     unit: &SemanticUnit,
     callee: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    let callee = ungroup(callee);
+    let callee = ungrouped_expression(callee);
     if is_instance_field(package, unit, callee)?
         && matches!(
             infer_value_type(unit, callee, &unit.typed_bindings)?,
@@ -174,7 +166,7 @@ fn validate_field_snapshot(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    let value = ungroup(value);
+    let value = ungrouped_expression(value);
     if requires_noncopyable_projection_access(package, unit, value)? {
         return Err(failure(
             &unit.source,
@@ -192,7 +184,7 @@ fn validate_field_snapshot(
     // because the final selected field is Copy.
     let mut path = value;
     while path.kind == SyntaxKind::MemberExpression {
-        let Some(receiver) = path.children.first().map(ungroup) else {
+        let Some(receiver) = path.children.first().map(ungrouped_expression) else {
             break;
         };
         if receiver.kind == SyntaxKind::IndexExpression
@@ -231,15 +223,15 @@ fn validate_async_receiver_field_borrow(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    if ungroup(value).kind != SyntaxKind::MemberExpression {
+    if ungrouped_expression(value).kind != SyntaxKind::MemberExpression {
         return Ok(());
     }
-    let mut root = ungroup(value);
+    let mut root = ungrouped_expression(value);
     while matches!(
         root.kind,
         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
     ) {
-        root = ungroup(&root.children[0]);
+        root = ungrouped_expression(&root.children[0]);
     }
     if root.kind == SyntaxKind::Name
         && node_text(&unit.source, root) == "this"
@@ -258,7 +250,7 @@ fn validate_async_receiver_field_borrow(
             diagnostics: vec![Diagnostic::error(
                 "T0135",
                 "borrowing an inline field of an async receiver requires an unsupported scoped lender",
-                ungroup(value).span,
+                ungrouped_expression(value).span,
             ).with_help(
                 "call a synchronous helper through `this`; for copyable fields, bind an owned snapshot before awaiting; when mutation is permitted, explicitly take an optional field before use",
             )],
@@ -540,7 +532,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
         if node.kind == SyntaxKind::UnaryExpression
             && unary_operator_text(unit, node).as_deref() == Some("move")
-            && let Some(value) = node.children.last().map(ungroup)
+            && let Some(value) = node.children.last().map(ungrouped_expression)
             && value.kind == SyntaxKind::IndexExpression
         {
             validate_field_snapshot(package, unit, value)?;
@@ -692,7 +684,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
         {
-            let enum_payload = ungroup(callee).kind == SyntaxKind::ConstructionExpression
+            let enum_payload = ungrouped_expression(callee).kind
+                == SyntaxKind::ConstructionExpression
                 && infer_value_type(unit, node, &unit.typed_bindings)?.is_some_and(|ty| {
                     matches!(ty, ValueType::Object(identity)
                         if unit.descriptors.iter().any(|descriptor|
@@ -700,12 +693,12 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                                 && descriptor.identity.base() == identity.base()))
                 });
             if enum_payload
-                || ungroup(callee).kind == SyntaxKind::Name
+                || ungrouped_expression(callee).kind == SyntaxKind::Name
                     && package
                         .resolve_name_at(
                             unit,
                             callee.span.start,
-                            node_text(&unit.source, ungroup(callee)),
+                            node_text(&unit.source, ungrouped_expression(callee)),
                         )
                         .is_some_and(|symbol| {
                             symbol.identity == "/core/output::print"
@@ -727,7 +720,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     }
                 }
             }
-            let callee = ungroup(callee);
+            let callee = ungrouped_expression(callee);
             validate_callable_field_invocation(package, unit, callee)?;
             let projected = super::bindings::projected_function_for_call(
                 package,
@@ -749,12 +742,12 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if callee.kind == SyntaxKind::MemberExpression
                 && let [receiver, member] = callee.children.as_slice()
             {
-                let mut root = ungroup(receiver);
+                let mut root = ungrouped_expression(receiver);
                 while root.kind == SyntaxKind::MemberExpression {
                     let Some(parent) = root.children.first() else {
                         break;
                     };
-                    root = ungroup(parent);
+                    root = ungrouped_expression(parent);
                 }
                 if matches!(
                     infer_value_type(unit, root, &unit.typed_bindings)?,
@@ -799,14 +792,14 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     InvocationMode::Mutable | InvocationMode::Consuming
                 )
                 && let Some(receiver) = callee.children.first()
-                && ungroup(receiver).kind == SyntaxKind::IndexExpression
+                && ungrouped_expression(receiver).kind == SyntaxKind::IndexExpression
                 && requires_noncopyable_projection_access(package, unit, receiver)?
             {
                 return Err(failure(
                     &unit.source,
                     "T0135",
                     "indexed bounded receivers cannot be moved or mutably borrowed without a concrete typed adapter",
-                    ungroup(receiver).span,
+                    ungrouped_expression(receiver).span,
                 ));
             }
             if let Some(contract) = function_contract_for_call(package, unit, callee) {
@@ -1003,7 +996,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first().map(ungroup)
+            && let Some(callee) = node.children.first().map(ungrouped_expression)
             && callee.kind == SyntaxKind::Name
             && let Some(binding) =
                 binding_at(unit, node_text(&unit.source, callee), callee.span.start)
@@ -1155,7 +1148,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && match &receiver_type {
                 ValueType::InvocationScopedNative { .. } => {
                     matches!(
-                        ungroup(receiver).kind,
+                        ungrouped_expression(receiver).kind,
                         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
                     ) && !package.native_value_is_copyable(&receiver_type)
                 }
@@ -1258,7 +1251,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .children
                 .iter()
                 .filter_map(|argument| {
-                    let value = ungroup(argument.children.last().unwrap_or(argument));
+                    let value = ungrouped_expression(argument.children.last().unwrap_or(argument));
                     (value.kind == SyntaxKind::Name)
                         .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
                         .flatten()
@@ -1295,7 +1288,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             )
             && let Some(argument) = arguments.children.first()
         {
-            let value = ungroup(argument.children.last().unwrap_or(argument));
+            let value = ungrouped_expression(argument.children.last().unwrap_or(argument));
             let transferred = (value.kind == SyntaxKind::Name)
                 .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
                 .flatten()
@@ -1420,7 +1413,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         package, unit, receiver, ty, member,
                     ) == InvocationMode::Consuming
                 })
-                .map(|(receiver, _, _)| ungroup(receiver))
+                .map(|(receiver, _, _)| ungrouped_expression(receiver))
                 .filter(|receiver| receiver.kind == SyntaxKind::Name)
                 .and_then(|receiver| {
                     binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
@@ -1478,7 +1471,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let transferred = node
                 .children
                 .last()
-                .map(ungroup)
+                .map(ungrouped_expression)
                 .filter(|initializer| initializer.kind == SyntaxKind::Name)
                 .and_then(|initializer| {
                     binding_at(
@@ -1490,8 +1483,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .filter(|binding| noncopyable_binding(package, unit, *binding));
             let assignment_target = node.assignment_target();
             for (index, child) in node.children.iter().enumerate() {
-                if assignment_target.is_some_and(|target| target.span == ungroup(child).span)
-                    && ungroup(child).kind == SyntaxKind::Name
+                if assignment_target
+                    .is_some_and(|target| target.span == ungrouped_expression(child).span)
+                    && ungrouped_expression(child).kind == SyntaxKind::Name
                 {
                     // Write-through assignment uses the reference handle, not a new binding.
                     if node.kind != SyntaxKind::Assignment
@@ -1508,7 +1502,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     unit,
                     child,
                     moved,
-                    index == 0 && ungroup(child).kind == SyntaxKind::StaticMemberExpression,
+                    index == 0
+                        && ungrouped_expression(child).kind == SyntaxKind::StaticMemberExpression,
                     resource_objects,
                     loop_exits,
                 )?;
@@ -2389,7 +2384,7 @@ fn call_argument_owner_path(
     unit: &SemanticUnit,
     place: &SyntaxNode,
 ) -> Option<(Span, Vec<ReferenceProjection>)> {
-    let place = ungroup(place);
+    let place = ungrouped_expression(place);
     let place = if place.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, place).as_deref() == Some("move")
     {
@@ -2421,7 +2416,7 @@ fn validate_preserved_return_value(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    let value = ungroup(value);
+    let value = ungrouped_expression(value);
     if let Some(binding) = binding_at(unit, value)
         && let value_type = unit
             .flow_binding_types
@@ -2537,7 +2532,7 @@ fn validate_call_argument_preservation(
                 value.span,
             ));
         }
-        let moved = ungroup(value);
+        let moved = ungrouped_expression(value);
         if moved.kind == SyntaxKind::UnaryExpression
             && unary_operator_text(unit, moved).as_deref() == Some("move")
         {
@@ -3565,7 +3560,7 @@ fn reaching_reference_provenances(
     versions: &[ReferenceAssignmentProvenance],
     return_lenders: &BTreeMap<FunctionKey, usize>,
 ) -> Vec<ReferenceProvenance> {
-    let value = ungroup(value);
+    let value = ungrouped_expression(value);
     let origins = unit
         .flow_read_bindings
         .get(&(value.span.file, value.span.start, value.span.end));
@@ -3687,7 +3682,7 @@ fn record_unary_reference_provenance(
         {
             provenance
         } else if operator == "shared ref"
-            && ungroup(operand).kind == SyntaxKind::CallExpression
+            && ungrouped_expression(operand).kind == SyntaxKind::CallExpression
             && infer_value_type(unit, operand, &unit.typed_bindings)?.is_some_and(|ty| {
                 !matches!(
                     ty,
@@ -5551,6 +5546,23 @@ pub(super) fn collect_evaluation_steps(
         let kind = match node.kind {
             SyntaxKind::CallExpression => Some(EvaluationKind::Call),
             SyntaxKind::PostfixExpression => Some(EvaluationKind::PostfixUpdate),
+            SyntaxKind::ConstructionExpression | SyntaxKind::InitializationExpression => {
+                Some(EvaluationKind::Call)
+            }
+            SyntaxKind::Assignment | SyntaxKind::Binding => Some(EvaluationKind::Write),
+            SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement => {
+                Some(EvaluationKind::Transfer)
+            }
+            SyntaxKind::AnonymousFunction => Some(EvaluationKind::Capture),
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock => Some(EvaluationKind::Native),
+            SyntaxKind::MemberExpression
+            | SyntaxKind::StaticMemberExpression
+            | SyntaxKind::IndexExpression => Some(EvaluationKind::Access),
+            SyntaxKind::UnaryExpression => match node.unary_operator_text(source.text()) {
+                Some("move") => Some(EvaluationKind::Transfer),
+                Some("await") => Some(EvaluationKind::Suspension),
+                _ => None,
+            },
             _ => None,
         };
         if let Some(kind) = kind {

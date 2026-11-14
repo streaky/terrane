@@ -42,6 +42,7 @@ mod native_constructors;
 mod numeric;
 mod throw_construction;
 mod types;
+pub(crate) use types::ungrouped_expression;
 
 // Object, ownership, binding-lifetime, and diagnostic validation.
 mod bindings;
@@ -56,6 +57,7 @@ mod selection;
 mod shared_reentry;
 mod shared_storage;
 mod source_associated;
+mod statement_owners;
 pub(crate) use namespaces::namespace_capabilities;
 
 #[cfg(test)]

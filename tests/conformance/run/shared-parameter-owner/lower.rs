@@ -93,7 +93,7 @@ fn share(owner: Tracked) {
     let alias: std::sync::Arc<TerraneSharedCell<Tracked>>;
     alias = owner.clone();
     {
-        let __terrane_owner_2 = alias.clone();
+        let __terrane_owner_2 = &alias;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             3_i128,
         );
@@ -110,7 +110,7 @@ async fn share_async(owner: Tracked) {
     let alias: std::sync::Arc<TerraneSharedCell<Tracked>>;
     alias = owner.clone();
     {
-        let __terrane_owner_3 = alias.clone();
+        let __terrane_owner_3 = &alias;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             5_i128,
         );
@@ -139,14 +139,14 @@ fn replace(owner: Counter) {
     alias = owner.clone();
     *owner.lock().expect("reference lock poisoned") = Counter::terrane_construct();
     {
-        let __terrane_owner_4 = owner.clone();
+        let __terrane_owner_4 = &owner;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             99_i128,
         );
         __terrane_owner_4.lock().expect("reference lock poisoned").value = __terrane_value;
     }
     {
-        let __terrane_owner_5 = alias.clone();
+        let __terrane_owner_5 = &alias;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             11_i128,
         );
@@ -175,7 +175,7 @@ fn main() {
                 let alias: std::sync::Arc<TerraneSharedCell<Tracked>>;
                 alias = owner.clone();
                 {
-                    let __terrane_owner_6 = alias.clone();
+                    let __terrane_owner_6 = &alias;
                     let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
                         7_i128,
                     );

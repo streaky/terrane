@@ -14,18 +14,8 @@ struct FieldPath {
 
 type Moves = BTreeSet<FieldPath>;
 
-fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
-    while node.kind == SyntaxKind::GroupExpression {
-        let Some(child) = node.children.first() else {
-            break;
-        };
-        node = child;
-    }
-    node
-}
-
 fn path_at(unit: &SemanticUnit, node: &SyntaxNode) -> Option<FieldPath> {
-    let node = ungroup(node);
+    let node = super::types::ungrouped_expression(node);
     if node.kind == SyntaxKind::Name {
         if node_text(&unit.source, node) == "this" {
             let owner = unit
@@ -523,7 +513,7 @@ fn visit(
     }
     if node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("move")
-        && let Some(access) = node.children.last().map(ungroup)
+        && let Some(access) = node.children.last().map(super::types::ungrouped_expression)
         && access.kind == SyntaxKind::MemberExpression
         && let Some(path) = path_at(unit, access)
     {
@@ -567,7 +557,10 @@ fn visit(
         _ => {}
     }
     if node.kind == SyntaxKind::CallExpression
-        && let Some(callee) = node.children.first().map(ungroup)
+        && let Some(callee) = node
+            .children
+            .first()
+            .map(super::types::ungrouped_expression)
         && let [receiver, _] = callee.children.as_slice()
         && callee.kind == SyntaxKind::MemberExpression
         && super::namespaces::function_contract_for_call(package, unit, callee).is_some_and(
@@ -576,7 +569,7 @@ fn visit(
                     && contract.written_invocation_mode == InvocationMode::Consuming
             },
         )
-        && let receiver = ungroup(receiver)
+        && let receiver = super::types::ungrouped_expression(receiver)
         && let Some(path) = path_at(unit, receiver)
         && receiver.kind == SyntaxKind::MemberExpression
     {
@@ -594,7 +587,10 @@ fn visit(
             check_rust_access(unit, node, moved)?;
         }
         if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first().map(ungroup)
+            && let Some(callee) = node
+                .children
+                .first()
+                .map(super::types::ungrouped_expression)
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
             && let Some(path) = path_at(unit, receiver)

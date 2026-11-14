@@ -2242,7 +2242,7 @@ pub(super) fn optional_inner(value_type: ValueType) -> Option<ValueType> {
     }
 }
 
-pub(super) fn ungrouped_expression(mut node: &SyntaxNode) -> &SyntaxNode {
+pub(crate) fn ungrouped_expression(mut node: &SyntaxNode) -> &SyntaxNode {
     while node.kind == SyntaxKind::GroupExpression {
         let Some(child) = node.children.first() else {
             break;

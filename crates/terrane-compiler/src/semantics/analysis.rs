@@ -152,6 +152,7 @@ pub(super) fn parse_unit(
         reference_provenance: BTreeMap::new(),
         reference_assignment_provenance: Vec::new(),
         callable_drops_after: BTreeMap::new(),
+        statement_owner_loans: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),
         builtin_descriptors: builtin_descriptor_contracts(),
@@ -1245,6 +1246,7 @@ fn analyze_parsed_with_projection(
     super::modifiers::resolve_declaration_modifiers(&mut semantic)?;
     super::scoped_regions::validate_scoped_regions(&semantic)?;
     super::scoped_regions::record_completion_capture_slots(&mut semantic);
+    super::statement_owners::record(&mut semantic);
     stage.finish();
     Ok(semantic)
 }

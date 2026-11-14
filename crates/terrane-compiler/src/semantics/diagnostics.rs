@@ -1163,15 +1163,8 @@ pub(super) fn declaration_name(node: &SyntaxNode, source: &SourceFile) -> Option
 }
 
 pub(super) fn unary_operator_text(unit: &SemanticUnit, node: &SyntaxNode) -> Option<String> {
-    node.children
-        .iter()
-        .find(|child| child.kind == SyntaxKind::UnaryOperator)
-        .map(|operator| {
-            node_text(&unit.source, operator)
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
+    node.unary_operator_text(unit.source.text())
+        .map(str::to_owned)
 }
 
 pub(super) fn transparent_value_type(value_type: Option<ValueType>) -> Option<ValueType> {
