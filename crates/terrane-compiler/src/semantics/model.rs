@@ -1837,6 +1837,15 @@ pub enum EvaluationKind {
     Call,
     ShortCircuitRhs,
     PostfixUpdate,
+    /// A place is replaced, rather than merely observed.
+    Write,
+    /// A value may transfer ownership out of the current evaluation.
+    Transfer,
+    Capture,
+    Suspension,
+    Native,
+    /// A projected/member access may execute representation-specific code.
+    Access,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1844,6 +1853,13 @@ pub struct EvaluationStep {
     pub kind: EvaluationKind,
     pub span: Span,
     pub conditional: bool,
+}
+
+/// A statement-local loan of a stable owning handle, not a loan of its payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct StatementOwnerLoan {
+    pub owner: Span,
+    pub through: Span,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2105,6 +2121,7 @@ pub struct SemanticUnit {
     pub(super) reference_assignment_provenance: Vec<ReferenceAssignmentProvenance>,
     /// Borrowed callable carriers keyed by their last-use statement's cleanup boundary.
     pub callable_drops_after: BTreeMap<(u32, usize, usize), Vec<Span>>,
+    pub(crate) statement_owner_loans: BTreeMap<(u32, usize, usize), StatementOwnerLoan>,
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,

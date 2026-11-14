@@ -8374,7 +8374,7 @@ fn assign(
     >,
 ) {
     {
-        let __terrane_owner_0 = value.clone();
+        let __terrane_owner_0 = &value;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             9_i128,
         );
@@ -8421,7 +8421,7 @@ fn test_scenario_terrane_inherited_shared_field_writes() {
     );
     held = plain.clone();
     {
-        let __terrane_owner_1 = held.clone();
+        let __terrane_owner_1 = &held;
         let __terrane_value: bool = false;
         __terrane_owner_1.lock().expect("shared reference lock poisoned").flag = __terrane_value;
     }
@@ -8535,7 +8535,7 @@ fn test_scenario_terrane_inherited_shared_field_writes() {
     );
     other_held = other.clone();
     {
-        let __terrane_owner_8 = other_held.clone();
+        let __terrane_owner_8 = &other_held;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             14_i128,
         );
@@ -8694,7 +8694,7 @@ fn test_scenario_terrane_inherited_shared_field_writes() {
         .expect("required field initialized").clone(); __terrane_snapshot } .value)
     );
     {
-        let __terrane_owner_17 = plain.clone();
+        let __terrane_owner_17 = &plain;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             19_i128,
         );
@@ -10827,7 +10827,7 @@ fn test_scenario_terrane_optional_field_presence() {
         .expect("reference lock poisoned").terrane_field_value().is_none() })
     );
     {
-        let __terrane_owner_4 = shared.clone();
+        let __terrane_owner_4 = &shared;
         let __terrane_value: Option<String> = None;
         *__terrane_owner_4
             .lock()

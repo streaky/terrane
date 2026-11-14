@@ -56,6 +56,7 @@ mod selection;
 mod shared_reentry;
 mod shared_storage;
 mod source_associated;
+mod statement_owners;
 pub(crate) use namespaces::namespace_capabilities;
 
 #[cfg(test)]

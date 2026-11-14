@@ -5551,6 +5551,29 @@ pub(super) fn collect_evaluation_steps(
         let kind = match node.kind {
             SyntaxKind::CallExpression => Some(EvaluationKind::Call),
             SyntaxKind::PostfixExpression => Some(EvaluationKind::PostfixUpdate),
+            SyntaxKind::ConstructionExpression | SyntaxKind::InitializationExpression => {
+                Some(EvaluationKind::Call)
+            }
+            SyntaxKind::Assignment | SyntaxKind::Binding => Some(EvaluationKind::Write),
+            SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement => {
+                Some(EvaluationKind::Transfer)
+            }
+            SyntaxKind::AnonymousFunction => Some(EvaluationKind::Capture),
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock => Some(EvaluationKind::Native),
+            SyntaxKind::MemberExpression
+            | SyntaxKind::StaticMemberExpression
+            | SyntaxKind::IndexExpression => Some(EvaluationKind::Access),
+            SyntaxKind::UnaryExpression => node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::UnaryOperator)
+                .and_then(|operator| {
+                    match source.text()[operator.span.start..operator.span.end].trim() {
+                        "move" => Some(EvaluationKind::Transfer),
+                        "await" => Some(EvaluationKind::Suspension),
+                        _ => None,
+                    }
+                }),
             _ => None,
         };
         if let Some(kind) = kind {

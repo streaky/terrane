@@ -1,0 +1,61 @@
+namespace shared-statement-owner
+from /core/collections import list
+
+class counter
+    value int = 0
+function owned-copy int; item counter
+    observed = ref item
+    item.value = 41
+    return item.value
+
+
+function assign; owner shared ref counter, value int
+    owner.value = value + 1
+
+function replace int; owners mutable ref (list of (shared ref counter)), next shared ref counter
+    owners[0] = next
+    return 7
+
+function touch int; owner shared ref counter
+    owner.value = owner.value + 1
+    return owner.value
+
+function consume int; owner shared ref counter
+    return owner.value + 1
+
+async function delayed int;
+    return 23
+
+async function main;
+    first = shared ref (instance counter;)
+    second = shared ref (instance counter;)
+    selected = first
+    amount int = 2
+    simple = first
+    simple.value = amount + 1
+    (simple).value = amount + 2
+    assign; simple, 8
+    print; first.value
+
+    owners = list; selected
+    owners[0].value = (replace; owners, second)
+    print; first.value, ' ', owners[0].value
+    selected = owners[0]
+    selected.value = (touch; first)
+    print; first.value, ' ', selected.value
+
+    moved = first
+    moved.value = (consume; move moved)
+    print; first.value
+
+    selected.value = await delayed;
+    print; selected.value
+
+    captured = shared ref (instance counter;)
+    read = function int;
+        return captured.value
+    captured.value = 31
+    print; (read;)
+
+    plain = instance counter;
+    print; (owned-copy; plain), ' ', plain.value
