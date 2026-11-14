@@ -549,28 +549,13 @@ impl Emitter<'_> {
     }
 
     fn borrowed_statement_owner(&self, receiver: &SyntaxNode) -> Option<String> {
-        let mut receiver = receiver;
-        while receiver.kind == SyntaxKind::GroupExpression
-            && let [inner] = receiver.children.as_slice()
-        {
-            receiver = inner;
-        }
+        let receiver = crate::semantics::ungrouped_expression(receiver);
         let loan = self.unit.statement_owner_loans.get(&(
             receiver.span.file,
             receiver.span.start,
             receiver.span.end,
         ))?;
-        if loan.through.file != receiver.span.file
-            || loan.through.start > receiver.span.start
-            || receiver.span.end > loan.through.end
-        {
-            return None;
-        }
-        let binding = self
-            .unit
-            .typed_bindings
-            .iter()
-            .find(|binding| binding.span == loan.owner)?;
+        let binding = self.unit.typed_bindings.get(loan.binding_index)?;
         Some(self.available_storage_reference(binding, receiver, false))
     }
 

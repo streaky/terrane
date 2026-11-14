@@ -3,11 +3,11 @@ from /core/collections import list
 
 class counter
     value int = 0
+
 function owned-copy int; item counter
     observed = ref item
     item.value = 41
     return item.value
-
 
 function assign; owner shared ref counter, value int
     owner.value = value + 1
@@ -59,3 +59,13 @@ async function main;
 
     plain = instance counter;
     print; (owned-copy; plain), ' ', plain.value
+
+    probe = shared ref (instance counter;)
+    amount = amount + 1
+    probe.value = amount + 1
+    print; probe.value
+    index int = 0
+    while index < 3
+        probe.value = index + 1
+        index = index + 1
+    print; probe.value

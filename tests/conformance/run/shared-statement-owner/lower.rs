@@ -99,7 +99,7 @@ fn main() {
         let first: std::sync::Arc<TerraneSharedCell<Counter>>;
         let second: std::sync::Arc<TerraneSharedCell<Counter>>;
         let mut selected: std::sync::Arc<TerraneSharedCell<Counter>>;
-        let amount: i64;
+        let mut amount: terrane_int_support::Int;
         let simple: std::sync::Arc<TerraneSharedCell<Counter>>;
         let mut owners: terrane_collection_support::List<
             std::sync::Arc<TerraneSharedCell<Counter>>,
@@ -108,6 +108,8 @@ fn main() {
         let captured: std::sync::Arc<TerraneSharedCell<Counter>>;
         let read: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
         let plain: Counter;
+        let probe: std::sync::Arc<TerraneSharedCell<Counter>>;
+        let mut index: terrane_int_support::Int;
         first = std::sync::Arc::new(
             TerraneSharedCell::new(Counter::terrane_construct()),
         );
@@ -115,20 +117,18 @@ fn main() {
             TerraneSharedCell::new(Counter::terrane_construct()),
         );
         selected = first.clone();
-        amount = 2;
+        amount = terrane_int_support::Int::from(2_i128);
         simple = first.clone();
         {
             let __terrane_owner_2 = &simple;
-            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
-                amount as i128,
-            ) + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = amount.clone()
+                + terrane_int_support::Int::from(1_i128);
             __terrane_owner_2.lock().expect("shared reference lock poisoned").value = __terrane_value;
         }
         {
             let __terrane_owner_3 = &simple;
-            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
-                amount as i128,
-            ) + terrane_int_support::Int::from(2_i128);
+            let __terrane_value: terrane_int_support::Int = amount.clone()
+                + terrane_int_support::Int::from(2_i128);
             __terrane_owner_3.lock().expect("shared reference lock poisoned").value = __terrane_value;
         }
         assign(simple.clone(), terrane_int_support::Int::from(8_i128));
@@ -246,6 +246,39 @@ fn main() {
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&owned_copy(plain.clone())),
             String::from(" "), terrane_scalar_support::scalar_text(&plain.value)
+        );
+        probe = std::sync::Arc::new(
+            TerraneSharedCell::new(Counter::terrane_construct()),
+        );
+        amount = amount.clone() + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_owner_9 = &probe;
+            let __terrane_value: terrane_int_support::Int = amount.clone()
+                + terrane_int_support::Int::from(1_i128);
+            __terrane_owner_9.lock().expect("shared reference lock poisoned").value = __terrane_value;
+        }
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = probe
+            .lock().expect("shared reference lock poisoned").value.clone();
+            __terrane_snapshot })
+        );
+        index = terrane_int_support::Int::from(0_i128);
+        while index < terrane_int_support::Int::from(3_i128) {
+            {
+                let __terrane_owner_10 = &probe;
+                let __terrane_value: terrane_int_support::Int = index.clone()
+                    + terrane_int_support::Int::from(1_i128);
+                __terrane_owner_10
+                    .lock()
+                    .expect("shared reference lock poisoned")
+                    .value = __terrane_value;
+            }
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
+        }
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = probe
+            .lock().expect("shared reference lock poisoned").value.clone();
+            __terrane_snapshot })
         );
     });
 }

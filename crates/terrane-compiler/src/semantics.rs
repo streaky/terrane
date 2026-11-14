@@ -42,6 +42,7 @@ mod native_constructors;
 mod numeric;
 mod throw_construction;
 mod types;
+pub(crate) use types::ungrouped_expression;
 
 // Object, ownership, binding-lifetime, and diagnostic validation.
 mod bindings;

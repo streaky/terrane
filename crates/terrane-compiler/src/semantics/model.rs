@@ -1832,8 +1832,12 @@ impl ParameterContract {
     }
 }
 
+/// Evaluation effects and conditional boundaries used by semantic lowering proofs.
+/// `Call` includes invocation, construction and initialization, not just authored
+/// function calls. These classifications do not establish callee purity.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EvaluationKind {
+    /// Invocation, construction or initialization may execute user-defined behavior.
     Call,
     ShortCircuitRhs,
     PostfixUpdate,
@@ -1858,8 +1862,7 @@ pub struct EvaluationStep {
 /// A statement-local loan of a stable owning handle, not a loan of its payload.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct StatementOwnerLoan {
-    pub owner: Span,
-    pub through: Span,
+    pub binding_index: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

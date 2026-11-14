@@ -257,10 +257,7 @@ impl SyntaxKind {
 /// Whether this subtree contains an explicit unary `await`.
 #[must_use]
 pub(crate) fn contains_await(node: &SyntaxNode, source: &str) -> bool {
-    (node.kind == SyntaxKind::UnaryExpression
-        && node.children.first().is_some_and(|operator| {
-            source[operator.span.start..operator.span.end].trim() == "await"
-        }))
+    (node.kind == SyntaxKind::UnaryExpression && node.unary_operator_text(source) == Some("await"))
         || node
             .children
             .iter()
@@ -311,6 +308,22 @@ impl SyntaxNode {
             documentation: None,
             is_unsafe_call: false,
             name_override: None,
+        }
+    }
+
+    /// Canonical unary spelling without allocating for multi-word reference operators.
+    pub(crate) fn unary_operator_text<'a>(&self, source: &'a str) -> Option<&'a str> {
+        let operator = self
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::UnaryOperator)?;
+        let mut words = source[operator.span.start..operator.span.end].split_whitespace();
+        let first = words.next()?;
+        match (first, words.next(), words.next()) {
+            ("mutable", Some("ref"), None) => Some("mutable ref"),
+            ("shared", Some("ref"), None) => Some("shared ref"),
+            (_, None, None) => Some(first),
+            _ => None,
         }
     }
 
