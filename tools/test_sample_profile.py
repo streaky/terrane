@@ -213,15 +213,17 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(self.raw.read_bytes(), b"previous capture")
 
     def test_cli_permission_records_nonzero_status(self):
-        self.status = 3
-        status = profiles.cli([
-            "record", "--binary", str(self.binary), "--output", str(self.output),
-            "--converter", "autofdo", "--converter-path", "converter", "--no-lbr",
-            "--allow-workload-failure", "--", "private-workload-argument",
-        ])
-        self.assertEqual(status, 0)
-        self.assertEqual(json.loads(self.sidecar.read_text())["capture"]["exit_status"], 3)
-        self.assertNotIn("private-workload-argument", self.sidecar.read_text())
+        for code in (3, 137):
+            with self.subTest(perf_status=code):
+                self.status = code
+                status = profiles.cli([
+                    "record", "--binary", str(self.binary), "--output", str(self.output),
+                    "--converter", "autofdo", "--converter-path", "converter", "--no-lbr",
+                    "--allow-workload-failure", "--", "private-workload-argument",
+                ])
+                self.assertEqual(status, 0)
+                self.assertEqual(json.loads(self.sidecar.read_text())["capture"]["exit_status"], code)
+                self.assertNotIn("private-workload-argument", self.sidecar.read_text())
 
     def test_permission_cannot_reuse_a_stale_capture(self):
         self.old_artifacts()
@@ -232,7 +234,7 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(self.output.read_bytes(), b"previous profile")
         self.assertEqual(self.sidecar.read_bytes(), b"previous provenance")
 
-    def test_signal_termination_is_not_a_permitted_workload_failure(self):
+    def test_perf_signal_termination_is_rejected(self):
         self.status = -15
         with self.assertRaises(subprocess.CalledProcessError) as error:
             self.record(allow=True)

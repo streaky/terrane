@@ -219,6 +219,7 @@ application build defaults changed.
 ### Other compatibility boundaries
 
 Other new unsafe/ZST APIs do not relax Terrane's unsafe permissions or native ABI admission. Stable sample-profile optimization is not enabled by default and does not replace the profiler. Platform-specific ABI changes still require evidence on their respective targets; Linux execution does not establish Windows, ARM or WASI behavior.
+
 ### Stable shared-owner follow-on
 
 The allocator investigation also identified avoidable temporary owner clones in
