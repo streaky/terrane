@@ -19,7 +19,7 @@ resolver = "2"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.99.0"
+rust-version = "1.100.0"
 
 [workspace.dependencies]
 rustdoc-types = "=0.61.0"
@@ -28,6 +28,9 @@ rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", 
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+[workspace.lints.cargo]
+unused_dependencies = "deny"
 
 [workspace.lints.clippy]
 all = "warn"

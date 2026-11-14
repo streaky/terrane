@@ -6,9 +6,12 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-caseless = "=0.2.2"
-unicode-normalization = "=0.1.24"
-unicode-segmentation = "=1.12.0"
+icu_casemap = "=2.4.0"
+icu_normalizer = "=2.4.0"
+icu_segmenter = { version = "=2.4.0", default-features = false, features = ["compiled_data"] }
+icu_properties = "=2.4.0"
+icu_locale = "=2.4.0"
+writeable = "=0.6.4"
 
 [lints]
 workspace = true

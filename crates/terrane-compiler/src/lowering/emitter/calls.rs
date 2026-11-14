@@ -819,8 +819,7 @@ impl Emitter<'_> {
                 .children
                 .first()
                 .and_then(|argument| argument.children.last())
-                .map(|value| self.expression(value))
-                .unwrap_or_default();
+                .map_or_default(|value| self.expression(value));
             let callback_throws = method.family == MemberFamily::Parse
                 && arguments
                     .children
@@ -3190,20 +3189,17 @@ impl Emitter<'_> {
                     .as_deref()
                     .or(projected.native_owner.as_deref())
             })
-            .map(crate::rust_ir::rust_type_parameter_names)
-            .unwrap_or_default();
+            .map_or_default(crate::rust_ir::rust_type_parameter_names);
         let name = if native_path_generics.is_empty() {
             name
         } else {
-            let mut replacements = specialization
-                .map(|specialization| {
-                    specialization
-                        .substitutions
-                        .iter()
-                        .map(|(name, projected)| (name.clone(), projected.rust_type()))
-                        .collect::<BTreeMap<_, _>>()
-                })
-                .unwrap_or_default();
+            let mut replacements = specialization.map_or_default(|specialization| {
+                specialization
+                    .substitutions
+                    .iter()
+                    .map(|(name, projected)| (name.clone(), projected.rust_type()))
+                    .collect::<BTreeMap<_, _>>()
+            });
             // The receiver's instantiated identity is the canonical source of owner
             // substitutions for trait-qualified calls whose method has no own generics.
             if let Some(projected) = projected_function.as_ref()

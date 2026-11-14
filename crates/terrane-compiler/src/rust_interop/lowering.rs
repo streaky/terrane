@@ -52,10 +52,7 @@ fn native_import_target(
             Vec::new(),
         )
     } else {
-        (
-            path,
-            projected.map(projected_generic_names).unwrap_or_default(),
-        )
+        (path, projected.map_or_default(projected_generic_names))
     }
 }
 

@@ -1167,8 +1167,7 @@ impl Emitter<'_> {
                 "throwable-contract" => effects
                     .upper_bound
                     .as_deref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
+                    .map_or_default(ToString::to_string),
                 "invocation-mode" => effects.modes.written.reflection_name().to_owned(),
                 "exact-invocation-mode" => effects.modes.exact.reflection_name().to_owned(),
                 _ if effects.requires_throwing_abi() => "throws".to_owned(),

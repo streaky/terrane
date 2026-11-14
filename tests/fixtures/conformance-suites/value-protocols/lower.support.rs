@@ -1010,20 +1010,20 @@ mod __terrane_trace {
         { Site { function: 47, file: 37, line: 69, column: 13, end_line: 69, end_column: 45 } },
         /* terrane-site-row: site 201: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:71:27-71:33) */
         { Site { function: 47, file: 37, line: 71, column: 27, end_line: 71, end_column: 33 } },
-        /* terrane-site-row: site 202: /text-families::test-scenario (tests/integration/text-families/case.trn:25:11-25:52) */
-        { Site { function: 48, file: 38, line: 25, column: 11, end_line: 25, end_column: 52 } },
-        /* terrane-site-row: site 203: /text-families::test-scenario (tests/integration/text-families/case.trn:28:11-28:65) */
-        { Site { function: 48, file: 38, line: 28, column: 11, end_line: 28, end_column: 65 } },
-        /* terrane-site-row: site 204: /text-families::test-scenario (tests/integration/text-families/case.trn:33:11-33:65) */
-        { Site { function: 48, file: 38, line: 33, column: 11, end_line: 33, end_column: 65 } },
-        /* terrane-site-row: site 205: /text-families::test-scenario (tests/integration/text-families/case.trn:34:11-34:52) */
-        { Site { function: 48, file: 38, line: 34, column: 11, end_line: 34, end_column: 52 } },
-        /* terrane-site-row: site 206: /text-families::test-scenario (tests/integration/text-families/case.trn:37:11-37:55) */
-        { Site { function: 48, file: 38, line: 37, column: 11, end_line: 37, end_column: 55 } },
-        /* terrane-site-row: site 207: /text-families::test-scenario (tests/integration/text-families/case.trn:38:11-38:54) */
-        { Site { function: 48, file: 38, line: 38, column: 11, end_line: 38, end_column: 54 } },
-        /* terrane-site-row: site 208: /text-families::test-scenario (tests/integration/text-families/case.trn:41:13-41:60) */
-        { Site { function: 48, file: 38, line: 41, column: 13, end_line: 41, end_column: 60 } },
+        /* terrane-site-row: site 202: /text-families::test-scenario (tests/integration/text-families/case.trn:29:11-29:52) */
+        { Site { function: 48, file: 38, line: 29, column: 11, end_line: 29, end_column: 52 } },
+        /* terrane-site-row: site 203: /text-families::test-scenario (tests/integration/text-families/case.trn:32:11-32:65) */
+        { Site { function: 48, file: 38, line: 32, column: 11, end_line: 32, end_column: 65 } },
+        /* terrane-site-row: site 204: /text-families::test-scenario (tests/integration/text-families/case.trn:37:11-37:65) */
+        { Site { function: 48, file: 38, line: 37, column: 11, end_line: 37, end_column: 65 } },
+        /* terrane-site-row: site 205: /text-families::test-scenario (tests/integration/text-families/case.trn:38:11-38:52) */
+        { Site { function: 48, file: 38, line: 38, column: 11, end_line: 38, end_column: 52 } },
+        /* terrane-site-row: site 206: /text-families::test-scenario (tests/integration/text-families/case.trn:41:11-41:55) */
+        { Site { function: 48, file: 38, line: 41, column: 11, end_line: 41, end_column: 55 } },
+        /* terrane-site-row: site 207: /text-families::test-scenario (tests/integration/text-families/case.trn:42:11-42:54) */
+        { Site { function: 48, file: 38, line: 42, column: 11, end_line: 42, end_column: 54 } },
+        /* terrane-site-row: site 208: /text-families::test-scenario (tests/integration/text-families/case.trn:45:13-45:60) */
+        { Site { function: 48, file: 38, line: 45, column: 13, end_line: 45, end_column: 60 } },
         /* terrane-site-row: site 209: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:27-13:38) */
         { Site { function: 49, file: 39, line: 13, column: 27, end_line: 13, end_column: 38 } },
         /* terrane-site-row: site 210: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:40-13:51) */

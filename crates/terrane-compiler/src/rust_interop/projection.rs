@@ -1823,9 +1823,7 @@ impl Projection {
                     reason: declined.reason.clone(),
                     required_by,
                     required_by_contracts: BTreeSet::new(),
-                    references: partial
-                        .map(|partial| partial.references.clone())
-                        .unwrap_or_default(),
+                    references: partial.map_or_default(|partial| partial.references.clone()),
                     partial: partial.map(|partial| partial.projection.clone()),
                 }
             })

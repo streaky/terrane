@@ -496,8 +496,7 @@ pub(super) fn source_constant_expression(
                         .split('<')
                         .next()
                         .and_then(|path| path.split("::").last())
-                        .map(str::trim)
-                        .unwrap_or_default()
+                        .map_or_default(str::trim)
                         .to_owned();
                     for member in &implementation.items {
                         let syn::ImplItem::Const(constant) = member else {

@@ -180,22 +180,19 @@ fn project_interface_inner(
             }
             return Err(format!("trait member `{name}` is an associated function"));
         }
-        let supplied = associated_type
-            .as_ref()
-            .map(|associated| {
-                BTreeMap::from([(
-                    format!("Self::{}", associated.name),
-                    ProjectedType::Associated(super::ProjectedAssociatedTypeRef {
-                        owner: "Self".to_owned(),
-                        owner_type: None,
-                        owner_arguments: Vec::new(),
-                        trait_rust_path: Some(rust_path.to_owned()),
-                        trait_arguments: Vec::new(),
-                        member: associated.name.clone(),
-                    }),
-                )])
-            })
-            .unwrap_or_default();
+        let supplied = associated_type.as_ref().map_or_default(|associated| {
+            BTreeMap::from([(
+                format!("Self::{}", associated.name),
+                ProjectedType::Associated(super::ProjectedAssociatedTypeRef {
+                    owner: "Self".to_owned(),
+                    owner_type: None,
+                    owner_arguments: Vec::new(),
+                    trait_rust_path: Some(rust_path.to_owned()),
+                    trait_arguments: Vec::new(),
+                    member: associated.name.clone(),
+                }),
+            )])
+        });
         if let Some(parameter) = function.generics.params.first() {
             return Err(format!(
                 "trait member `{name}`: open generic `{}`",

@@ -179,10 +179,10 @@ pub(super) fn render_rust_type(
             .get(name)
             .map(ProjectedType::rust_type)
             .ok_or_else(|| format!("unbounded generic `{name}`")),
-        Type::Primitive(name) => Ok(if name == "unit" {
-            "()".to_owned()
-        } else {
-            name.clone()
+        Type::Primitive(name) => Ok(match name.as_str() {
+            "unit" => "()".to_owned(),
+            "never" => "!".to_owned(),
+            _ => name.clone(),
         }),
         Type::BorrowedRef {
             lifetime,
@@ -192,8 +192,7 @@ pub(super) fn render_rust_type(
             "&{}{}{}",
             lifetime
                 .as_deref()
-                .map(|lifetime| format!("{lifetime} "))
-                .unwrap_or_default(),
+                .map_or_default(|lifetime| format!("{lifetime} ")),
             if *is_mutable { "mut " } else { "" },
             render_rust_type(type_, index, paths, generics)?
         )),

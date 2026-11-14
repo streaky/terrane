@@ -332,7 +332,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &collection.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\nunicode-segmentation = \"=1.12.0\"\n", crate::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\nicu_segmenter = {{ version = \"=2.4.0\", default-features = false, features = [\"compiled_data\"] }}\n", crate::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &collection.join("src/lib.rs"),
@@ -352,7 +352,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &string.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\n# Unicode 16.0 profile: case folding, normalization, and segmentation move together.\ncaseless = \"=0.2.2\"\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = {{ version = \"=1.12.0\", features = [\"std\"] }}\nunicode-normalization = \"=0.1.24\"\nunicode-segmentation = \"=1.12.0\"\n", crate::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\n# ICU4X 2.4 embeds Unicode 18.0 data for text operations.\nicu_casemap = \"=2.4.0\"\nicu_locale = \"=2.4.0\"\nicu_normalizer = \"=2.4.0\"\nicu_properties = \"=2.4.0\"\nicu_segmenter = {{ version = \"=2.4.0\", default-features = false, features = [\"compiled_data\"] }}\nwriteable = \"=0.6.4\"\n", crate::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &string.join("src/lib.rs"),

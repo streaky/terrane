@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::sync::Arc;
 
+use icu_segmenter::GraphemeClusterSegmenter;
 use terrane_int_support::Int;
-use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IterationStep<T> {
@@ -13,13 +13,7 @@ pub enum IterationStep<T> {
 }
 
 /// Unicode Character Database version used for collection grapheme iteration.
-pub const UNICODE_DATA_VERSION: (u64, u64, u64) = (16, 0, 0);
-
-const _: () = {
-    assert!(unicode_segmentation::UNICODE_VERSION.0 == UNICODE_DATA_VERSION.0);
-    assert!(unicode_segmentation::UNICODE_VERSION.1 == UNICODE_DATA_VERSION.1);
-    assert!(unicode_segmentation::UNICODE_VERSION.2 == UNICODE_DATA_VERSION.2);
-};
+pub const UNICODE_DATA_VERSION: (u64, u64, u64) = (18, 0, 0);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AsyncIterationStep<T> {
@@ -1139,7 +1133,15 @@ pub fn byte_slice(value: &[u8], range: &Range) -> Result<Vec<u8>, IndexError> {
 
 #[must_use]
 pub fn string_iterator(value: &str) -> Iterator<String> {
-    Iterator::new(value.graphemes(true).map(str::to_owned).collect())
+    let segmenter = GraphemeClusterSegmenter::new();
+    let mut boundaries = segmenter.segment_str(value);
+    let mut start = boundaries.next().unwrap_or(0);
+    let mut graphemes = Vec::new();
+    for end in boundaries {
+        graphemes.push(value[start..end].to_owned());
+        start = end;
+    }
+    Iterator::new(graphemes)
 }
 #[must_use]
 pub fn bytes_iterator(value: &[u8]) -> Iterator<u8> {
@@ -1623,5 +1625,18 @@ mod tests {
         let mut list = List::new(vec![String::from("first")]);
         let _shared = list.clone();
         list.push_unique(String::from("second"));
+    }
+}
+#[cfg(test)]
+mod unicode18_tests {
+    use super::{IterationStep, UNICODE_DATA_VERSION, string_iterator};
+
+    #[test]
+    fn string_iteration_uses_unicode18_extended_graphemes() {
+        assert_eq!(UNICODE_DATA_VERSION, (18, 0, 0));
+        let value = "A\u{1ae0}";
+        let mut iterator = string_iterator(value);
+        assert_eq!(iterator.next(), IterationStep::Item(value.to_owned()));
+        assert_eq!(iterator.next(), IterationStep::End);
     }
 }

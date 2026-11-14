@@ -329,22 +329,20 @@ impl Emitter<'_> {
                     function.span,
                 )
             });
-        let generic_arguments = source_node
-            .map(|source| {
-                self.invocation_scoped_type_generics(source, producer_template, lifetimes)
-                    .into_iter()
-                    .filter_map(|declaration| {
-                        let name = declaration
-                            .split_once(':')
-                            .map_or(declaration.as_str(), |(name, _)| name)
-                            .trim();
-                        selected
-                            .get(name)
-                            .map(crate::rust_interop::projection::ProjectedType::rust_type)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+        let generic_arguments = source_node.map_or_default(|source| {
+            self.invocation_scoped_type_generics(source, producer_template, lifetimes)
+                .into_iter()
+                .filter_map(|declaration| {
+                    let name = declaration
+                        .split_once(':')
+                        .map_or(declaration.as_str(), |(name, _)| name)
+                        .trim();
+                    selected
+                        .get(name)
+                        .map(crate::rust_interop::projection::ProjectedType::rust_type)
+                })
+                .collect::<Vec<_>>()
+        });
         Some(if generic_arguments.is_empty() {
             callback
         } else {

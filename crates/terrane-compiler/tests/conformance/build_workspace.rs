@@ -244,7 +244,7 @@ fn write_support_crates(directory: &Path) -> io::Result<()> {
         ),
         (
             collection.join("Cargo.toml"),
-            "[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = { path = \"../terrane-int-support\" }\nunicode-segmentation = \"=1.12.0\"\n",
+            "[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = { path = \"../terrane-int-support\" }\nicu_segmenter = { version = \"=2.4.0\", default-features = false, features = [\"compiled_data\"] }\n",
         ),
         (
             scalar.join("Cargo.toml"),
@@ -252,7 +252,7 @@ fn write_support_crates(directory: &Path) -> io::Result<()> {
         ),
         (
             string.join("Cargo.toml"),
-            "[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n# Unicode 16.0 profile: case folding, normalization, and segmentation move together.\ncaseless = \"=0.2.2\"\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = { version = \"=1.12.0\", features = [\"std\"] }\nunicode-normalization = \"=0.1.24\"\nunicode-segmentation = \"=1.12.0\"\n",
+            "[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n# ICU4X 2.4 embeds Unicode 18.0 data for text operations.\nicu_casemap = \"=2.4.0\"\nicu_locale = \"=2.4.0\"\nicu_normalizer = \"=2.4.0\"\nicu_properties = \"=2.4.0\"\nicu_segmenter = { version = \"=2.4.0\", default-features = false, features = [\"compiled_data\"] }\nwriteable = \"=0.6.4\"\n",
         ),
         (
             document.join("Cargo.toml"),

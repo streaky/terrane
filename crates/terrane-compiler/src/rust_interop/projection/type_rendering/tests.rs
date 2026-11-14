@@ -2,6 +2,49 @@ use super::super::{ProjectedType, foreign_aliases};
 use super::*;
 
 #[test]
+fn never_type_compiles() {
+    let error_type = render_rust_type(
+        &Type::Primitive("never".to_owned()),
+        &HashMap::new(),
+        &HashMap::new(),
+        &BTreeMap::new(),
+    )
+    .unwrap();
+    let directory =
+        std::env::temp_dir().join(format!("terrane-native-never-{}", std::process::id()));
+    let cleanup = std::mem::DropGuard::new(directory, |directory| {
+        let _ = std::fs::remove_dir_all(directory);
+    });
+    std::fs::create_dir_all(&*cleanup).unwrap();
+    let source = cleanup.join("main.rs");
+    std::fs::write(
+        &source,
+        format!(
+            "fn value() -> Result<u32, {error_type}> {{ Ok(42) }}\n\
+             fn main() {{ let Ok(value) = value(); println!(\"{{value}}\"); }}\n"
+        ),
+    )
+    .unwrap();
+    let executable = cleanup.join(format!("proof{}", std::env::consts::EXE_SUFFIX));
+    let compiled = std::process::Command::new("rustc")
+        .arg(format!("+{}", crate::BUILD_TOOLCHAIN))
+        .args(["--edition=2024", "-Dwarnings"])
+        .arg(&source)
+        .arg("-o")
+        .arg(&executable)
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let output = std::process::Command::new(executable).output().unwrap();
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"42\n");
+}
+
+#[test]
 fn names_disambiguate_collisions() {
     let arc_custom = "std::sync::Arc<iced::theme::Custom>";
     let arc_name = instantiated_type_name("Arc", arc_custom);
