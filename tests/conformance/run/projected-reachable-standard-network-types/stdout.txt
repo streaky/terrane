@@ -1,4 +1,5 @@
 3210
 true
 invalid address caught
+invalid network caught
 7
