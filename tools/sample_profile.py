@@ -78,6 +78,12 @@ def reject_conflicting_flags(flags: list[str]):
 
 
 def augment_flags(env: dict[str, str], additions: list[str]):
+    if "CARGO_ENCODED_RUSTFLAGS" not in env and "RUSTFLAGS" not in env:
+        raise ValueError(
+            "Set RUSTFLAGS or CARGO_ENCODED_RUSTFLAGS explicitly to the effective baseline "
+            "flags; Cargo configuration flags cannot be resolved safely by this wrapper. "
+            "Use an explicitly empty RUSTFLAGS only when no base flags are needed."
+        )
     encoded = env.pop("CARGO_ENCODED_RUSTFLAGS", None)
     raw = env.pop("RUSTFLAGS", "")
     flags = encoded.split(SEPARATOR) if encoded is not None else raw.split()
@@ -95,7 +101,8 @@ def prepare(command: list[str]) -> int:
 
 
 def record(binary: Path, output: Path, workload: list[str], converter: str,
-           converter_path: str | None, no_lbr: bool, frequency: int):
+           converter_path: str | None, no_lbr: bool, frequency: int,
+           allow_workload_failure: bool = False):
     binary = binary.resolve()
     if not binary.is_file():
         raise ValueError(f"Binary does not exist: {binary}")
@@ -110,42 +117,59 @@ def record(binary: Path, output: Path, workload: list[str], converter: str,
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     raw_perf = output.with_suffix(output.suffix + ".perf.data")
+    metadata_output = output.with_suffix(output.suffix + ".json")
     before = digest_file(binary)
-    perf_command = [perf, "record", "-o", str(raw_perf), "-e", "cycles:u", "-F", str(frequency)]
-    if not no_lbr:
-        perf_command.extend(["-j", "any,u"])
-    perf_command.extend(["--", str(binary), *workload])
-    run(perf_command)
-    after = digest_file(binary)
-    if before != after:
-        raise ValueError("Binary changed during profile capture")
     with tempfile.TemporaryDirectory(prefix=f".{output.name}.", dir=output.parent) as temporary:
-        converted = Path(temporary) / "profile"
+        staging = Path(temporary)
+        captured = staging / "capture.perf.data"
+        converted = staging / "profile"
+        provenance = staging / "provenance.json"
+        perf_command = [perf, "record", "-o", str(captured), "-e", "cycles:u", "-F", str(frequency)]
+        if not no_lbr:
+            perf_command.extend(["-j", "any,u"])
+        perf_command.extend(["--", str(binary), *workload])
+        capture = subprocess.run(perf_command, check=False)
+        if capture.returncode and (not allow_workload_failure or capture.returncode < 0):
+            raise subprocess.CalledProcessError(capture.returncode, perf_command)
+        if not captured.is_file() or captured.stat().st_size == 0:
+            raise ValueError("perf did not produce a fresh nonempty capture")
+        after = digest_file(binary)
+        if before != after:
+            raise ValueError("Binary changed during profile capture")
         if converter == "llvm":
-            run([converter_tool, "--binary", str(binary), "--perfdata", str(raw_perf),
+            run([converter_tool, "--binary", str(binary), "--perfdata", str(captured),
                  "--format=text", "--output", str(converted)])
         else:
-            run([converter_tool, "--profile", str(raw_perf), "--binary", str(binary),
+            run([converter_tool, "--profile", str(captured), "--binary", str(binary),
                  "--out", str(converted), "--format=text",
                  "--use_lbr=" + ("true" if not no_lbr else "false")])
         validate_profile(converted, profdata)
         if digest_file(binary) != before:
             raise ValueError("Binary changed during profile conversion")
+        metadata = {
+            "created": datetime.now(timezone.utc).isoformat(),
+            "binary": str(binary),
+            "binary_sha256": after,
+            "profile_sha256": digest_file(converted),
+            "raw_perf": str(raw_perf),
+            "raw_perf_sha256": digest_file(captured),
+            "converter": converter,
+            "capture": {"event": "cycles:u", "frequency": frequency,
+                        "method": "perf-lbr" if not no_lbr else "perf-no-lbr",
+                        "exit_status": capture.returncode},
+            "tools": {"perf": {"path": perf, "version": tool_version(perf)},
+                      converter_name: {"path": converter_tool, "version": tool_version(converter_tool)},
+                      "profile-validation": {"path": profdata, "version": tool_version(profdata)}},
+            "flags": perf_command[1:perf_command.index("--")],
+        }
+        provenance.write_text(json.dumps(metadata, indent=2) + "\n")
+        # Renaming three files is not a transaction. Interrupted publication may leave
+        # provenance absent, never knowingly leave an old sidecar for a new profile.
+        # Consumers must check the recorded hashes before trusting a sidecar.
+        metadata_output.unlink(missing_ok=True)
+        captured.replace(raw_perf)
         converted.replace(output)
-    metadata = {
-        "created": datetime.now(timezone.utc).isoformat(),
-        "binary": str(binary),
-        "binary_sha256": after,
-        "profile_sha256": digest_file(output),
-        "converter": converter,
-        "capture": {"event": "cycles:u", "frequency": frequency,
-                    "method": "perf-lbr" if not no_lbr else "perf-no-lbr"},
-        "tools": {"perf": {"path": perf, "version": tool_version(perf)},
-                  converter_name: {"path": converter_tool, "version": tool_version(converter_tool)},
-                  "profile-validation": {"path": profdata, "version": tool_version(profdata)}},
-        "flags": perf_command[1:perf_command.index("--")],
-    }
-    output.with_suffix(output.suffix + ".json").write_text(json.dumps(metadata, indent=2) + "\n")
+        provenance.replace(metadata_output)
 
 
 def use(profile: Path, command: list[str], cache_dir: Path | None = None) -> int:
@@ -192,6 +216,8 @@ def parser():
     record_parser.add_argument("--converter-path")
     record_parser.add_argument("--no-lbr", action="store_true")
     record_parser.add_argument("--frequency", type=int, default=999)
+    record_parser.add_argument("--allow-workload-failure", action="store_true",
+                               help="permit nonzero perf/workload status if fresh feedback validates")
     record_parser.add_argument("command", nargs=argparse.REMAINDER)
     use_parser = commands.add_parser("use", help="build with an immutable sample-profile snapshot")
     use_parser.add_argument("--profile", required=True, type=Path)
@@ -208,7 +234,7 @@ def cli(argv=None) -> int:
             return prepare(command)
         if args.action == "record":
             record(args.binary, args.output, command, args.converter, args.converter_path,
-                   args.no_lbr, args.frequency)
+                   args.no_lbr, args.frequency, args.allow_workload_failure)
             return 0
         return use(args.profile, command, args.cache_dir)
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
