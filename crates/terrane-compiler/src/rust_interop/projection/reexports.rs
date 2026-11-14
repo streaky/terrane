@@ -572,7 +572,7 @@ pub(super) fn external_reexport_rustdocs(
         }
     }
 
-    for (dependency_index, ((dependency, document, _), projection)) in
+    for (dependency_index, ((dependency, document, public_paths), projection)) in
         rustdocs.iter().zip(projected).enumerate()
     {
         let summaries = document
@@ -629,11 +629,15 @@ pub(super) fn external_reexport_rustdocs(
                 .or_default()
                 .entry(summary.path.join("::"))
                 .or_insert(public_path);
-            request
-                .signature_paths
-                .entry(dependency_index)
-                .or_default()
-                .insert(public_path.clone());
+            // A real export stays a physical facade path even when a signature
+            // also mentions it. Only inferred value names need a private owner.
+            if !public_paths.values().any(|export| export == public_path) {
+                request
+                    .signature_paths
+                    .entry(dependency_index)
+                    .or_default()
+                    .insert(public_path.clone());
+            }
         }
     }
 
@@ -728,6 +732,12 @@ pub(super) fn external_reexport_rustdocs(
                             {
                                 let native_path = canonicalize_rust_path(owner_path);
                                 rust_path_aliases.insert(public_path.clone(), native_path.clone());
+                                // Projection already relocates item paths to the declared
+                                // dependency alias; retain that spelling as well as Rustdoc's.
+                                rust_path_aliases.insert(
+                                    super::extern_rust_path(dependency, public_path),
+                                    native_path.clone(),
+                                );
                                 rust_path_aliases.insert(canonical_path.clone(), native_path);
                             }
                             if reexport_is_demanded(dependency, public_path, false, demands)

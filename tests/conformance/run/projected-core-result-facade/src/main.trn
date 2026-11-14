@@ -7,10 +7,36 @@ from /deps/facade import Response, response
 from /deps/facade import new_version, NewFailure
 from /deps/facade import opaque_transitive, public_transitive, TransitiveFailure
 from /deps/facade import bridge_reader, BridgeReader, old_transitive, OldHiddenFailure
+from /deps/facade/util import error_value, error_text
+from /deps/facade import public_error_value, public_error_text, inferred_call, inferred_client
 from /core/errors import throwable, dependency-error
 from /core/collections import list
 
+function call-opaque int throws dependency-error;
+    return opaque_transitive; false
+
+async function call-opaque-async int throws dependency-error;
+    bridge = bridge_reader;
+    return await bridge.opaque_async; false
+
+function call-public int throws TransitiveFailure;
+    return public_transitive; false
+
+function checked-inferred int throws dependency-error;
+    return inferred_call; false
+
+function checked-inferred-method int throws dependency-error;
+    client = inferred_client;
+    return client.call; false
+
+async function checked-inferred-async int throws dependency-error;
+    client = inferred_client;
+    return await client.asynchronous; false
+
 async function main;
+    inferred = error_value;
+    print; (error_text; move inferred)
+    print; (public_error_text; (public_error_value;))
     good int = parse; '41'
     print; good
     try
@@ -75,12 +101,12 @@ async function main;
         print; 'typed newer failure'
     print; (opaque_transitive; true)
     try
-        print; (opaque_transitive; false)
+        print; (call-opaque;)
     catch dependency-error as error
         print; error.message
     print; (public_transitive; true)
     try
-        print; (public_transitive; false)
+        print; (call-public;)
     catch TransitiveFailure as error
         print; 'public transitive: ' + error.message
     print; (old_transitive; true)
@@ -101,6 +127,19 @@ async function main;
         print; 'typed transitive method failure'
     print; (await bridge.opaque_async; true)
     try
-        print; (await bridge.opaque_async; false)
+        print; (await call-opaque-async;)
     catch dependency-error as error
         print; (error.message.contains; 'transitive hidden failure')
+    print; (inferred_call; true)
+    try
+        print; (checked-inferred;)
+    catch dependency-error as error
+        print; error.message
+    try
+        print; (checked-inferred-method;)
+    catch dependency-error as error
+        print; (error.message.contains; 'inferred private failure')
+    try
+        print; (await checked-inferred-async;)
+    catch dependency-error as error
+        print; (error.message.contains; 'inferred private failure')

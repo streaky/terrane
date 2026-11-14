@@ -101,3 +101,30 @@ pub fn old_transitive(ok: bool) -> old_hidden::Result<i64> {
     if ok { Ok(10) } else { Err(OldHiddenFailure) }
 }
 
+pub mod util {
+    pub fn error_value() -> anyhow::Error { anyhow::Error::msg("inferred private failure") }
+
+    pub fn error_text(error: anyhow::Error) -> String { error.to_string() }
+}
+
+pub fn public_error_value() -> TransitiveFailure { TransitiveFailure }
+
+pub fn public_error_text(error: TransitiveFailure) -> String { error.to_string() }
+
+pub fn inferred_call(ok: bool) -> anyhow::Result<i64> {
+    if ok { Ok(11) } else { Err(anyhow::Error::msg("inferred private failure")) }
+}
+
+pub struct InferredClient;
+
+impl InferredClient {
+    pub fn call(&self, ok: bool) -> anyhow::Result<i64> {
+        inferred_call(ok)
+    }
+
+    pub async fn asynchronous(&self, ok: bool) -> anyhow::Result<i64> {
+        inferred_call(ok)
+    }
+}
+
+pub fn inferred_client() -> InferredClient { InferredClient }

@@ -1,3 +1,5 @@
+inferred private failure
+transitive public failure
 41
 caught: Rust dependency `facade` member `facade::parse` failed: invalid digit found in string
 true
@@ -36,4 +38,8 @@ true
 9
 typed transitive method failure
 8
+true
+11
+Rust dependency `facade` member `facade::inferred_call` failed: inferred private failure
+true
 true

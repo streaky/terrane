@@ -239,6 +239,30 @@ pub fn resolve(
         let public_paths = rustdoc_public_paths(&document);
         rustdocs.push((dependency, document, public_paths));
     }
+    // Only authored public bindings prove error visibility. Signature-discovered
+    // provider paths remain useful for values, but cannot create an error export.
+    let mut public_type_exports = BTreeSet::new();
+    for (dependency, document, public_paths) in &rustdocs {
+        let Some(root) = super::output_aliases::document_name(document) else {
+            continue;
+        };
+        let rust_crate = dependency.name.replace('-', "_");
+        for (id, path) in public_paths {
+            if document.paths.get(id).is_some_and(|summary| {
+                matches!(
+                    summary.kind,
+                    rustdoc_types::ItemKind::Struct
+                        | rustdoc_types::ItemKind::Enum
+                        | rustdoc_types::ItemKind::TypeAlias
+                )
+            }) && let Some(suffix) = path
+                .strip_prefix(root)
+                .filter(|suffix| suffix.starts_with("::"))
+            {
+                public_type_exports.insert(format!("{rust_crate}{suffix}"));
+            }
+        }
+    }
     let mut declared_public_paths = BTreeMap::new();
     for (_, document, public_paths) in &rustdocs {
         for (id, public_path) in public_paths {
@@ -419,12 +443,15 @@ pub fn resolve(
     for dependency in &mut projected {
         borrowed_graph::add_optional_owners(&mut dependency.items);
     }
+    let public_errors =
+        super::dependency_owners::publicly_exported_error_paths(&projected, &public_type_exports);
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
     let mut bound_dependencies = Vec::new();
     normalize_projected_round(
         &mut projected,
         dependencies,
+        &public_errors,
         &mut bound_dependencies,
         &workspace,
         true,
@@ -449,6 +476,7 @@ pub fn resolve(
     normalize_projected_round(
         &mut projected,
         dependencies,
+        &public_errors,
         &mut bound_dependencies,
         &workspace,
         false,
@@ -589,6 +617,7 @@ pub fn resolve(
 fn normalize_projected_round(
     projected: &mut [ProjectedDependency],
     dependencies: &[RustDependency],
+    public_errors: &BTreeSet<String>,
     bound_dependencies: &mut Vec<super::ProjectedBoundDependency>,
     workspace: &Path,
     enforce_error_owner_reachability: bool,
@@ -601,9 +630,33 @@ fn normalize_projected_round(
             &dependency.name.replace('-', "_"),
         );
     }
+    // Preserve already-known private root identity before reconciling methods
+    // attached in later rounds. A private name is not itself export evidence.
+    for dependency in bound_dependencies.iter() {
+        rewrite_projected_owner_root(
+            projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name,
+        );
+    }
+    let owner_roots = dependencies
+        .iter()
+        .map(|dependency| {
+            (
+                dependency.name.replace('-', "_"),
+                dependency.package.replace('-', "_"),
+            )
+        })
+        .chain(bound_dependencies.iter().map(|dependency| {
+            (
+                dependency.name.clone(),
+                dependency.package.replace('-', "_"),
+            )
+        }))
+        .collect::<BTreeMap<_, _>>();
     // Reconcile complete public error identities before reachability can reject
     // an opaque error owner or bind it as an unnecessary private dependency.
-    canonicalize_projected_type_names(projected);
+    canonicalize_projected_type_names(projected, public_errors, &owner_roots);
     if discover_bound_dependencies {
         *bound_dependencies =
             recursive_owner_dependencies(projected, dependencies, workspace, false)?;
