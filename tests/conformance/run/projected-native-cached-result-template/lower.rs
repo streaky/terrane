@@ -8,7 +8,7 @@ fn callback() -> terrane_int_support::Int {
 fn main() {
     let defaulted: witness::Builder<()>;
     let attached: witness::Builder<()>;
-    let concrete: witness::DefaultOnly<core::convert::Infallible>;
+    let concrete: DefaultOnly;
     defaulted = __terrane_raised(
         terrane_static_trn_4275696c646572_new::<()>(),
         0 /* terrane-site: src/main.trn:9:25-9:38 */,
@@ -30,7 +30,7 @@ fn main() {
                                 Ok(
                                     witness::make_lane::<
                                         _,
-                                        (),
+                                        _,
                                     >({
                                         let callback = __terrane_conversion_input_0;
                                         move || {

@@ -40,11 +40,19 @@ The Cargo release also makes an available package lockfile the default for `carg
 
 ## Rust compatibility and improvements
 
+### Public shared-owner identity
+
+The first measured workspace run exposed callback and dereference regressions: the selected producer reports `Arc`, `Rc` and their weak handles beneath private `alloc::rcs` implementation modules. Shared path normalization now recovers their public owner paths both when classifying structured Rustdoc types and when spelling emitted Rust. It preserves generic arguments and associated-method suffixes, does not recognize arbitrary user types by short name, and does not weaken callback lifetime, mutability or Send/Sync requirements.
+
+Projection policy revision 366 retires the cached declines from the earlier selection. Cache deletion is not the fix. Existing positive and negative carrier witnesses remain the contracts.
+
 ### Native never-type spelling
 
-Rustdoc encodes the never primitive as `never`. Native Rust type rendering now maps that structured primitive to `!`, just as it maps `unit` to `()`, rather than emitting an invalid Rust identifier. A regression compiles the rendered type as an infallible `Result` error and executes the resulting program. This is native representation normalization, **not** the introduction of a Terrane bottom type or blanket admission of every diverging native API.
+Rustdoc encodes the never primitive as `never`. Native Rust type rendering now maps that structured primitive to `!`, just as it maps `unit` to `()`, rather than emitting an invalid Rust identifier. A regression compiles the rendered type as an infallible `Result` error and executes the resulting program. Nameable aliases of the uninhabited native type retain a closed opaque identity, preserving defaults such as `MethodRouter<(), Infallible>` without erasing the error argument or converting it to source `none`. This does not introduce a Terrane bottom type or blanket admission of every diverging native API.
 
 `Infallible` becoming an alias and never fallback changing on older editions remain native compatibility concerns. The workspace and generated crates already use edition 2024; that does not remove the need to compile older-edition dependencies, native aliases, callbacks and associated error contracts.
+
+Native import demand now identifies a declaration family independently of its applied type arguments. Retained wrapper signatures can require a generic constructor even when a nested source call creates no named binding; value compatibility and generic argument checks remain strict.
 
 ### DropGuard as a failure-path backup
 
@@ -71,9 +79,10 @@ Focused verification:
 - Rust identities: `rustc 1.100.0 (0ef1bc386 2026-11-09)` and `cargo 1.100.0 (3acc79c0c 2026-11-05)`.
 - `cargo test -p terrane-rust-analysis --all-targets`: **31 passed**, including strict core-cache recovery, native bound/call/implementation proofs, macro discovery, concurrent proof batches and the resolved SQLx accessor witness.
 - `cargo test -p terrane-string-support -p terrane-collection-support`: **27 passed**, including actual Unicode-18-only data changes, unchanged text controls, collection ownership and clone-count witnesses. Repeated after disabling unused segmenter defaults.
-- `cargo test -p terrane-compiler --lib rust_interop::projection::`: **81 passed**, including native never-type compilation and atomic cache-publication cleanup.
+- `cargo test -p terrane-compiler --lib rust_interop::`: **85 passed** after the shared-owner, named never-alias and import-demand repairs, including native never-type compilation, alias/identity checks and atomic cache-publication cleanup.
 - `cargo test -p terrane-compiler --test runtime_destructors`: **5 passed**.
 - Scoped source conformance compiled and executed the Unicode witness, all selected awaited-destructor controls, core results and associated native owners. Generated Rust and its source-site sidecar were regenerated and reviewed; the Unicode source iterator yields the same complete cluster as text length reports.
+- The first full run's callback and dereference regressions passed scoped positive/negative conformance after shared-owner normalization. The remaining callable-recipe case also passed after preserving the named never default and matching generic declaration import demand.
 - Current native consumer witnesses passed for SQLx query chains, WebSocket protocols, native alias identity, Serde JSON results, PDF/document bytes and generated API re-exports.
 - `cargo clippy --workspace --all-targets -- -D warnings` passed, as did the manual catalog generation/check and the three scoreboard-collector unit tests.
 - The built CLI reports Rust 1.100.0 and the October producer. A canonical-Rust CLI workload compiled and printed grapheme count `1`, the complete U+1AE0 cluster, `strasse`, root-contextual `ος`, and `Hello World`.
@@ -81,7 +90,7 @@ Focused verification:
 - All six executable native-survey profiles load successfully with the updated producer selection and their exact fixture paths. The `markdown-associated-owner` profile also completed end to end, including its source conformance witness and survey report; both reported producer identities were `nightly-2026-10-02`.
 - Earlier isolated 1.100 native probes, before the approved cache reset, compiled with `-Dwarnings`: allocator-aware Vec/Box sum 10; `Result<u32, !>` through an `Infallible` signature returns 42; guard dismissal/drop/unwind/pending-future scenarios produce exactly three cleanup calls. Cargo final custom-profile binary and Linux dynamic-library paths, JSON artifact filenames, new build-script OUT_DIR layout and final Rustdoc JSON placement were also exercised. These are narrow API/layout evidence, not a replacement for Terrane integration tests.
 
-Full-workspace validation uses `python docs/measure-test-times.py -- --workspace` from a clean source commit, without competing Cargo jobs. The authoritative tested commit, per-test results and timings are recorded in `docs/test-times.yaml`; focused checks above are not a substitute for that measurement.
+Full-workspace validation uses `python docs/measure-test-times.py -- --workspace` from a clean source commit, without competing Cargo jobs. The authoritative tested commit, per-test results and timings are recorded in `docs/test-scoreboard.yaml`; focused checks above are not a substitute for that measurement.
 
 ## Sources
 

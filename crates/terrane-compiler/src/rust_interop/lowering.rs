@@ -115,7 +115,8 @@ fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&Obje
 fn value_type_mentions_object(value_type: &ValueType, target: &ObjectIdentity) -> bool {
     let mut mentions = false;
     visit_value_type_objects(value_type, &mut |identity| {
-        mentions |= identity == target;
+        // Import demand names a declaration family, not one generic application.
+        mentions |= identity.namespace == target.namespace && identity.name == target.name;
     });
     mentions
 }

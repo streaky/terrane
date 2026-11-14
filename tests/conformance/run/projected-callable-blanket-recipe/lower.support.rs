@@ -717,7 +717,7 @@ where
 pub use core::convert::Infallible;
 pub use terrane_callable_recipe_witness::MethodRouter;
 pub fn accept(
-    router: terrane_callable_recipe_witness::MethodRouter<(), core::convert::Infallible>,
+    router: MethodRouter<(), Infallible>,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let router = router;
     match std::panic::catch_unwind(
