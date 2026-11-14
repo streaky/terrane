@@ -968,8 +968,7 @@ fn project_weak_handle(
     let lifetime = dynamic
         .lifetime
         .as_deref()
-        .map(|lifetime| format!(" + {lifetime}"))
-        .unwrap_or_default();
+        .map_or_default(|lifetime| format!(" + {lifetime}"));
     let rust_path = format!("std::sync::Weak<dyn {}{}>", bounds.join(" + "), lifetime);
     let rust_path = crate::rust_ir::format_native_type(&rust_path)
         .ok_or_else(|| "weak handle has an invalid native type recipe".to_owned())?;
@@ -998,6 +997,24 @@ fn project_resolved_type(
         ..
     }) = index.get(&path.id)
     {
+        // A nameable alias of the uninhabited native type can remain a closed
+        // opaque identity, including in generic defaults. It is not source none.
+        if matches!(&alias.type_, Type::Primitive(name) if name == "never") {
+            let rust_path = render_resolved_path(path, index, paths, generics)?;
+            let arguments = type_arguments(ty)
+                .into_iter()
+                .map(|argument| project_type_with_context(argument, index, paths, generics, active))
+                .collect::<Result<Vec<_>, _>>()?;
+            return finish_nominal_type(
+                &rust_path,
+                arguments,
+                Some(&alias.generics),
+                index,
+                paths,
+                generics,
+                active,
+            );
+        }
         let substitutions =
             alias_type_substitutions(ty, &alias.generics.params, index, paths, generics)?;
         return project_type_with_context(&alias.type_, index, paths, &substitutions, active);

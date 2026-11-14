@@ -194,8 +194,7 @@ impl<'a> Packages<'a> {
                 .artifacts
                 .iter()
                 .find(|(_, identity)| identity.as_str() == package)
-                .map(|(path, _)| path.clone())
-                .unwrap_or_default(),
+                .map_or_default(|(path, _)| path.clone()),
         }
     }
 }

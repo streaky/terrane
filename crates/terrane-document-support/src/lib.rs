@@ -1314,14 +1314,12 @@ pub fn url_query_key(result: &UrlResult, index: usize) -> String {
     result
         .query_entries
         .get(index)
-        .map(|entry| entry.0.clone())
-        .unwrap_or_default()
+        .map_or_default(|entry| entry.0.clone())
 }
 #[must_use]
 pub fn url_query_value(result: &UrlResult, index: usize) -> String {
     result
         .query_entries
         .get(index)
-        .map(|entry| entry.1.clone())
-        .unwrap_or_default()
+        .map_or_default(|entry| entry.1.clone())
 }

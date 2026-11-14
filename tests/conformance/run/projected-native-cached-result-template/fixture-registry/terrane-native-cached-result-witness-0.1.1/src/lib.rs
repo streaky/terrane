@@ -23,6 +23,10 @@ impl<S> Builder<S> {
     pub fn value(&self) -> i64 { self.value }
 }
 
+pub fn bool_builder() -> Builder<bool> {
+    Builder::new()
+}
+
 pub fn make_lane<H, S>(handler: H) -> Lane<S>
 where
     H: FnOnce() -> i64,

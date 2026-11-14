@@ -2006,15 +2006,23 @@ mod tests {
                 .parse()
                 .unwrap();
         let string_dependencies = toml_table(&support, &["dependencies"]);
-        assert_eq!(string_dependencies["caseless"].as_str(), Some("=0.2.2"));
+        let icu_version = format!("={}", terrane_compiler::ICU4X_VERSION);
+        for dependency in [
+            "icu_casemap",
+            "icu_locale_core",
+            "icu_normalizer",
+            "icu_properties",
+        ] {
+            assert_eq!(
+                string_dependencies[dependency].as_str(),
+                Some(icu_version.as_str())
+            );
+        }
         assert_eq!(
-            string_dependencies["unicode-normalization"].as_str(),
-            Some("=0.1.24")
+            string_dependencies["icu_segmenter"]["version"].as_str(),
+            Some(icu_version.as_str())
         );
-        assert_eq!(
-            string_dependencies["unicode-segmentation"].as_str(),
-            Some("=1.12.0")
-        );
+        assert_eq!(string_dependencies["writeable"].as_str(), Some("=0.6.4"));
         let toolchain: TomlValue = fs::read_to_string(directory.join("rust-toolchain.toml"))
             .unwrap()
             .parse()

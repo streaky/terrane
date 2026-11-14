@@ -20,6 +20,10 @@ function test-scenario;
   print; (decomposed.split; '').length
   print; (decomposed.replace; '', 'X')
   print; decomposed.bytes.length, decomposed.scalars.length, decomposed.graphemes.length
+  new-combining-mark string = 'A᫠'
+  print; new-combining-mark.graphemes.length
+  for grapheme in new-combining-mark
+    print; grapheme
   searches list of string = list; '&', '<'
   html-replacements list of string = list; '&amp;', '&lt;'
   print; ('&<'.replace; searches, html-replacements)

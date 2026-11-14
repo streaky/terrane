@@ -8,7 +8,8 @@ fn callback() -> terrane_int_support::Int {
 fn main() {
     let defaulted: witness::Builder<()>;
     let attached: witness::Builder<()>;
-    let concrete: witness::DefaultOnly<core::convert::Infallible>;
+    let concrete: DefaultOnly;
+    let mut selected: witness::Builder<bool>;
     defaulted = __terrane_raised(
         terrane_static_trn_4275696c646572_new::<()>(),
         0 /* terrane-site: src/main.trn:9:25-9:38 */,
@@ -30,7 +31,7 @@ fn main() {
                                 Ok(
                                     witness::make_lane::<
                                         _,
-                                        (),
+                                        _,
                                     >({
                                         let callback = __terrane_conversion_input_0;
                                         move || {
@@ -120,5 +121,104 @@ fn main() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
         "witness::DefaultOnly::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (), 5 /* terrane-site: src/main.trn:13:13-13:28 */))
+    );
+    selected = __terrane_raised(
+        bool_builder(),
+        6 /* terrane-site: src/main.trn:14:32-14:45 */,
+    );
+    selected = {
+        let __terrane_native_input_0 = selected;
+        let __terrane_conversion_input_0 = {
+            let __terrane_conversion_input_0 = TerraneConsumingCallable::new(move |
+                (): ()|
+            callback());
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    witness::make_lane::<
+                                        _,
+                                        _,
+                                    >({
+                                        let callback = __terrane_conversion_input_0;
+                                        move || {
+                                            match || -> Result<_, crate::TerraneForeignError> {
+                                                let callback_value = callback.call(());
+                                                Ok(
+                                                    terrane_int_support::coerce::<i64>(&callback_value)
+                                                        .map_err(|error| crate::TerraneForeignError(
+                                                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                                        ))?,
+                                                )
+                                            }() {
+                                                Ok(value) => value,
+                                                Err(error) => std::panic::panic_any(error.0),
+                                            }
+                                        }
+                                    }),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "witness",
+                                        "witness::make_lane",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+                7 /* terrane-site: src/main.trn:15:34-15:53 */,
+            )
+        };
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let value = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok(
+                                __terrane_native_input_0
+                                    .attach(__terrane_conversion_input_0),
+                            )
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "witness",
+                                    "witness::Builder::attach",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(value)
+                }
+            }(),
+            8 /* terrane-site: src/main.trn:15:16-15:54 */,
+        )
+    };
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&selected).value()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
+        "witness::Builder::value")) }; Ok:: < _, crate ::TerraneForeignError >
+        (terrane_int_support::Int::from(i128::from(value))) } } (), 9 /* terrane-site: src/main.trn:16:13-16:28 */))
     );
 }

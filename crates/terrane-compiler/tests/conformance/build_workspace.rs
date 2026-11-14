@@ -237,23 +237,19 @@ fn write_support_crates(directory: &Path) -> io::Result<()> {
     for root in [&int, &collection, &scalar, &string, &document, &stream] {
         fs::create_dir_all(root.join("src"))?;
     }
+    let collection_manifest = terrane_compiler::collection_support_manifest();
+    let string_manifest = terrane_compiler::string_support_manifest();
     for (path, contents) in [
         (
             int.join("Cargo.toml"),
             "[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
         ),
-        (
-            collection.join("Cargo.toml"),
-            "[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = { path = \"../terrane-int-support\" }\nunicode-segmentation = \"=1.12.0\"\n",
-        ),
+        (collection.join("Cargo.toml"), collection_manifest.as_str()),
         (
             scalar.join("Cargo.toml"),
             "[package]\nname = \"terrane-scalar-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nterrane-int-support = { path = \"../terrane-int-support\" }\n",
         ),
-        (
-            string.join("Cargo.toml"),
-            "[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n# Unicode 16.0 profile: case folding, normalization, and segmentation move together.\ncaseless = \"=0.2.2\"\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = { version = \"=1.12.0\", features = [\"std\"] }\nunicode-normalization = \"=0.1.24\"\nunicode-segmentation = \"=1.12.0\"\n",
-        ),
+        (string.join("Cargo.toml"), string_manifest.as_str()),
         (
             document.join("Cargo.toml"),
             "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"raw_value\"] }\njson-event-parser = \"=0.2.3\"\n# Keep this compatible with projected dependency graphs that select newer 2.5.x releases.\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n",

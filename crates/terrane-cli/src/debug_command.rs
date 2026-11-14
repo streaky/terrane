@@ -324,8 +324,7 @@ impl BreakpointManager {
                 requested_line: line,
                 enabled: true,
                 resolutions: provenance
-                    .map(|provenance| resolve_breakpoint(provenance, &path, line))
-                    .unwrap_or_default(),
+                    .map_or_default(|provenance| resolve_breakpoint(provenance, &path, line)),
                 verified: false,
             });
         }

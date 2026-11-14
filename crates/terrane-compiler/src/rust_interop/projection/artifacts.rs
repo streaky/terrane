@@ -303,23 +303,25 @@ pub(super) fn write_cache_atomically(
         std::process::id(),
         sequence
     ));
-    let mut file = fs::OpenOptions::new()
+    let file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&temporary)
         .map_err(io_error("create temporary dependency cache"))?;
-    for content in contents {
-        if let Err(error) = file.write_all(content) {
-            drop(file);
-            let _ = fs::remove_file(&temporary);
-            return Err(io_error("write temporary dependency cache")(error));
-        }
-    }
-    drop(file);
-    if let Err(error) = fs::rename(&temporary, path) {
+    let mut file = std::mem::DropGuard::new(file, |file| {
+        drop(file);
         let _ = fs::remove_file(&temporary);
-        return Err(io_error("replace dependency cache")(error));
+    });
+    for content in contents {
+        file.write_all(content)
+            .map_err(io_error("write temporary dependency cache"))?;
     }
+    drop(std::mem::DropGuard::dismiss(file));
+    let cleanup = std::mem::DropGuard::new(temporary.as_path(), |temporary| {
+        let _ = fs::remove_file(temporary);
+    });
+    fs::rename(&temporary, path).map_err(io_error("replace dependency cache"))?;
+    let _ = std::mem::DropGuard::dismiss(cleanup);
     Ok(())
 }
 

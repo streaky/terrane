@@ -4238,30 +4238,26 @@ fn refine_projected_call_result(
             .ok()
             .flatten()
     {
-        let replacements = node
-            .children
-            .get(1)
-            .map(|arguments| {
-                function
-                    .parameters
-                    .iter()
-                    .zip(&arguments.children)
-                    .filter_map(|(parameter, argument)| {
-                        let crate::rust_interop::projection::ProjectedType::Generic(name) =
-                            &parameter.ty
-                        else {
-                            return None;
-                        };
-                        let value = argument.children.last().unwrap_or(argument);
-                        let value_type = infer_value_type(unit, value, &unit.typed_bindings)
-                            .ok()
-                            .flatten()?;
-                        let projected = destination_projected_type(package, &value_type).ok()?;
-                        Some((name.clone(), projected.rust_type()))
-                    })
-                    .collect::<BTreeMap<_, _>>()
-            })
-            .unwrap_or_default();
+        let replacements = node.children.get(1).map_or_default(|arguments| {
+            function
+                .parameters
+                .iter()
+                .zip(&arguments.children)
+                .filter_map(|(parameter, argument)| {
+                    let crate::rust_interop::projection::ProjectedType::Generic(name) =
+                        &parameter.ty
+                    else {
+                        return None;
+                    };
+                    let value = argument.children.last().unwrap_or(argument);
+                    let value_type = infer_value_type(unit, value, &unit.typed_bindings)
+                        .ok()
+                        .flatten()?;
+                    let projected = destination_projected_type(package, &value_type).ok()?;
+                    Some((name.clone(), projected.rust_type()))
+                })
+                .collect::<BTreeMap<_, _>>()
+        });
         additions.push((
             unit_index,
             (node.span.file, node.span.start, node.span.end),

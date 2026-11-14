@@ -10364,6 +10364,8 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
     let text: String;
     let decomposed: String;
     let rtl: String;
+    let new_combining_mark: String;
+    let mut grapheme: String;
     let searches: terrane_collection_support::List<String>;
     let html_replacements: terrane_collection_support::List<String>;
     let reversed_searches: terrane_collection_support::List<String>;
@@ -10459,6 +10461,25 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         terrane_scalar_support::scalar_text(&(terrane_string_support::length(&decomposed)
         as i128))
     );
+    new_combining_mark = String::from("A\u{1ae0}");
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&new_combining_mark)
+        as i128))
+    );
+    {
+        let __terrane_iterable_0 = &new_combining_mark;
+        let mut __terrane_iterator_0 = terrane_string_support::graphemes(
+            &__terrane_iterable_0,
+        );
+        loop {
+            grapheme = match __terrane_iterator_0.next() {
+                Some(item) => item,
+                None => break,
+            };
+            println!("{}", terrane_scalar_support::scalar_text(&grapheme));
+        }
+    }
     searches = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("&"), String::from("<")]);
@@ -10471,7 +10492,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &html_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_6,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        202 /* terrane-site: tests/integration/text-families/case.trn:25:11-25:52 */)
+        202 /* terrane-site: tests/integration/text-families/case.trn:29:11-29:52 */)
         ? })
     );
     reversed_searches = terrane_collection_support::List::<
@@ -10486,7 +10507,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &reversed_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_7,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        203 /* terrane-site: tests/integration/text-families/case.trn:28:11-28:65 */)
+        203 /* terrane-site: tests/integration/text-families/case.trn:32:11-32:65 */)
         ? })
     );
     broadcast_searches = terrane_collection_support::List::<
@@ -10512,7 +10533,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &priority_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_9,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        204 /* terrane-site: tests/integration/text-families/case.trn:33:11-33:65 */)
+        204 /* terrane-site: tests/integration/text-families/case.trn:37:11-37:65 */)
         ? })
     );
     println!(
@@ -10523,7 +10544,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         ::new(vec![String::from("abc")]);
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_10,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        205 /* terrane-site: tests/integration/text-families/case.trn:34:11-34:52 */)
+        205 /* terrane-site: tests/integration/text-families/case.trn:38:11-38:52 */)
         ? })
     );
     no_searches = terrane_collection_support::List::<String>::new(Vec::new());
@@ -10534,7 +10555,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &no_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_11,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        206 /* terrane-site: tests/integration/text-families/case.trn:37:11-37:55 */)
+        206 /* terrane-site: tests/integration/text-families/case.trn:41:11-41:55 */)
         ? })
     );
     println!(
@@ -10544,7 +10565,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         ::new(vec![String::from("-")]);
         __terrane_raised_err(terrane_string_support::replace_many(&decomposed,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        207 /* terrane-site: tests/integration/text-families/case.trn:38:11-38:54 */)
+        207 /* terrane-site: tests/integration/text-families/case.trn:42:11-42:54 */)
         ? })
     );
     mismatch_searches = terrane_collection_support::List::<
@@ -10559,7 +10580,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
                 __terrane_string_argument_1 = &no_replacements;
                 __terrane_raised_completion!(terrane_string_support::replace_many(&__terrane_receiver_value_12,
                 __terrane_string_argument_0.as_slice(), __terrane_string_argument_1
-                .as_slice()), 208 /* terrane-site: tests/integration/text-families/case.trn:41:13-41:60 */) })
+                .as_slice()), 208 /* terrane-site: tests/integration/text-families/case.trn:45:13-45:60 */) })
             );
             TerraneCompletion::Normal
         })();

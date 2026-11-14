@@ -533,4 +533,5 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/terrane-opaque-result-witness.trn
 // Namespace: deps/terrane-opaque-result-witness
+pub use terrane_opaque_result_witness::Wrapper;
 pub use terrane_opaque_result_witness::Wrapper as WrapperOfValueU32;

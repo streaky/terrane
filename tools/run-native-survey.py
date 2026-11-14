@@ -46,7 +46,7 @@ def load_profile(name: str) -> dict:
         raise argparse.ArgumentTypeError(
             f"native survey profile {name!r} lacks: {', '.join(missing)}"
         )
-    if profile["rustdoc-toolchain"] != "nightly-2026-04-29":
+    if profile["rustdoc-toolchain"] != "nightly-2026-10-02":
         raise argparse.ArgumentTypeError(f"profile {name!r} uses an unexpected Rustdoc toolchain")
     if profile["containment"] not in {"enforced", "unavailable"}:
         raise argparse.ArgumentTypeError(

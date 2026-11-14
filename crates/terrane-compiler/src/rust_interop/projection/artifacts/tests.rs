@@ -7,6 +7,34 @@ use super::super::{
 use super::*;
 
 #[test]
+fn atomic_cache_cleanup() {
+    let directory =
+        std::env::temp_dir().join(format!("terrane-projection-atomic-{}", std::process::id()));
+    let cleanup = std::mem::DropGuard::new(directory, |directory| {
+        let _ = fs::remove_dir_all(directory);
+    });
+    let cache = cleanup.join("projection.json");
+    write_cache_atomically(&cache, &[b"old"]).unwrap();
+    write_cache_atomically(&cache, &[b"new", b" contents"]).unwrap();
+    assert_eq!(fs::read(&cache).unwrap(), b"new contents");
+
+    let blocked = cleanup.join("blocked");
+    fs::create_dir(&blocked).unwrap();
+    fs::write(blocked.join("sentinel"), b"preserved").unwrap();
+    let error = write_cache_atomically(&blocked, &[b"replacement"]).unwrap_err();
+    assert!(error.message.contains("replace dependency cache"));
+    assert_eq!(fs::read(blocked.join("sentinel")).unwrap(), b"preserved");
+    let remaining = fs::read_dir(&*cleanup)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        remaining,
+        std::collections::BTreeSet::from([cache, blocked])
+    );
+}
+
+#[test]
 fn cache_removes_only_legacy_records() {
     let directory =
         std::env::temp_dir().join(format!("terrane-projection-prune-{}", std::process::id()));

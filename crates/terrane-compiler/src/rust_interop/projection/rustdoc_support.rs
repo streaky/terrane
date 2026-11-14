@@ -159,12 +159,39 @@ pub(super) fn implements_unconditionally_copy(
     })
 }
 
+/// Keep implementation-only shared-owner modules out of projected identities.
+pub(super) fn normalize_shared_owner_path(path: &mut String) {
+    let Some((root, remainder)) = path.split_once("::") else {
+        return;
+    };
+    if !matches!(root, "alloc" | "std") {
+        return;
+    }
+    let Some((module, item)) = remainder
+        .strip_prefix("rcs::")
+        .and_then(|path| path.split_once("::"))
+    else {
+        return;
+    };
+    let owner = item.split([':', '<']).next().unwrap_or(item);
+    let public = match (module, owner) {
+        ("arc", "Arc" | "Weak") => "sync",
+        ("rc", "Rc" | "Weak") => "rc",
+        _ => return,
+    };
+    let start = root.len() + 2;
+    let end = start + "rcs::".len() + module.len();
+    path.replace_range(start..end, public);
+}
+
 pub(super) fn resolved_path_name(path: &RustdocPath, paths: &HashMap<Id, ItemSummary>) -> String {
-    paths
+    let mut name = paths
         .get(&path.id)
         .map(|summary| summary.path.join("::"))
         .filter(|path| !path.is_empty())
-        .unwrap_or_else(|| path.path.replace("crate::", ""))
+        .unwrap_or_else(|| path.path.replace("crate::", ""));
+    normalize_shared_owner_path(&mut name);
+    name
 }
 pub(super) fn impl_trait_bounds(ty: &Type) -> Option<&[GenericBound]> {
     match ty {

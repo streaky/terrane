@@ -52,10 +52,7 @@ fn native_import_target(
             Vec::new(),
         )
     } else {
-        (
-            path,
-            projected.map(projected_generic_names).unwrap_or_default(),
-        )
+        (path, projected.map_or_default(projected_generic_names))
     }
 }
 
@@ -118,7 +115,8 @@ fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&Obje
 fn value_type_mentions_object(value_type: &ValueType, target: &ObjectIdentity) -> bool {
     let mut mentions = false;
     visit_value_type_objects(value_type, &mut |identity| {
-        mentions |= identity == target;
+        // Import demand names a declaration family, not one generic application.
+        mentions |= identity.namespace == target.namespace && identity.name == target.name;
     });
     mentions
 }

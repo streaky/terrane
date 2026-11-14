@@ -27,7 +27,7 @@
         }
       ],
       "target": "x86_64-unknown-linux-gnu",
-      "rustdoc-toolchain": "nightly-2026-04-29",
+      "rustdoc-toolchain": "nightly-2026-10-02",
       "containment": "enforced",
       "purpose": "required associated-owner and adversarial public-reexport evidence",
       "selection": {
@@ -48,7 +48,7 @@
         {"name": "sqlx-sqlite", "version": "=0.8.6", "features": ["bundled"]}
       ],
       "target": "x86_64-unknown-linux-gnu",
-      "rustdoc-toolchain": "nightly-2026-04-29",
+      "rustdoc-toolchain": "nightly-2026-10-02",
       "containment": "enforced",
       "purpose": "resolved SQLx graph survey plus an independent local generic query-chain regression; the fixture does not test SQLx compatibility",
       "selection": {
@@ -69,7 +69,7 @@
         {"name": "office_oxide", "version": "=0.1.11", "survey": false}
       ],
       "target": "x86_64-unknown-linux-gnu",
-      "rustdoc-toolchain": "nightly-2026-04-29",
+      "rustdoc-toolchain": "nightly-2026-10-02",
       "containment": "enforced",
       "purpose": "resolved PDF graph survey plus an independent local demand-limited document-byte regression; the fixture does not test PDF rendering",
       "selection": {
@@ -87,7 +87,7 @@
       "fixture": "run/projected-serde-json-result",
       "packages": [{"name": "serde_json", "version": "=1.0.145"}],
       "target": "x86_64-unknown-linux-gnu",
-      "rustdoc-toolchain": "nightly-2026-04-29",
+      "rustdoc-toolchain": "nightly-2026-10-02",
       "containment": "enforced",
       "purpose": "selected popular-package typed-result evidence",
       "selection": {
@@ -108,7 +108,7 @@
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}
       ],
       "target": "x86_64-unknown-linux-gnu",
-      "rustdoc-toolchain": "nightly-2026-04-29",
+      "rustdoc-toolchain": "nightly-2026-10-02",
       "containment": "enforced",
       "purpose": "required generated/reexported API discovery plus shippable application compilation",
       "status": "admitted",
@@ -131,7 +131,7 @@
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}
       ],
       "target": "x86_64-unknown-linux-gnu",
-      "rustdoc-toolchain": "nightly-2026-04-29",
+      "rustdoc-toolchain": "nightly-2026-10-02",
       "containment": "enforced",
       "purpose": "required dedicated Godot runtime lane for generated/reexported APIs",
       "status": "admitted-when-environment-available",
