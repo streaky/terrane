@@ -101,8 +101,9 @@ impl std::error::Error for DecodeError {}
 #[cfg(test)]
 mod tests {
     use super::{
-        DecodeError, Encoding, case_fold, graphemes, length, lower, lower_first, normalise, trim,
-        trim_end, trim_start, upper, upper_first, upper_words,
+        CaseMapper, CodePointSetData, DecodeError, Encoding, Lowercase, Uppercase, WhiteSpace,
+        case_fold, graphemes, langid, length, lower, lower_first, normalise, trim, trim_end,
+        trim_start, upper, upper_first, upper_words,
     };
 
     #[test]
@@ -117,11 +118,45 @@ mod tests {
     #[test]
     fn ascii_case_mapping_matches_ascii_tables() {
         let value: String = (0u8..=127).map(char::from).collect();
-        assert_eq!(upper(&value), value.to_ascii_uppercase());
-        assert_eq!(lower(&value), value.to_ascii_lowercase());
-        assert_eq!(case_fold(&value), value.to_ascii_lowercase());
-        assert_eq!(upper_first("  hello world Σ"), "  Hello world Σ");
-        assert_eq!(lower_first("  HELLO Σ"), "  hELLO Σ");
+        let mapper = CaseMapper::new();
+        let locale = langid!("und");
+        assert_eq!(upper(&value), mapper.uppercase_to_string(&value, &locale));
+        assert_eq!(lower(&value), mapper.lowercase_to_string(&value, &locale));
+        assert_eq!(case_fold(&value), mapper.fold_string(&value));
+
+        let lowercase = CodePointSetData::new::<Lowercase>();
+        let uppercase = CodePointSetData::new::<Uppercase>();
+        let whitespace = CodePointSetData::new::<WhiteSpace>();
+        let icu_first = |value: &str, to_upper: bool| {
+            let mut expected = value.to_owned();
+            if let Some((index, character)) = value.char_indices().find(|(_, character)| {
+                lowercase.contains(*character) || uppercase.contains(*character)
+            }) {
+                let end = index + character.len_utf8();
+                let replacement = if to_upper {
+                    mapper.uppercase_to_string(&value[index..end], &locale)
+                } else {
+                    mapper.lowercase_to_string(&value[index..end], &locale)
+                };
+                expected.replace_range(index..end, &replacement);
+            }
+            expected
+        };
+        for character in (0u8..=127).map(char::from) {
+            let value = format!("{character}text{character}");
+            assert_eq!(trim(&value), value.trim_matches(|c| whitespace.contains(c)));
+            assert_eq!(
+                trim_start(&value, None),
+                value.trim_start_matches(|c| whitespace.contains(c))
+            );
+            assert_eq!(
+                trim_end(&value, None),
+                value.trim_end_matches(|c| whitespace.contains(c))
+            );
+            let value = format!("{character}aΣ");
+            assert_eq!(upper_first(&value), icu_first(&value, true));
+            assert_eq!(lower_first(&value), icu_first(&value, false));
+        }
     }
 
     #[test]
@@ -140,6 +175,9 @@ mod tests {
         assert_eq!(upper_first("ǆemal"), "Ǆemal");
         assert_eq!(upper_first("ßeta"), "SSeta");
         assert_eq!(lower("İ"), "i\u{307}");
+        assert_eq!(case_fold("Straße"), "strasse");
+        assert_eq!(upper("ß"), "SS");
+        assert_eq!(lower_first("HELLO"), "hELLO");
         assert_eq!(upper_words("they're here"), "They're Here");
         assert_eq!(
             upper_words("they're here, word-two 123abc"),
@@ -160,15 +198,6 @@ mod tests {
         assert_eq!(normalise(new_compat_ligature, "nfc"), new_compat_ligature);
         assert_eq!(normalise(new_compat_ligature, "nfkc"), "ß");
         assert_eq!(normalise(new_compat_ligature, "nfkd"), "ß");
-        assert_eq!(case_fold("Straße"), "strasse");
-        assert_eq!(upper("ß"), "SS");
-        assert_eq!(lower("İ"), "i\u{307}");
-        assert_eq!(lower("ΟΣ"), "ος");
-        assert_eq!(upper_first("ßeta"), "SSeta");
-        assert_eq!(lower_first("HELLO"), "hELLO");
-        assert_eq!(upper_words("they're here"), "They're Here");
-        assert_eq!(trim("\u{a0}text\u{a0}"), "text");
-        assert_eq!(trim("\u{200b}text\u{200b}"), "\u{200b}text\u{200b}");
     }
 }
 

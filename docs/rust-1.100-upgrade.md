@@ -59,6 +59,8 @@ Generated programs currently depend on both string and collection support uncond
 
 Non-ASCII casing still uses ICU and retains its performance trade-off against the former std implementation; these fast paths do not claim general mixed-script parity. Further optimization must preserve the pinned root-locale mappings and context rules, and should be driven by representative non-ASCII workloads.
 
+Mapping safe ASCII runs inside mixed strings is a possible optimization, not implemented behavior or a committed plan. Any such change must retain context across run boundaries rather than case-mapping chunks independently.
+
 ## Cargo and lint policy
 
 The workspace now explicitly denies Cargo's `unused_dependencies` lint through `[workspace.lints.cargo]`, alongside the existing Rust unsafe-code and Clippy all/pedantic policies. Cargo diagnostics are not rustc diagnostics: `RUSTFLAGS=-Dwarnings` alone is not a substitute for manifest lint policy. Check actual target/feature usage before removing a dependency. Partial target selections can withhold unused-dependency warnings, and this feature does not establish that dev-dependencies are minimal.
@@ -134,7 +136,8 @@ The initial upgrade commit `f3de3026` has a recorded failing run; `17722fc5` rep
 - The generated-manifest CLI contract passed with locale-core and the coordinated provider pin.
 - Focused conformance passed for `text-families`, `projected-native-cached-result-template` and `projected-callable-blanket-recipe`. The cached-result program prints `7`, `11`, `7`; inspected Rust retains `DefaultOnly`'s exact native default and infers the nested `make_lane` state for both unit and boolean builders. Existing callback adaptation remains unchanged, with no added clone or allocation in those native calls.
 - `cargo fmt --all --check`, all-targets warning-denied workspace Clippy, and manual catalog generation/check passed.
-- The release performance probe reported the figures above and was deleted afterwards. No new full-workspace measurement was collected for these review repairs; the earlier scoreboard is historical evidence for its recorded source commit.
+- The release performance probe reported the figures above and was deleted afterwards.
+- Follow-up test review replaced ASCII self-comparisons with independent ICU root-locale mappings and property sets across all 128 ASCII characters, covering casing, folding, first-cased selection and all whitespace-trimming directions. Unicode-18-specific witnesses are separated from general context/selection controls.
 
 ## Sources
 
