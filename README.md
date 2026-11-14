@@ -126,6 +126,8 @@ The source debugger provides breakpoints, stepping, mapped frames, scope-aware l
 Profiling uses optimized native artifacts, not debugger builds. CPU sampling requires Linux x86-64 and host `perf` permission; allocation capture requires Heaptrack and zstd; process-memory timelines use Linux procfs. `--memory-timeline` may accompany CPU or allocation capture. Allocation reports support comparisons and allocated/retained byte thresholds. Retained-at-exit allocations are not automatically leaks, and RSS is not allocation-site evidence.
 
 Debug/profile artifacts carry exact-build identity. Authored source snapshots and profile workload arguments are included only with explicit opt-ins; paths, symbols, and other diagnostic evidence can still be sensitive. See the manual's [debugging](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/debugging.yaml) and [profiling](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/profiling.yaml) references for platform, fidelity, privacy, and collector boundaries.
+LLVM sample-profile feedback is an opt-in Rust build workflow; its helper usage
+and test command are documented in the [profiling reference](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/profiling.yaml).
 
 The [VS Code extension](editors/vscode/) uses `terrane-language-server` and compiler-owned snapshots for diagnostics, semantic highlighting, navigation, completion, and formatting. The shared source-intelligence protocol is documented in [`docs/tooling-schema.md`](docs/tooling-schema.md).
 
