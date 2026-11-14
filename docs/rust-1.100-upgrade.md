@@ -121,82 +121,14 @@ Prefix/suffix parsers retain `strip_prefix`/`strip_suffix` where match success m
 Stable allocator-aware `Vec` and `Box` were exercised with `System`. Lexer/parser buffers and Rustdoc/census processing were examined as possible allocation boundaries, but their values can escape the nominal phase into returned snapshots or reports, and no profiling evidence established an arena win. No allocator region syntax, blanket container migration, unsafe allocator implementation or unmeasured performance claim is introduced. Shared-pointer allocator support is not implied by the Vec/Box stabilization; `Arc::new_in` remains unstable in the versioned 1.100 API.
 
 ### Stable sample-profile optimization
+
 Rust 1.100.0 supports LLVM sample-profile use on stable. Terrane does not enable
-it by default, add Terrane CLI flags, or change the language. The repository
-helper `python tools/sample-profile.py` prepares, records, and consumes profiles
-for compiler Cargo release builds and generated applications invoked with
-`terrane build --release`; ordinary `terrane` commands remain the user-facing interface.
-For example, prepare the compiler with
-`python tools/sample-profile.py prepare -- cargo build --release -p terrane-cli`.
-For a generated application, pass its normal build command after `--`:
-`python tools/sample-profile.py prepare -- terrane build --release path/to/app`.
+it by default, add Terrane CLI flags, or change the language. The canonical
+workflow, helper usage, and worked application walkthrough are documented in the
+[profiling reference](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/profiling.yaml).
+Run `python -m unittest tools.test_sample_profile` to test the helper.
 
-The workflow is opt-in and has three distinct stages: prepare builds with stable
-function-and-line debug information (`debuginfo=limited`) and explicitly disables
-stripping; record samples a representative execution and converts it into an LLVM
-sample profile; use builds with that profile. Cargo can otherwise strip debug
-sections even when rustflags request debug information. Use the
-same target, release settings, features, and other build options for prepare,
-training, and optimized use. Train the compiler with representative compiler
-work (including cold or incremental work only if that is the intended workload),
-and train applications with representative input and execution paths. Validate
-on held-out work rather than the training workload alone. The existing
-`terrane profile` `.trnprof` format is diagnostic evidence, not LLVM optimization
-feedback; the two formats are not interchangeable.
-
-Build identity includes the selected profile input. The helper snapshots
-consumed profiles under immutable digest-named paths so changed profile bytes
-cannot accidentally reuse a Cargo artifact keyed only by unchanged flag text.
-Keep profiles private to the program and workload that produced them: a
-compiler profile is not an application profile, nor should profiles from
-different applications or materially different workloads be shared. Raw perf
-captures and profiles can expose symbols, paths, and workload structure; store
-and handle them as potentially sensitive artifacts.
-
-Stable function-and-line debug information is used; line-table-only builds can
-omit declaration locations needed by AutoFDO and produce function totals without
-usable source-location counts. Validation requires positive location counts, not
-just a nonempty file or function total. The optional nightly
-`-Zdebuginfo-for-profiling` flag is neither required nor used. Conversion
-depends on host hardware and installed tools. Standard `llvm-profgen` conversion
-of Linux perf data requires branch-stack/LBR samples. On hosts without branch-stack
-support, select `--converter autofdo --no-lbr` with an installed compatible
-AutoFDO `create_llvm_prof`, which directly writes LLVM text profiles. GCC `.gcov`
-feedback is not interchangeable: current GCC profile versions need not be readable
-by `llvm-profdata`, and a numeric `--gcov_version=1` is not a legacy LLVM encoding.
-Ordinary `cycles:u` sampling only establishes user-space cycle sampling, not LBR
-support; probe permissions and hardware capabilities explicitly. Do not silently
-treat the conversion routes as interchangeable or infer measured benefit before
-real training and held-out validation on the target host.
-
-After a representative training build, record and consume a compiler profile as
-follows (the default converter needs LBR-capable hardware):
-This is the invocation interface, not a validated compiler optimization: the
-compiler-wide trial encountered the build-cost boundary recorded below.
-
-```sh
-python tools/sample-profile.py record --binary target/release/terrane \
-  --output .trn/sample-training/compiler.prof -- rust path/to/training/package
-python tools/sample-profile.py use --profile .trn/sample-training/compiler.prof \
-  -- cargo build --release -p terrane-cli
-```
-
-For a generated application, use the executable path printed by its prepared
-release build with `record`, and pass its ordinary
-`terrane build --release path/to/app` command to `use`. On a non-LBR host, add
-`--converter autofdo --no-lbr --converter-path /path/to/create_llvm_prof` to
-`record`. Record accepts zero or more workload arguments after `--`. Train and
-measure separate compiler/application profiles, not a combined profile.
-
-The provenance JSON omits workload arguments. Raw perf data may still retain its
-command line, so it remains sensitive; use private `.trn` or ignored build paths.
-
-This is an opt-in experimental workflow, not a claim of completed profile
-conversion on every host or a measured speedup. Record the compiler/application,
-workload, exact build options, tool versions, hardware sampling mode, and
-validation evidence with any future performance result.
-
-#### Host conversion evidence
+### Sample-profile host conversion evidence
 
 On Linux x86-64 (AMD Ryzen 9 3900XT), Rust 1.100.0 / LLVM 23.1.5 and
 perf 7.3.1 user-space cycle sampling worked, but branch-stack sampling was
@@ -205,6 +137,13 @@ with host LLVM 23.1.4 wrote LLVM text feedback directly. That build required loc
 Protobuf, Abseil and LLVM API compatibility changes; this is not evidence that
 unmodified upstream AutoFDO builds against every current host dependency set.
 No global tools were replaced.
+
+The tested host lacked branch-stack/LBR support, so the default `llvm-profgen`
+route has no end-to-end evidence there; the AutoFDO route was exercised.
+The host's `PATH` validator (`llvm-profdata`) and private AutoFDO build used
+LLVM 23.1.4, while rustc consumed the text feedback with LLVM 23.1.5. This observed
+interoperability is not a universal version-compatibility promise; the manual
+recommends installing Rust's matching `llvm-tools` component for validation.
 
 After switching from line-table-only to limited debug information:
 
