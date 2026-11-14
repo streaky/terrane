@@ -30,18 +30,33 @@ Regression witnesses use actual changed data: `A` followed by U+1AE0 is now one 
 
 ### Runtime performance and provider maintenance
 
-Review found substantial casing/whitespace regressions in the initial ICU implementation, especially for ASCII and short inputs. Whole-string ASCII `upper`, `lower` and `case-fold` now use equivalent ASCII mappings. Trimming checks ASCII boundary characters directly, including vertical tab, and consults ICU only for non-ASCII boundaries; it does not scan the whole string to choose a trimming path. First-cased-character selection/mapping also bypasses ICU for ASCII. Non-ASCII contextual casing remains ICU-owned, and `upper.words` retains ICU word segmentation rather than approximating punctuation/digit boundaries.
+Net runtime effect: most text operations got faster or stayed level compared with the former caseless/unicode-* and std implementation. The one regression is case mapping of strings that contain non-ASCII characters.
 
-A post-repair throwaway release probe measured these workloads on the development host; these are microbenchmarks, not application throughput guarantees:
+The initial ICU implementation regressed casing and whitespace trimming badly on ASCII and short inputs. Review repairs added fast paths that give results identical to ICU's root locale:
+- Whole-string ASCII `upper`, `lower` and `case-fold` use the equivalent ASCII mappings.
+- Trimming checks ASCII boundary characters directly, including vertical tab, and consults ICU only for non-ASCII boundaries. It does not scan the whole string to choose a trimming path.
+- First-cased-character selection and mapping also bypass ICU for ASCII.
 
-| Operation | Workload | Elapsed (ms) |
-| --- | --- | ---: |
-| `upper` | 900 KB ASCII ×20 | 1.418 |
-| `lower` | 900 KB ASCII ×20 | 0.868 |
-| `case-fold` | 900 KB ASCII ×20 | 0.856 |
-| `upper` | short string ×1M | 18.491 |
-| `trim` | short string ×1M | 19.018 |
-| `upper.first` | short string ×1M | 19.862 |
+Non-ASCII contextual casing remains ICU-owned. `upper.words` keeps ICU word segmentation rather than approximating punctuation/digit boundaries. Unit tests check every ASCII casing, folding, trimming and first-cased result against ICU's own mappings and property sets, not against the ASCII routines.
+
+The review's throwaway release-profile harness compared the `main` support crate with the repaired one: same host, same driver code. The workloads are a 900 KB pangram ×20 for ASCII, a ~900 KB Latin/Greek/emoji string ×20 for mixed, and `"  hello world  "` ×1M for short. These are microbenchmarks, not application throughput guarantees:
+
+| Operation | Workload | Before upgrade (ms) | After repairs (ms) | Change |
+| --- | --- | ---: | ---: | --- |
+| `case-fold` | ASCII | 204 | 0.87 | ~235× faster |
+| `normalise nfc` | mixed | 306 | 28 | ~11× faster |
+| `length` (graphemes) | ASCII | 359 | 118 | ~3× faster |
+| `upper.words` | ASCII ×5 | 114 | 63 | ~1.8× faster |
+| `upper.first` | short | 27.0 | 20.0 | ~1.35× faster |
+| `upper` | ASCII | 1.35 | 1.41 | unchanged |
+| `lower` | ASCII | 0.89 | 0.94 | unchanged |
+| `upper` | short | 19.0 | 17.2 | unchanged |
+| `trim` | short | 16.8 | 17.3 | unchanged |
+| `lower` | mixed | 134 | 240 | ~1.8× slower |
+| `upper` | mixed | 140 | 255 | ~1.8× slower |
+| `case-fold` | mixed | 162 | 228 | ~1.4× slower |
+
+The normalization and grapheme-segmentation gains apply to all text, ASCII or not. The regression is narrow: it affects only `upper`, `lower` and `case-fold` on a string containing **at least one** non-ASCII character. The ASCII fast-path decision covers the whole string, so a single accented letter or emoji sends that whole string through ICU. ASCII identifiers, keys, protocol text and most UI strings are as fast or faster. Bulk case conversion of non-English or mixed-language text pays about 1.4–1.8×, while still benefiting from the faster normalization and segmentation.
 
 `ICU4X_VERSION` is the coordinated exact provider pin beside the compiler Unicode profile. Application and conformance support now share manifest writers; compiler tests parse the actual support-crate manifests and compare every ICU dependency with that pin. ICU4X exposes no compiled-data Unicode version constant, so a provider upgrade still requires deriving its Unicode version from upstream data and reviewing behavioral witnesses. Passing Unicode-18 witnesses alone does not detect every future data upgrade.
 
@@ -55,9 +70,9 @@ The review's isolated string-support harness recorded the following cold builds 
 | Initial ICU4X 2.4.0 | 42 | 3,741 | 4,319 | 588,432 |
 | ICU4X with locale-core substitution | 40 | 3,743 | 4,174 | Not measured |
 
-Generated programs currently depend on both string and collection support unconditionally. The roughly three-second additional cold compilation cost is an accepted cost of the coherent Unicode profile, not a demonstrated application runtime cost. Normalization and segmentation improved in the review, while casing needed the fast-path repairs above. `icu_locale_core::langid!` replaces `icu_locale` because only identifier construction is needed; removing locale data reduces dependency surface, not a claimed cold-build speedup. Workspace timing changes also include toolchain and cache-identity changes and cannot be attributed to ICU alone.
+Generated programs currently depend on both string and collection support unconditionally. The roughly three-second additional cold compilation cost is an accepted cost of the coherent Unicode profile, not a demonstrated application runtime cost. Runtime effects are recorded separately above. `icu_locale_core::langid!` replaces `icu_locale` because only identifier construction is needed. Removing locale data reduces dependency surface; it is not claimed to speed up cold builds. Workspace timing changes also include toolchain and cache-identity changes and cannot be attributed to ICU alone.
 
-Non-ASCII casing still uses ICU and retains its performance trade-off against the former std implementation; these fast paths do not claim general mixed-script parity. Further optimization must preserve the pinned root-locale mappings and context rules, and should be driven by representative non-ASCII workloads.
+The non-ASCII casing regression is an accepted trade-off of the coherent ICU-owned Unicode 18 profile; these fast paths do not claim mixed-script parity with the former std implementation. Further optimization must preserve the pinned root-locale mappings and context rules, and should be driven by representative non-ASCII workloads.
 
 Mapping safe ASCII runs inside mixed strings is a possible optimization, not implemented behavior or a committed plan. Any such change must retain context across run boundaries rather than case-mapping chunks independently.
 
@@ -136,7 +151,7 @@ The initial upgrade commit `f3de3026` has a recorded failing run; `17722fc5` rep
 - The generated-manifest CLI contract passed with locale-core and the coordinated provider pin.
 - Focused conformance passed for `text-families`, `projected-native-cached-result-template` and `projected-callable-blanket-recipe`. The cached-result program prints `7`, `11`, `7`; inspected Rust retains `DefaultOnly`'s exact native default and infers the nested `make_lane` state for both unit and boolean builders. Existing callback adaptation remains unchanged, with no added clone or allocation in those native calls.
 - `cargo fmt --all --check`, all-targets warning-denied workspace Clippy, and manual catalog generation/check passed.
-- The release performance probe reported the figures above and was deleted afterwards.
+- The author's post-repair release probe confirmed the ASCII and short-string recoveries and was deleted afterwards. The before/after table above comes from the review's independent `main`-versus-repaired harness, which was also deleted.
 - Follow-up test review replaced ASCII self-comparisons with independent ICU root-locale mappings and property sets across all 128 ASCII characters, covering casing, folding, first-cased selection and all whitespace-trimming directions. Unicode-18-specific witnesses are separated from general context/selection controls.
 
 ## Sources
