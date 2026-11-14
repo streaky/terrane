@@ -150,6 +150,15 @@ restoring the harness or adopting nightly allocator APIs. The measurements apply
 to the named compiler revisions, not to later precision repairs or additional
 unmeasured source shapes.
 
+The single capability-level changelog entry is retained for this measured
+lowering improvement; routine proof repairs do not receive separate entries.
+The later precision/coverage repairs passed clean committed full-workspace
+validation at `10047a41`: **2,933 passed, 0 failed, 0 ignored**, with Cargo wall
+time 875.15 seconds. All-targets warning-denied Clippy, focused conformance,
+formatting and manual catalog checks also passed. Full-corpus regeneration
+changed only 27 statement-owner clone-to-borrow lines across 14 additional
+lowering artifacts; their RHS evaluation, lock placement and support sidecars
+were unchanged. The scoreboard retains the exact run provenance.
 
 ## Verification
 

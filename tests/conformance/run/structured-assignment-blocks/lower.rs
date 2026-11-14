@@ -194,7 +194,7 @@ fn main() {
     plain = std::sync::Arc::new(TerraneSharedCell::new(Token::terrane_construct()));
     observed = plain.clone();
     {
-        let __terrane_owner_2 = plain.clone();
+        let __terrane_owner_2 = &plain;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             3_i128,
         );
@@ -225,7 +225,7 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             {
-                let __terrane_owner_3 = request.clone();
+                let __terrane_owner_3 = &request;
                 let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
                     42_i128,
                 );

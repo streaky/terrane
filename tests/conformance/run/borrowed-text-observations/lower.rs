@@ -251,7 +251,7 @@ impl Holder {
 }
 fn replace_shared(owner: std::sync::Arc<TerraneSharedCell<Holder>>) -> String {
     {
-        let __terrane_owner_12 = owner.clone();
+        let __terrane_owner_12 = &owner;
         let __terrane_value: String = String::from("xyz");
         __terrane_owner_12.lock().expect("shared reference lock poisoned").text = __terrane_value;
     }
@@ -869,7 +869,7 @@ fn main() {
             }
         }
         {
-            let __terrane_owner_82 = shared.clone();
+            let __terrane_owner_82 = &shared;
             let __terrane_value: String = String::from("alpha");
             __terrane_owner_82.lock().expect("shared reference lock poisoned").text = __terrane_value;
         }

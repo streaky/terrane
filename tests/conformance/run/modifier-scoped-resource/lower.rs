@@ -288,7 +288,7 @@ async fn hold(
                 terrane_scalar_support::scalar_text(&inner.name)
             );
             {
-                let __terrane_owner_0 = observer.clone();
+                let __terrane_owner_0 = &observer;
                 let __terrane_value: bool = true;
                 __terrane_owner_0
                     .lock()

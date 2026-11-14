@@ -61,7 +61,7 @@ fn early_observer() {
     alias = observer.clone();
     held = named.clone();
     {
-        let __terrane_owner_0 = held.clone();
+        let __terrane_owner_0 = &held;
         let __terrane_value: bool = false;
         __terrane_owner_0.lock().expect("shared reference lock poisoned").flag = __terrane_value;
     }

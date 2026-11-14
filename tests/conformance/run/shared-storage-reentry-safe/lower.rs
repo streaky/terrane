@@ -165,14 +165,14 @@ fn branch(flag: bool) -> terrane_int_support::Int {
         ),
     );
     {
-        let __terrane_owner_2 = second.clone();
+        let __terrane_owner_2 = &second;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             4_i128,
         );
         __terrane_owner_2.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     {
-        let __terrane_owner_3 = third.clone();
+        let __terrane_owner_3 = &third;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             8_i128,
         );
@@ -244,7 +244,7 @@ fn main() {
         ),
     );
     {
-        let __terrane_owner_6 = other.clone();
+        let __terrane_owner_6 = &other;
         let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
             4_i128,
         );

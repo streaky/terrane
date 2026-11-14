@@ -554,7 +554,7 @@ fn main() {
             }
         };
         {
-            let __terrane_owner_32 = shared.clone();
+            let __terrane_owner_32 = &shared;
             let __terrane_value: String = String::from("replacement before polling");
             __terrane_owner_32.lock().expect("shared reference lock poisoned").text = __terrane_value;
         }
