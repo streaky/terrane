@@ -40,3 +40,24 @@ pub fn summarize_owned(value: &Owned) -> String {
         None => format!("{}:{}:{note}:none", value.label, value.count),
     }
 }
+
+pub struct NativeSizes {
+    pub count: usize,
+    pub delta: isize,
+    pub optional: Option<usize>,
+    pub offsets: Vec<isize>,
+}
+
+pub fn summarize_sizes(value: &NativeSizes) -> String {
+    format!("{}:{}:{:?}:{:?}", value.count, value.delta, value.optional, value.offsets)
+}
+
+pub struct BorrowedSizes<'a> {
+    pub label: &'a str,
+    pub count: usize,
+    pub delta: Option<isize>,
+}
+
+pub fn summarize_borrowed_sizes(value: &BorrowedSizes<'_>) -> String {
+    format!("{}:{}:{:?}", value.label, value.count, value.delta)
+}

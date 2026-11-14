@@ -8471,7 +8471,7 @@ pub(super) fn close_written_native_nominal(
     }
     let (selections, substitutions) =
         close_written_native_arguments(package, generic_parameters, supplied_arguments)?;
-    let rust_path = if package.projection.dependencies.iter().any(|dependency| {
+    let alias_native = if package.projection.dependencies.iter().any(|dependency| {
         dependency
             .native_alias_identities
             .contains_key(&item.rust_path)
@@ -8486,10 +8486,17 @@ pub(super) fn close_written_native_nominal(
             name: item.name.clone(),
             arguments,
         };
-        package
-            .projection
-            .canonical_native_alias(&alias)?
-            .rust_type()
+        Some(
+            package
+                .projection
+                .canonical_native_alias(&alias)?
+                .rust_type(),
+        )
+    } else {
+        None
+    };
+    let rust_path = if let Some(native) = alias_native {
+        native
     } else {
         let base_rust_path = crate::rust_ir::rust_type_constructor(
             &package.projection.canonical_native_type(&item.rust_path),
@@ -8528,13 +8535,51 @@ pub(super) fn close_written_native_nominal(
     )
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NativeAliasUse {
+    Canonical,
+    PublicCarrier,
+}
+
+pub(crate) fn native_alias_storage_type(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+) -> Option<String> {
+    if super::native_constructors::source_abi_nominal(package, identity) {
+        return None;
+    }
+    let item = package
+        .projection
+        .item(&identity.namespace, &identity.name)?;
+    if !package.projection.dependencies.iter().any(|dependency| {
+        dependency
+            .native_alias_identities
+            .contains_key(&item.rust_path)
+    }) {
+        return None;
+    }
+    Some(
+        projected_object_with_alias_use(package, identity, NativeAliasUse::PublicCarrier)
+            .expect("closed native aliases have representable storage arguments")
+            .rust_type(),
+    )
+}
+
+pub(crate) fn destination_projected_type(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
+    projected_type_with_alias_use(package, value_type, NativeAliasUse::Canonical)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one closed conversion keeps every semantic destination category exhaustive"
 )]
-pub(crate) fn destination_projected_type(
+fn projected_type_with_alias_use(
     package: &SemanticPackage,
     value_type: &ValueType,
+    alias_use: NativeAliasUse,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     use crate::rust_interop::projection::ProjectedType;
     Ok(match value_type {
@@ -8563,23 +8608,25 @@ pub(crate) fn destination_projected_type(
         ValueType::Scalar(ScalarType::String) => ProjectedType::String,
         ValueType::Scalar(ScalarType::Bytes) => ProjectedType::Bytes,
         ValueType::ProjectedGeneric(name) => ProjectedType::Generic(name.clone()),
-        ValueType::Optional(inner) => {
-            ProjectedType::Optional(Box::new(destination_projected_type(package, inner)?))
-        }
+        ValueType::Optional(inner) => ProjectedType::Optional(Box::new(
+            projected_type_with_alias_use(package, inner, alias_use)?,
+        )),
         ValueType::List(item) => {
-            let item = destination_projected_type(package, item.value_type_ref())?;
+            let item = projected_type_with_alias_use(package, item.value_type_ref(), alias_use)?;
             ProjectedType::Sequence {
                 rust_path: format!("std::vec::Vec<{}>", item.rust_type()),
                 item: Box::new(item),
             }
         }
-        ValueType::Map(key, value) => destination_projected_mapping(package, key, value, true)?,
+        ValueType::Map(key, value) => {
+            destination_projected_mapping(package, key, value, true, alias_use)?
+        }
         ValueType::UnorderedMap(key, value) => {
-            destination_projected_mapping(package, key, value, false)?
+            destination_projected_mapping(package, key, value, false, alias_use)?
         }
         ValueType::Set(item) | ValueType::UnorderedSet(item) => {
             let ordered = matches!(value_type, ValueType::Set(_));
-            let item = destination_projected_type(package, item.value_type_ref())?;
+            let item = projected_type_with_alias_use(package, item.value_type_ref(), alias_use)?;
             ProjectedType::Set {
                 rust_path: format!(
                     "std::collections::{}<{}>",
@@ -8591,20 +8638,21 @@ pub(crate) fn destination_projected_type(
             }
         }
         ValueType::Tuple(item, Some(length)) => {
-            let item = destination_projected_type(package, item.value_type_ref())?;
+            let item = projected_type_with_alias_use(package, item.value_type_ref(), alias_use)?;
             ProjectedType::Tuple(vec![item; *length])
         }
-        ValueType::Function(parameters, result, _) => {
-            destination_projected_callback(package, parameters, result, false, true, None)?
-        }
+        ValueType::Function(parameters, result, _) => projected_callback_with_alias_use(
+            package, parameters, result, false, true, None, alias_use,
+        )?,
         ValueType::AsyncFunction(parameters, result, transferability, _) => {
-            destination_projected_callback(
+            projected_callback_with_alias_use(
                 package,
                 parameters,
                 result,
                 true,
                 *transferability != TaskTransferability::Local,
                 None,
+                alias_use,
             )?
         }
         ValueType::InvocationScopedNative {
@@ -8647,7 +8695,9 @@ pub(crate) fn destination_projected_type(
                 arguments: Vec::new(),
             }),
         },
-        ValueType::Object(identity) => destination_projected_object(package, identity)?,
+        ValueType::Object(identity) => {
+            projected_object_with_alias_use(package, identity, alias_use)?
+        }
         ValueType::Reference(_) | ValueType::SharedReference(_) => {
             return Err("borrowed results cannot escape a projected call".into());
         }
@@ -8656,7 +8706,7 @@ pub(crate) fn destination_projected_type(
 }
 
 /// Apply the already-selected owner arguments to its native field contract.
-pub(crate) fn projected_owned_field_type(
+pub(crate) fn projected_stored_field_type(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
     name: &str,
@@ -8664,10 +8714,13 @@ pub(crate) fn projected_owned_field_type(
     let (_, fields, borrowed_view) = package
         .projection
         .projected_struct(&identity.namespace, &identity.name)?;
-    if borrowed_view {
+    let field = fields.iter().find(|field| field.name == name)?;
+    // Borrowed descriptors also keep owned slots in their native representation.
+    // Borrowed leaves instead use backing storage (String for &str, Vec for slices).
+    if borrowed_view && field.conversion.has_borrowed_leaves() {
         return None;
     }
-    let mut projected = fields.iter().find(|field| field.name == name)?.ty.clone();
+    let mut projected = field.ty.clone();
     for (parameter, value_type) in &identity.native_arguments {
         let selected = destination_projected_type(package, value_type).ok()?;
         projected = substitute_projected_generic(&projected, parameter, &selected);
@@ -8691,6 +8744,7 @@ fn destination_projected_native_nominal(
     identity: &ObjectIdentity,
     item: &crate::rust_interop::projection::ProjectedItem,
     generic_parameters: &[crate::rust_interop::projection::ProjectedGenericParameter],
+    alias_use: NativeAliasUse,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     let arguments = generic_parameters
         .iter()
@@ -8699,7 +8753,7 @@ fn destination_projected_native_nominal(
                 .native_arguments
                 .get(&parameter.name)
                 .ok_or_else(|| DestinationProjectionError::from("missing native generic selection"))
-                .and_then(|value| destination_projected_type(package, value))
+                .and_then(|value| projected_type_with_alias_use(package, value, alias_use))
         })
         .collect::<Result<Vec<_>, _>>()?;
     if package.projection.dependencies.iter().any(|dependency| {
@@ -8708,11 +8762,26 @@ fn destination_projected_native_nominal(
             .contains_key(&item.rust_path)
     }) {
         let alias = crate::rust_interop::projection::ProjectedType::Foreign {
-            rust_path: item.rust_path.clone(),
+            rust_path: if arguments.is_empty() {
+                item.rust_path.clone()
+            } else {
+                format!(
+                    "{}<{}>",
+                    item.rust_path,
+                    arguments
+                        .iter()
+                        .map(crate::rust_interop::projection::ProjectedType::rust_type)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            },
             base_rust_path: item.rust_path.clone(),
             name: item.name.clone(),
             arguments,
         };
+        if alias_use == NativeAliasUse::PublicCarrier {
+            return Ok(alias);
+        }
         return package
             .projection
             .canonical_native_alias(&alias)
@@ -8743,11 +8812,19 @@ fn destination_projected_object(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
+    projected_object_with_alias_use(package, identity, NativeAliasUse::Canonical)
+}
+
+fn projected_object_with_alias_use(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    alias_use: NativeAliasUse,
+) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     if identity.native_arguments.is_empty()
         && let Some(selected) = close_written_native_nominal(package, identity)
         && !selected.native_arguments.is_empty()
     {
-        return destination_projected_object(package, &selected);
+        return projected_object_with_alias_use(package, &selected, alias_use);
     }
     if !identity.native_arguments.is_empty()
         && let Some(item) = package.projection.item(&identity.namespace, &identity.name)
@@ -8759,7 +8836,13 @@ fn destination_projected_object(
             generic_parameters, ..
         } = &item.kind
     {
-        return destination_projected_native_nominal(package, identity, item, generic_parameters);
+        return destination_projected_native_nominal(
+            package,
+            identity,
+            item,
+            generic_parameters,
+            alias_use,
+        );
     }
     if !identity.native_arguments.is_empty()
         && let Some(constructor) = package
@@ -8768,7 +8851,7 @@ fn destination_projected_object(
     {
         let mut projected = constructor.result.clone();
         for (name, value_type) in &identity.native_arguments {
-            let selected = destination_projected_type(package, value_type)?;
+            let selected = projected_type_with_alias_use(package, value_type, alias_use)?;
             projected = substitute_projected_generic(&projected, name, &selected);
         }
         return Ok(projected);
@@ -8814,9 +8897,10 @@ fn destination_projected_mapping(
     key: &ElementType,
     value: &ElementType,
     ordered: bool,
+    alias_use: NativeAliasUse,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
-    let key = destination_projected_type(package, key.value_type_ref())?;
-    let value = destination_projected_type(package, value.value_type_ref())?;
+    let key = projected_type_with_alias_use(package, key.value_type_ref(), alias_use)?;
+    let value = projected_type_with_alias_use(package, value.value_type_ref(), alias_use)?;
     Ok(crate::rust_interop::projection::ProjectedType::Mapping {
         rust_path: format!(
             "std::collections::{}<{}, {}>",
@@ -8837,6 +8921,26 @@ fn destination_projected_callback(
     is_async: bool,
     send: bool,
     projected_result: Option<crate::rust_interop::projection::ProjectedType>,
+) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
+    projected_callback_with_alias_use(
+        package,
+        parameters,
+        result,
+        is_async,
+        send,
+        projected_result,
+        NativeAliasUse::Canonical,
+    )
+}
+
+fn projected_callback_with_alias_use(
+    package: &SemanticPackage,
+    parameters: &[CallableParameterType],
+    result: &ElementType,
+    is_async: bool,
+    send: bool,
+    projected_result: Option<crate::rust_interop::projection::ProjectedType>,
+    alias_use: NativeAliasUse,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
     if parameters.iter().any(CallableParameterType::is_variadic) {
         return Err("variadic source callables have no fixed Rust callback representation".into());
@@ -8861,13 +8965,13 @@ fn destination_projected_callback(
                 }
                 _ => value_type,
             };
-            destination_projected_type(package, value_type)
+            projected_type_with_alias_use(package, value_type, alias_use)
         })
         .collect::<Result<Vec<_>, _>>()?;
     let result = if let Some(projected_result) = projected_result {
         projected_result
     } else {
-        destination_projected_type(package, result.value_type_ref())?
+        projected_type_with_alias_use(package, result.value_type_ref(), alias_use)?
     };
     let parameters_rust = parameters
         .iter()

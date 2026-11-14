@@ -1,0 +1,9 @@
+package = "projected-core-result-facade"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.facade]
+package = "terrane-result-facade-witness"
+version = "=0.1.0"
+effects = ["build"]

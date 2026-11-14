@@ -827,6 +827,72 @@ fn render_collection_path(
     })
 }
 
+pub(super) fn retain_imported_nominal_identity(
+    ty: &Type,
+    projected: ProjectedType,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    let Type::ResolvedPath(path) = ty else {
+        return Ok(projected);
+    };
+    let Some(Item {
+        crate_id,
+        inner: ItemEnum::TypeAlias(alias),
+        ..
+    }) = index.get(&path.id)
+    else {
+        return Ok(projected);
+    };
+    if *crate_id == 0 {
+        return Ok(projected);
+    }
+    let ProjectedType::Foreign { base_rust_path, .. } = &projected else {
+        return Ok(projected);
+    };
+    let mut target = &alias.type_;
+    let target = loop {
+        let Type::ResolvedPath(target_path) = target else {
+            return Ok(projected);
+        };
+        match index.get(&target_path.id).map(|item| &item.inner) {
+            Some(ItemEnum::TypeAlias(alias)) => target = &alias.type_,
+            _ => break target_path,
+        }
+    };
+    let Some(summary) = paths.get(&target.id) else {
+        return Ok(projected);
+    };
+    if !matches!(
+        summary.kind,
+        rustdoc_types::ItemKind::Struct | rustdoc_types::ItemKind::Enum
+    ) || super::functions::native_output_container(summary.path.iter().map(String::as_str))
+        .is_some()
+        || !base_rust_path
+            .split("::")
+            .eq(summary.path.iter().map(String::as_str))
+    {
+        return Ok(projected);
+    }
+    // A nominal alias is still a publicly nameable native owner, not an outcome
+    // wrapper. Do not leak its potentially private defining struct into the ABI.
+    let rust_path = render_resolved_path(path, index, paths, generics)?;
+    let arguments = type_arguments(ty)
+        .into_iter()
+        .map(|argument| project_type(argument, index, paths, generics))
+        .collect::<Result<Vec<_>, _>>()?;
+    finish_nominal_type(
+        &rust_path,
+        arguments,
+        Some(&alias.generics),
+        index,
+        paths,
+        generics,
+        AssociatedTypeContext::default(),
+    )
+}
+
 /// Alias identity may retain binders inside an opaque native type recipe.
 /// It is not an importable owner until those binders have been substituted.
 pub(super) fn project_alias_identity(
@@ -1045,22 +1111,39 @@ fn project_resolved_type(
         });
     }
     let rust_path = render_resolved_path(path, index, paths, generics)?;
-    let short = resolved
-        .rsplit("::")
-        .next()
-        .unwrap_or(&resolved)
-        .split_once('<')
-        .map_or_else(
-            || resolved.rsplit("::").next().unwrap_or(&resolved),
-            |(name, _)| name,
-        )
-        .to_owned();
-    let mut projected_arguments = arguments
+    let projected_arguments = arguments
         .into_iter()
         .map(|argument| project_type_with_context(argument, index, paths, generics, active))
         .collect::<Result<Vec<_>, _>>()?;
+    finish_nominal_type(
+        &rust_path,
+        projected_arguments,
+        nominal_generics(index.get(&path.id)),
+        index,
+        paths,
+        generics,
+        active,
+    )
+}
+
+fn finish_nominal_type(
+    rust_path: &str,
+    mut projected_arguments: Vec<ProjectedType>,
+    declaration_generics: Option<&rustdoc_types::Generics>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    active: AssociatedTypeContext<'_>,
+) -> Result<ProjectedType, String> {
+    let base_rust_path = rust_path
+        .split_once('<')
+        .map_or_else(|| rust_path.to_owned(), |(base, _)| base.to_owned());
+    let short = base_rust_path
+        .rsplit("::")
+        .next()
+        .unwrap_or(&base_rust_path);
     let mut substitutions = generics.clone();
-    if let Some(declaration_generics) = nominal_generics(index.get(&path.id)) {
+    if let Some(declaration_generics) = declaration_generics {
         let parameters = declaration_generics
             .params
             .iter()
@@ -1083,9 +1166,6 @@ fn project_resolved_type(
             projected_arguments.push(argument);
         }
     }
-    let base_rust_path = rust_path
-        .split_once('<')
-        .map_or_else(|| rust_path.clone(), |(base, _)| base.to_owned());
     let rust_path = if projected_arguments.is_empty() {
         base_rust_path.clone()
     } else {
@@ -1098,7 +1178,7 @@ fn project_resolved_type(
                 .join(", ")
         )
     };
-    let name = instantiated_nominal_name(&short, &rust_path, &projected_arguments);
+    let name = instantiated_nominal_name(short, &rust_path, &projected_arguments);
     Ok(ProjectedType::Foreign {
         rust_path,
         name,

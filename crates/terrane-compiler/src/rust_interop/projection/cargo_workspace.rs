@@ -169,6 +169,9 @@ pub(super) fn run_cargo(
             message: format!("cannot run Cargo dependency projection: {error}"),
         })?;
     if output.status.success() {
+        if arguments.first() == Some(&"rustdoc") {
+            super::package_identities::record_artifacts(working_directory, &output.stdout)?;
+        }
         return Ok(());
     }
     Err(ProjectionError {

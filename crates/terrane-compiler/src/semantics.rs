@@ -148,7 +148,7 @@ pub(crate) use objects::projected_type_is_cloneable;
 pub(crate) use objects::{
     EffectiveObjectField, bind_projected_requirement, canonicalize_native_value_type,
     destination_projected_type, effective_object_fields, effective_object_interfaces,
-    projected_owned_field_type,
+    native_alias_storage_type, projected_stored_field_type,
 };
 pub(crate) use objects::{value_type_is_cloneable, value_type_is_cloneable_assuming_parameters};
 pub(crate) use scope_validation::statement_may_continue;

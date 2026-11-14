@@ -313,11 +313,74 @@ fn unsupported_projected_error<'a>(
             && (!projected_error_types.contains(*error) || !displayable.contains(*error))
     })
 }
+fn projected_type_aliases(
+    projected: &[ProjectedDependency],
+) -> impl Iterator<Item = (String, &str)> {
+    projected.iter().flat_map(|dependency| {
+        let dependency_root = format!("/deps/{}", dependency.name.replace('_', "-"));
+        let rust_crate = dependency.name.replace('-', "_");
+        dependency.items.iter().filter_map(move |item| {
+            if !matches!(
+                item.kind,
+                ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+            ) {
+                return None;
+            }
+            let relative = item
+                .namespace
+                .strip_prefix(&dependency_root)?
+                .trim_start_matches('/')
+                .replace('/', "::");
+            let alias = if relative.is_empty() {
+                format!("{rust_crate}::{}", item.name)
+            } else {
+                format!("{rust_crate}::{relative}::{}", item.name)
+            };
+            Some((alias, item.rust_path.as_str()))
+        })
+    })
+}
+
+pub(super) fn publicly_exported_error_paths(
+    projected: &[ProjectedDependency],
+    exports: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    projected_type_aliases(projected)
+        .filter(|(alias, _)| exports.contains(alias))
+        .map(|(_, path)| path.to_owned())
+        .collect()
+}
+
+fn error_has_public_export(
+    path: &str,
+    exports: &BTreeSet<String>,
+    owner_roots: &BTreeMap<String, String>,
+) -> bool {
+    if exports.contains(path) {
+        return true;
+    }
+    let Some((owner, suffix)) = path.split_once("::") else {
+        return false;
+    };
+    owner_roots
+        .get(owner)
+        .is_some_and(|original| exports.contains(&format!("{original}::{suffix}")))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one recursive metadata pass keeps all native names and error identities canonical"
 )]
-pub(super) fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
+pub(super) fn canonicalize_projected_type_names(
+    projected: &mut [ProjectedDependency],
+    public_errors: &BTreeSet<String>,
+    owner_roots: &BTreeMap<String, String>,
+) {
+    let declared = projected
+        .iter()
+        .flat_map(|dependency| [&dependency.name, &dependency.package])
+        .map(|name| name.replace('-', "_"))
+        .collect::<BTreeSet<_>>();
     let mut names = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -347,48 +410,14 @@ pub(super) fn canonicalize_projected_type_names(projected: &mut [ProjectedDepend
             names.entry(root).or_insert_with(|| item.name.clone());
         }
     }
-    let error_paths = projected
-        .iter()
-        .flat_map(|dependency| {
-            let dependency_root = format!("/deps/{}", dependency.name.replace('_', "-"));
-            let rust_crate = dependency.name.replace('-', "_");
-            dependency.items.iter().filter_map(move |item| {
-                if !matches!(
-                    item.kind,
-                    ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
-                ) {
-                    return None;
-                }
-                let relative_namespace = item
-                    .namespace
-                    .strip_prefix(&dependency_root)?
-                    .trim_start_matches('/')
-                    .replace('/', "::");
-                let alias = if relative_namespace.is_empty() {
-                    format!("{rust_crate}::{}", item.name)
-                } else {
-                    format!("{rust_crate}::{relative_namespace}::{}", item.name)
-                };
-                Some((alias, item.rust_path.clone()))
-            })
-        })
+    let public_error_types = names
+        .keys()
+        .filter(|path| error_has_public_export(path, public_errors, owner_roots))
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    let error_paths = projected_type_aliases(projected)
+        .map(|(alias, path)| (alias, path.to_owned()))
         .collect::<BTreeMap<_, _>>();
-    let mut unique_error_paths = BTreeMap::<String, Option<String>>::new();
-    for item in projected
-        .iter()
-        .flat_map(|dependency| &dependency.items)
-        .filter(|item| {
-            matches!(
-                item.kind,
-                ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
-            )
-        })
-    {
-        unique_error_paths
-            .entry(item.name.clone())
-            .and_modify(|path| *path = None)
-            .or_insert_with(|| Some(item.rust_path.clone()));
-    }
     let canonicalize_function = |function: &mut ProjectedFunction| {
         if let Some(path) = &mut function.native_path {
             canonicalize_qualified_call_owner(path, &error_paths);
@@ -409,13 +438,23 @@ pub(super) fn canonicalize_projected_type_names(projected: &mut [ProjectedDepend
             canonicalize_projected_type_name(ty, &names);
         }
         if let Some(error) = &mut function.error {
-            let canonical = error_paths.get(error).cloned().or_else(|| {
-                rust_path_owner(error)?;
-                let name = error.rsplit("::").next()?;
-                unique_error_paths.get(name)?.clone()
-            });
-            if let Some(canonical) = canonical {
-                error.clone_from(&canonical);
+            if let Some(canonical) = error_paths.get(error) {
+                if public_error_types.contains(canonical.as_str()) {
+                    error.clone_from(canonical);
+                } else {
+                    "Error".clone_into(error);
+                }
+            } else {
+                let represented = names.contains_key(error);
+                if represented && !public_error_types.contains(error.as_str())
+                    || !represented
+                        && rust_path_owner(error)
+                            .is_some_and(|owner| !owner_is_reachable(owner, &declared))
+                {
+                    // Nameable signature-only values do not prove a public error export.
+                    // Keep their opaque error channel independent of inferred source names.
+                    "Error".clone_into(error);
+                }
             }
         }
     };

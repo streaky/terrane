@@ -66,7 +66,9 @@ mod items;
 mod macros;
 mod methods;
 mod namespace_overlays;
+mod output_aliases;
 mod owning_callbacks;
+mod package_identities;
 mod partial;
 mod reexports;
 mod resolution;
@@ -163,7 +165,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "343";
+const PROJECTION_SCHEMA: &str = "364";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
@@ -429,6 +431,18 @@ pub enum ProjectedFieldConversion {
 }
 
 impl ProjectedFieldConversion {
+    pub(crate) fn has_borrowed_leaves(&self) -> bool {
+        match self {
+            Self::Identity | Self::OptionalOwned | Self::OwnedNative { .. } => false,
+            Self::Optional(inner) | Self::Sequence(inner) => inner.has_borrowed_leaves(),
+            Self::Tuple(items) => items.iter().any(Self::has_borrowed_leaves),
+            Self::Mapping { key, value } => {
+                key.has_borrowed_leaves() || value.has_borrowed_leaves()
+            }
+            _ => true,
+        }
+    }
+
     pub(crate) fn supports_shared_view(&self) -> bool {
         match self {
             Self::OwnedNative {

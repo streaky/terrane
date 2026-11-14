@@ -1231,7 +1231,7 @@ fn local_builtin_errors(
             && let [receiver, member] = target.children.as_slice()
             && let Ok(Some(ValueType::Object(identity))) =
                 infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-            && let Some(projected) = super::objects::projected_owned_field_type(
+            && let Some(projected) = super::objects::projected_stored_field_type(
                 package,
                 &identity,
                 node_text(&unit.source, member),

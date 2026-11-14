@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-error-api-witness import fail
+from /core/errors import dependency-error
+
+function main;
+  try
+    fail;
+  catch dependency-error as error
+    print; error.message

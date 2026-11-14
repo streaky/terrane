@@ -924,7 +924,7 @@ fn main() {
         {
             let __terrane_value: char = __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
-                    let __terrane_field_value = String::from("B");
+                    let __terrane_field_value: String = String::from("B");
                     Ok(
                         __terrane_field_value
                             .parse::<char>()

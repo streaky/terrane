@@ -174,6 +174,29 @@ fn integer_coercion_families_cover_signed_unsigned_and_adaptive_values() {
 }
 
 #[test]
+fn pointer_sized_conversion_errors_name_native_destinations() {
+    assert_eq!(
+        coerce::<usize>(&Int::from(-1_i64)),
+        Err(ArithmeticError::conversion_overflow(
+            &-1,
+            "int",
+            "native usize",
+            "the value is outside the destination range",
+        ))
+    );
+    let too_large = Int::from_big(BigInt::from(isize::MAX) + 1);
+    assert_eq!(
+        coerce::<isize>(&too_large),
+        Err(ArithmeticError::conversion_overflow(
+            &too_large,
+            "int",
+            "native isize",
+            "the value is outside the destination range",
+        ))
+    );
+}
+
+#[test]
 fn fixed_integer_float_conversions_preserve_exactness_without_adaptive_integers() {
     assert_eq!(
         exact_fixed_f64(9_007_199_254_740_992_i64),

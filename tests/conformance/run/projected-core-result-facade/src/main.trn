@@ -1,0 +1,145 @@
+namespace app
+
+from /deps/facade import parse, maybe, pick, describe, character, text, Either as AliasResult
+from /deps/facade import external, renamed, external_maybe, nested, Reader, reader, Failure, opaque
+from /deps/facade import Duration, duration
+from /deps/facade import Response, response
+from /deps/facade import new_version, NewFailure
+from /deps/facade import opaque_transitive, public_transitive, TransitiveFailure
+from /deps/facade import bridge_reader, BridgeReader, old_transitive, OldHiddenFailure
+from /deps/facade/util import error_value, error_text
+from /deps/facade import public_error_value, public_error_text, inferred_call, inferred_client
+from /core/errors import throwable, dependency-error
+from /core/collections import list
+
+function call-opaque int throws dependency-error;
+    return opaque_transitive; false
+
+async function call-opaque-async int throws dependency-error;
+    bridge = bridge_reader;
+    return await bridge.opaque_async; false
+
+function call-public int throws TransitiveFailure;
+    return public_transitive; false
+
+function checked-inferred int throws dependency-error;
+    return inferred_call; false
+
+function checked-inferred-method int throws dependency-error;
+    client = inferred_client;
+    return client.call; false
+
+async function checked-inferred-async int throws dependency-error;
+    client = inferred_client;
+    return await client.asynchronous; false
+
+async function main;
+    inferred = error_value;
+    print; (error_text; move inferred)
+    print; (public_error_text; (public_error_value;))
+    good int = parse; '41'
+    print; good
+    try
+        print; (parse; 'bad')
+    catch throwable as error
+        print; 'caught: ' + error.message
+    present int|none = maybe; true
+    print; present != none
+    absent int|none = maybe; false
+    print; absent == none
+    chosen = pick; true
+    print; (describe; chosen)
+    nominal AliasResult of (int64, string) = pick; false
+    print; (describe; nominal)
+    letter string|none = character; 65
+    print; letter
+    invalid string|none = character; 1114112
+    print; invalid == none
+    print; (text; (list; 117, 116, 102, 56))
+    try
+        print; (text; (list; 255))
+    catch throwable
+        print; 'invalid utf8 caught'
+    print; (external; true), ':', (renamed; true)
+    try
+        print; (external; false)
+    catch Failure
+        print; 'typed external failure'
+    print; (external_maybe; true)
+    print; (external_maybe; false) == none
+    print; (nested; false, false) == none
+    print; (nested; true, true)
+    try
+        print; (nested; true, false)
+    catch Failure
+        print; 'typed nested failure'
+    owner = reader;
+    print; (Reader::open; true), ':', (owner.read; true), ':', (await owner.asynchronous; true)
+    try
+        print; (owner.read; false)
+    catch Failure
+        print; 'typed method failure'
+    try
+        print; (await owner.asynchronous; false)
+    catch Failure
+        print; 'typed async failure'
+    print; (opaque; true)
+    try
+        print; (opaque; false)
+    catch dependency-error as error
+        print; (error.message.contains; 'opaque alias failed')
+    elapsed = duration;
+    print; (elapsed.as_secs;)
+    constructed = Duration::from_secs; 5
+    print; (constructed.as_secs;)
+    packet Response = response;
+    print; packet.value
+    print; (new_version; true)
+    try
+        print; (new_version; false)
+    catch NewFailure
+        print; 'typed newer failure'
+    print; (opaque_transitive; true)
+    try
+        print; (call-opaque;)
+    catch dependency-error as error
+        print; error.message
+    print; (public_transitive; true)
+    try
+        print; (call-public;)
+    catch TransitiveFailure as error
+        print; 'public transitive: ' + error.message
+    print; (old_transitive; true)
+    try
+        print; (old_transitive; false)
+    catch OldHiddenFailure
+        print; 'typed old hidden failure'
+    bridge = bridge_reader;
+    print; (BridgeReader::opaque_static; true)
+    try
+        print; (BridgeReader::opaque_static; false)
+    catch dependency-error as error
+        print; (error.message.contains; 'transitive hidden failure')
+    print; (bridge.typed; true)
+    try
+        print; (bridge.typed; false)
+    catch TransitiveFailure
+        print; 'typed transitive method failure'
+    print; (await bridge.opaque_async; true)
+    try
+        print; (await call-opaque-async;)
+    catch dependency-error as error
+        print; (error.message.contains; 'transitive hidden failure')
+    print; (inferred_call; true)
+    try
+        print; (checked-inferred;)
+    catch dependency-error as error
+        print; error.message
+    try
+        print; (checked-inferred-method;)
+    catch dependency-error as error
+        print; (error.message.contains; 'inferred private failure')
+    try
+        print; (await checked-inferred-async;)
+    catch dependency-error as error
+        print; (error.message.contains; 'inferred private failure')

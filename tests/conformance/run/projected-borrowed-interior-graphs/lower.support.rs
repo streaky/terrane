@@ -839,8 +839,29 @@ for TerraneSharedProjection<H, U, T> {
         if poisoned { Err(std::sync::PoisonError::new(guard)) } else { Ok(guard) }
     }
 }
-// Source: <terrane>/projected/deps/axum/body.trn
-// Namespace: deps/axum/body
+// Source: <terrane>/projected/deps/axum-core/body.trn
+// Namespace: deps/axum-core/body
+pub use axum_core::body::Body;
+pub use witness::Canvas;
+pub use axum::extract::ConnectInfo;
+pub use witness::Entry;
+pub use witness::Header;
+pub use http::HeaderMap;
+pub use http::HeaderName;
+pub use http::HeaderValue;
+pub use witness::Host;
+pub use http::Method;
+pub use witness::RootOnly;
+pub use http::StatusCode;
+pub use axum_core::extract::Request as TerraneNsDepsAxumCoreExtractRequestIdentity2F646570732F6178756D2D636F72652F657874726163740052657175657374;
+pub use axum_core::response::Response as TerraneNsDepsAxumCoreResponseResponseIdentity2F646570732F6178756D2D636F72652F726573706F6E736500526573706F6E7365;
+pub use http::Extensions as TerraneNsDepsHttpExtensionsIdentity2F646570732F6874747000457874656E73696F6E73;
+pub use http::Request as TerraneNsDepsHttpRequestIdentity2F646570732F687474700052657175657374;
+pub use http::Response as TerraneNsDepsHttpResponseIdentity2F646570732F6874747000526573706F6E7365;
+pub use witness::Extensions as TerraneNsDepsWitnessExtensionsIdentity2F646570732F7769746E65737300457874656E73696F6E73;
+pub use witness::Request as TerraneNsDepsWitnessRequestIdentity2F646570732F7769746E6573730052657175657374;
+pub use witness::RootAlias as TerraneNsDepsWitnessRootAliasIdentity2F646570732F7769746E65737300526F6F74416C696173;
+pub type View<'view> = witness::View<'view>;
 pub fn terrane_static_trn_426f6479_empty() -> Result<Body, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| axum_core::body::Body::empty()),
@@ -850,15 +871,13 @@ pub fn terrane_static_trn_426f6479_empty() -> Result<Body, crate::TerraneForeign
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "axum",
+                    "axum-core",
                     "axum_core::body::Body",
                 ),
             )
         }
     }
 }
-// Source: <terrane>/projected/deps/axum-core/body.trn
-// Namespace: deps/axum-core/body
 // Source: <terrane>/projected/deps/axum/extract.trn
 // Namespace: deps/axum/extract
 // Source: <terrane>/projected/deps/axum/http.trn
@@ -928,27 +947,6 @@ pub fn terrane_static_trn_48656164657256616c7565_from_str(
 }
 // Source: <terrane>/projected/deps/axum-core/extract.trn
 // Namespace: deps/axum-core/extract
-pub use axum_core::body::Body;
-pub use witness::Canvas;
-pub use axum::extract::ConnectInfo;
-pub use witness::Entry;
-pub use witness::Header;
-pub use http::HeaderMap;
-pub use http::HeaderName;
-pub use http::HeaderValue;
-pub use witness::Host;
-pub use http::Method;
-pub use witness::RootOnly;
-pub use http::StatusCode;
-pub use axum_core::extract::Request as TerraneNsDepsAxumCoreExtractRequestIdentity2F646570732F6178756D2D636F72652F657874726163740052657175657374;
-pub use axum_core::response::Response as TerraneNsDepsAxumCoreResponseResponseIdentity2F646570732F6178756D2D636F72652F726573706F6E736500526573706F6E7365;
-pub use http::Extensions as TerraneNsDepsHttpExtensionsIdentity2F646570732F6874747000457874656E73696F6E73;
-pub use http::Request as TerraneNsDepsHttpRequestIdentity2F646570732F687474700052657175657374;
-pub use http::Response as TerraneNsDepsHttpResponseIdentity2F646570732F6874747000526573706F6E7365;
-pub use witness::Extensions as TerraneNsDepsWitnessExtensionsIdentity2F646570732F7769746E65737300457874656E73696F6E73;
-pub use witness::Request as TerraneNsDepsWitnessRequestIdentity2F646570732F7769746E6573730052657175657374;
-pub use witness::RootAlias as TerraneNsDepsWitnessRootAliasIdentity2F646570732F7769746E65737300526F6F74416C696173;
-pub type View<'view> = witness::View<'view>;
 pub fn terrane_static_trn_54657272616e654e73446570734178756d436f726545787472616374526571756573744964656e746974793246363436353730373332463631373837353644324436333646373236353246363537383734373236313633373430303532363537313735363537333734_new<
     T,
 >(body: T) -> Result<axum_core::extract::Request<T>, crate::TerraneForeignError> {

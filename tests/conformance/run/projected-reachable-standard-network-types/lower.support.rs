@@ -510,21 +510,23 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 7] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:10:22-10:52) */
-        { Site { function: 0, file: 0, line: 10, column: 22, end_line: 10, end_column: 52 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:11:25-11:55) */
-        { Site { function: 0, file: 0, line: 11, column: 25, end_line: 11, end_column: 55 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:12:13-12:25) */
-        { Site { function: 0, file: 0, line: 12, column: 13, end_line: 12, end_column: 25 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:13:21-13:53) */
-        { Site { function: 0, file: 0, line: 13, column: 21, end_line: 13, end_column: 53 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:14:22-14:32) */
-        { Site { function: 0, file: 0, line: 14, column: 22, end_line: 14, end_column: 32 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:16:13-16:47) */
-        { Site { function: 0, file: 0, line: 16, column: 13, end_line: 16, end_column: 47 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:18:20-18:54) */
-        { Site { function: 0, file: 0, line: 18, column: 20, end_line: 18, end_column: 54 } },
+    pub static SITES: [Site; 8] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:11:22-11:52) */
+        { Site { function: 0, file: 0, line: 11, column: 22, end_line: 11, end_column: 52 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:12:25-12:55) */
+        { Site { function: 0, file: 0, line: 12, column: 25, end_line: 12, end_column: 55 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:13:13-13:25) */
+        { Site { function: 0, file: 0, line: 13, column: 13, end_line: 13, end_column: 25 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:14:21-14:53) */
+        { Site { function: 0, file: 0, line: 14, column: 21, end_line: 14, end_column: 53 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:15:22-15:32) */
+        { Site { function: 0, file: 0, line: 15, column: 22, end_line: 15, end_column: 32 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:17:13-17:47) */
+        { Site { function: 0, file: 0, line: 17, column: 13, end_line: 17, end_column: 47 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:19:20-19:54) */
+        { Site { function: 0, file: 0, line: 19, column: 20, end_line: 19, end_column: 54 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:26:28-26:60) */
+        { Site { function: 0, file: 0, line: 26, column: 28, end_line: 26, end_column: 60 } },
     ];
     #[cold]
     #[inline(never)]
@@ -567,8 +569,11 @@ pub fn terrane_static_trn_497041646472_from_str(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::DescriptorId(2),
-                        error.to_string(),
+                        crate::TERRANE_DEPENDENCY_ERROR,
+                        format!(
+                            "Rust dependency `{}` member `{}` failed: {error}", "ipnet",
+                            "std::net::IpAddr"
+                        ),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

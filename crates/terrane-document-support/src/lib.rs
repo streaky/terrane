@@ -72,7 +72,14 @@ impl DataResult {
             document: None,
         }
     }
-    fn value(&self) -> Option<&Document> {
+    /// Borrow this result's parsed document tree without reparsing the compatibility
+    /// `encoded` snapshot or cloning the tree. Returns `None` when parsing failed.
+    ///
+    /// The returned reference is read-only and is valid only while this result is
+    /// borrowed. It is intended for concrete native adapters that can deserialize
+    /// directly from the tree.
+    #[must_use]
+    pub fn value(&self) -> Option<&Document> {
         self.document.as_deref()
     }
 }

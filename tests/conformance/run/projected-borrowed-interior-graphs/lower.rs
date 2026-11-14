@@ -269,9 +269,7 @@ impl TerraneNsAppRootAliasIdentity2F61707000726F6F742D616C696173 {
         }
     }
 }
-fn root_value(
-    root: &mut TerraneNsDepsWitnessRootAliasIdentity2F646570732F7769746E65737300526F6F74416C696173,
-) -> terrane_int_support::Int {
+fn root_value(root: &mut witness::RootAlias) -> terrane_int_support::Int {
     return __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
             {
@@ -320,7 +318,7 @@ fn http_response_body(
     return value;
 }
 fn default_http_method(
-    request: &mut TerraneNsDepsAxumCoreExtractRequestIdentity2F646570732F6178756D2D636F72652F657874726163740052657175657374,
+    request: &mut axum_core::extract::Request<axum_core::body::Body>,
 ) -> String {
     return __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -349,7 +347,7 @@ fn default_http_method(
     );
 }
 fn default_http_status(
-    response: &mut TerraneNsDepsAxumCoreResponseResponseIdentity2F646570732F6178756D2D636F72652F726573706F6E736500526573706F6E7365,
+    response: &mut axum_core::response::Response<axum_core::body::Body>,
 ) -> Result<u16, TerraneError> {
     return Ok(
         __terrane_raised_err(
@@ -427,7 +425,9 @@ fn http_peer_ip(peer: &axum::extract::ConnectInfo<std::net::SocketAddr>) -> Stri
     value = payload.ip().to_string();
     return value;
 }
-fn default_http_peer(request: &http::Request<axum_core::body::Body>) -> Option<String> {
+fn default_http_peer(
+    request: &axum_core::extract::Request<axum_core::body::Body>,
+) -> Option<String> {
     return __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
             {
@@ -509,8 +509,8 @@ fn main() {
     let source_root: TerraneNsAppRootAliasIdentity2F61707000726F6F742D616C696173;
     let mut http_request: http::Request<String>;
     let mut http_response: http::Response<String>;
-    let mut default_request: http::Request<axum_core::body::Body>;
-    let mut default_response: http::Response<axum_core::body::Body>;
+    let mut default_request: axum_core::extract::Request<axum_core::body::Body>;
+    let mut default_response: axum_core::response::Response<axum_core::body::Body>;
     request = {
         let __terrane_conversion_input_0 = terrane_int_support::Int::from(41_i128);
         __terrane_raised(

@@ -124,23 +124,28 @@ fn facade_keeps_unrelated_fragments() {
 fn ambiguous_library_owners_decline() {
     let metadata = json!({
         "packages": [
-            {
-                "name": "owner-one",
-                "version": "1.0.0",
-                "targets": [{"name": "shared_owner", "kind": ["lib"]}]
-            },
-            {
-                "name": "owner-two",
-                "version": "2.0.0",
-                "targets": [{"name": "shared_owner", "kind": ["lib"]}]
-            }
-        ]
+            {"id": "consumer", "name": "consumer", "version": "1.0.0", "targets": [{"name": "consumer", "kind": ["lib"]}]},
+            {"id": "old", "name": "owner", "version": "1.0.0", "targets": [{"name": "shared_owner", "kind": ["lib"]}]},
+            {"id": "new", "name": "owner", "version": "2.0.0", "targets": [{"name": "shared_owner", "kind": ["lib"]}]}
+        ],
+        "resolve": {"nodes": [
+            {"id": "consumer", "deps": [{"name": "old", "pkg": "old"}, {"name": "new", "pkg": "new"}]},
+            {"id": "old", "deps": []}, {"id": "new", "deps": []}
+        ]}
     });
-
-    let reason = resolved_library_package(&metadata, "shared_owner").unwrap_err();
-    assert!(reason.contains("ambiguous"));
-    assert!(reason.contains("owner-one@1.0.0"));
-    assert!(reason.contains("owner-two@2.0.0"));
+    let packages = super::super::package_identities::Packages::new(&metadata, BTreeMap::new());
+    assert!(
+        packages
+            .external(
+                "consumer",
+                &ExternalCrate {
+                    name: "shared_owner".to_owned(),
+                    html_root_url: None,
+                    path: "/unknown.rlib".into()
+                }
+            )
+            .is_none()
+    );
 }
 #[test]
 fn io_error_reexport_ignores_owner() {
@@ -211,6 +216,7 @@ fn io_error_reexport_ignores_owner() {
             Containment::Unavailable,
             None,
             &mut declines,
+            &mut BTreeMap::new(),
         )
         .unwrap();
 

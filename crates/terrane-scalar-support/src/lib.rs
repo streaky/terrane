@@ -60,7 +60,9 @@ macro_rules! integer_display {
     )+};
 }
 
-integer_display!(Int, i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+integer_display!(
+    Int, i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize
+);
 
 macro_rules! float_display {
     ($($type:ty),+ $(,)?) => {$(

@@ -945,7 +945,9 @@ macro_rules! integer_sources {
     )+};
 }
 
-integer_sources!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+integer_sources!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize
+);
 
 /// A fixed-width integer that can cross into a floating-point destination
 /// without materializing Terrane's adaptive `int` representation.
@@ -1200,6 +1202,8 @@ fn terrane_numeric_type(rust_type: &str) -> &'static str {
         "u32" => "uint32",
         "u64" => "uint64",
         "u128" => "uint128",
+        "usize" => "native usize",
+        "isize" => "native isize",
         "f32" => "float32",
         "f64" => "float64",
         "Int" => "int",

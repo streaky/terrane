@@ -25,8 +25,8 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "io_witness",
-                                "io_witness::Error::kind",
+                                "std",
+                                "std::io::Error::kind",
                             ),
                         );
                     }

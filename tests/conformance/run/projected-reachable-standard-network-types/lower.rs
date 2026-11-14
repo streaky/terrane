@@ -20,10 +20,11 @@ fn main() {
     let payload: IpAddr;
     let borrowed_payload: &IpAddr;
     let mut __trn_5f696e76616c6964: Option<IpAddr> = None;
+    let mut __trn_5f696e76616c69642d6e6574776f726b: Option<IpNet> = None;
     let local: TerraneNsAppSocketAddrIdentity2F61707000736F636B65742D61646472;
     address = __terrane_raised(
         terrane_static_trn_497041646472_from_str("192.0.2.44"),
-        0 /* terrane-site: src/main.trn:10:22-10:52 */,
+        0 /* terrane-site: src/main.trn:11:22-11:52 */,
     );
     socket = {
         let __terrane_conversion_input_0 = address;
@@ -33,7 +34,7 @@ fn main() {
                 __terrane_conversion_input_0,
                 __terrane_conversion_input_1,
             ),
-            1 /* terrane-site: src/main.trn:11:25-11:55 */,
+            1 /* terrane-site: src/main.trn:12:25-12:55 */,
         )
     };
     println!(
@@ -44,11 +45,11 @@ fn main() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "std",
         "std::net::SocketAddr::port")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from_u128(value as u128)) } } (),
-        2 /* terrane-site: src/main.trn:12:13-12:25 */))
+        2 /* terrane-site: src/main.trn:13:13-13:25 */))
     );
     network = __terrane_raised(
         terrane_static_trn_49704e6574_from_str("192.0.2.44/32"),
-        3 /* terrane-site: src/main.trn:13:21-13:53 */,
+        3 /* terrane-site: src/main.trn:14:21-14:53 */,
     );
     payload = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -73,7 +74,7 @@ fn main() {
                 Ok::<_, crate::TerraneForeignError>(value)
             }
         }(),
-        4 /* terrane-site: src/main.trn:14:22-14:32 */,
+        4 /* terrane-site: src/main.trn:15:22-15:32 */,
     );
     borrowed_payload = &payload;
     println!(
@@ -83,7 +84,7 @@ fn main() {
         ::TerraneForeignError > { Ok((&network).contains(&* borrowed_payload)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
         ::__terrane_dependency_panic(payload, "ipnet", "ipnet::IpNet::contains")) }; Ok::
-        < _, crate ::TerraneForeignError > (value) } } (), 5 /* terrane-site: src/main.trn:16:13-16:47 */))
+        < _, crate ::TerraneForeignError > (value) } } (), 5 /* terrane-site: src/main.trn:17:13-17:47 */))
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -91,7 +92,7 @@ fn main() {
                 .insert(
                     __terrane_raised_completion!(
                         terrane_static_trn_497041646472_from_str("not-an-address"),
-                        6 /* terrane-site: src/main.trn:18:20-18:54 */
+                        6 /* terrane-site: src/main.trn:19:20-19:54 */
                     ),
                 );
             let _ = &__trn_5f696e76616c6964;
@@ -110,6 +111,13 @@ fn main() {
                         == TerraneErrorKind::Custom(DescriptorId(2))
                 {
                     __terrane_handled_0 = true;
+                    println!("{}", String::from("wrong address error descriptor"));
+                }
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind
+                        == TerraneErrorKind::Custom(DescriptorId(0))
+                {
+                    __terrane_handled_0 = true;
                     println!("{}", String::from("invalid address caught"));
                 }
                 if !__terrane_handled_0 {
@@ -120,6 +128,48 @@ fn main() {
         TerraneCompletion::Normal
     })();
     match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    let __terrane_completion_1: TerraneCompletion<()> = (|| {
+        let __terrane_try_1: TerraneCompletion<()> = (|| {
+            let _ = __trn_5f696e76616c69642d6e6574776f726b
+                .insert(
+                    __terrane_raised_completion!(
+                        terrane_static_trn_49704e6574_from_str("not-a-network"),
+                        7 /* terrane-site: src/main.trn:26:28-26:60 */
+                    ),
+                );
+            let _ = &__trn_5f696e76616c69642d6e6574776f726b;
+            println!("{}", String::from("unexpected network parse success"));
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_1 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_1) => {
+                let mut __terrane_handled_1 = false;
+                if !__terrane_handled_1
+                    && __terrane_error_1.kind
+                        == TerraneErrorKind::Custom(DescriptorId(2))
+                {
+                    __terrane_handled_1 = true;
+                    println!("{}", String::from("invalid network caught"));
+                }
+                if !__terrane_handled_1 {
+                    return TerraneCompletion::Error(__terrane_error_1);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_1 {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),

@@ -202,22 +202,34 @@ pub fn resolve(
     let overlays = namespace_overlays_from_metadata(&metadata, dependencies)?;
     metadata_progress.finish();
 
+    let packages = super::package_identities::Packages::new(&metadata, BTreeMap::new());
     let mut rustdocs = Vec::new();
     for dependency in dependencies {
-        let package_spec = dependency.version.strip_prefix('=').map_or_else(
-            || dependency.package.clone(),
-            |version| format!("{}@{version}", dependency.package),
-        );
-        let crate_name = dependency.package.replace('-', "_");
+        let package_spec = packages
+            .direct(&dependency.name)
+            .ok_or_else(|| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has no resolved Cargo package edge",
+                    dependency.name
+                ),
+            })?;
+        let crate_name = packages
+            .library_name(package_spec)
+            .ok_or_else(|| ProjectionError {
+                message: format!(
+                    "Rust dependency `{}` has no resolved Cargo library target",
+                    dependency.name
+                ),
+            })?;
         let document = generate_rustdoc(
             &workspace,
-            &package_spec,
-            &crate_name,
+            package_spec,
+            crate_name,
             &dependency.package,
             super::reexports::rustdoc_target(
                 &metadata,
-                &package_spec,
-                &crate_name,
+                package_spec,
+                crate_name,
                 &dependency.package,
                 &target,
             ),
@@ -226,6 +238,30 @@ pub fn resolve(
         )?;
         let public_paths = rustdoc_public_paths(&document);
         rustdocs.push((dependency, document, public_paths));
+    }
+    // Only authored public bindings prove error visibility. Signature-discovered
+    // provider paths remain useful for values, but cannot create an error export.
+    let mut public_type_exports = BTreeSet::new();
+    for (dependency, document, public_paths) in &rustdocs {
+        let Some(root) = super::output_aliases::document_name(document) else {
+            continue;
+        };
+        let rust_crate = dependency.name.replace('-', "_");
+        for (id, path) in public_paths {
+            if document.paths.get(id).is_some_and(|summary| {
+                matches!(
+                    summary.kind,
+                    rustdoc_types::ItemKind::Struct
+                        | rustdoc_types::ItemKind::Enum
+                        | rustdoc_types::ItemKind::TypeAlias
+                )
+            }) && let Some(suffix) = path
+                .strip_prefix(root)
+                .filter(|suffix| suffix.starts_with("::"))
+            {
+                public_type_exports.insert(format!("{rust_crate}{suffix}"));
+            }
+        }
     }
     let mut declared_public_paths = BTreeMap::new();
     for (_, document, public_paths) in &rustdocs {
@@ -243,7 +279,7 @@ pub fn resolve(
                 .or_insert_with(|| public_path.clone());
         }
     }
-    let canonical_public_paths = vec![declared_public_paths.clone(); dependencies.len()];
+    let mut canonical_public_paths = vec![declared_public_paths.clone(); dependencies.len()];
     let mut projected = rustdocs
         .iter()
         .enumerate()
@@ -268,7 +304,8 @@ pub fn resolve(
         .collect::<Vec<_>>();
     let reexports =
         crate::compilation_progress::start("resolving external reexport owners", root.display());
-    let reexport_rustdocs = external_reexport_rustdocs(
+    let mut alias_documents = BTreeMap::new();
+    let mut reexport_rustdocs = external_reexport_rustdocs(
         &workspace,
         &rustdocs,
         &projected,
@@ -277,8 +314,65 @@ pub fn resolve(
         sandbox,
         demands,
         &mut reexport_declines,
+        &mut alias_documents,
     )?;
     reexports.finish();
+    if super::output_aliases::hydrate(
+        &mut rustdocs,
+        &mut reexport_rustdocs,
+        &mut alias_documents,
+        &workspace,
+        &metadata,
+        &target,
+        sandbox,
+    )? {
+        for (index, (dependency, document, public_paths)) in rustdocs.iter().enumerate() {
+            projected[index] = project_rustdoc(
+                dependency,
+                document,
+                public_paths,
+                &canonical_public_paths[index],
+                true,
+            );
+        }
+        let packages = super::package_identities::Packages::new(
+            &metadata,
+            super::package_identities::read_artifacts(&workspace)?,
+        );
+        for owner in reexport_rustdocs {
+            if let Some(identity) = packages.document(&owner.document) {
+                alias_documents.insert(identity.to_owned(), owner.document);
+            }
+        }
+        // Expanded payloads can expose additional owners. Reuse decoded documents
+        // and keep defining paths until discovery finishes: early public aliases
+        // would hide signature-only owners from their defining-document lookup.
+        reexport_rustdocs = external_reexport_rustdocs(
+            &workspace,
+            &rustdocs,
+            &projected,
+            &metadata,
+            &target,
+            sandbox,
+            demands,
+            &mut reexport_declines,
+            &mut alias_documents,
+        )?;
+        if super::output_aliases::extend_public_aliases(
+            &reexport_rustdocs,
+            &mut canonical_public_paths,
+        ) {
+            for (index, (dependency, document, public_paths)) in rustdocs.iter().enumerate() {
+                projected[index] = project_rustdoc(
+                    dependency,
+                    document,
+                    public_paths,
+                    &canonical_public_paths[index],
+                    true,
+                );
+            }
+        }
+    }
     let owners = crate::compilation_progress::start(
         "reconciling projected owners and dependencies",
         root.display(),
@@ -300,8 +394,10 @@ pub fn resolve(
                     canonical_path,
                 );
             }
-            let fragment_public_paths =
-                provider_fragment_public_paths(&declared_public_paths, provider);
+            let fragment_public_paths = provider_fragment_public_paths(
+                &canonical_public_paths[provider.dependency_index],
+                provider,
+            );
             let mut fragment = project_rustdoc(
                 dependencies
                     .get(provider.dependency_index)
@@ -347,12 +443,15 @@ pub fn resolve(
     for dependency in &mut projected {
         borrowed_graph::add_optional_owners(&mut dependency.items);
     }
+    let public_errors =
+        super::dependency_owners::publicly_exported_error_paths(&projected, &public_type_exports);
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
     let mut bound_dependencies = Vec::new();
     normalize_projected_round(
         &mut projected,
         dependencies,
+        &public_errors,
         &mut bound_dependencies,
         &workspace,
         true,
@@ -377,6 +476,7 @@ pub fn resolve(
     normalize_projected_round(
         &mut projected,
         dependencies,
+        &public_errors,
         &mut bound_dependencies,
         &workspace,
         false,
@@ -517,6 +617,7 @@ pub fn resolve(
 fn normalize_projected_round(
     projected: &mut [ProjectedDependency],
     dependencies: &[RustDependency],
+    public_errors: &BTreeSet<String>,
     bound_dependencies: &mut Vec<super::ProjectedBoundDependency>,
     workspace: &Path,
     enforce_error_owner_reachability: bool,
@@ -529,6 +630,33 @@ fn normalize_projected_round(
             &dependency.name.replace('-', "_"),
         );
     }
+    // Preserve already-known private root identity before reconciling methods
+    // attached in later rounds. A private name is not itself export evidence.
+    for dependency in bound_dependencies.iter() {
+        rewrite_projected_owner_root(
+            projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name,
+        );
+    }
+    let owner_roots = dependencies
+        .iter()
+        .map(|dependency| {
+            (
+                dependency.name.replace('-', "_"),
+                dependency.package.replace('-', "_"),
+            )
+        })
+        .chain(bound_dependencies.iter().map(|dependency| {
+            (
+                dependency.name.clone(),
+                dependency.package.replace('-', "_"),
+            )
+        }))
+        .collect::<BTreeMap<_, _>>();
+    // Reconcile complete public error identities before reachability can reject
+    // an opaque error owner or bind it as an unnecessary private dependency.
+    canonicalize_projected_type_names(projected, public_errors, &owner_roots);
     if discover_bound_dependencies {
         *bound_dependencies =
             recursive_owner_dependencies(projected, dependencies, workspace, false)?;
@@ -547,7 +675,6 @@ fn normalize_projected_round(
         workspace,
         false,
     )?;
-    canonicalize_projected_type_names(projected);
     bound_dependencies.sort_by(|left, right| left.name.cmp(&right.name));
     if enforce_error_owner_reachability {
         enforce_transitive_reachability(

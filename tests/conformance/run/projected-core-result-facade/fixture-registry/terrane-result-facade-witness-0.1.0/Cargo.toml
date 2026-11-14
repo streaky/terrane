@@ -1,0 +1,14 @@
+[package]
+name = "terrane-result-facade-witness"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+terrane-outcome-alias-witness = { path = "../terrane-outcome-alias-witness-0.1.0" }
+newer = { package = "terrane-outcome-alias-witness", path = "../terrane-outcome-alias-witness-0.2.0" }
+old_hidden = { package = "terrane-transitive-hidden-errors", path = "../terrane-transitive-hidden-errors-0.1.0" }
+anyhow = "=1.0.104"
+terrane-transitive-alias-bridge = { path = "../terrane-transitive-alias-bridge-0.1.0" }

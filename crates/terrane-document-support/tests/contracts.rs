@@ -1,6 +1,24 @@
 use terrane_document_support::{
-    canonical_json, parse_json, parse_json_document, parse_url, parse_yaml, validate_mapping,
+    Document, canonical_json, parse_json, parse_json_document, parse_url, parse_yaml,
+    validate_mapping,
 };
+
+#[test]
+fn data_result_value_borrows_successful_tree_and_is_none_after_failure() {
+    let parsed = parse_json("[9007199254740993, 1.25]", 256, 1024);
+    assert!(!parsed.failed);
+    assert_eq!(
+        parsed.value(),
+        Some(&Document::List(vec![
+            Document::Integer("9007199254740993".into()),
+            Document::Decimal("1.25".into()),
+        ]))
+    );
+
+    let failed = parse_json("[", 256, 1024);
+    assert!(failed.failed);
+    assert_eq!(failed.value(), None);
+}
 
 #[test]
 fn json_depth_counts_scalar_children_and_containers_consistently() {

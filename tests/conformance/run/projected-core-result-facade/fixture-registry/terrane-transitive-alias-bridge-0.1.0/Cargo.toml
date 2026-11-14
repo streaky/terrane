@@ -1,0 +1,11 @@
+[package]
+name = "terrane-transitive-alias-bridge"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+hidden = { package = "terrane-transitive-hidden-errors", path = "../terrane-transitive-hidden-errors-0.2.0" }
+public = { package = "terrane-transitive-public-errors", path = "../terrane-transitive-public-errors-0.1.0" }

@@ -99,6 +99,13 @@ fn projected_error_identity(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Option<String> {
+    if let Type::Generic(name) = error
+        && let Some(projected @ ProjectedType::Foreign { .. }) = generics.get(name)
+    {
+        // Visibility is decided from the complete canonical facade inventory,
+        // after all defining documents and re-export providers are projected.
+        return Some(projected.rust_type());
+    }
     if let Ok((expanded, _)) = expand_output_alias(error.clone(), index, paths, generics.clone()) {
         // A boxed dynamic error has no single named native error item to project. Keep the
         // established generic error channel instead of mistaking the public alias for a type.
@@ -774,6 +781,10 @@ pub(super) fn project_function_inner(
             }
             None => (None, false, false, generic_types.clone()),
         };
+    let imported_alias_output = effective_output.as_ref().filter(|output| {
+        matches!(output, Type::ResolvedPath(path)
+            if index.get(&path.id).is_some_and(|item| item.crate_id != 0 && matches!(item.inner, ItemEnum::TypeAlias(_))))
+    }).map(|output| (output.clone(), output_generic_types.clone()));
     let (effective_output, output_generic_types) = match effective_output {
         Some(output) => {
             let (output, generics) =
@@ -805,32 +816,48 @@ pub(super) fn project_function_inner(
     }
     let mut error = None;
     let mut error_optional_depth = 0;
-    let project_output = |ty: &Type| {
+    let project_output = |ty: &Type, generics: &BTreeMap<String, ProjectedType>| {
+        let original = (ty, generics);
+        let expanded = if matches!(ty, Type::ResolvedPath(path)
+            if index.get(&path.id).is_some_and(|item| matches!(item.inner, ItemEnum::TypeAlias(_))))
+        {
+            Some(expand_output_alias(
+                ty.clone(),
+                index,
+                paths,
+                generics.clone(),
+            )?)
+        } else {
+            None
+        };
+        let (ty, generics) = expanded
+            .as_ref()
+            .map_or(original, |(ty, generics)| (ty, generics));
         if type_contains_borrowed_ref(ty) {
-            return project_borrowed_graph_type(ty, index, paths, &output_generic_types);
+            return project_borrowed_graph_type(ty, index, paths, generics);
         }
         if allow_lifetime_output && type_contains_lifetime_argument(ty) {
-            project_invocation_scoped_type(ty, index, paths, &output_generic_types)
+            project_invocation_scoped_type(ty, index, paths, generics)
         } else {
-            let projected = project_type(ty, index, paths, &output_generic_types)?;
+            let projected = project_type(ty, index, paths, generics)?;
             if type_contains_lifetime_argument(ty) {
                 return Err(
                     "lifetime-bearing native output requires a scoped owner/lender representation"
                         .to_owned(),
                 );
             }
-            Ok(projected)
+            super::types::retain_imported_nominal_identity(
+                original.0, projected, index, paths, original.1,
+            )
         }
     };
     let result = if let Some(output) = effective_output.as_ref() {
-        if resolved_name(output, paths)
-            .is_some_and(|name| name.ends_with("::Result") || name == "Result")
-        {
+        if output_is_named(output, paths, "Result") {
             let arguments = type_arguments(output);
             let value = arguments
                 .first()
                 .ok_or_else(|| "Result has no value type".to_owned())?;
-            let projected = project_output(value)
+            let projected = project_output(value, &output_generic_types)
                 .map_err(|reason| format!("projected result value: {reason}"))?;
             if projected.rust_type().contains('&')
                 && !matches!(
@@ -851,22 +878,36 @@ pub(super) fn project_function_inner(
                 .or_else(|| Some("Error".to_owned()));
             projected
         } else if type_contains_borrowed_ref(output) {
-            project_output(output)?
-        } else if resolved_name(output, paths)
-            .is_some_and(|name| name.ends_with("::Option") || name == "Option")
-        {
+            project_output(output, &output_generic_types)?
+        } else if output_is_named(output, paths, "Option") {
             let arguments = type_arguments(output);
             let value = arguments
                 .first()
+                .copied()
                 .ok_or_else(|| "Option has no value type".to_owned())?;
-            if resolved_name(value, paths)
-                .is_some_and(|name| name.ends_with("::Result") || name == "Result")
+            let expansion = if matches!(value, Type::ResolvedPath(path)
+                if index.get(&path.id).is_some_and(|item| matches!(item.inner, ItemEnum::TypeAlias(_))))
             {
+                Some(expand_output_alias(
+                    value.clone(),
+                    index,
+                    paths,
+                    output_generic_types.clone(),
+                )?)
+            } else {
+                None
+            };
+            let (value, optional_generics) = expansion
+                .as_ref()
+                .map_or((value, &output_generic_types), |(value, generics)| {
+                    (value, generics)
+                });
+            if output_is_named(value, paths, "Result") {
                 let arguments = type_arguments(value);
                 let success = arguments
                     .first()
                     .ok_or_else(|| "nested Result has no value type".to_owned())?;
-                let projected = project_output(success)
+                let projected = project_output(success, optional_generics)
                     .map_err(|reason| format!("projected nested result value: {reason}"))?;
                 if projected.rust_type().contains('&') {
                     return Err(
@@ -877,19 +918,24 @@ pub(super) fn project_function_inner(
                 error = arguments
                     .get(1)
                     .and_then(|ty| {
-                        projected_error_identity(ty, value, index, paths, &output_generic_types)
+                        projected_error_identity(ty, value, index, paths, optional_generics)
                     })
                     .or_else(|| Some("Error".to_owned()));
                 error_optional_depth = 1;
                 ProjectedType::Optional(Box::new(projected))
             } else {
                 ProjectedType::Optional(Box::new(
-                    project_output(value)
+                    project_output(value, optional_generics)
                         .map_err(|reason| format!("projected optional value: {reason}"))?,
                 ))
             }
         } else {
-            project_output(output).or_else(|reason| {
+            let (source_output, source_generics) = imported_alias_output
+                .as_ref()
+                .map_or((output, &output_generic_types), |(output, generics)| {
+                    (output, generics)
+                });
+            project_output(source_output, source_generics).or_else(|reason| {
                 // An open nominal fallback must not erase a lifetime contract
                 // rejected by the scoped-output classifier above.
                 if type_contains_lifetime_argument(output) {
@@ -1157,9 +1203,190 @@ fn safe_parameter_name(name: &str) -> String {
     }
 }
 
+pub(super) fn native_output_container<'a>(
+    path: impl IntoIterator<Item = &'a str>,
+) -> Option<&'static str> {
+    let mut path = path.into_iter();
+    match (
+        path.next(),
+        path.next(),
+        path.next(),
+        path.next(),
+        path.next(),
+    ) {
+        (Some("core" | "std"), Some("result" | "io"), Some("Result"), None, None)
+        | (Some("core" | "std"), Some("io"), Some("error"), Some("Result"), None) => Some("Result"),
+        (Some("core" | "std"), Some("option"), Some("Option"), None, None) => Some("Option"),
+        _ => None,
+    }
+}
+
+fn output_is_named(ty: &Type, paths: &HashMap<Id, ItemSummary>, name: &str) -> bool {
+    let Type::ResolvedPath(path) = ty else {
+        return false;
+    };
+    paths
+        .get(&path.id)
+        .and_then(|summary| native_output_container(summary.path.iter().map(String::as_str)))
+        == Some(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rustdoc_types::GenericArg;
+
+    fn output_function(output: Type) -> Function {
+        Function {
+            sig: rustdoc_types::FunctionSignature {
+                inputs: Vec::new(),
+                output: Some(output),
+                is_c_variadic: false,
+            },
+            generics: rustdoc_types::Generics {
+                params: Vec::new(),
+                where_predicates: Vec::new(),
+            },
+            header: rustdoc_types::FunctionHeader {
+                is_const: false,
+                is_unsafe: false,
+                is_async: false,
+                abi: rustdoc_types::Abi::Rust,
+            },
+            has_body: true,
+            default_unstable: None,
+        }
+    }
+
+    #[test]
+    fn missing_output_alias() {
+        let output = Type::ResolvedPath(rustdoc_types::Path {
+            path: "Value".to_owned(),
+            id: Id(1),
+            args: None,
+        });
+        let paths = HashMap::from([(
+            Id(1),
+            ItemSummary {
+                crate_id: 1,
+                path: vec!["owner".to_owned(), "Value".to_owned()],
+                kind: rustdoc_types::ItemKind::TypeAlias,
+            },
+        )]);
+        let reason = project_function(
+            &output_function(output),
+            &HashMap::new(),
+            &paths,
+            &BTreeMap::new(),
+            Some("read"),
+            false,
+        )
+        .unwrap_err();
+        assert!(
+            reason.contains("output type alias `owner::Value`"),
+            "{reason}"
+        );
+        assert!(reason.contains("defining Rustdoc document"), "{reason}");
+    }
+
+    #[test]
+    fn output_alias_boundaries() {
+        let container = |name: &str, id, arguments: Vec<Type>| {
+            Type::ResolvedPath(rustdoc_types::Path {
+                path: name.to_owned(),
+                id: Id(id),
+                args: Some(Box::new(GenericArgs::AngleBracketed {
+                    args: arguments.into_iter().map(GenericArg::Type).collect(),
+                    constraints: Vec::new(),
+                })),
+            })
+        };
+        let value = Type::Primitive("i64".to_owned());
+        let error = Type::ResolvedPath(rustdoc_types::Path {
+            path: "std::io::Error".to_owned(),
+            id: Id(2),
+            args: None,
+        });
+        for renamed in [false, true] {
+            let paths = HashMap::from([
+                (
+                    Id(1),
+                    ItemSummary {
+                        crate_id: 1,
+                        path: vec!["core".to_owned(), "result".to_owned(), "Result".to_owned()],
+                        kind: rustdoc_types::ItemKind::Enum,
+                    },
+                ),
+                (
+                    Id(2),
+                    ItemSummary {
+                        crate_id: 1,
+                        path: vec!["std".to_owned(), "io".to_owned(), "Error".to_owned()],
+                        kind: rustdoc_types::ItemKind::Struct,
+                    },
+                ),
+                (
+                    Id(3),
+                    ItemSummary {
+                        crate_id: 1,
+                        path: vec!["core".to_owned(), "option".to_owned(), "Option".to_owned()],
+                        kind: rustdoc_types::ItemKind::Enum,
+                    },
+                ),
+            ]);
+            let fallible = container(
+                if renamed { "Outcome" } else { "Result" },
+                1,
+                vec![value.clone(), error.clone()],
+            );
+            for (case, output, result, error) in [
+                (
+                    "result",
+                    fallible.clone(),
+                    ProjectedType::Int,
+                    Some("std::io::Error"),
+                ),
+                (
+                    "option",
+                    container(
+                        if renamed { "Maybe" } else { "Option" },
+                        3,
+                        vec![value.clone()],
+                    ),
+                    ProjectedType::Optional(Box::new(ProjectedType::Int)),
+                    None,
+                ),
+                (
+                    "optional-result",
+                    container(if renamed { "Maybe" } else { "Option" }, 3, vec![fallible]),
+                    ProjectedType::Optional(Box::new(ProjectedType::Int)),
+                    Some("std::io::Error"),
+                ),
+            ] {
+                let function = output_function(output);
+                let projected = project_function(
+                    &function,
+                    &HashMap::new(),
+                    &paths,
+                    &BTreeMap::new(),
+                    Some("read"),
+                    false,
+                )
+                .unwrap();
+                assert_eq!(projected.result, result, "{case}, renamed={renamed}");
+                assert_eq!(
+                    projected.error.as_deref(),
+                    error,
+                    "{case}, renamed={renamed}"
+                );
+                assert_eq!(
+                    projected.error_optional_depth,
+                    usize::from(case == "optional-result"),
+                    "{case}, renamed={renamed}",
+                );
+            }
+        }
+    }
 
     #[test]
     fn c_variadic_tail_is_not_fixed_arity() {

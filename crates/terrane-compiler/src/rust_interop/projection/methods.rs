@@ -808,6 +808,20 @@ pub(crate) fn instantiate_receiver_result_lifetimes(
     Ok(())
 }
 
+fn impl_has_nominal_owner<'a>(mut ty: &'a Type, index: &'a HashMap<Id, Item>) -> bool {
+    loop {
+        match ty {
+            Type::BorrowedRef { type_, .. } => ty = type_,
+            Type::ResolvedPath(path) => match index.get(&path.id).map(|item| &item.inner) {
+                Some(ItemEnum::TypeAlias(alias)) => ty = &alias.type_,
+                _ => return true,
+            },
+            Type::Generic(_) | Type::QualifiedPath { .. } => return true,
+            _ => return false,
+        }
+    }
+}
+
 #[expect(
     clippy::too_many_arguments,
     clippy::too_many_lines,
@@ -839,6 +853,24 @@ pub(super) fn project_methods(
             continue;
         };
         if implementation.is_negative || implementation.is_synthetic {
+            continue;
+        }
+        // Rustdoc can list an impl because the nominal type is a trait argument,
+        // not Self (for example ColumnIndex<Row> for &str). Such an impl cannot
+        // contribute methods to this nominal owner's source class.
+        if matches!(
+            owner_generics.get("Self"),
+            Some(ProjectedType::Foreign { .. })
+        ) && !impl_has_nominal_owner(&implementation.for_, index)
+        {
+            let reason = format!(
+                "implementation's non-nominal Self cannot supply members of projected owner `{owner_rust_path}`"
+            );
+            declined.extend(implementation.items.iter().filter_map(|id| {
+                let item = index.get(id)?;
+                let name = item.name.as_ref()?;
+                matches!(item.inner, ItemEnum::Function(_)).then(|| (name.clone(), reason.clone()))
+            }));
             continue;
         }
         let inherent = implementation.trait_.is_none();
@@ -1668,6 +1700,18 @@ pub(super) fn expand_output_alias(
             ..
         }) = index.get(&path.id)
         else {
+            if let Some(summary) = paths.get(&path.id)
+                && summary.kind == rustdoc_types::ItemKind::TypeAlias
+                && super::functions::native_output_container(
+                    summary.path.iter().map(String::as_str),
+                )
+                .is_none()
+            {
+                return Err(format!(
+                    "output type alias `{}` has no available unambiguous definition in its defining Rustdoc document",
+                    summary.path.join("::")
+                ));
+            }
             return Ok((output, generics));
         };
         generics =

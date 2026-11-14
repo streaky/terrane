@@ -1,0 +1,45 @@
+inferred private failure
+transitive public failure
+41
+caught: Rust dependency `facade` member `facade::parse` failed: invalid digit found in string
+true
+true
+left 1
+right right
+A
+true
+utf8
+invalid utf8 caught
+2:2
+typed external failure
+3
+true
+true
+2
+typed nested failure
+2:2:2
+typed method failure
+typed async failure
+4
+true
+4
+5
+6
+7
+typed newer failure
+8
+Rust dependency `facade` member `facade::opaque_transitive` failed: transitive hidden failure
+9
+public transitive: transitive public failure
+10
+typed old hidden failure
+8
+true
+9
+typed transitive method failure
+8
+true
+11
+Rust dependency `facade` member `facade::inferred_call` failed: inferred private failure
+true
+true

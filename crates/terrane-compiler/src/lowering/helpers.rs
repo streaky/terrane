@@ -785,6 +785,9 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             "TerraneError".to_owned()
         }
         ValueType::Object(identity) => {
+            if let Some(carrier) = crate::semantics::native_alias_storage_type(package, &identity) {
+                return carrier;
+            }
             let native = identity.native_projection.as_deref().or_else(|| {
                 let item = package
                     .projection

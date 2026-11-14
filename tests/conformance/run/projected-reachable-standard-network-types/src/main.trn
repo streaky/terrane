@@ -2,6 +2,7 @@ namespace app
 
 from /deps/ipnet import IpAddr, IpNet, AddrParseError
 from /deps/tokio/net import SocketAddr
+from /core/errors import dependency-error
 
 class socket-addr
     value int = 7
@@ -18,6 +19,13 @@ function main;
         _invalid = IpAddr::from_str; 'not-an-address'
         print; 'unexpected parse success'
     catch AddrParseError
+        print; 'wrong address error descriptor'
+    catch dependency-error
         print; 'invalid address caught'
+    try
+        _invalid-network = IpNet::from_str; 'not-a-network'
+        print; 'unexpected network parse success'
+    catch AddrParseError
+        print; 'invalid network caught'
     local = instance socket-addr;
     print; local.value
