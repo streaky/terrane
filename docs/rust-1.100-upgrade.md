@@ -120,8 +120,166 @@ Prefix/suffix parsers retain `strip_prefix`/`strip_suffix` where match success m
 
 Stable allocator-aware `Vec` and `Box` were exercised with `System`. Lexer/parser buffers and Rustdoc/census processing were examined as possible allocation boundaries, but their values can escape the nominal phase into returned snapshots or reports, and no profiling evidence established an arena win. No allocator region syntax, blanket container migration, unsafe allocator implementation or unmeasured performance claim is introduced. Shared-pointer allocator support is not implied by the Vec/Box stabilization; `Arc::new_in` remains unstable in the versioned 1.100 API.
 
-Other new unsafe/ZST APIs do not relax Terrane's unsafe permissions or native ABI admission. Stable sample-profile optimization is not enabled by default and does not replace the profiler. Platform-specific ABI changes still require evidence on their respective targets; Linux execution does not establish Windows, ARM or WASI behavior.
+### Stable sample-profile optimization
+Rust 1.100.0 supports LLVM sample-profile use on stable. Terrane does not enable
+it by default, add Terrane CLI flags, or change the language. The repository
+helper `python tools/sample-profile.py` prepares, records, and consumes profiles
+for compiler Cargo release builds and generated applications invoked with
+`terrane build --release`; ordinary `terrane` commands remain the user-facing interface.
+For example, prepare the compiler with
+`python tools/sample-profile.py prepare -- cargo build --release -p terrane-cli`.
+For a generated application, pass its normal build command after `--`:
+`python tools/sample-profile.py prepare -- terrane build --release path/to/app`.
 
+The workflow is opt-in and has three distinct stages: prepare builds with stable
+function-and-line debug information (`debuginfo=limited`) and explicitly disables
+stripping; record samples a representative execution and converts it into an LLVM
+sample profile; use builds with that profile. Cargo can otherwise strip debug
+sections even when rustflags request debug information. Use the
+same target, release settings, features, and other build options for prepare,
+training, and optimized use. Train the compiler with representative compiler
+work (including cold or incremental work only if that is the intended workload),
+and train applications with representative input and execution paths. Validate
+on held-out work rather than the training workload alone. The existing
+`terrane profile` `.trnprof` format is diagnostic evidence, not LLVM optimization
+feedback; the two formats are not interchangeable.
+
+Build identity includes the selected profile input. The helper snapshots
+consumed profiles under immutable digest-named paths so changed profile bytes
+cannot accidentally reuse a Cargo artifact keyed only by unchanged flag text.
+Keep profiles private to the program and workload that produced them: a
+compiler profile is not an application profile, nor should profiles from
+different applications or materially different workloads be shared. Raw perf
+captures and profiles can expose symbols, paths, and workload structure; store
+and handle them as potentially sensitive artifacts.
+
+Stable function-and-line debug information is used; line-table-only builds can
+omit declaration locations needed by AutoFDO and produce function totals without
+usable source-location counts. Validation requires positive location counts, not
+just a nonempty file or function total. The optional nightly
+`-Zdebuginfo-for-profiling` flag is neither required nor used. Conversion
+depends on host hardware and installed tools. Standard `llvm-profgen` conversion
+of Linux perf data requires branch-stack/LBR samples. On hosts without branch-stack
+support, select `--converter autofdo --no-lbr` with an installed compatible
+AutoFDO `create_llvm_prof`, which directly writes LLVM text profiles. GCC `.gcov`
+feedback is not interchangeable: current GCC profile versions need not be readable
+by `llvm-profdata`, and a numeric `--gcov_version=1` is not a legacy LLVM encoding.
+Ordinary `cycles:u` sampling only establishes user-space cycle sampling, not LBR
+support; probe permissions and hardware capabilities explicitly. Do not silently
+treat the conversion routes as interchangeable or infer measured benefit before
+real training and held-out validation on the target host.
+
+After a representative training build, record and consume a compiler profile as
+follows (the default converter needs LBR-capable hardware):
+This is the invocation interface, not a validated compiler optimization: the
+compiler-wide trial encountered the build-cost boundary recorded below.
+
+```sh
+python tools/sample-profile.py record --binary target/release/terrane \
+  --output .trn/sample-training/compiler.prof -- rust path/to/training/package
+python tools/sample-profile.py use --profile .trn/sample-training/compiler.prof \
+  -- cargo build --release -p terrane-cli
+```
+
+For a generated application, use the executable path printed by its prepared
+release build with `record`, and pass its ordinary
+`terrane build --release path/to/app` command to `use`. On a non-LBR host, add
+`--converter autofdo --no-lbr --converter-path /path/to/create_llvm_prof` to
+`record`. Record accepts zero or more workload arguments after `--`. Train and
+measure separate compiler/application profiles, not a combined profile.
+
+The provenance JSON omits workload arguments. Raw perf data may still retain its
+command line, so it remains sensitive; use private `.trn` or ignored build paths.
+
+This is an opt-in experimental workflow, not a claim of completed profile
+conversion on every host or a measured speedup. Record the compiler/application,
+workload, exact build options, tool versions, hardware sampling mode, and
+validation evidence with any future performance result.
+
+#### Host conversion evidence
+
+On Linux x86-64 (AMD Ryzen 9 3900XT), Rust 1.100.0 / LLVM 23.1.5 and
+perf 7.3.1 user-space cycle sampling worked, but branch-stack sampling was
+unsupported. A private [AutoFDO source build](https://github.com/google/autofdo/tree/f95d1a170dfe24ec5ce4117aa4b0f6d836841703)
+with host LLVM 23.1.4 wrote LLVM text feedback directly. That build required local
+Protobuf, Abseil and LLVM API compatibility changes; this is not evidence that
+unmodified upstream AutoFDO builds against every current host dependency set.
+No global tools were replaced.
+
+After switching from line-table-only to limited debug information:
+
+| Training target | Recorded samples | Mapped samples | Profile functions | Positive locations |
+|---|---:|---:|---:|---:|
+| Generated Collatz application, limit 5,000,000 | 1,170 | 1,162 | 1 | 7 |
+| Compiler, 50 cold passes over each of two source cases | 5,184 | 4,842 | 67 | 601 |
+
+The compiler capture used private copies of `shared-statement-owner` and
+`structured-assignment-blocks`, appending trailing whitespace between invocations
+to invalidate persistent front-end results without changing source behavior.
+Forty-one function identities mentioned Terrane's compiler, including standard-library
+monomorphizations involving compiler types. The converter reported only 93%
+mapped compiler samples, below its preferred 95%; the capture included its Python
+driver and child processes. Missing samples were not invented or redistributed.
+The first line-table-only application profile had nonzero function totals but
+zero usable locations and was discarded. The final helper also passed a real
+record/conversion/publication smoke with limit 1,000,000 and returned `131434424`.
+Replacing profile bytes at one mutable input path also changed the real generated
+application's native artifact identity: reusing the original bytes was a 0.157s
+cache hit, while different captured bytes selected a new digest path and rebuilt
+the native artifact. Both prepared and optimized applications agreed on valid
+limits 1, 2, 27, 1,000 and 1,000,000, plus missing/nonpositive-argument exit behavior.
+
+#### Generated-application held-out measurement
+
+The ordinary release and feedback-enabled executables used the same Rust toolchain,
+generated source and normal release profile. Both retained limited debug information
+and disabled stripping; only the latter consumed the recorded profile. Their profiled
+function's mangled identity matched, and the native code changed.
+
+The held-out input was Collatz limit 3,000,000 (training used 5,000,000).
+Twenty-one measured runs per lane followed three warm-ups, pinned to one logical
+CPU, with alternating lane order and normalized `argv[0]`/equal-length launch paths.
+No Cargo/rustc/rustdoc processes competed. Both executables returned `428343467`.
+The control ran the same baseline executable in both lanes.
+
+| Comparison | Baseline median (ms) | Other lane median (ms) | Median elapsed-time change |
+|---|---:|---:|---:|
+| Actual generated application, feedback vs ordinary release | 316.424 | 310.553 | -1.86% |
+| Identical-executable control | 316.405 | 316.185 | -0.07% |
+
+The paired median change was -1.59%, with individual pairs ranging from -2.43%
+to +3.51%; the control's paired median was -0.08%. This supports a modest benefit
+on this workload, not a general application-wide speedup or a reason to enable
+feedback by default. Compiler and application training profiles remain separate.
+
+#### Compiler build-cost boundary and adoption decision
+
+The ordinary compiler training build completed in 89 seconds. With the full
+compiler sample profile, a `prettyplease` rustc process accumulated more than
+16 CPU-minutes without completing; the trial was cancelled. A separate short
+user-space capture found LLVM `CallAnalyzer::analyze` (19.23%) and
+`CallAnalyzer::visitCallBase` (6.10%) among the hottest symbols. This identifies
+inlining analysis as a hotspot, not a localized LLVM bug or a proven root cause.
+
+Two isolated alternatives also failed to finish within 240-second trials:
+disabling sample-loader inlining with
+`-Cllvm-args=-disable-sample-loader-inlining`, and retaining only 21
+compiler-defined top-level function profiles, with their nested profiles and
+counts unchanged. Neither is a validated workaround. No internal LLVM override
+or profile filtering was added to the shared helper.
+
+Consequently there is no optimized compiler binary or held-out compiler runtime
+result from this experiment. The helper exposes the build workflow for both
+targets, but compiler-wide adoption remains unvalidated because of this observed
+compile-time cost. Generated applications have an end-to-end measured opt-in
+path; that result does not establish compiler readiness. Revisit the compiler
+path with a minimized code-generation reproducer and independently validated
+profile fidelity/build cost before enabling it. No ordinary compiler or
+application build defaults changed.
+
+### Other compatibility boundaries
+
+Other new unsafe/ZST APIs do not relax Terrane's unsafe permissions or native ABI admission. Stable sample-profile optimization is not enabled by default and does not replace the profiler. Platform-specific ABI changes still require evidence on their respective targets; Linux execution does not establish Windows, ARM or WASI behavior.
 ### Stable shared-owner follow-on
 
 The allocator investigation also identified avoidable temporary owner clones in
