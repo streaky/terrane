@@ -62,6 +62,11 @@ pub use terrane_rust_analysis::RUSTDOC_TOOLCHAIN;
 pub use types::{ScalarType, TypeCategory};
 /// Unicode Character Database version selected by the compiler toolchain profile.
 pub const UNICODE_DATA_VERSION: &str = "18.0.0";
+/// Exact ICU4X provider release for this Unicode profile.
+///
+/// ICU4X does not expose a compiled-data Unicode version constant. Changing this
+/// release requires re-deriving its Unicode version and reviewing all text witnesses.
+pub const ICU4X_VERSION: &str = "2.4.0";
 #[cfg(test)]
 const UNICODE_DATA_VERSION_COMPONENTS: (u64, u64, u64) = (18, 0, 0);
 
@@ -92,6 +97,20 @@ fn platform_support_manifest_from(source: &str) -> String {
 pub fn signal_support_manifest() -> String {
     format!(
         "[package]\nname = \"terrane-signal-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n"
+    )
+}
+
+#[must_use]
+pub fn collection_support_manifest() -> String {
+    format!(
+        "[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\nicu_segmenter = {{ version = \"={ICU4X_VERSION}\", default-features = false, features = [\"compiled_data\"] }}\n"
+    )
+}
+
+#[must_use]
+pub fn string_support_manifest() -> String {
+    format!(
+        "[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[dependencies]\nicu_casemap = \"={ICU4X_VERSION}\"\nicu_locale_core = \"={ICU4X_VERSION}\"\nicu_normalizer = \"={ICU4X_VERSION}\"\nicu_properties = \"={ICU4X_VERSION}\"\nicu_segmenter = {{ version = \"={ICU4X_VERSION}\", default-features = false, features = [\"compiled_data\"] }}\nwriteable = \"=0.6.4\"\n"
     )
 }
 
@@ -136,5 +155,20 @@ mod manifest_tests {
                 super::UNICODE_DATA_VERSION_COMPONENTS.2
             )
         );
+        let expected_provider = format!("={}", super::ICU4X_VERSION);
+        for source in [
+            include_str!("../../terrane-string-support/Cargo.toml"),
+            include_str!("../../terrane-collection-support/Cargo.toml"),
+        ] {
+            let manifest: toml::Value = source.parse().unwrap();
+            for (name, dependency) in manifest["dependencies"].as_table().unwrap() {
+                if name.starts_with("icu_") {
+                    let version = dependency
+                        .as_str()
+                        .or_else(|| dependency["version"].as_str());
+                    assert_eq!(version, Some(expected_provider.as_str()), "{name}");
+                }
+            }
+        }
     }
 }

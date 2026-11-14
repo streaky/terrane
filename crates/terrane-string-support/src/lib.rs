@@ -1,5 +1,5 @@
 use icu_casemap::CaseMapper;
-use icu_locale::langid;
+use icu_locale_core::langid;
 use icu_normalizer::{ComposingNormalizerBorrowed, DecomposingNormalizerBorrowed};
 use icu_properties::{
     CodePointSetData,
@@ -100,7 +100,10 @@ impl std::error::Error for DecodeError {}
 
 #[cfg(test)]
 mod tests {
-    use super::{DecodeError, Encoding};
+    use super::{
+        DecodeError, Encoding, case_fold, graphemes, length, lower, lower_first, normalise, trim,
+        trim_end, trim_start, upper, upper_first, upper_words,
+    };
 
     #[test]
     fn decode_error_display_is_message_only() {
@@ -109,6 +112,63 @@ mod tests {
             byte_offset: 3,
         };
         assert_eq!(error.to_string(), "invalid utf8 sequence at byte offset 3");
+    }
+
+    #[test]
+    fn ascii_case_mapping_matches_ascii_tables() {
+        let value: String = (0u8..=127).map(char::from).collect();
+        assert_eq!(upper(&value), value.to_ascii_uppercase());
+        assert_eq!(lower(&value), value.to_ascii_lowercase());
+        assert_eq!(case_fold(&value), value.to_ascii_lowercase());
+        assert_eq!(upper_first("  hello world Σ"), "  Hello world Σ");
+        assert_eq!(lower_first("  HELLO Σ"), "  hELLO Σ");
+    }
+
+    #[test]
+    fn ascii_whitespace_trimming_includes_vertical_tab() {
+        assert_eq!(trim("\t\n\u{b}\u{c}\r text \t\u{b}"), "text");
+        assert_eq!(trim_start("\u{b} text", None), "text");
+        assert_eq!(trim_end("text \u{b}", None), "text");
+        assert_eq!(trim("\u{85}\u{a0}text\u{a0}"), "text");
+        assert_eq!(trim("\u{200b}text\u{200b}"), "\u{200b}text\u{200b}");
+    }
+
+    #[test]
+    fn unicode_case_mapping_keeps_context_and_cased_selection() {
+        assert_eq!(lower("ΟΣ"), "ος");
+        assert_eq!(lower_first("ΣΑ"), "σΑ");
+        assert_eq!(upper_first("ǆemal"), "Ǆemal");
+        assert_eq!(upper_first("ßeta"), "SSeta");
+        assert_eq!(lower("İ"), "i\u{307}");
+        assert_eq!(upper_words("they're here"), "They're Here");
+        assert_eq!(
+            upper_words("they're here, word-two 123abc"),
+            "They're Here, Word-Two 123Abc"
+        );
+    }
+
+    #[test]
+    fn unicode18_data_changes_and_text_algorithms() {
+        let new_combining_mark = "A\u{1ae0}";
+        assert_eq!(length(new_combining_mark), 1);
+        assert_eq!(
+            graphemes(new_combining_mark).collect::<Vec<_>>(),
+            vec![new_combining_mark.to_owned()]
+        );
+        let new_compat_ligature = "\u{1df95}";
+        assert_eq!(case_fold(new_compat_ligature), "ss");
+        assert_eq!(normalise(new_compat_ligature, "nfc"), new_compat_ligature);
+        assert_eq!(normalise(new_compat_ligature, "nfkc"), "ß");
+        assert_eq!(normalise(new_compat_ligature, "nfkd"), "ß");
+        assert_eq!(case_fold("Straße"), "strasse");
+        assert_eq!(upper("ß"), "SS");
+        assert_eq!(lower("İ"), "i\u{307}");
+        assert_eq!(lower("ΟΣ"), "ος");
+        assert_eq!(upper_first("ßeta"), "SSeta");
+        assert_eq!(lower_first("HELLO"), "hELLO");
+        assert_eq!(upper_words("they're here"), "They're Here");
+        assert_eq!(trim("\u{a0}text\u{a0}"), "text");
+        assert_eq!(trim("\u{200b}text\u{200b}"), "\u{200b}text\u{200b}");
     }
 }
 
@@ -346,21 +406,13 @@ pub fn decode(value: &[u8], encoding: Encoding) -> Result<String, DecodeError> {
 
 #[must_use]
 pub fn trim(value: &str) -> String {
-    let whitespace = CodePointSetData::new::<WhiteSpace>();
-    value
-        .trim_matches(|character| whitespace.contains(character))
-        .to_owned()
+    value.trim_matches(is_whitespace).to_owned()
 }
 
 #[must_use]
 pub fn trim_start(value: &str, pattern: Option<&str>) -> String {
     pattern.map_or_else(
-        || {
-            let whitespace = CodePointSetData::new::<WhiteSpace>();
-            value
-                .trim_start_matches(|character| whitespace.contains(character))
-                .to_owned()
-        },
+        || value.trim_start_matches(is_whitespace).to_owned(),
         |pattern| value.strip_prefix(pattern).unwrap_or(value).to_owned(),
     )
 }
@@ -368,14 +420,17 @@ pub fn trim_start(value: &str, pattern: Option<&str>) -> String {
 #[must_use]
 pub fn trim_end(value: &str, pattern: Option<&str>) -> String {
     pattern.map_or_else(
-        || {
-            let whitespace = CodePointSetData::new::<WhiteSpace>();
-            value
-                .trim_end_matches(|character| whitespace.contains(character))
-                .to_owned()
-        },
+        || value.trim_end_matches(is_whitespace).to_owned(),
         |pattern| value.strip_suffix(pattern).unwrap_or(value).to_owned(),
     )
+}
+
+fn is_whitespace(character: char) -> bool {
+    if character.is_ascii() {
+        matches!(character, '\t'..='\r' | ' ')
+    } else {
+        CodePointSetData::new::<WhiteSpace>().contains(character)
+    }
 }
 
 #[must_use]
@@ -413,16 +468,24 @@ pub fn find_all(value: &str, pattern: &str) -> Vec<TextRange> {
 
 #[must_use]
 pub fn upper(value: &str) -> String {
-    CaseMapper::new()
-        .uppercase_to_string(value, &langid!("und"))
-        .into_owned()
+    if value.is_ascii() {
+        value.to_ascii_uppercase()
+    } else {
+        CaseMapper::new()
+            .uppercase_to_string(value, &langid!("und"))
+            .into_owned()
+    }
 }
 
 #[must_use]
 pub fn lower(value: &str) -> String {
-    CaseMapper::new()
-        .lowercase_to_string(value, &langid!("und"))
-        .into_owned()
+    if value.is_ascii() {
+        value.to_ascii_lowercase()
+    } else {
+        CaseMapper::new()
+            .lowercase_to_string(value, &langid!("und"))
+            .into_owned()
+    }
 }
 
 #[must_use]
@@ -453,34 +516,50 @@ pub fn lower_first(value: &str) -> String {
 }
 
 fn write_first_cased(value: &str, result: &mut String, uppercase: bool) {
-    let lowercase = CodePointSetData::new::<Lowercase>();
-    let uppercase_set = CodePointSetData::new::<Uppercase>();
     let Some((index, character)) = value.char_indices().find(|(_, character)| {
-        lowercase.contains(*character) || uppercase_set.contains(*character)
+        if character.is_ascii() {
+            character.is_ascii_alphabetic()
+        } else {
+            let lowercase = CodePointSetData::new::<Lowercase>();
+            let uppercase_set = CodePointSetData::new::<Uppercase>();
+            lowercase.contains(*character) || uppercase_set.contains(*character)
+        }
     }) else {
         result.push_str(value);
         return;
     };
     let end = index + character.len_utf8();
     result.push_str(&value[..index]);
-    let case_mapper = CaseMapper::new();
-    if uppercase {
-        case_mapper
-            .uppercase(&value[index..end], &langid!("und"))
-            .write_to(result)
-            .expect("writing case mapping to String is infallible");
+    if character.is_ascii() {
+        result.push(if uppercase {
+            character.to_ascii_uppercase()
+        } else {
+            character.to_ascii_lowercase()
+        });
     } else {
-        case_mapper
-            .lowercase(&value[index..end], &langid!("und"))
-            .write_to(result)
-            .expect("writing case mapping to String is infallible");
+        let case_mapper = CaseMapper::new();
+        if uppercase {
+            case_mapper
+                .uppercase(&value[index..end], &langid!("und"))
+                .write_to(result)
+                .expect("writing case mapping to String is infallible");
+        } else {
+            case_mapper
+                .lowercase(&value[index..end], &langid!("und"))
+                .write_to(result)
+                .expect("writing case mapping to String is infallible");
+        }
     }
     result.push_str(&value[end..]);
 }
 
 #[must_use]
 pub fn case_fold(value: &str) -> String {
-    CaseMapper::new().fold_string(value).into_owned()
+    if value.is_ascii() {
+        value.to_ascii_lowercase()
+    } else {
+        CaseMapper::new().fold_string(value).into_owned()
+    }
 }
 
 #[must_use]
@@ -635,35 +714,4 @@ fn replace_patterns<'a>(
     }
     output.push_str(&value[unchanged..]);
     output
-}
-#[cfg(test)]
-mod unicode18_tests {
-    use super::{
-        case_fold, graphemes, length, lower, lower_first, normalise, trim, upper, upper_first,
-        upper_words,
-    };
-
-    #[test]
-    fn unicode18_data_changes_and_text_algorithms() {
-        let new_combining_mark = "A\u{1ae0}";
-        assert_eq!(length(new_combining_mark), 1);
-        assert_eq!(
-            graphemes(new_combining_mark).collect::<Vec<_>>(),
-            vec![new_combining_mark.to_owned()]
-        );
-        let new_compat_ligature = "\u{1df95}";
-        assert_eq!(case_fold(new_compat_ligature), "ss");
-        assert_eq!(normalise(new_compat_ligature, "nfc"), new_compat_ligature);
-        assert_eq!(normalise(new_compat_ligature, "nfkc"), "ß");
-        assert_eq!(normalise(new_compat_ligature, "nfkd"), "ß");
-        assert_eq!(case_fold("Straße"), "strasse");
-        assert_eq!(upper("ß"), "SS");
-        assert_eq!(lower("İ"), "i\u{307}");
-        assert_eq!(lower("ΟΣ"), "ος");
-        assert_eq!(upper_first("ßeta"), "SSeta");
-        assert_eq!(lower_first("HELLO"), "hELLO");
-        assert_eq!(upper_words("they're here"), "They're Here");
-        assert_eq!(trim("\u{a0}text\u{a0}"), "text");
-        assert_eq!(trim("\u{200b}text\u{200b}"), "\u{200b}text\u{200b}");
-    }
 }

@@ -28,6 +28,37 @@ Implementation and detailed behavioral evidence are described in the canonical U
 
 Regression witnesses use actual changed data: `A` followed by U+1AE0 is now one extended grapheme, and U+1DF95 folds to `ss` and compatibility-normalizes to `ß`. Internal text operations consume borrowed grapheme slices, first-character casing writes directly into its final output, and word casing writes successive segments into one output buffer. Segmenter dependencies disable default `auto`/LSTM features and select only `compiled_data`, matching the default-boundary algorithm rather than pulling in unused complex-script segmentation machinery.
 
+### Runtime performance and provider maintenance
+
+Review found substantial casing/whitespace regressions in the initial ICU implementation, especially for ASCII and short inputs. Whole-string ASCII `upper`, `lower` and `case-fold` now use equivalent ASCII mappings. Trimming checks ASCII boundary characters directly, including vertical tab, and consults ICU only for non-ASCII boundaries; it does not scan the whole string to choose a trimming path. First-cased-character selection/mapping also bypasses ICU for ASCII. Non-ASCII contextual casing remains ICU-owned, and `upper.words` retains ICU word segmentation rather than approximating punctuation/digit boundaries.
+
+A post-repair throwaway release probe measured these workloads on the development host; these are microbenchmarks, not application throughput guarantees:
+
+| Operation | Workload | Elapsed (ms) |
+| --- | --- | ---: |
+| `upper` | 900 KB ASCII ×20 | 1.418 |
+| `lower` | 900 KB ASCII ×20 | 0.868 |
+| `case-fold` | 900 KB ASCII ×20 | 0.856 |
+| `upper` | short string ×1M | 18.491 |
+| `trim` | short string ×1M | 19.018 |
+| `upper.first` | short string ×1M | 19.862 |
+
+`ICU4X_VERSION` is the coordinated exact provider pin beside the compiler Unicode profile. Application and conformance support now share manifest writers; compiler tests parse the actual support-crate manifests and compare every ICU dependency with that pin. ICU4X exposes no compiled-data Unicode version constant, so a provider upgrade still requires deriving its Unicode version from upstream data and reviewing behavioral witnesses. Passing Unicode-18 witnesses alone does not detect every future data upgrade.
+
+### Cold-build and dependency costs
+
+The review's isolated string-support harness recorded the following cold builds at `-j8`. These are the review's measurements, not a new baseline rerun; lock entries describe that isolated harness, not the compiler workspace:
+
+| Provider graph | Lock entries | Dev cold (ms) | Release cold (ms) | Stripped all-text-ops binary (bytes) |
+| --- | ---: | ---: | ---: | ---: |
+| Earlier caseless/unicode-* | 6 | 574 | 902 | 561,624 |
+| Initial ICU4X 2.4.0 | 42 | 3,741 | 4,319 | 588,432 |
+| ICU4X with locale-core substitution | 40 | 3,743 | 4,174 | Not measured |
+
+Generated programs currently depend on both string and collection support unconditionally. The roughly three-second additional cold compilation cost is an accepted cost of the coherent Unicode profile, not a demonstrated application runtime cost. Normalization and segmentation improved in the review, while casing needed the fast-path repairs above. `icu_locale_core::langid!` replaces `icu_locale` because only identifier construction is needed; removing locale data reduces dependency surface, not a claimed cold-build speedup. Workspace timing changes also include toolchain and cache-identity changes and cannot be attributed to ICU alone.
+
+Non-ASCII casing still uses ICU and retains its performance trade-off against the former std implementation; these fast paths do not claim general mixed-script parity. Further optimization must preserve the pinned root-locale mappings and context rules, and should be driven by representative non-ASCII workloads.
+
 ## Cargo and lint policy
 
 The workspace now explicitly denies Cargo's `unused_dependencies` lint through `[workspace.lints.cargo]`, alongside the existing Rust unsafe-code and Clippy all/pedantic policies. Cargo diagnostics are not rustc diagnostics: `RUSTFLAGS=-Dwarnings` alone is not a substitute for manifest lint policy. Check actual target/feature usage before removing a dependency. Partial target selections can withhold unused-dependency warnings, and this feature does not establish that dev-dependencies are minimal.
@@ -53,6 +84,8 @@ Rustdoc encodes the never primitive as `never`. Native Rust type rendering now m
 `Infallible` becoming an alias and never fallback changing on older editions remain native compatibility concerns. The workspace and generated crates already use edition 2024; that does not remove the need to compile older-edition dependencies, native aliases, callbacks and associated error contracts.
 
 Native import demand now identifies a declaration family independently of its applied type arguments. Retained wrapper signatures can require a generic constructor even when a nested source call creates no named binding; value compatibility and generic argument checks remain strict.
+
+The cached-result witness's `DefaultOnly<Infallible>` local annotation now spells the imported `DefaultOnly`, whose native generic default is exactly `Infallible`; its generated constructor wrapper still returns `DefaultOnly<core::convert::Infallible>`. The nested `make_lane::<_, _>` leaves the state binder to Rust's call context: `Builder<()>::attach` requires `Lane<(), Infallible>`, so it selects the same `S = ()` as the earlier explicit turbofish. This does not introduce runtime dispatch, allocation or a different specialization. The contextual form is intentionally retained rather than pinning incidental Rust spelling. A non-default `Builder<bool>` control exercises the same nested call without relying on the unit default. A detached call without an explicit result destination remains subject to `T0117`; that is a separate source-inference boundary, not evidence that Rust cannot infer the nested argument.
 
 ### DropGuard as a failure-path backup
 
@@ -91,6 +124,17 @@ Focused verification:
 - Earlier isolated 1.100 native probes, before the approved cache reset, compiled with `-Dwarnings`: allocator-aware Vec/Box sum 10; `Result<u32, !>` through an `Infallible` signature returns 42; guard dismissal/drop/unwind/pending-future scenarios produce exactly three cleanup calls. Cargo final custom-profile binary and Linux dynamic-library paths, JSON artifact filenames, new build-script OUT_DIR layout and final Rustdoc JSON placement were also exercised. These are narrow API/layout evidence, not a replacement for Terrane integration tests.
 
 Full-workspace validation completed successfully with `python docs/measure-test-times.py -- --workspace` from clean source commit `17722fc5`, without competing Cargo jobs: **2,925 passed, 0 failed, 0 ignored**, with Cargo wall time **1,301.17 seconds**. The authoritative tested commit, per-test results and timings are recorded in `docs/test-scoreboard.yaml` and its published HTML scoreboard. The run also refreshed the opaque-result support witness with its now-required generic declaration-family import. Focused checks above are not a substitute for this measurement.
+
+The initial upgrade commit `f3de3026` has a recorded failing run; `17722fc5` repairs it. History is retained rather than rewritten, so bisecting this cutover can still encounter that intermediate failure. The original scoreboard-refresh commit has no verification body; the focused evidence above remains the durable record rather than retroactively amending its message. The full-workspace result above applies to its named source commit, not to subsequent review repairs.
+
+### Review-repair verification
+
+- String/collection support: **30 passed**; string unit tests were repeated successfully after final test cleanup.
+- Compiler manifest contracts: **3 passed**; interop unit tests: **86 passed**. The renamed shared-owner boundary test also passed independently.
+- The generated-manifest CLI contract passed with locale-core and the coordinated provider pin.
+- Focused conformance passed for `text-families`, `projected-native-cached-result-template` and `projected-callable-blanket-recipe`. The cached-result program prints `7`, `11`, `7`; inspected Rust retains `DefaultOnly`'s exact native default and infers the nested `make_lane` state for both unit and boolean builders. Existing callback adaptation remains unchanged, with no added clone or allocation in those native calls.
+- `cargo fmt --all --check`, all-targets warning-denied workspace Clippy, and manual catalog generation/check passed.
+- The release performance probe reported the figures above and was deleted afterwards. No new full-workspace measurement was collected for these review repairs; the earlier scoreboard is historical evidence for its recorded source commit.
 
 ## Sources
 

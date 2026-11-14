@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Builder, DefaultOnly, make_lane as make-lane
+from /deps/witness import Builder, DefaultOnly, make_lane as make-lane, bool_builder as bool-builder
 
 function callback int;
     return 7
@@ -11,3 +11,6 @@ function main;
     print; (attached.value;)
     concrete DefaultOnly = DefaultOnly::new;
     print; (concrete.value;)
+    selected Builder of bool = bool-builder;
+    selected = selected.attach; (make-lane; callback)
+    print; (selected.value;)

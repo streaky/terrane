@@ -3172,10 +3172,11 @@ Exit criterion: byte indexing and slicing have accepted, boundary, and rejected 
 Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
 `byte-index-and-slice` and `byte-index-type` cover scalar byte results, stepped and inclusive
 `bytes` slices, valid empty boundaries, positive and authored-negative runtime bounds failures, and
-source type diagnostics. Compiler and generated support manifests pin the single Unicode 16.0.0
+source type diagnostics. Compiler and generated support manifests pin the single Unicode 18.0.0
 profile independently of the selected Rust installation. Compiler tests mechanically compare that
-profile with the public string- and collection-support versions, while each support crate asserts
-the Unicode version embedded by its table providers.
+profile with the public string- and collection-support versions and verify their exact ICU4X
+provider dependencies against the coordinated compiler pin. ICU4X exposes no compiled-data
+Unicode version constant; changing its pin requires re-deriving the Unicode data version.
 
 ### Milestone 12 — String transformation and search families
 

@@ -509,7 +509,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 6] = [
+    pub static SITES: [Site; 10] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:9:25-9:38) */
         { Site { function: 0, file: 0, line: 9, column: 25, end_line: 9, end_column: 38 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:10:35-10:54) */
@@ -522,6 +522,14 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 12, column: 28, end_line: 12, end_column: 45 } },
         /* terrane-site-row: site 5: /app::main (src/main.trn:13:13-13:28) */
         { Site { function: 0, file: 0, line: 13, column: 13, end_line: 13, end_column: 28 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:14:32-14:45) */
+        { Site { function: 0, file: 0, line: 14, column: 32, end_line: 14, end_column: 45 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:15:34-15:53) */
+        { Site { function: 0, file: 0, line: 15, column: 34, end_line: 15, end_column: 53 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:15:16-15:54) */
+        { Site { function: 0, file: 0, line: 15, column: 16, end_line: 15, end_column: 54 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:16:13-16:28) */
+        { Site { function: 0, file: 0, line: 16, column: 13, end_line: 16, end_column: 28 } },
     ];
     #[cold]
     #[inline(never)]
@@ -569,6 +577,25 @@ pub use witness::Builder;
 pub use witness::DefaultOnly;
 pub use core::convert::Infallible;
 pub use witness::Lane;
+pub fn terrane_static_trn_4275696c646572_new<S>() -> Result<
+    witness::Builder<S>,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| witness::Builder::<S>::new()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "witness",
+                    "witness::Builder<S>",
+                ),
+            )
+        }
+    }
+}
 pub fn terrane_static_trn_44656661756c744f6e6c79_new() -> Result<
     witness::DefaultOnly<core::convert::Infallible>,
     crate::TerraneForeignError,
@@ -588,12 +615,9 @@ pub fn terrane_static_trn_44656661756c744f6e6c79_new() -> Result<
         }
     }
 }
-pub fn terrane_static_trn_4275696c646572_new<S>() -> Result<
-    witness::Builder<S>,
-    crate::TerraneForeignError,
-> {
+pub fn bool_builder() -> Result<witness::Builder<bool>, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| witness::Builder::<S>::new()),
+        std::panic::AssertUnwindSafe(|| witness::bool_builder()),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
@@ -601,7 +625,7 @@ pub fn terrane_static_trn_4275696c646572_new<S>() -> Result<
                 crate::__terrane_dependency_panic(
                     payload,
                     "witness",
-                    "witness::Builder<S>",
+                    "witness::bool_builder",
                 ),
             )
         }

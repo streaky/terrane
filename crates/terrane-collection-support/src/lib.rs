@@ -1626,11 +1626,6 @@ mod tests {
         let _shared = list.clone();
         list.push_unique(String::from("second"));
     }
-}
-#[cfg(test)]
-mod unicode18_tests {
-    use super::{IterationStep, UNICODE_DATA_VERSION, string_iterator};
-
     #[test]
     fn string_iteration_uses_unicode18_extended_graphemes() {
         assert_eq!(UNICODE_DATA_VERSION, (18, 0, 0));
