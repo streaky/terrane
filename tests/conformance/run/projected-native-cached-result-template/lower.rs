@@ -145,7 +145,7 @@ fn main() {
                                 Ok(
                                     witness::make_lane::<
                                         _,
-                                        (),
+                                        bool,
                                     >({
                                         let callback = __terrane_conversion_input_0;
                                         move || {
