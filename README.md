@@ -24,11 +24,11 @@ These capabilities have executable coverage in [`tests/conformance/`](tests/conf
 
 ## Quick start
 
-Install Rust and Cargo through rustup, plus a native linker for your host. The checkout selects its Rust release through [`rust-toolchain.toml`](rust-toolchain.toml). From the repository root:
+Install Rust and Cargo through rustup, plus a native linker for your host. The checkout selects its Rust release through [`rust-toolchain.toml`](rust-toolchain.toml). Documentation assumes `terrane` is installed and available on your shell's `PATH`. To install it from the repository root:
 
 ```sh
-cargo build -p terrane-cli -p terrane-language-server
-./target/debug/terrane --version
+cargo install --path crates/terrane-cli
+terrane --version
 ```
 
 The [Rust 1.100 upgrade and migration notes](docs/rust-1.100-upgrade.md) describe the current toolchain and Unicode 18 text profile. The historical [Rust 1.99 notes](docs/rust-1.99-upgrade.md) cover the earlier projected-dependency and error-handling changes.
@@ -49,15 +49,13 @@ function main;
 Check it, run it, build a native executable, or inspect the generated Rust:
 
 ```sh
-./target/debug/terrane check hello.trn
-./target/debug/terrane run hello.trn
-./target/debug/terrane build hello.trn
-./target/debug/terrane rust -o hello.rs hello.trn
+terrane check hello.trn
+terrane run hello.trn
+terrane build hello.trn
+terrane rust -o hello.rs hello.trn
 ```
 
 The run prints `Hello from Terrane!`. `build` prints the executable path; `rust -o` writes program-owned lowering and a support sidecar. Use `--release` with `build` or `run` for an optimized program. Building the compiler itself with Cargo's `--release` is a separate choice.
-
-To install the CLI on your Cargo executable path, use `cargo install --path crates/terrane-cli`. In the commands below, `terrane` means that installed executable, or `./target/debug/terrane` when working from this checkout.
 
 ### Start a package
 
