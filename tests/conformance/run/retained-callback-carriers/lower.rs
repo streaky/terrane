@@ -107,7 +107,7 @@ fn add_tracked(
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "terrane_retained_callback_api",
+                                                "terrane-retained-callback-api",
                                                 "terrane_retained_callback_api::Signal::inspect",
                                             ),
                                         );
@@ -165,7 +165,7 @@ fn add_tracked(
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_retained_callback_registry",
+                                    "terrane-retained-callback-registry",
                                     "terrane_retained_callback_registry::Registry::register",
                                 ),
                             );
@@ -215,7 +215,7 @@ fn forget_token(listeners: &Registry) {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_retained_callback_registry",
+                                    "terrane-retained-callback-registry",
                                     "terrane_retained_callback_registry::Registry::register",
                                 ),
                             );
@@ -344,7 +344,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_retained_callback_registry",
+                                    "terrane-retained-callback-registry",
                                     "terrane_retained_callback_registry::Registry::register",
                                 ),
                             );
@@ -405,7 +405,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_retained_callback_registry",
+                                    "terrane-retained-callback-registry",
                                     "terrane_retained_callback_registry::Registry::register",
                                 ),
                             );
@@ -423,7 +423,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&listeners).remove(&unrelated)) })) { Ok(result) =>
         result ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_retained_callback_registry",
+        "terrane-retained-callback-registry",
         "terrane_retained_callback_registry::Registry::remove")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 10 /* terrane-site: src/main.trn:39:13-39:40 */))
     );
@@ -465,7 +465,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_retained_callback_registry",
+                                "terrane-retained-callback-registry",
                                 "terrane_retained_callback_registry::Registry::emit",
                             ),
                         );
@@ -491,7 +491,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&listeners).remove(&copied_token)) })) { Ok(result)
         => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_retained_callback_registry",
+        ::__terrane_dependency_panic(payload, "terrane-retained-callback-registry",
         "terrane_retained_callback_registry::Registry::remove")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 14 /* terrane-site: src/main.trn:43:13-43:43 */))
     );
@@ -501,7 +501,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&listeners).remove(&token)) })) { Ok(result) =>
         result ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_retained_callback_registry",
+        "terrane-retained-callback-registry",
         "terrane_retained_callback_registry::Registry::remove")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 15 /* terrane-site: src/main.trn:44:13-44:36 */))
     );
@@ -548,7 +548,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_retained_callback_registry",
+                                "terrane-retained-callback-registry",
                                 "terrane_retained_callback_registry::Registry::emit",
                             ),
                         );
@@ -582,7 +582,7 @@ fn main() {
         error | crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
         ::TERRANE_NO_SITE))) ? }) } (), 20 /* terrane-site: src/main.trn:51:67-51:92 */) })) })) { Ok(result) => result ?, Err(payload) =>
         return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_retained_callback_registry",
+        "terrane-retained-callback-registry",
         "terrane_retained_callback_registry::Registry::snapshot_then_remove_and_deliver"))
         }; Ok:: < _, crate ::TerraneForeignError > (value) } } (), 21 /* terrane-site: src/main.trn:51:13-51:93 */))
     );
@@ -608,7 +608,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&listeners).count()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_retained_callback_registry",
+        "terrane-retained-callback-registry",
         "terrane_retained_callback_registry::Registry::count")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 24 /* terrane-site: src/main.trn:57:13-57:29 */))
@@ -651,7 +651,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_retained_callback_registry",
+                                "terrane-retained-callback-registry",
                                 "terrane_retained_callback_registry::Registry::emit",
                             ),
                         );
@@ -676,7 +676,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_retained_callback_registry",
+                                "terrane-retained-callback-registry",
                                 "terrane_retained_callback_registry::Registry::weak_owner",
                             ),
                         );
@@ -710,7 +710,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_retained_callback_registry",
+                                        "terrane-retained-callback-registry",
                                         "terrane_retained_callback_registry::WeakRegistry::clear",
                                     ),
                                 );
@@ -775,7 +775,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_retained_callback_registry",
+                                    "terrane-retained-callback-registry",
                                     "terrane_retained_callback_registry::Registry::register",
                                 ),
                             );
@@ -825,7 +825,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_retained_callback_registry",
+                                "terrane-retained-callback-registry",
                                 "terrane_retained_callback_registry::Registry::emit",
                             ),
                         );
@@ -842,7 +842,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&listeners).count()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_retained_callback_registry",
+        "terrane-retained-callback-registry",
         "terrane_retained_callback_registry::Registry::count")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 32 /* terrane-site: src/main.trn:65:13-65:29 */))
@@ -881,7 +881,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_retained_callback_registry",
+                                "terrane-retained-callback-registry",
                                 "terrane_retained_callback_registry::Registry::destroy",
                             ),
                         );
@@ -971,7 +971,7 @@ fn main() {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "terrane_retained_callback_api",
+                                            "terrane-retained-callback-api",
                                             "terrane_retained_callback_api::SendOnly::bump",
                                         ),
                                     );
@@ -1211,7 +1211,7 @@ fn main() {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "terrane_retained_callback_api",
+                                            "terrane-retained-callback-api",
                                             "terrane_retained_callback_api::Event::clone",
                                         ),
                                     );

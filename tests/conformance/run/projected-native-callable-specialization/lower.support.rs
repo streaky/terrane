@@ -993,7 +993,11 @@ pub fn terrane_static_trn_466163746f7279_new() -> Result<
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::Factory"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-callable-witness",
+                    "witness::Factory",
+                ),
             )
         }
     }
@@ -1002,7 +1006,13 @@ pub fn byte() -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::byte())) {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::byte"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-callable-witness",
+                    "witness::byte",
+                ),
+            )
         }
     }
 }
@@ -1010,7 +1020,13 @@ pub fn cycle() -> Result<Left, crate::TerraneForeignError> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::cycle())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::cycle"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-callable-witness",
+                    "witness::cycle",
+                ),
+            )
         }
     }
 }
@@ -1023,7 +1039,13 @@ pub fn make<T: core::default::Default + core::marker::Copy>() -> Result<
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::make"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-callable-witness",
+                    "witness::make",
+                ),
+            )
         }
     }
 }
@@ -1037,7 +1059,7 @@ pub async fn make_async<T: core::default::Default + core::marker::Copy>() -> Res
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-callable-witness",
                     "witness::make_async",
                 ),
             )
@@ -1057,7 +1079,7 @@ pub unsafe fn make_unsafe<T: core::default::Default + core::marker::Copy>() -> R
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-callable-witness",
                     "witness::make_unsafe",
                 ),
             )

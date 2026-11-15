@@ -23,7 +23,7 @@ fn copy(source: &witness::CloneBox<u8>) -> witness::CloneBox<u8> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-generic-clone-witness",
                                 "witness::CloneBox::clone",
                             ),
                         );
@@ -59,7 +59,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "witness",
+                                        "terrane-generic-clone-witness",
                                         "witness::make",
                                     ),
                                 );
@@ -85,9 +85,10 @@ fn main() {
                             Result < _, crate ::TerraneForeignError > {
                             Ok(witness::make(__terrane_conversion_input_0)) })) {
                             Ok(result) => result ?, Err(payload) => return Err(crate
-                            ::__terrane_dependency_panic(payload, "witness",
-                            "witness::make")) }; Ok:: < _, crate ::TerraneForeignError >
-                            (value) } } (), 2 /* terrane-site: src/main.trn:15:35-15:57 */
+                            ::__terrane_dependency_panic(payload,
+                            "terrane-generic-clone-witness", "witness::make")) }; Ok:: <
+                            _, crate ::TerraneForeignError > (value) } } (),
+                            2 /* terrane-site: src/main.trn:15:35-15:57 */
                         )
                     });
                 println!(
@@ -98,15 +99,15 @@ fn main() {
                     move { match crate
                     ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
                     . await .map_err(| payload | crate
-                    ::__terrane_dependency_panic(payload, "witness",
-                    "witness::CloneBox::read")) ? { Ok(value) => Ok(value), Err(error) =>
-                    Err(crate ::TerraneForeignError(crate
-                    ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+                    ::__terrane_dependency_panic(payload,
+                    "terrane-generic-clone-witness", "witness::CloneBox::read")) ? {
+                    Ok(value) => Ok(value), Err(error) => Err(crate
+                    ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
+                    ::TERRANE_DEPENDENCY_ERROR,
                     format!("Rust dependency `{}` member `{}` failed: {error}",
-                    "witness", "witness::CloneBox::read"), crate ::TERRANE_NO_SITE))) }
-                    }) }; async move { __terrane_raised_err(__terrane_future. await,
-                    3 /* terrane-site: src/main.trn:16:22-16:48 */) } }). await,
-                    3 /* terrane-site: src/main.trn:16:22-16:48 */))
+                    "terrane-generic-clone-witness", "witness::CloneBox::read"), crate
+                    ::TERRANE_NO_SITE))) } }) }; async move {
+                    __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:16:22-16:48 */) } }). await, 3 /* terrane-site: src/main.trn:16:22-16:48 */))
                 );
                 TerraneCompletion::Normal
             }
@@ -150,13 +151,14 @@ fn main() {
                         Result < _, crate ::TerraneForeignError > { Ok((&original)
                         .reject(__terrane_conversion_input_0)) })) { Ok(result) => result
                         ?, Err(payload) => return Err(crate
-                        ::__terrane_dependency_panic(payload, "witness",
-                        "witness::CloneBox::reject")) } { Ok(value) => Ok(value),
-                        Err(error) => Err(crate ::TerraneForeignError(crate
-                        ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+                        ::__terrane_dependency_panic(payload,
+                        "terrane-generic-clone-witness", "witness::CloneBox::reject")) }
+                        { Ok(value) => Ok(value), Err(error) => Err(crate
+                        ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
+                        ::TERRANE_DEPENDENCY_ERROR,
                         format!("Rust dependency `{}` member `{}` failed: {error}",
-                        "witness", "witness::CloneBox::reject"), crate
-                        ::TERRANE_NO_SITE))) } } (), 4 /* terrane-site: src/main.trn:20:9-20:40 */
+                        "terrane-generic-clone-witness", "witness::CloneBox::reject"),
+                        crate ::TERRANE_NO_SITE))) } } (), 4 /* terrane-site: src/main.trn:20:9-20:40 */
                     )
                 };
                 TerraneCompletion::Normal
