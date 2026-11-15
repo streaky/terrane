@@ -19,7 +19,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-native-direct-specialization-witness",
                                     "witness::make",
                                 ),
                             );
@@ -38,8 +38,8 @@ fn main() {
             crate ::TerraneForeignError > {
             Ok(witness::consume(__terrane_conversion_input_0)) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "witness", "witness::consume")) }; Ok:: < _, crate ::TerraneForeignError >
-            (value) } } (), 1 /* terrane-site: src/main.trn:7:13-7:32 */) })
+            "terrane-native-direct-specialization-witness", "witness::consume")) }; Ok::
+            < _, crate ::TerraneForeignError > (value) } } (), 1 /* terrane-site: src/main.trn:7:13-7:32 */) })
         );
     });
 }

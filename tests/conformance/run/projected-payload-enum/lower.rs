@@ -61,7 +61,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_payload_enum_witness",
+                                    "terrane-payload-enum-witness",
                                     "terrane_payload_enum_witness::Event::Text",
                                 ),
                             );
@@ -86,7 +86,7 @@ fn main() {
         terrane_payload_enum_witness::Event::Named { .. } => "Named".to_owned(),
         terrane_payload_enum_witness::Event::Optional { .. } => "Optional".to_owned() })
         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
+        ::__terrane_dependency_panic(payload, "terrane-payload-enum-witness",
         "terrane_payload_enum_witness::Event::variant-name")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 1 /* terrane-site: src/main.trn:7:11-7:29 */))
     );
@@ -118,7 +118,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_payload_enum_witness",
+                                "terrane-payload-enum-witness",
                                 "terrane_payload_enum_witness::Event::into-Text",
                             ),
                         );
@@ -157,7 +157,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_payload_enum_witness",
+                                    "terrane-payload-enum-witness",
                                     "terrane_payload_enum_witness::Event::Binary",
                                 ),
                             );
@@ -181,7 +181,7 @@ fn main() {
         terrane_payload_enum_witness::Event::Named { .. } => "Named".to_owned(),
         terrane_payload_enum_witness::Event::Optional { .. } => "Optional".to_owned() })
         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
+        ::__terrane_dependency_panic(payload, "terrane-payload-enum-witness",
         "terrane_payload_enum_witness::Event::variant-name")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 4 /* terrane-site: src/main.trn:12:11-12:31 */))
     );
@@ -208,7 +208,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_payload_enum_witness",
+                                "terrane-payload-enum-witness",
                                 "terrane_payload_enum_witness::Event::into-Binary",
                             ),
                         );
@@ -240,7 +240,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_payload_enum_witness",
+                                "terrane-payload-enum-witness",
                                 "terrane_payload_enum_witness::Event::Ping",
                             ),
                         );
@@ -263,7 +263,7 @@ fn main() {
         terrane_payload_enum_witness::Event::Named { .. } => "Named".to_owned(),
         terrane_payload_enum_witness::Event::Optional { .. } => "Optional".to_owned() })
         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
+        ::__terrane_dependency_panic(payload, "terrane-payload-enum-witness",
         "terrane_payload_enum_witness::Event::variant-name")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 7 /* terrane-site: src/main.trn:17:11-17:29 */))
     );
@@ -316,7 +316,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_payload_enum_witness",
+                                    "terrane-payload-enum-witness",
                                     "terrane_payload_enum_witness::Event::Pair",
                                 ),
                             );
@@ -359,7 +359,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_payload_enum_witness",
+                                "terrane-payload-enum-witness",
                                 "terrane_payload_enum_witness::Event::into-Pair",
                             ),
                         );
@@ -414,7 +414,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_payload_enum_witness",
+                                    "terrane-payload-enum-witness",
                                     "terrane_payload_enum_witness::Event::Named",
                                 ),
                             );
@@ -455,7 +455,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_payload_enum_witness",
+                                "terrane-payload-enum-witness",
                                 "terrane_payload_enum_witness::Event::into-Named",
                             ),
                         );
@@ -526,7 +526,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_payload_enum_witness",
+                                    "terrane-payload-enum-witness",
                                     "terrane_payload_enum_witness::Event::Optional",
                                 ),
                             );
@@ -569,7 +569,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_payload_enum_witness",
+                                "terrane-payload-enum-witness",
                                 "terrane_payload_enum_witness::Event::into-Optional",
                             ),
                         );
@@ -621,7 +621,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_payload_enum_witness",
+                                    "terrane-payload-enum-witness",
                                     "terrane_payload_enum_witness::OwnedEvent::Payload",
                                 ),
                             );
@@ -657,7 +657,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_payload_enum_witness",
+                                    "terrane-payload-enum-witness",
                                     "terrane_payload_enum_witness::OwnedEvent::into-Payload",
                                 ),
                             );

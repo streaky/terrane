@@ -32,7 +32,7 @@ fn test_scenario_terrane_completion_finally_view_post_read() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::view",
                                     ),
                                 );
@@ -54,7 +54,7 @@ fn test_scenario_terrane_completion_finally_view_post_read() {
                 crate ::TerraneForeignError > { Ok(v.take()
                 .expect("flow-proven availability").into_size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 3 /* terrane-site: tests/integration/completion-finally-view-post-read/case.trn:10:17-10:29 */))
@@ -83,7 +83,7 @@ fn test_scenario_terrane_completion_finally_view_post_read() {
                     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
                     Result < _, crate ::TerraneForeignError > { Ok((&k).view()) })) {
                     Ok(result) => result ?, Err(payload) => return Err(crate
-                    ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                    ::__terrane_dependency_panic(payload, "terrane-query-witness",
                     "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                     ::TerraneForeignError > (value) } } (), 4 /* terrane-site: tests/integration/completion-finally-view-post-read/case.trn:12:13-12:20 */
                 ),
@@ -109,7 +109,7 @@ fn test_scenario_terrane_completion_finally_view_post_read() {
         ::TerraneForeignError > { Ok((&v.as_ref()
         .expect("flow-proven available binding")).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 5 /* terrane-site: tests/integration/completion-finally-view-post-read/case.trn:13:13-13:20 */))
     );
@@ -135,7 +135,7 @@ fn test_scenario_terrane_completion_native_catch_post_read() {
                 crate ::TerraneForeignError > { Ok(c.as_ref()
                 .expect("flow-proven available binding").clone().into_value()) })) {
                 Ok(result) => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Cl::into_value")) }; Ok:: < _, crate
                 ::TerraneForeignError >
                 (terrane_int_support::Int::from(i128::from(value))) } } (),
@@ -182,7 +182,7 @@ fn test_scenario_terrane_completion_native_catch_post_read() {
         ::TerraneForeignError > { Ok((&c.as_ref()
         .expect("flow-proven available binding")).value()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Cl::value")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::Cl::value")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
         (), 9 /* terrane-site: tests/integration/completion-native-catch-post-read/case.trn:12:13-12:21 */))
     );
@@ -208,7 +208,7 @@ fn test_scenario_terrane_completion_native_post_read() {
                 crate ::TerraneForeignError > { Ok(c.as_ref()
                 .expect("flow-proven available binding").clone().into_value()) })) {
                 Ok(result) => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Cl::into_value")) }; Ok:: < _, crate
                 ::TerraneForeignError >
                 (terrane_int_support::Int::from(i128::from(value))) } } (),
@@ -259,7 +259,7 @@ fn test_scenario_terrane_completion_native_post_read() {
         ::TerraneForeignError > { Ok((&c.as_ref()
         .expect("flow-proven available binding")).value()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Cl::value")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::Cl::value")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
         (), 13 /* terrane-site: tests/integration/completion-native-post-read/case.trn:12:13-12:21 */))
     );
@@ -296,7 +296,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 15 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:7:20-7:37 */); value
             }
@@ -313,7 +313,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 17 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:9:13-9:27 */) })
@@ -328,7 +328,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 18 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:10:28-10:45 */);
             value }])
@@ -348,7 +348,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 21 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:12:13-12:37 */) })
@@ -371,7 +371,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -389,7 +389,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&holder).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 23 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:14:13-14:30 */))
     );
@@ -407,7 +407,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -437,7 +437,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CopyView::size",
                             ),
                         );
@@ -458,7 +458,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(copy.size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 26 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:18:13-18:23 */))
     );
@@ -472,7 +472,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 28 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:19:13-19:28 */) })
@@ -499,7 +499,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(item.size()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 29 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:23:17-23:27 */))
         );
@@ -522,7 +522,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -540,7 +540,7 @@ fn test_scenario_terrane_native_copy_view_list_lender() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&holder).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 31 /* terrane-site: tests/integration/native-copy-view-list-lender/case.trn:25:13-25:30 */))
     );
@@ -563,7 +563,7 @@ fn fresh<'a>(lender: &'a Holder) -> terrane_query_witness::CopyView<'a> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -605,7 +605,7 @@ fn test_scenario_terrane_native_copy_view_reassignment_snapshot() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -634,7 +634,7 @@ fn test_scenario_terrane_native_copy_view_reassignment_snapshot() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -665,7 +665,7 @@ fn test_scenario_terrane_native_copy_view_reassignment_snapshot() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -687,7 +687,7 @@ fn test_scenario_terrane_native_copy_view_reassignment_snapshot() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 39 /* terrane-site: tests/integration/native-copy-view-reassignment-snapshot/case.trn:16:13-16:28 */)
@@ -700,7 +700,7 @@ fn test_scenario_terrane_native_copy_view_reassignment_snapshot() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(c.size()) })) { Ok(result) => result ?, Err(payload)
         => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 40 /* terrane-site: tests/integration/native-copy-view-reassignment-snapshot/case.trn:18:13-18:20 */))
     );
@@ -722,7 +722,7 @@ fn test_scenario_terrane_native_copy_view_reassignment_snapshot() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -744,7 +744,7 @@ fn test_scenario_terrane_native_copy_view_reassignment_snapshot() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 43 /* terrane-site: tests/integration/native-copy-view-reassignment-snapshot/case.trn:20:13-20:28 */)
@@ -788,7 +788,7 @@ impl TerraneNsNativeFieldCopyCloneConversionRIdentity2F6E61746976652D6669656C642
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::CloneEnum::A",
                                     ),
                                 );
@@ -838,7 +838,7 @@ fn observe_terrane_native_field_copy_clone_conversion(
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "terrane_query_witness",
+                                            "terrane-query-witness",
                                             "terrane_query_witness::Token::value",
                                         ),
                                     );
@@ -879,7 +879,7 @@ fn clone_observe(r: &mut CloneEnum) -> Result<u64, TerraneError> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "terrane_query_witness",
+                                            "terrane-query-witness",
                                             "terrane_query_witness::CloneEnum::code",
                                         ),
                                     );
@@ -917,7 +917,7 @@ fn test_scenario_terrane_native_field_copy_clone_conversion() -> Result<
             crate ::TerraneForeignError > { Ok(r.t.as_ref()
             .expect("required field initialized").clone().value()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Token::value")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 48 /* terrane-site: tests/integration/native-field-copy-clone-conversion/case.trn:17:17-17:27 */)
@@ -930,7 +930,7 @@ fn test_scenario_terrane_native_field_copy_clone_conversion() -> Result<
             crate ::TerraneForeignError > { Ok(r.t.as_ref()
             .expect("required field initialized").clone().value()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Token::value")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 49 /* terrane-site: tests/integration/native-field-copy-clone-conversion/case.trn:18:17-18:29 */)
@@ -943,7 +943,7 @@ fn test_scenario_terrane_native_field_copy_clone_conversion() -> Result<
             crate ::TerraneForeignError > { Ok(r.e.as_ref()
             .expect("required field initialized").clone().code()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::CloneEnum::code")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 50 /* terrane-site: tests/integration/native-field-copy-clone-conversion/case.trn:19:17-19:26 */)
@@ -970,7 +970,7 @@ fn test_scenario_terrane_native_field_copy_clone_conversion() -> Result<
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CloneEnum::A",
                             ),
                         );
@@ -1020,7 +1020,7 @@ fn test_scenario_terrane_native_finally_only_rewrite() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::view",
                                     ),
                                 );
@@ -1042,7 +1042,7 @@ fn test_scenario_terrane_native_finally_only_rewrite() {
                 crate ::TerraneForeignError > { Ok(v.take()
                 .expect("flow-proven availability").into_size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 57 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:7:17-7:29 */))
@@ -1071,7 +1071,7 @@ fn test_scenario_terrane_native_finally_only_rewrite() {
                     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
                     Result < _, crate ::TerraneForeignError > { Ok((&h).view()) })) {
                     Ok(result) => result ?, Err(payload) => return Err(crate
-                    ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                    ::__terrane_dependency_panic(payload, "terrane-query-witness",
                     "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                     ::TerraneForeignError > (value) } } (), 58 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:9:13-9:20 */
                 ),
@@ -1083,7 +1083,7 @@ fn test_scenario_terrane_native_finally_only_rewrite() {
             crate ::TerraneForeignError > { Ok((&v.as_ref()
             .expect("flow-proven available binding")).size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
             u128)) } } (), 59 /* terrane-site: tests/integration/native-finally-only-rewrite/case.trn:10:17-10:24 */))
         );
@@ -1119,7 +1119,7 @@ fn mutable_size(value: &mut CopyView) -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CopyView::size",
                             ),
                         );
@@ -1150,7 +1150,7 @@ fn readonly_size(value: &CopyView) -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CopyView::size",
                             ),
                         );
@@ -1190,7 +1190,7 @@ fn test_scenario_terrane_native_inferred_copy_view() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -1215,7 +1215,7 @@ fn test_scenario_terrane_native_inferred_copy_view() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 64 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:15:23-15:40 */); value }
         ],
@@ -1230,7 +1230,7 @@ fn test_scenario_terrane_native_inferred_copy_view() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 66 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:16:13-16:30 */) })
@@ -1245,7 +1245,7 @@ fn test_scenario_terrane_native_inferred_copy_view() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 68 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:17:13-17:30 */) })
@@ -1259,7 +1259,7 @@ fn test_scenario_terrane_native_inferred_copy_view() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 69 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:18:37-18:54 */); value }
         ],
@@ -1274,7 +1274,7 @@ fn test_scenario_terrane_native_inferred_copy_view() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 71 /* terrane-site: tests/integration/native-inferred-copy-view/case.trn:19:13-19:27 */) })
@@ -1307,7 +1307,7 @@ fn test_scenario_terrane_native_loan_append_transfer() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1328,7 +1328,7 @@ fn test_scenario_terrane_native_loan_append_transfer() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
             crate ::TerraneForeignError > (value) } } (), 74 /* terrane-site: tests/integration/native-loan-append-transfer/case.trn:8:21-8:28 */); value }
         ],
     );
@@ -1349,7 +1349,7 @@ fn test_scenario_terrane_native_loan_append_transfer() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) { Ok(result) =>
         result ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 76 /* terrane-site: tests/integration/native-loan-append-transfer/case.trn:10:13-10:28 */) })
     );
@@ -1367,7 +1367,7 @@ fn test_scenario_terrane_native_loan_append_transfer() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1399,7 +1399,7 @@ fn test_scenario_terrane_native_loan_append_transfer() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) { Ok(result) =>
         result ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 79 /* terrane-site: tests/integration/native-loan-append-transfer/case.trn:14:13-14:30 */) })
     );
@@ -1456,7 +1456,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1482,7 +1482,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::View::chain",
                             ),
                         );
@@ -1508,7 +1508,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1526,7 +1526,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&a).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 85 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:16:13-16:20 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _, crate
@@ -1534,7 +1534,7 @@ fn test_scenario_terrane_native_loan_chain_rebind_receiver() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 86 /* terrane-site: tests/integration/native-loan-chain-rebind-receiver/case.trn:16:24-16:31 */))
     );
@@ -1597,7 +1597,7 @@ fn test_scenario_terrane_native_loan_exclusive_branch() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1626,7 +1626,7 @@ fn test_scenario_terrane_native_loan_exclusive_branch() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
             u128)) } } (), 91 /* terrane-site: tests/integration/native-loan-exclusive-branch/case.trn:17:17-17:24 */))
         );
@@ -1679,7 +1679,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -1721,7 +1721,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result
                 ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-                "terrane_query_witness", "terrane_query_witness::CopyView::size")) };
+                "terrane-query-witness", "terrane_query_witness::CopyView::size")) };
                 Ok:: < _, crate ::TerraneForeignError >
                 (terrane_int_support::Int::from_u128(value as u128)) } } (),
                 94 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:18:21-18:28 */))
@@ -1731,7 +1731,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&h).copy_view()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
                 ::TerraneForeignError > (value) } } (), 95 /* terrane-site: tests/integration/native-loan-finally-copy-rebind/case.trn:19:17-19:29 */
             );
@@ -1787,7 +1787,7 @@ fn test_scenario_terrane_native_loan_fluent_nested_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1808,7 +1808,7 @@ fn test_scenario_terrane_native_loan_fluent_nested_rebind() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(v.chain()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::chain")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::chain")) }; Ok:: < _,
             crate ::TerraneForeignError > (value) } } (), 99 /* terrane-site: tests/integration/native-loan-fluent-nested-rebind/case.trn:9:21-9:29 */);
             value }
         ],
@@ -1827,7 +1827,7 @@ fn test_scenario_terrane_native_loan_fluent_nested_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1861,7 +1861,7 @@ fn test_scenario_terrane_native_loan_fluent_nested_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -1891,7 +1891,7 @@ fn test_scenario_terrane_native_loan_fluent_nested_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -1917,7 +1917,7 @@ fn test_scenario_terrane_native_loan_fluent_nested_rebind() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 103 /* terrane-site: tests/integration/native-loan-fluent-nested-rebind/case.trn:16:13-16:20 */))
     );
@@ -1961,7 +1961,7 @@ fn test_scenario_terrane_native_loan_helper_view_origin() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -1980,7 +1980,7 @@ fn test_scenario_terrane_native_loan_helper_view_origin() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(view.size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 106 /* terrane-site: tests/integration/native-loan-helper-view-origin/case.trn:17:13-17:23 */))
     );
@@ -2000,7 +2000,7 @@ fn test_scenario_terrane_native_loan_helper_view_origin() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::copy_view",
                                     ),
                                 );
@@ -2024,7 +2024,7 @@ fn test_scenario_terrane_native_loan_helper_view_origin() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 109 /* terrane-site: tests/integration/native-loan-helper-view-origin/case.trn:19:13-19:28 */) })
@@ -2047,7 +2047,7 @@ fn test_scenario_terrane_native_loan_helper_view_origin() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -2079,7 +2079,7 @@ fn test_scenario_terrane_native_loan_last_use_control() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&h).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 112 /* terrane-site: tests/integration/native-loan-last-use-control/case.trn:7:38-7:50 */); value
             }
@@ -2095,7 +2095,7 @@ fn test_scenario_terrane_native_loan_last_use_control() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 114 /* terrane-site: tests/integration/native-loan-last-use-control/case.trn:8:13-8:28 */) })
@@ -2118,7 +2118,7 @@ fn test_scenario_terrane_native_loan_last_use_control() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -2136,7 +2136,7 @@ fn test_scenario_terrane_native_loan_last_use_control() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&h).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 116 /* terrane-site: tests/integration/native-loan-last-use-control/case.trn:10:13-10:25 */))
     );
@@ -2161,7 +2161,7 @@ fn test_scenario_terrane_native_loan_loop_live_lender() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&h).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 118 /* terrane-site: tests/integration/native-loan-loop-live-lender/case.trn:7:38-7:50 */); value
             }
@@ -2182,7 +2182,7 @@ fn test_scenario_terrane_native_loan_loop_live_lender() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 119 /* terrane-site: tests/integration/native-loan-loop-live-lender/case.trn:9:17-9:28 */))
         );
@@ -2205,7 +2205,7 @@ fn test_scenario_terrane_native_loan_loop_live_lender() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -2278,7 +2278,7 @@ fn test_scenario_terrane_native_loan_loop_refreshed() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::view",
                                 ),
                             );
@@ -2296,7 +2296,7 @@ fn test_scenario_terrane_native_loan_loop_refreshed() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
             u128)) } } (), 124 /* terrane-site: tests/integration/native-loan-loop-refreshed/case.trn:15:17-15:24 */))
         );
@@ -2344,7 +2344,7 @@ fn test_scenario_terrane_native_loan_map_set_lender() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -2366,7 +2366,7 @@ fn test_scenario_terrane_native_loan_map_set_lender() {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 129 /* terrane-site: tests/integration/native-loan-map-set-lender/case.trn:9:13-9:33 */) })
@@ -2389,7 +2389,7 @@ fn test_scenario_terrane_native_loan_map_set_lender() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -2448,7 +2448,7 @@ fn test_scenario_terrane_native_loan_owned_observation() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -2474,7 +2474,7 @@ fn test_scenario_terrane_native_loan_owned_observation() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::View::size",
                             ),
                         );
@@ -2501,7 +2501,7 @@ fn test_scenario_terrane_native_loan_owned_observation() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&h).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 135 /* terrane-site: tests/integration/native-loan-owned-observation/case.trn:16:13-16:25 */))
     );
@@ -2563,7 +2563,7 @@ fn test_scenario_terrane_native_loan_predicate_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -2589,7 +2589,7 @@ fn test_scenario_terrane_native_loan_predicate_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::View::size",
                             ),
                         );
@@ -2675,7 +2675,7 @@ fn test_scenario_terrane_native_loan_predicate_switch() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -2704,7 +2704,7 @@ fn test_scenario_terrane_native_loan_predicate_switch() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
             u128)) } } (), 145 /* terrane-site: tests/integration/native-loan-predicate-switch/case.trn:18:21-18:28 */))
         );
@@ -2769,7 +2769,7 @@ fn test_scenario_terrane_native_loan_predicate_three_arms() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -2800,7 +2800,7 @@ fn test_scenario_terrane_native_loan_predicate_three_arms() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
             u128)) } } (), 150 /* terrane-site: tests/integration/native-loan-predicate-three-arms/case.trn:20:21-20:28 */))
         );
@@ -2858,7 +2858,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -2885,7 +2885,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -2911,7 +2911,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::View::chain",
                             ),
                         );
@@ -2941,7 +2941,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -2959,7 +2959,7 @@ fn test_scenario_terrane_native_loan_rebound_alias_chain() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&a).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 157 /* terrane-site: tests/integration/native-loan-rebound-alias-chain/case.trn:17:13-17:20 */))
     );
@@ -3021,7 +3021,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3039,7 +3039,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 161 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:13:13-13:20 */))
     );
@@ -3070,7 +3070,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3088,7 +3088,7 @@ fn test_scenario_terrane_native_loan_rebound_other() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 164 /* terrane-site: tests/integration/native-loan-rebound-other/case.trn:16:13-16:20 */))
     );
@@ -3150,7 +3150,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3168,7 +3168,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 168 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:13:13-13:20 */))
     );
@@ -3199,7 +3199,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3217,7 +3217,7 @@ fn test_scenario_terrane_native_loan_rebound_same() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 171 /* terrane-site: tests/integration/native-loan-rebound-same/case.trn:16:13-16:20 */))
     );
@@ -3280,7 +3280,7 @@ fn test_scenario_terrane_native_loan_return_branch() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3310,7 +3310,7 @@ fn test_scenario_terrane_native_loan_return_branch() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 176 /* terrane-site: tests/integration/native-loan-return-branch/case.trn:17:13-17:20 */))
     );
@@ -3346,7 +3346,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3373,7 +3373,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3391,7 +3391,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 181 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:9:13-9:20 */))
     );
@@ -3401,7 +3401,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&a).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 182 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:10:13-10:20 */))
     );
@@ -3423,7 +3423,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -3441,7 +3441,7 @@ fn test_scenario_terrane_native_loan_storage_alias_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&k).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 184 /* terrane-site: tests/integration/native-loan-storage-alias-last-use/case.trn:12:13-12:25 */))
     );
@@ -3491,7 +3491,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3511,7 +3511,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 187 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:14:17-14:24 */))
@@ -3538,7 +3538,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok({ let _ = h.bump(); }) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::bump")) }; Ok:: < _, crate
             ::TerraneForeignError > (()) } } (), 188 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:16:9-16:16 */
         );
@@ -3562,7 +3562,7 @@ fn test_scenario_terrane_native_loan_try_finally_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&h).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 189 /* terrane-site: tests/integration/native-loan-try-finally-last-use/case.trn:17:13-17:25 */))
     );
@@ -3607,7 +3607,7 @@ fn test_scenario_terrane_native_loan_try_local() {
                         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                         -> Result < _, crate ::TerraneForeignError > { Ok((&h).view())
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-                        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                        ::__terrane_dependency_panic(payload, "terrane-query-witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                         ::TerraneForeignError > (value) } } (), 191 /* terrane-site: tests/integration/native-loan-try-local/case.trn:13:13-13:20 */
                     ),
@@ -3619,7 +3619,7 @@ fn test_scenario_terrane_native_loan_try_local() {
                 crate ::TerraneForeignError > { Ok((&v.as_ref()
                 .expect("flow-proven available binding")).size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 192 /* terrane-site: tests/integration/native-loan-try-local/case.trn:14:17-14:24 */))
@@ -3643,7 +3643,7 @@ fn test_scenario_terrane_native_loan_try_local() {
                         -> Result < _, crate ::TerraneForeignError > { Ok((&h)
                         .label_len()) })) { Ok(result) => result ?, Err(payload) =>
                         return Err(crate ::__terrane_dependency_panic(payload,
-                        "terrane_query_witness",
+                        "terrane-query-witness",
                         "terrane_query_witness::Holder::label_len")) }; Ok:: < _, crate
                         ::TerraneForeignError >
                         (terrane_int_support::Int::from_u128(value as u128)) } } (),
@@ -3671,7 +3671,7 @@ fn test_scenario_terrane_native_loan_try_local() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&h).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 194 /* terrane-site: tests/integration/native-loan-try-local/case.trn:17:13-17:25 */))
     );
@@ -3721,7 +3721,7 @@ fn test_scenario_terrane_native_loan_whole_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3739,7 +3739,7 @@ fn test_scenario_terrane_native_loan_whole_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 197 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:13:13-13:20 */))
     );
@@ -3754,7 +3754,7 @@ fn test_scenario_terrane_native_loan_whole_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&h).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 199 /* terrane-site: tests/integration/native-loan-whole-last-use/case.trn:15:13-15:25 */))
     );
@@ -3805,7 +3805,7 @@ fn test_scenario_terrane_native_loan_whole_move_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3823,7 +3823,7 @@ fn test_scenario_terrane_native_loan_whole_move_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 202 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:13:13-13:20 */))
     );
@@ -3834,7 +3834,7 @@ fn test_scenario_terrane_native_loan_whole_move_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&moved).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 203 /* terrane-site: tests/integration/native-loan-whole-move-last-use/case.trn:15:13-15:29 */))
     );
@@ -3884,7 +3884,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -3902,7 +3902,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 206 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:13:13-13:20 */))
     );
@@ -3924,7 +3924,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -3942,7 +3942,7 @@ fn test_scenario_terrane_native_loan_whole_mutate_last_use() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&h).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 208 /* terrane-site: tests/integration/native-loan-whole-mutate-last-use/case.trn:15:13-15:25 */))
     );
@@ -3992,7 +3992,7 @@ fn test_scenario_terrane_native_loop_consuming_condition_break() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -4018,7 +4018,7 @@ fn test_scenario_terrane_native_loop_consuming_condition_break() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::View::into_size",
                             ),
                         );
@@ -4065,7 +4065,7 @@ fn test_scenario_terrane_native_noncopy_view_loop_append() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -4116,7 +4116,7 @@ fn test_scenario_terrane_native_noncopy_view_loop_append() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::view",
                                 ),
                             );
@@ -4146,7 +4146,7 @@ fn test_scenario_terrane_native_noncopy_view_loop_append() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&* value).size()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::View::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 215 /* terrane-site: tests/integration/native-noncopy-view-loop-append/case.trn:14:17-14:28 */))
@@ -4172,7 +4172,7 @@ fn twice(value: &mut CloneEnum) -> Result<u64, TerraneError> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CloneEnum::code",
                             ),
                         );
@@ -4201,7 +4201,7 @@ fn twice(value: &mut CloneEnum) -> Result<u64, TerraneError> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CloneEnum::code",
                             ),
                         );
@@ -4240,7 +4240,7 @@ fn copied(value: &mut Token) -> Result<u64, TerraneError> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Token::value",
                             ),
                         );
@@ -4275,7 +4275,7 @@ fn copied(value: &mut Token) -> Result<u64, TerraneError> {
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "terrane_query_witness",
+                                                "terrane-query-witness",
                                                 "terrane_query_witness::Token::value",
                                             ),
                                         );
@@ -4313,7 +4313,7 @@ fn test_scenario_terrane_native_ref_clone_repeat() -> Result<(), TerraneError> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CloneEnum::A",
                             ),
                         );
@@ -4335,7 +4335,7 @@ fn test_scenario_terrane_native_ref_clone_repeat() -> Result<(), TerraneError> {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(value.code()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CloneEnum::code")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CloneEnum::code")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 224 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:13:13-13:24 */) ?)
     );
@@ -4354,7 +4354,7 @@ fn test_scenario_terrane_native_ref_clone_repeat() -> Result<(), TerraneError> {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(token.value()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Token::value")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::Token::value")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 227 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:16:13-16:25 */) ?)
     );
@@ -4391,7 +4391,7 @@ impl TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::NE::A",
                                     ),
                                 );
@@ -4434,7 +4434,7 @@ impl TerraneNsNativeRequiredEnumFieldRIdentity2F6E61746976652D72657175697265642D
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "terrane_query_witness",
+                                                "terrane-query-witness",
                                                 "terrane_query_witness::NE::code",
                                             ),
                                         );
@@ -4486,7 +4486,7 @@ fn test_scenario_terrane_native_required_enum_field() -> Result<(), TerraneError
         ::TerraneForeignError > { Ok(value.value.take()
         .expect("required field initialized").code()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::NE::code")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::NE::code")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 230 /* terrane-site: tests/integration/native-required-enum-field/case.trn:16:13-16:30 */) ?)
     );
@@ -4500,7 +4500,7 @@ fn test_scenario_terrane_native_required_enum_field() -> Result<(), TerraneError
         .expect("required field initialized").value.take()
         .expect("required field initialized").code()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::NE::code")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::NE::code")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 231 /* terrane-site: tests/integration/native-required-enum-field/case.trn:19:13-19:36 */) ?)
     );
@@ -4532,7 +4532,7 @@ fn f<'a>(p: &'a Holder) -> terrane_query_witness::CopyView<'a> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -4560,7 +4560,7 @@ fn test_scenario_terrane_native_return_parameter_single() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result ?, Err(payload)
         => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 235 /* terrane-site: tests/integration/native-return-parameter-single/case.trn:10:13-10:20 */))
     );
@@ -4582,7 +4582,7 @@ fn test_scenario_terrane_native_return_parameter_single() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -4619,7 +4619,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -4639,7 +4639,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(v.into_size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 239 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:7:17-7:29 */))
@@ -4649,7 +4649,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                 ::TerraneForeignError > (value) } } (), 240 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:8:13-8:20 */
             );
@@ -4659,7 +4659,7 @@ fn test_scenario_terrane_native_try_body_rewrite_control() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 241 /* terrane-site: tests/integration/native-try-body-rewrite-control/case.trn:9:17-9:24 */))
@@ -4721,7 +4721,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -4741,7 +4741,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(v.into_size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 244 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:7:17-7:29 */))
@@ -4751,7 +4751,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                 ::TerraneForeignError > (value) } } (), 245 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:8:13-8:20 */
             );
@@ -4772,7 +4772,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                         -> Result < _, crate ::TerraneForeignError > { Ok((&h).view())
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-                        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                        ::__terrane_dependency_panic(payload, "terrane-query-witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                         ::TerraneForeignError > (value) } } (), 246 /* terrane-site: tests/integration/native-try-catch-dominating-rewrite/case.trn:10:13-10:20 */
                     );
@@ -4783,7 +4783,7 @@ fn test_scenario_terrane_native_try_catch_dominating_rewrite() {
                         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                         -> Result < _, crate ::TerraneForeignError > { Ok((&v).size())
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-                        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                        ::__terrane_dependency_panic(payload, "terrane-query-witness",
                         "terrane_query_witness::View::size")) }; Ok:: < _, crate
                         ::TerraneForeignError >
                         (terrane_int_support::Int::from_u128(value as u128)) } } (),
@@ -4836,7 +4836,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -4856,7 +4856,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result
                 ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-                "terrane_query_witness", "terrane_query_witness::CopyView::size")) };
+                "terrane-query-witness", "terrane_query_witness::CopyView::size")) };
                 Ok:: < _, crate ::TerraneForeignError >
                 (terrane_int_support::Int::from_u128(value as u128)) } } (),
                 251 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:8:17-8:24 */))
@@ -4866,7 +4866,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&k).copy_view()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
                 ::TerraneForeignError > (value) } } (), 252 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:9:13-9:25 */
             );
@@ -4893,7 +4893,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 253 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:11:17-11:24 */))
         );
@@ -4917,7 +4917,7 @@ fn test_scenario_terrane_native_try_copy_finally_control() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(v.size()) })) { Ok(result) => result ?, Err(payload)
         => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 254 /* terrane-site: tests/integration/native-try-copy-finally-control/case.trn:12:13-12:20 */))
     );
@@ -4948,7 +4948,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::view",
                                     ),
                                 );
@@ -4970,7 +4970,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                 crate ::TerraneForeignError > { Ok(v.take()
                 .expect("flow-proven availability").into_size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 257 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:7:17-7:29 */))
@@ -4982,7 +4982,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                         -> Result < _, crate ::TerraneForeignError > { Ok((&h).view())
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-                        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                        ::__terrane_dependency_panic(payload, "terrane-query-witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                         ::TerraneForeignError > (value) } } (), 258 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:8:13-8:20 */
                     ),
@@ -5012,7 +5012,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
                     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
                     Result < _, crate ::TerraneForeignError > { Ok((&h).view()) })) {
                     Ok(result) => result ?, Err(payload) => return Err(crate
-                    ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                    ::__terrane_dependency_panic(payload, "terrane-query-witness",
                     "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                     ::TerraneForeignError > (value) } } (), 259 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:10:13-10:20 */
                 ),
@@ -5024,7 +5024,7 @@ fn test_scenario_terrane_native_try_finally_dominating_rewrite() {
             crate ::TerraneForeignError > { Ok((&v.as_ref()
             .expect("flow-proven available binding")).size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
             u128)) } } (), 260 /* terrane-site: tests/integration/native-try-finally-dominating-rewrite/case.trn:11:17-11:24 */))
         );
@@ -5069,7 +5069,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::view",
                                     ),
                                 );
@@ -5109,7 +5109,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
             crate ::TerraneForeignError > { Ok(v.take()
             .expect("flow-proven availability").into_size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::into_size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::View::into_size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 263 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:9:17-9:29 */))
         );
@@ -5120,7 +5120,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
                     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
                     Result < _, crate ::TerraneForeignError > { Ok((&h).view()) })) {
                     Ok(result) => result ?, Err(payload) => return Err(crate
-                    ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                    ::__terrane_dependency_panic(payload, "terrane-query-witness",
                     "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                     ::TerraneForeignError > (value) } } (), 264 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:10:13-10:20 */
                 ),
@@ -5132,7 +5132,7 @@ fn test_scenario_terrane_native_try_finally_rewrite_control() {
             crate ::TerraneForeignError > { Ok((&v.as_ref()
             .expect("flow-proven available binding")).size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _,
             crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
             u128)) } } (), 265 /* terrane-site: tests/integration/native-try-finally-rewrite-control/case.trn:11:17-11:24 */))
         );
@@ -5172,7 +5172,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                         -> Result < _, crate ::TerraneForeignError > { Ok((&h).view())
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-                        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                        ::__terrane_dependency_panic(payload, "terrane-query-witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                         ::TerraneForeignError > (value) } } (), 267 /* terrane-site: tests/integration/native-try-local-consume/case.trn:6:13-6:20 */
                     ),
@@ -5184,7 +5184,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                 crate ::TerraneForeignError > { Ok(v.take()
                 .expect("flow-proven availability").into_size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 268 /* terrane-site: tests/integration/native-try-local-consume/case.trn:7:17-7:29 */))
@@ -5234,7 +5234,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                             Result < _, crate ::TerraneForeignError > { Ok((&h).view())
                             })) { Ok(result) => result ?, Err(payload) => return
                             Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_query_witness",
+                            "terrane-query-witness",
                             "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                             ::TerraneForeignError > (value) } } (),
                             269 /* terrane-site: tests/integration/native-try-local-consume/case.trn:13:20-13:27 */
@@ -5248,7 +5248,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                     _, crate ::TerraneForeignError > { Ok(next.take()
                     .expect("flow-proven availability").into_size()) })) { Ok(result) =>
                     result ?, Err(payload) => return Err(crate
-                    ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                    ::__terrane_dependency_panic(payload, "terrane-query-witness",
                     "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                     ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                     u128)) } } (), 270 /* terrane-site: tests/integration/native-try-local-consume/case.trn:14:21-14:36 */))
@@ -5323,7 +5323,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::view",
                                     ),
                                 );
@@ -5345,7 +5345,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
                 crate ::TerraneForeignError > { Ok(v.take()
                 .expect("flow-proven availability").into_size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::into_size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 274 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:8:17-8:29 */))
@@ -5357,7 +5357,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
                         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                         -> Result < _, crate ::TerraneForeignError > { Ok((&h).view())
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
-                        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                        ::__terrane_dependency_panic(payload, "terrane-query-witness",
                         "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
                         ::TerraneForeignError > (value) } } (), 275 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:9:13-9:20 */
                     ),
@@ -5411,7 +5411,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::view",
                                     ),
                                 );
@@ -5431,7 +5431,7 @@ fn test_scenario_terrane_native_try_unconditional_rewrite_control() {
         ::TerraneForeignError > { Ok((&v.as_ref()
         .expect("flow-proven available binding")).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 277 /* terrane-site: tests/integration/native-try-unconditional-rewrite-control/case.trn:13:13-13:20 */))
     );
@@ -5471,7 +5471,7 @@ fn test_scenario_terrane_native_unordered_map_dead_lender_control() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -5503,7 +5503,7 @@ fn test_scenario_terrane_native_unordered_map_dead_lender_control() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 281 /* terrane-site: tests/integration/native-unordered-map-dead-lender-control/case.trn:11:17-11:28 */))
         );
@@ -5525,7 +5525,7 @@ fn test_scenario_terrane_native_unordered_map_dead_lender_control() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::bump",
                                 ),
                             );
@@ -5556,7 +5556,7 @@ fn test_scenario_terrane_native_unordered_map_dead_lender_control() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -5633,7 +5633,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5654,7 +5654,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&h).view()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
             crate ::TerraneForeignError > (value) } } (), 286 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:14:21-14:28 */); value }
         ],
     );
@@ -5676,7 +5676,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5694,7 +5694,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&v).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 288 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:17:13-17:20 */))
     );
@@ -5721,7 +5721,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5742,7 +5742,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&no_read_holder).view()) })) { Ok(result)
             => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 291 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:21:27-21:47 */); value }
         ],
@@ -5765,7 +5765,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5797,7 +5797,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5818,7 +5818,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&a).view()) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
+            "terrane-query-witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
             crate ::TerraneForeignError > (value) } } (), 295 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:26:27-26:34 */); value }
         ],
     );
@@ -5845,7 +5845,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5877,7 +5877,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5906,7 +5906,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5937,7 +5937,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -5966,7 +5966,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::view",
                             ),
                         );
@@ -6013,7 +6013,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -6039,7 +6039,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -6058,7 +6058,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&other_lender).copy_view()) })) {
                 Ok(result) => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
                 ::TerraneForeignError > (value) } } (), 307 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:45:22-45:45 */
             );
@@ -6127,7 +6127,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -6145,7 +6145,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(catch_alias.size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 310 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:50:13-50:30 */))
     );
@@ -6178,7 +6178,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -6204,7 +6204,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -6223,7 +6223,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&safe_k).copy_view()) })) {
                 Ok(result) => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
                 ::TerraneForeignError > (value) } } (), 316 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:57:21-57:38 */
             );
@@ -6273,7 +6273,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -6291,7 +6291,7 @@ fn test_scenario_terrane_native_view_list_rebind() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(safe_alias.size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 318 /* terrane-site: tests/integration/native-view-list-rebind/case.trn:61:13-61:29 */))
     );
@@ -6329,7 +6329,7 @@ fn store(mut holder: Holder) {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -6364,7 +6364,7 @@ fn store(mut holder: Holder) {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 321 /* terrane-site: tests/integration/native-view-local-map-storage/case.trn:11:13-11:34 */) })
@@ -6377,7 +6377,7 @@ fn store(mut holder: Holder) {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 323 /* terrane-site: tests/integration/native-view-local-map-storage/case.trn:12:13-12:33 */) })
@@ -6406,7 +6406,7 @@ fn store(mut holder: Holder) {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 325 /* terrane-site: tests/integration/native-view-local-map-storage/case.trn:17:13-17:37 */) })
@@ -6419,7 +6419,7 @@ fn store(mut holder: Holder) {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 327 /* terrane-site: tests/integration/native-view-local-map-storage/case.trn:18:13-18:36 */) })
@@ -6448,7 +6448,7 @@ fn store(mut holder: Holder) {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 330 /* terrane-site: tests/integration/native-view-local-map-storage/case.trn:21:13-21:36 */) })
@@ -6470,7 +6470,7 @@ fn store(mut holder: Holder) {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
         crate ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_query_witness",
+        ::__terrane_dependency_panic(payload, "terrane-query-witness",
         "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 332 /* terrane-site: tests/integration/native-view-local-map-storage/case.trn:24:13-24:27 */) })
@@ -6493,7 +6493,7 @@ fn store(mut holder: Holder) {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -6543,7 +6543,7 @@ fn test_scenario_terrane_native_view_loop_binders() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 336 /* terrane-site: tests/integration/native-view-loop-binders/case.trn:7:21-7:38 */); value }
         ],
@@ -6561,7 +6561,7 @@ fn test_scenario_terrane_native_view_loop_binders() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((* value).size()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 337 /* terrane-site: tests/integration/native-view-loop-binders/case.trn:9:17-9:28 */))
@@ -6582,7 +6582,7 @@ fn test_scenario_terrane_native_view_loop_binders() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value_2.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 338 /* terrane-site: tests/integration/native-view-loop-binders/case.trn:11:17-11:28 */))
         );
@@ -6600,7 +6600,7 @@ fn test_scenario_terrane_native_view_loop_binders() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((* value_3).size()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 339 /* terrane-site: tests/integration/native-view-loop-binders/case.trn:13:17-13:28 */))
@@ -6619,7 +6619,7 @@ fn test_scenario_terrane_native_view_loop_binders() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((* value_4).size()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 340 /* terrane-site: tests/integration/native-view-loop-binders/case.trn:15:17-15:28 */))
@@ -6647,7 +6647,7 @@ fn test_scenario_terrane_native_view_loop_binders() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((* value_5).size()) })) { Ok(result)
                 => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 341 /* terrane-site: tests/integration/native-view-loop-binders/case.trn:18:21-18:32 */))
@@ -6659,7 +6659,7 @@ fn test_scenario_terrane_native_view_loop_binders() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(outer.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 342 /* terrane-site: tests/integration/native-view-loop-binders/case.trn:19:17-19:28 */))
         );
@@ -6748,7 +6748,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -6780,7 +6780,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 345 /* terrane-site: tests/integration/native-view-map-entry-iteration/case.trn:10:17-10:28 */))
         );
@@ -6805,7 +6805,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -6837,7 +6837,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value_2.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 347 /* terrane-site: tests/integration/native-view-map-entry-iteration/case.trn:15:17-15:28 */))
         );
@@ -6862,7 +6862,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -6917,7 +6917,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(value_3.size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 349 /* terrane-site: tests/integration/native-view-map-entry-iteration/case.trn:23:21-23:32 */))
@@ -6944,7 +6944,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -6999,7 +6999,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(value_4.size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 351 /* terrane-site: tests/integration/native-view-map-entry-iteration/case.trn:31:21-31:32 */))
@@ -7024,7 +7024,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value_5.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 352 /* terrane-site: tests/integration/native-view-map-entry-iteration/case.trn:34:17-34:28 */))
         );
@@ -7044,7 +7044,7 @@ fn test_scenario_terrane_native_view_map_entry_iteration() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::copy_view",
                                     ),
                                 );
@@ -7092,7 +7092,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 355 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:7:40-7:57 */); value }
         ],
@@ -7112,7 +7112,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 356 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:9:17-9:28 */))
         );
@@ -7136,7 +7136,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value_2.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 357 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:12:17-12:28 */))
         );
@@ -7150,7 +7150,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 358 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:13:24-13:41 */); value
             }
@@ -7171,7 +7171,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value_3.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 359 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:15:17-15:28 */))
         );
@@ -7189,7 +7189,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((* value_4).size()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 360 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:17:17-17:28 */))
@@ -7203,7 +7203,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 361 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:18:27-18:44 */)
         ],
@@ -7222,7 +7222,7 @@ fn test_scenario_terrane_native_view_tuple_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value_5.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 362 /* terrane-site: tests/integration/native-view-tuple-iteration/case.trn:19:17-19:28 */))
         );
@@ -7272,7 +7272,7 @@ fn observe_terrane_native_view_value_iteration(
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 363 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:7:17-7:28 */))
         );
@@ -7297,7 +7297,7 @@ fn observe_ref(values: &terrane_collection_support::List<CopyView>) {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.clone().size()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 364 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:12:17-12:28 */))
@@ -7333,7 +7333,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 366 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:17:37-17:54 */); value
             }
@@ -7354,7 +7354,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 367 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:19:17-19:28 */))
         );
@@ -7383,7 +7383,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 368 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:23:17-23:28 */))
         );
@@ -7397,7 +7397,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 369 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:24:23-24:40 */); value
             }
@@ -7418,7 +7418,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 370 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:26:17-26:28 */))
         );
@@ -7459,7 +7459,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::copy_view",
                                     ),
                                 );
@@ -7479,7 +7479,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 372 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:31:17-31:28 */))
         );
@@ -7517,7 +7517,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Holder::copy_view",
                                     ),
                                 );
@@ -7537,7 +7537,7 @@ fn test_scenario_terrane_native_view_value_iteration() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(value.size()) })) { Ok(result) => result
             ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
+            "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: <
             _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value
             as u128)) } } (), 374 /* terrane-site: tests/integration/native-view-value-iteration/case.trn:37:17-37:28 */))
         );
@@ -7609,7 +7609,7 @@ fn test_scenario_terrane_nested_noncopy_view_loops() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok((&holder).view()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 376 /* terrane-site: tests/integration/nested-noncopy-view-loops/case.trn:7:28-7:40 */); value }])
         ],
@@ -7634,7 +7634,7 @@ fn test_scenario_terrane_nested_noncopy_view_loops() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&* inner).size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::View::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 377 /* terrane-site: tests/integration/nested-noncopy-view-loops/case.trn:10:21-10:32 */))
@@ -7667,7 +7667,7 @@ fn test_scenario_terrane_nested_view_loops() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 379 /* terrane-site: tests/integration/nested-view-loops/case.trn:7:28-7:45 */); value }])
         ],
@@ -7692,7 +7692,7 @@ fn test_scenario_terrane_nested_view_loops() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((* inner).size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 380 /* terrane-site: tests/integration/nested-view-loops/case.trn:10:21-10:32 */))
@@ -7726,7 +7726,7 @@ fn test_scenario_terrane_nested_view_ref_value_loop() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 382 /* terrane-site: tests/integration/nested-view-ref-value-loop/case.trn:7:28-7:45 */); value
             }])
@@ -7752,7 +7752,7 @@ fn test_scenario_terrane_nested_view_ref_value_loop() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((* inner).size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 383 /* terrane-site: tests/integration/nested-view-ref-value-loop/case.trn:10:21-10:32 */))
@@ -7784,7 +7784,7 @@ fn test_scenario_terrane_nested_view_value_ref_loop() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 385 /* terrane-site: tests/integration/nested-view-value-ref-loop/case.trn:7:28-7:45 */); value
             }])
@@ -7812,7 +7812,7 @@ fn test_scenario_terrane_nested_view_value_ref_loop() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((* inner).size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 386 /* terrane-site: tests/integration/nested-view-value-ref-loop/case.trn:10:21-10:32 */))
@@ -7844,7 +7844,7 @@ fn test_scenario_terrane_nested_view_value_value_loop() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 388 /* terrane-site: tests/integration/nested-view-value-value-loop/case.trn:7:28-7:45 */); value
             }])
@@ -7874,7 +7874,7 @@ fn test_scenario_terrane_nested_view_value_value_loop() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(inner.size()) })) { Ok(result) =>
                 result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 389 /* terrane-site: tests/integration/nested-view-value-value-loop/case.trn:10:21-10:32 */))
@@ -7902,7 +7902,7 @@ fn positive(value: CopyProbe) -> bool {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::CopyProbe::value",
                             ),
                         );
@@ -8086,7 +8086,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&holder).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 397 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:19:20-19:37 */); value }
         ],
@@ -8104,7 +8104,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((* view).size()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 398 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:21:17-21:27 */))
@@ -8127,7 +8127,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((* nested_2).size()) })) { Ok(result)
                 => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_query_witness",
+                ::__terrane_dependency_panic(payload, "terrane-query-witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 399 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:24:21-24:33 */))
@@ -8149,7 +8149,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );

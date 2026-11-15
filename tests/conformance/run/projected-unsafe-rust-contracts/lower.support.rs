@@ -543,7 +543,7 @@ pub fn borrowed_view<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-unsafe-contract-witness",
                     "witness::borrowed_view",
                 ),
             )
@@ -565,7 +565,7 @@ pub fn render_unsafe<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-unsafe-contract-witness",
                     "witness::render_unsafe",
                 ),
             )
@@ -593,7 +593,7 @@ pub unsafe fn unchecked_add(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-unsafe-contract-witness",
                     "witness::unchecked_add",
                 ),
             )

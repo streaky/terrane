@@ -31,7 +31,7 @@ fn bump(handle: &mut RecordHandle) {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Record::set",
                                 ),
                             );
@@ -70,7 +70,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::RecordHandle::view",
                             ),
                         );
@@ -101,7 +101,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::RecordView::clone",
                             ),
                         );
@@ -126,7 +126,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::RecordView::nested",
                             ),
                         );
@@ -151,7 +151,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::RecordView::value",
                             ),
                         );
@@ -190,7 +190,7 @@ fn ordinary_guard() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::Locks::locked",
                             ),
                         );
@@ -229,7 +229,7 @@ fn ordinary_guard() -> terrane_int_support::Int {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Record::set",
                                 ),
                             );
@@ -255,7 +255,7 @@ fn ordinary_guard() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::Record::value",
                             ),
                         );
@@ -294,7 +294,7 @@ async fn suspended_view() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::RecordHandle::view",
                             ),
                         );
@@ -332,7 +332,7 @@ async fn suspended_view() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::RecordView::value",
                             ),
                         );
@@ -418,7 +418,7 @@ fn named_view() -> terrane_int_support::Int {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Record::set",
                                 ),
                             );
@@ -444,7 +444,7 @@ fn named_view() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api",
+                                "receiver-api",
                                 "receiver_api::RecordView::value",
                             ),
                         );
@@ -480,7 +480,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&shared)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "receiver_api",
+        ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         20 /* terrane-site: src/main.trn:37:13-37:26 */))
@@ -528,7 +528,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record >
         ::value(__terrane_native_input_0)) })) { Ok(result) => result ?, Err(payload) =>
-        return Err(crate ::__terrane_dependency_panic(payload, "receiver_api",
+        return Err(crate ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         24 /* terrane-site: src/main.trn:40:13-40:28 */) })
@@ -546,7 +546,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&local)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "receiver_api",
+        ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         26 /* terrane-site: src/main.trn:42:13-42:25 */))
@@ -559,7 +559,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record >
         ::value(__terrane_native_input_0)) })) { Ok(result) => result ?, Err(payload) =>
-        return Err(crate ::__terrane_dependency_panic(payload, "receiver_api",
+        return Err(crate ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         28 /* terrane-site: src/main.trn:43:13-43:31 */) })
@@ -599,7 +599,7 @@ fn pointers_and_guards() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Record::set",
                                 ),
                             );
@@ -617,7 +617,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&owned)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "receiver_api",
+        ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         31 /* terrane-site: src/main.trn:46:13-46:25 */))
@@ -628,7 +628,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record > ::take(* owned)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "receiver_api",
+        ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::take")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         32 /* terrane-site: src/main.trn:47:13-47:24 */))
@@ -641,7 +641,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record >
         ::boxed(__terrane_native_input_0)) })) { Ok(result) => result ?, Err(payload) =>
-        return Err(crate ::__terrane_dependency_panic(payload, "receiver_api",
+        return Err(crate ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::boxed")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         34 /* terrane-site: src/main.trn:48:13-48:31 */) })
@@ -654,7 +654,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record >
         ::take(__terrane_native_input_0)) })) { Ok(result) => result ?, Err(payload) =>
-        return Err(crate ::__terrane_dependency_panic(payload, "receiver_api",
+        return Err(crate ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::take")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         36 /* terrane-site: src/main.trn:49:13-49:35 */) })
@@ -694,7 +694,7 @@ fn pointers_and_guards() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Record::set",
                                 ),
                             );
@@ -712,7 +712,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&custom)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "receiver_api",
+        ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         39 /* terrane-site: src/main.trn:52:13-52:26 */))
@@ -724,7 +724,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&custom)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "receiver_api",
+        ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         40 /* terrane-site: src/main.trn:54:13-54:26 */))
@@ -751,7 +751,7 @@ fn pointers_and_guards() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Locks::locked",
                                 ),
                             );
@@ -768,7 +768,7 @@ fn pointers_and_guards() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&locks).available()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "receiver_api",
+            ::__terrane_dependency_panic(payload, "receiver-api",
             "receiver_api::Locks::available")) }; Ok:: < _, crate ::TerraneForeignError >
             (value) } } (), 43 /* terrane-site: src/main.trn:57:17-57:33 */))
         );
@@ -800,7 +800,7 @@ fn pointers_and_guards() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "receiver_api",
+                                        "receiver-api",
                                         "receiver_api::Record::set",
                                     ),
                                 );
@@ -818,7 +818,7 @@ fn pointers_and_guards() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&guard))
             })) { Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "receiver_api",
+            ::__terrane_dependency_panic(payload, "receiver-api",
             "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             45 /* terrane-site: src/main.trn:59:17-59:29 */))
@@ -838,7 +838,7 @@ fn pointers_and_guards() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "receiver_api",
+                                        "receiver-api",
                                         "receiver_api::Locks::read",
                                     ),
                                 );
@@ -855,7 +855,7 @@ fn pointers_and_guards() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok(< receiver_api::Record >
                 ::value(&read)) })) { Ok(result) => result ?, Err(payload) => return
-                Err(crate ::__terrane_dependency_panic(payload, "receiver_api",
+                Err(crate ::__terrane_dependency_panic(payload, "receiver-api",
                 "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError
                 > (terrane_int_support::Int::from(i128::from(value))) } } (),
                 47 /* terrane-site: src/main.trn:61:21-61:32 */))
@@ -866,7 +866,7 @@ fn pointers_and_guards() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&locks).writable()) })) { Ok(result)
                 => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "receiver_api",
+                ::__terrane_dependency_panic(payload, "receiver-api",
                 "receiver_api::Locks::writable")) }; Ok:: < _, crate
                 ::TerraneForeignError > (value) } } (), 48 /* terrane-site: src/main.trn:62:21-62:36 */))
             );
@@ -877,7 +877,7 @@ fn pointers_and_guards() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&locks).writable()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "receiver_api",
+            ::__terrane_dependency_panic(payload, "receiver-api",
             "receiver_api::Locks::writable")) }; Ok:: < _, crate ::TerraneForeignError >
             (value) } } (), 49 /* terrane-site: src/main.trn:64:17-64:32 */))
         );
@@ -888,7 +888,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&locks).available()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "receiver_api", "receiver_api::Locks::available")) }; Ok:: < _, crate
+        "receiver-api", "receiver_api::Locks::available")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 50 /* terrane-site: src/main.trn:66:13-66:29 */))
     );
     {
@@ -906,7 +906,7 @@ fn pointers_and_guards() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Locks::write",
                                 ),
                             );
@@ -945,7 +945,7 @@ fn pointers_and_guards() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "receiver_api",
+                                        "receiver-api",
                                         "receiver_api::Record::set",
                                     ),
                                 );
@@ -963,7 +963,7 @@ fn pointers_and_guards() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&write))
             })) { Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "receiver_api",
+            ::__terrane_dependency_panic(payload, "receiver-api",
             "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             53 /* terrane-site: src/main.trn:69:17-69:29 */))
@@ -975,7 +975,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&locks).writable()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "receiver_api", "receiver_api::Locks::writable")) }; Ok:: < _, crate
+        "receiver-api", "receiver_api::Locks::writable")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 54 /* terrane-site: src/main.trn:71:13-71:28 */))
     );
     {
@@ -993,7 +993,7 @@ fn pointers_and_guards() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::RecordHandle::view",
                                 ),
                             );
@@ -1024,7 +1024,7 @@ fn pointers_and_guards() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::RecordView::clone",
                                 ),
                             );
@@ -1041,7 +1041,7 @@ fn pointers_and_guards() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&copied).value()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "receiver_api",
+            ::__terrane_dependency_panic(payload, "receiver-api",
             "receiver_api::RecordView::value")) }; Ok:: < _, crate ::TerraneForeignError
             > (terrane_int_support::Int::from(i128::from(value))) } } (),
             57 /* terrane-site: src/main.trn:75:17-75:30 */))
@@ -1061,7 +1061,7 @@ fn pointers_and_guards() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "receiver_api",
+                                        "receiver-api",
                                         "receiver_api::RecordView::nested",
                                     ),
                                 );
@@ -1086,7 +1086,7 @@ fn pointers_and_guards() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "receiver_api",
+                                        "receiver-api",
                                         "receiver_api::RecordView::value",
                                     ),
                                 );
@@ -1130,7 +1130,7 @@ fn pointers_and_guards() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "receiver_api",
+                                    "receiver-api",
                                     "receiver_api::Record::set",
                                 ),
                             );
@@ -1149,7 +1149,7 @@ fn pointers_and_guards() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< receiver_api::Record > ::value(&custom)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "receiver_api",
+        ::__terrane_dependency_panic(payload, "receiver-api",
         "receiver_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         61 /* terrane-site: src/main.trn:82:13-82:26 */))

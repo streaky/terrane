@@ -29,7 +29,7 @@ fn exercise(flag: bool) {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -54,7 +54,7 @@ fn exercise(flag: bool) {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::copy_view",
                             ),
                         );
@@ -80,7 +80,7 @@ fn exercise(flag: bool) {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Holder::copy_view",
                                 ),
                             );
@@ -113,7 +113,7 @@ fn exercise(flag: bool) {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Holder::bump",
                             ),
                         );
@@ -130,7 +130,7 @@ fn exercise(flag: bool) {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(b.size()) })) { Ok(result) => result ?, Err(payload)
         => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
+        "terrane-query-witness", "terrane_query_witness::CopyView::size")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 6 /* terrane-site: src/main.trn:13:13-13:20 */))
     );

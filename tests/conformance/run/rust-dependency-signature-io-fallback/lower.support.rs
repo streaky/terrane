@@ -548,7 +548,7 @@ pub fn fail() -> Result<(), crate::TerraneForeignError> {
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
                             "Rust dependency `{}` member `{}` failed: {error}",
-                            "io-witness", "io_witness::fail"
+                            "terrane-signature-io-witness", "io_witness::fail"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -559,7 +559,7 @@ pub fn fail() -> Result<(), crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "io-witness",
+                    "terrane-signature-io-witness",
                     "io_witness::fail",
                 ),
             )

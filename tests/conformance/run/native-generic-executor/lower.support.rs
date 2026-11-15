@@ -901,7 +901,7 @@ pub fn terrane_static_trn_436f6e6e656374696f6e_new() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-generic-executor-witness",
                     "witness::Connection",
                 ),
             )
@@ -919,7 +919,7 @@ pub fn owner_query(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-generic-executor-witness",
                     "witness::owner_query",
                 ),
             )
@@ -932,7 +932,13 @@ pub fn query(__trn_5f73716c: &str) -> Result<Query, crate::TerraneForeignError> 
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::query"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-generic-executor-witness",
+                    "witness::query",
+                ),
+            )
         }
     }
 }

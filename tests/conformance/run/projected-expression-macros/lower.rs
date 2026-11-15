@@ -24,7 +24,7 @@ fn contextual() -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::sum",
                             ),
                         );
@@ -61,7 +61,7 @@ fn disable_record(record: &mut Packet) -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::disable",
                             ),
                         );
@@ -110,7 +110,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::sum",
                             ),
                         );
@@ -146,7 +146,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::sum",
                             ),
                         );
@@ -182,7 +182,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::sum",
                             ),
                         );
@@ -223,7 +223,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::packet",
                             ),
                         );
@@ -260,7 +260,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::message",
                             ),
                         );
@@ -293,7 +293,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::values",
                             ),
                         );
@@ -351,7 +351,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::twice",
                             ),
                         );
@@ -396,7 +396,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::selected",
                             ),
                         );
@@ -437,7 +437,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::layout::combine",
                             ),
                         );
@@ -473,7 +473,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-expression-macro-witness",
                                 "witness::values",
                             ),
                         );

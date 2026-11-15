@@ -541,7 +541,7 @@ pub fn make_holder() -> Result<Holder, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-generic-root-witness",
                     "witness::make_holder",
                 ),
             )

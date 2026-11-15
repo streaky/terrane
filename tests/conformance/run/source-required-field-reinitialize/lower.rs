@@ -62,7 +62,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_borrowed_future_witness",
+                                        "terrane-borrowed-future-witness",
                                         "terrane_borrowed_future_witness::Builder::set",
                                     ),
                                 );
@@ -85,13 +85,13 @@ fn main() {
             move { match crate
             ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
             . await .map_err(| payload | crate ::__terrane_dependency_panic(payload,
-            "terrane_borrowed_future_witness",
+            "terrane-borrowed-future-witness",
             "terrane_borrowed_future_witness::Builder::serve")) ? { Ok(value) =>
             Ok(terrane_int_support::Int::from_u128(value as u128)), Err(error) =>
             Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
             ::TERRANE_DEPENDENCY_ERROR,
             format!("Rust dependency `{}` member `{}` failed: {error}",
-            "terrane_borrowed_future_witness",
+            "terrane-borrowed-future-witness",
             "terrane_borrowed_future_witness::Builder::serve"), crate
             ::TERRANE_NO_SITE))) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:13:19-13:31 */) } }). await, 3 /* terrane-site: src/main.trn:13:19-13:31 */)),
@@ -101,13 +101,13 @@ fn main() {
             crate
             ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
             . await .map_err(| payload | crate ::__terrane_dependency_panic(payload,
-            "terrane_borrowed_future_witness",
+            "terrane-borrowed-future-witness",
             "terrane_borrowed_future_witness::Builder::serve")) ? { Ok(value) =>
             Ok(terrane_int_support::Int::from_u128(value as u128)), Err(error) =>
             Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
             ::TERRANE_DEPENDENCY_ERROR,
             format!("Rust dependency `{}` member `{}` failed: {error}",
-            "terrane_borrowed_future_witness",
+            "terrane-borrowed-future-witness",
             "terrane_borrowed_future_witness::Builder::serve"), crate
             ::TERRANE_NO_SITE))) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 4 /* terrane-site: src/main.trn:13:41-13:55 */) } }). await, 4 /* terrane-site: src/main.trn:13:41-13:55 */))

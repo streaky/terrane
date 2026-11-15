@@ -38,7 +38,7 @@ async fn read_borrowed(native: &mut SqliteConnection) -> Result<i64, TerraneErro
                             .await
                             .map_err(|payload| crate::__terrane_dependency_panic(
                                 payload,
-                                "sqlx_core",
+                                "sqlx-core",
                                 "sqlx_core::query::Query::fetch_one",
                             ))?
                         {
@@ -95,7 +95,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "sqlx_sqlite",
+                                    "sqlx-sqlite",
                                     "sqlx_sqlite::SqliteConnectOptions::filename",
                                 ),
                             );
@@ -120,7 +120,7 @@ fn main() {
                                     Box::pin(async move { match crate
                                     ::__terrane_dependency_await_unwind(__terrane_call). await
                                     .map_err(| payload | crate
-                                    ::__terrane_dependency_panic(payload, "sqlx_sqlite",
+                                    ::__terrane_dependency_panic(payload, "sqlx-sqlite",
                                     "sqlx_sqlite::SqliteConnectOptions::connect")) ? { Ok(value)
                                     => Ok(value), Err(error) => Err(crate
                                     ::TerraneForeignError(crate
@@ -160,7 +160,7 @@ fn main() {
                                             Ok(__terrane_native_input_0
                                             .persistent(__terrane_conversion_input_0)) })) { Ok(result)
                                             => result ?, Err(payload) => return Err(crate
-                                            ::__terrane_dependency_panic(payload, "sqlx_core",
+                                            ::__terrane_dependency_panic(payload, "sqlx-core",
                                             "sqlx_core::query::Query::persistent")) }; Ok:: < _, crate
                                             ::TerraneForeignError > (value) } } (),
                                             6 /* terrane-site: src/main.trn:37:20-37:73 */) }
@@ -169,7 +169,7 @@ fn main() {
                                             move { match crate
                                             ::__terrane_dependency_await_unwind(__terrane_call). await
                                             .map_err(| payload | crate
-                                            ::__terrane_dependency_panic(payload, "sqlx_core",
+                                            ::__terrane_dependency_panic(payload, "sqlx-core",
                                             "sqlx_core::query::Query::execute")) ? { Ok(value) =>
                                             Ok(value), Err(error) => Err(crate
                                             ::TerraneForeignError(crate
@@ -203,7 +203,7 @@ fn main() {
                                                     Ok(__terrane_native_input_0
                                                     .persistent(__terrane_conversion_input_0)) })) { Ok(result)
                                                     => result ?, Err(payload) => return Err(crate
-                                                    ::__terrane_dependency_panic(payload, "sqlx_core",
+                                                    ::__terrane_dependency_panic(payload, "sqlx-core",
                                                     "sqlx_core::query::Query::persistent")) }; Ok:: < _, crate
                                                     ::TerraneForeignError > (value) } } (),
                                                     9 /* terrane-site: src/main.trn:40:49-40:102 */) }
@@ -212,7 +212,7 @@ fn main() {
                                                     move { match crate
                                                     ::__terrane_dependency_await_unwind(__terrane_call). await
                                                     .map_err(| payload | crate
-                                                    ::__terrane_dependency_panic(payload, "sqlx_core",
+                                                    ::__terrane_dependency_panic(payload, "sqlx-core",
                                                     "sqlx_core::query::Query::execute")) ? { Ok(value) =>
                                                     Ok(value), Err(error) => Err(crate
                                                     ::TerraneForeignError(crate
@@ -233,7 +233,7 @@ fn main() {
                                             .as_ref().expect("flow-proven available binding"))
                                             .rows_affected()) })) { Ok(result) => result ?, Err(payload)
                                             => return Err(crate ::__terrane_dependency_panic(payload,
-                                            "sqlx_sqlite",
+                                            "sqlx-sqlite",
                                             "sqlx_sqlite::SqliteQueryResult::rows_affected")) }; Ok:: <
                                             _, crate ::TerraneForeignError >
                                             (terrane_int_support::Int::from_u128(value as u128)) } } (),
@@ -258,7 +258,7 @@ fn main() {
                                                     Box::pin(async move { match crate
                                                     ::__terrane_dependency_await_unwind(__terrane_call). await
                                                     .map_err(| payload | crate
-                                                    ::__terrane_dependency_panic(payload, "sqlx_core",
+                                                    ::__terrane_dependency_panic(payload, "sqlx-core",
                                                     "sqlx_core::query::Query::fetch_one")) ? { Ok(value) =>
                                                     Ok(value), Err(error) => Err(crate
                                                     ::TerraneForeignError(crate
@@ -315,7 +315,7 @@ fn main() {
                                 match crate
                                 ::__terrane_dependency_await_unwind(__terrane_call). await
                                 .map_err(| payload | crate
-                                ::__terrane_dependency_panic(payload, "sqlx_sqlite",
+                                ::__terrane_dependency_panic(payload, "sqlx-sqlite",
                                 "sqlx_sqlite::SqliteConnection::close")) ? { Ok(value) =>
                                 Ok(value), Err(error) => Err(crate
                                 ::TerraneForeignError(crate

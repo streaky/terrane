@@ -49,7 +49,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_trait_collision_impls",
+                                    "terrane-trait-collision-impls",
                                     "terrane_trait_collision_impls::First::transform",
                                 ),
                             );
@@ -92,7 +92,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_trait_collision_impls",
+                                    "terrane-trait-collision-impls",
                                     "terrane_trait_collision_impls::Second::transform",
                                 ),
                             );

@@ -117,7 +117,7 @@ impl AlphaCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -157,7 +157,7 @@ impl AlphaCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::execute",
                                 ),
                             );
@@ -197,7 +197,7 @@ impl AlphaCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::send",
                                 ),
                             );
@@ -278,7 +278,7 @@ impl BetaCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -366,7 +366,7 @@ impl SharedCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -447,7 +447,7 @@ impl NestedCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -551,7 +551,7 @@ impl EchoCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -641,7 +641,7 @@ impl AlternateCommand {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "witness",
+                                        "terrane-associated-call",
                                         "witness::alternate",
                                     ),
                                 );
@@ -711,7 +711,7 @@ impl UniqueCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -792,7 +792,7 @@ impl TaggedCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -873,7 +873,7 @@ impl TreeCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -1341,7 +1341,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-associated-call",
                                 "witness::execute",
                             ),
                         );
@@ -1623,9 +1623,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::Mode::First) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) };
-            Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            51 /* terrane-site: src/main.trn:162:34-162:46 */); let
+            ::__terrane_dependency_panic(payload, "terrane-associated-call",
+            "witness::Mode::First")) }; Ok:: < _, crate ::TerraneForeignError > (value) }
+            } (), 51 /* terrane-site: src/main.trn:162:34-162:46 */); let
             __terrane_comparison_right = &__terrane_receiver_value_2; < Mode as
             std::cmp::PartialEq > ::eq(__terrane_comparison_left,
             __terrane_comparison_right) })
@@ -1636,9 +1636,9 @@ fn main() {
             value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
             Result < _, crate ::TerraneForeignError > { Ok(witness::Mode::First) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) };
-            Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            52 /* terrane-site: src/main.trn:163:17-163:29 */); let
+            ::__terrane_dependency_panic(payload, "terrane-associated-call",
+            "witness::Mode::First")) }; Ok:: < _, crate ::TerraneForeignError > (value) }
+            } (), 52 /* terrane-site: src/main.trn:163:17-163:29 */); let
             __terrane_comparison_left = &__terrane_receiver_value_3; let
             __terrane_comparison_right = &match &selected_mode { Some(value) => value, _
             => unreachable!("flow-proven storage refinement") }; < Mode as
@@ -1654,9 +1654,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::Mode::Last) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Mode::Last")) };
-            Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            53 /* terrane-site: src/main.trn:164:34-164:45 */); let
+            ::__terrane_dependency_panic(payload, "terrane-associated-call",
+            "witness::Mode::Last")) }; Ok:: < _, crate ::TerraneForeignError > (value) }
+            } (), 53 /* terrane-site: src/main.trn:164:34-164:45 */); let
             __terrane_comparison_right = &__terrane_receiver_value_4; < Mode as
             std::cmp::PartialEq > ::ne(__terrane_comparison_left,
             __terrane_comparison_right) })
@@ -1702,7 +1702,7 @@ impl BatchCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -1791,7 +1791,7 @@ impl MarkedCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -1866,7 +1866,7 @@ impl BorrowedOutputCommand {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-associated-call",
                                     "witness::Executor::call",
                                 ),
                             );
@@ -2155,7 +2155,7 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
                     return Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "witness",
+                            "terrane-associated-call",
                             "witness::execute",
                         ),
                     );
@@ -2188,8 +2188,8 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
         > { match match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
         Result < _, crate ::TerraneForeignError > {
         Ok(witness::execute(__terrane_conversion_input_0)) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::execute")) } { Ok(value) =>
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-associated-call", "witness::execute")) } { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(error) => Err(crate
         ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
         ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))) } } (),
@@ -2214,7 +2214,7 @@ fn check_recipe_selection(executor: &Executor) -> Result<(), TerraneError> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-associated-call",
                                 "witness::execute",
                             ),
                         );

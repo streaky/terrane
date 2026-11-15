@@ -24,7 +24,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_member_graph_witness",
+                                "terrane-member-graph-witness",
                                 "terrane_member_graph_witness::left::Left::poison",
                             ),
                         );
@@ -49,7 +49,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_member_graph_witness",
+                                "terrane-member-graph-witness",
                                 "terrane_member_graph_witness::right::Right::poison",
                             ),
                         );
@@ -66,7 +66,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&returned).value()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_member_graph_witness",
+        "terrane-member-graph-witness",
         "terrane_member_graph_witness::left::Left::value")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 3 /* terrane-site: src/main.trn:10:11-10:26 */))

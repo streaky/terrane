@@ -23,7 +23,7 @@ fn inspect_next(mode: i64) {
                         Result < _, crate ::TerraneForeignError > { Ok(connection.next())
                         })) { Ok(result) => result ?, Err(payload) => return Err(crate
                         ::__terrane_dependency_panic(payload,
-                        "terrane_nested_outcome_witness",
+                        "terrane-nested-outcome-witness",
                         "terrane_nested_outcome_witness::Channel::next")) } { None =>
                         Ok(None), Some(Ok(value)) => Ok(Some(value)), Some(Err(error)) =>
                         Err(crate ::TerraneForeignError(crate
@@ -101,7 +101,7 @@ fn inspect_outer(mode: i64) {
                         Result < _, crate ::TerraneForeignError > { Ok((&connection)
                         .outer()) })) { Ok(result) => result ?, Err(payload) => return
                         Err(crate ::__terrane_dependency_panic(payload,
-                        "terrane_nested_outcome_witness",
+                        "terrane-nested-outcome-witness",
                         "terrane_nested_outcome_witness::Channel::outer")) } { Ok(value)
                         => Ok(value), Err(error) => Err(crate ::TerraneForeignError(crate
                         ::TerraneError::custom_raised(crate ::DescriptorId(2), error

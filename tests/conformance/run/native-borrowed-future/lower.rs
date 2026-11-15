@@ -20,7 +20,7 @@ async fn exercise() -> Result<(), TerraneError> {
                             .await
                             .map_err(|payload| crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_borrowed_future_witness",
+                                "terrane-borrowed-future-witness",
                                 "terrane_borrowed_future_witness::Builder::serve",
                             ))?
                         {
@@ -34,7 +34,7 @@ async fn exercise() -> Result<(), TerraneError> {
                                             crate::TERRANE_DEPENDENCY_ERROR,
                                             format!(
                                                 "Rust dependency `{}` member `{}` failed: {error}",
-                                                "terrane_borrowed_future_witness",
+                                                "terrane-borrowed-future-witness",
                                                 "terrane_borrowed_future_witness::Builder::serve"
                                             ),
                                             crate::TERRANE_NO_SITE,
@@ -84,7 +84,7 @@ async fn exercise() -> Result<(), TerraneError> {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_borrowed_future_witness",
+                                    "terrane-borrowed-future-witness",
                                     "terrane_borrowed_future_witness::Builder::set",
                                 ),
                             );
@@ -107,7 +107,7 @@ async fn exercise() -> Result<(), TerraneError> {
                             .await
                             .map_err(|payload| crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_borrowed_future_witness",
+                                "terrane-borrowed-future-witness",
                                 "terrane_borrowed_future_witness::Builder::serve",
                             ))?
                         {
@@ -121,7 +121,7 @@ async fn exercise() -> Result<(), TerraneError> {
                                             crate::TERRANE_DEPENDENCY_ERROR,
                                             format!(
                                                 "Rust dependency `{}` member `{}` failed: {error}",
-                                                "terrane_borrowed_future_witness",
+                                                "terrane-borrowed-future-witness",
                                                 "terrane_borrowed_future_witness::Builder::serve"
                                             ),
                                             crate::TERRANE_NO_SITE,
@@ -187,7 +187,7 @@ impl Receiver {
                                     .await
                                     .map_err(|payload| crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_borrowed_future_witness",
+                                        "terrane-borrowed-future-witness",
                                         "terrane_borrowed_future_witness::Builder::reject",
                                     ))?
                                 {
@@ -254,7 +254,7 @@ impl Receiver {
                                     .await
                                     .map_err(|payload| crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_borrowed_future_witness",
+                                        "terrane-borrowed-future-witness",
                                         "terrane_borrowed_future_witness::Builder::reject",
                                     ))?
                                 {
@@ -378,7 +378,7 @@ fn main() {
                     .with_label("generic\nλ")) })) { Ok(result) => result ?,
                     Err(payload) => return Err(crate
                     ::__terrane_dependency_panic(payload,
-                    "terrane_borrowed_future_witness",
+                    "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::Options::with_label")) }; Ok:: < _,
                     crate ::TerraneForeignError > (value) } } (), 11 /* terrane-site: src/main.trn:48:13-48:53 */) })
                 );
@@ -394,7 +394,7 @@ fn main() {
                     .with_borrowed_label("direct escaped\tvalue")) })) { Ok(result) =>
                     result ?, Err(payload) => return Err(crate
                     ::__terrane_dependency_panic(payload,
-                    "terrane_borrowed_future_witness",
+                    "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::Options::with_borrowed_label")) };
                     Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                     13 /* terrane-site: src/main.trn:49:13-49:73 */) })
@@ -412,7 +412,7 @@ fn main() {
                     .with_owned_label(__terrane_conversion_input_0)) })) { Ok(result) =>
                     result ?, Err(payload) => return Err(crate
                     ::__terrane_dependency_panic(payload,
-                    "terrane_borrowed_future_witness",
+                    "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::Options::with_owned_label")) };
                     Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                     15 /* terrane-site: src/main.trn:50:13-50:64 */) })
@@ -429,7 +429,7 @@ fn main() {
                     _, crate ::TerraneForeignError > { Ok(__terrane_native_input_0
                     .with_label(&named)) })) { Ok(result) => result ?, Err(payload) =>
                     return Err(crate ::__terrane_dependency_panic(payload,
-                    "terrane_borrowed_future_witness",
+                    "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::Options::with_label")) }; Ok:: < _,
                     crate ::TerraneForeignError > (value) } } (), 17 /* terrane-site: src/main.trn:52:13-52:46 */) })
                 );
@@ -461,7 +461,7 @@ fn main() {
                     .with_string_ref(&String::from("owned String borrow"))) })) {
                     Ok(result) => result ?, Err(payload) => return Err(crate
                     ::__terrane_dependency_panic(payload,
-                    "terrane_borrowed_future_witness",
+                    "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::Options::with_string_ref")) }; Ok::
                     < _, crate ::TerraneForeignError > (value) } } (),
                     21 /* terrane-site: src/main.trn:56:13-56:67 */) })
@@ -482,7 +482,7 @@ fn main() {
                     value = crate ::__terrane_dependency_await_unwind(__terrane_call).
                     await .map_err(| payload | crate
                     ::__terrane_dependency_panic(payload,
-                    "terrane_borrowed_future_witness",
+                    "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::TextQuery::fetch")) ?; Ok:: < _,
                     crate ::TerraneForeignError > (value) } }) }; async move {
                     __terrane_raised_err(__terrane_future. await, 23 /* terrane-site: src/main.trn:57:19-57:60 */) } }). await, 23 /* terrane-site: src/main.trn:57:19-57:60 */))
@@ -531,7 +531,7 @@ fn main() {
                     _, crate ::TerraneForeignError > { Ok(wrapped.into_value()) })) {
                     Ok(result) => result ?, Err(payload) => return Err(crate
                     ::__terrane_dependency_panic(payload,
-                    "terrane_borrowed_future_witness",
+                    "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::Envelope::into_value")) }; Ok:: <
                     _, crate ::TerraneForeignError > (value) } } (),
                     26 /* terrane-site: src/main.trn:62:13-62:32 */)),
@@ -649,7 +649,7 @@ fn main() {
                                                 .await
                                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                                     payload,
-                                                    "terrane_borrowed_future_witness",
+                                                    "terrane-borrowed-future-witness",
                                                     "terrane_borrowed_future_witness::Builder::advance",
                                                 ))?;
                                             Ok::<
@@ -681,7 +681,7 @@ fn main() {
                                         .await
                                         .map_err(|payload| crate::__terrane_dependency_panic(
                                             payload,
-                                            "terrane_borrowed_future_witness",
+                                            "terrane-borrowed-future-witness",
                                             "terrane_borrowed_future_witness::Builder::serve",
                                         ))?
                                     {
@@ -695,7 +695,7 @@ fn main() {
                                                         crate::TERRANE_DEPENDENCY_ERROR,
                                                         format!(
                                                             "Rust dependency `{}` member `{}` failed: {error}",
-                                                            "terrane_borrowed_future_witness",
+                                                            "terrane-borrowed-future-witness",
                                                             "terrane_borrowed_future_witness::Builder::serve"
                                                         ),
                                                         crate::TERRANE_NO_SITE,
@@ -727,7 +727,7 @@ fn main() {
                                 ::__terrane_dependency_await_unwind(__terrane_call). await
                                 .map_err(| payload | crate
                                 ::__terrane_dependency_panic(payload,
-                                "terrane_borrowed_future_witness",
+                                "terrane-borrowed-future-witness",
                                 "terrane_borrowed_future_witness::Builder::reject_value")) ?
                                 { Ok(value) => Ok(terrane_int_support::Int::from_u128(value
                                 as u128)), Err(error) => Err(crate
@@ -793,14 +793,14 @@ fn main() {
                                     ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
                                     . await .map_err(| payload | crate
                                     ::__terrane_dependency_panic(payload,
-                                    "terrane_borrowed_future_witness",
+                                    "terrane-borrowed-future-witness",
                                     "terrane_borrowed_future_witness::Builder::serve")) ? {
                                     Ok(value) => Ok(terrane_int_support::Int::from_u128(value as
                                     u128)), Err(error) => Err(crate ::TerraneForeignError(crate
                                     ::TerraneError::custom_raised(crate
                                     ::TERRANE_DEPENDENCY_ERROR,
                                     format!("Rust dependency `{}` member `{}` failed: {error}",
-                                    "terrane_borrowed_future_witness",
+                                    "terrane-borrowed-future-witness",
                                     "terrane_borrowed_future_witness::Builder::serve"), crate
                                     ::TERRANE_NO_SITE))) } }) }; async move {
                                     __terrane_raised_err(__terrane_future. await,

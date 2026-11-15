@@ -567,7 +567,7 @@ pub fn make_text() -> Result<witness::Opaque<String>, crate::TerraneForeignError
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-auto-traits-witness",
                     "witness::make_text",
                 ),
             )

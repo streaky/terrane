@@ -55,7 +55,7 @@ fn read_row(record: &OpaqueRow) -> Result<i64, TerraneError> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "native-mutable-witness",
                                             "witness::OpaqueRow::value",
                                         ),
                                     );
@@ -142,8 +142,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&counter).value()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Counter::value"))
-            }; Ok:: < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload, "native-mutable-witness",
+            "witness::Counter::value")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             3 /* terrane-site: src/main.trn:64:13-64:27 */))
         );
@@ -154,8 +154,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&counter).value()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Counter::value"))
-            }; Ok:: < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload, "native-mutable-witness",
+            "witness::Counter::value")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             4 /* terrane-site: src/main.trn:66:13-66:27 */))
         );
@@ -167,7 +167,7 @@ fn main() {
             let __terrane_future = { let __terrane_call = Box::new(counter).finish();
             Box::pin(async move { { let value = crate
             ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(| payload
-            | crate ::__terrane_dependency_panic(payload, "witness",
+            | crate ::__terrane_dependency_panic(payload, "native-mutable-witness",
             "witness::Counter::finish")) ?; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:68:18-68:33 */) } }). await, 5 /* terrane-site: src/main.trn:68:18-68:33 */))
@@ -186,8 +186,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&forwarded).value()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Counter::value"))
-            }; Ok:: < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload, "native-mutable-witness",
+            "witness::Counter::value")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             7 /* terrane-site: src/main.trn:71:13-71:29 */))
         );

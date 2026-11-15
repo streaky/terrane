@@ -538,7 +538,7 @@ pub fn make_value() -> Result<Payload, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-nonclone-field-witness",
                     "witness::make_value",
                 ),
             )

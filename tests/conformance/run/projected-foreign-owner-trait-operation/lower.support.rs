@@ -706,7 +706,11 @@ pub fn terrane_static_trn_56616c7565_new(
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "provider", "provider::Value"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-foreign-owner-value",
+                    "provider::Value",
+                ),
             )
         }
     }

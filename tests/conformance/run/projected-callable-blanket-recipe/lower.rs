@@ -231,7 +231,7 @@ fn main() {
             std::panic::panic_any(error.0) } } })) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
             "terrane-callable-recipe-witness",
-            "terrane_callable_recipe_witness::render::<i64>")) }; Ok:: < _, crate
+            "terrane_callable_recipe_witness::render")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) }
             } (), 8 /* terrane-site: src/main.trn:49:13-49:34 */) })
         );

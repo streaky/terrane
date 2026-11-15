@@ -552,7 +552,13 @@ pub fn terrane_static_trn_5374617465_branch(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::State"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-scoped-macro-witness",
+                    "witness::State",
+                ),
+            )
         }
     }
 }
@@ -565,7 +571,13 @@ pub fn terrane_static_trn_5374617465_new(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::State"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-scoped-macro-witness",
+                    "witness::State",
+                ),
+            )
         }
     }
 }
@@ -579,7 +591,11 @@ pub fn inspect<F: for<'a> std::ops::Fn(&'a witness::State) -> witness::Element<'
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::inspect"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-scoped-macro-witness",
+                    "witness::inspect",
+                ),
             )
         }
     }

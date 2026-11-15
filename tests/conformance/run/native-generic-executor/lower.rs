@@ -92,7 +92,7 @@ fn execute_local() -> Result<i64, TerraneError> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "terrane-native-generic-executor-witness",
                                             "witness::Query::fetch",
                                         ),
                                     );
@@ -136,7 +136,7 @@ fn execute_reference(connection: &mut Connection) -> Result<i64, TerraneError> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "terrane-native-generic-executor-witness",
                                             "witness::Query::fetch",
                                         ),
                                     );
@@ -175,7 +175,7 @@ fn execute_formal_reference(connection: &mut Connection) -> Result<i64, TerraneE
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "terrane-native-generic-executor-witness",
                                             "witness::advance",
                                         ),
                                     );
@@ -240,7 +240,7 @@ fn execute_optional(flag: bool) -> Result<i64, TerraneError> {
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "witness",
+                                                "terrane-native-generic-executor-witness",
                                                 "witness::Query::fetch",
                                             ),
                                         );
@@ -310,7 +310,7 @@ fn execute_deferred(flag: bool) -> Result<i64, TerraneError> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "terrane-native-generic-executor-witness",
                                             "witness::Query::fetch",
                                         ),
                                     );
@@ -349,7 +349,7 @@ fn execute_enum(stage: &mut Stage) -> Result<i64, TerraneError> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "terrane-native-generic-executor-witness",
                                             "witness::advance",
                                         ),
                                     );
@@ -388,7 +388,7 @@ fn observe_native(connection: &Connection) -> Result<i64, TerraneError> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "terrane-native-generic-executor-witness",
                                             "witness::observed",
                                         ),
                                     );
@@ -437,7 +437,7 @@ fn observe_captured() -> Result<i64, TerraneError> {
                                             return Err(
                                                 crate::__terrane_dependency_panic(
                                                     payload,
-                                                    "witness",
+                                                    "terrane-native-generic-executor-witness",
                                                     "witness::observed",
                                                 ),
                                             );
@@ -501,7 +501,7 @@ fn execute_outlives() -> Result<i64, TerraneError> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-native-generic-executor-witness",
                                 "witness::Query::fetch_outlives",
                             ),
                         );
@@ -536,7 +536,7 @@ fn execute_outlives() -> Result<i64, TerraneError> {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-native-generic-executor-witness",
                                     "witness::Query::fetch_outlives",
                                 ),
                             );
@@ -590,7 +590,7 @@ fn observe_outlives() -> Result<i64, TerraneError> {
                                             return Err(
                                                 crate::__terrane_dependency_panic(
                                                     payload,
-                                                    "witness",
+                                                    "terrane-native-generic-executor-witness",
                                                     "witness::outlives",
                                                 ),
                                             );
@@ -652,7 +652,7 @@ fn execute_owner(connection: &mut Connection) -> Result<i64, TerraneError> {
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "witness",
+                                                "terrane-native-generic-executor-witness",
                                                 "witness::OwnerQuery::fetch",
                                             ),
                                         );
@@ -699,8 +699,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(__terrane_native_input_0.fetch(&mut
             connection)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Query::fetch")) };
-            Ok:: < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload,
+            "terrane-native-generic-executor-witness", "witness::Query::fetch")) }; Ok::
+            < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             36 /* terrane-site: src/main.trn:77:13-77:48 */) })
         );
@@ -715,7 +716,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&connection).executions()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness",
+            ::__terrane_dependency_panic(payload,
+            "terrane-native-generic-executor-witness",
             "witness::Connection::executions")) }; Ok:: < _, crate ::TerraneForeignError
             > (terrane_int_support::Int::from(i128::from(value))) } } (),
             38 /* terrane-site: src/main.trn:79:13-79:35 */))
@@ -742,8 +744,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::advance(&mut source)) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::advance")) }; Ok::
-            < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload,
+            "terrane-native-generic-executor-witness", "witness::advance")) }; Ok:: < _,
+            crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             42 /* terrane-site: src/main.trn:84:13-84:28 */))
         );
@@ -773,8 +776,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::advance(&mut holder.stage)) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::advance")) }; Ok::
-            < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload,
+            "terrane-native-generic-executor-witness", "witness::advance")) }; Ok:: < _,
+            crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             45 /* terrane-site: src/main.trn:95:13-95:34 */))
         );
@@ -809,8 +813,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(__terrane_native_input_0.fetch(&mut
             connection)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness",
-            "witness::OwnerQuery::fetch")) }; Ok:: < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload,
+            "terrane-native-generic-executor-witness", "witness::OwnerQuery::fetch")) };
+            Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             50 /* terrane-site: src/main.trn:104:13-104:60 */) })
         );

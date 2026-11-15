@@ -556,7 +556,7 @@ pub fn terrane_static_trn_4c6f636b73_new() -> Result<Locks, crate::TerraneForeig
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "panic-api",
+                    "native-deref-panic-witness",
                     "panic_api::Locks",
                 ),
             )

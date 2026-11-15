@@ -550,7 +550,7 @@ pub fn correlated_values<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-correlated-result-witness",
                     "witness::correlated_values",
                 ),
             )

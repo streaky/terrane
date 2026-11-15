@@ -28,7 +28,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::ConnectionOptions::connect",
                                 ))?
                             {
@@ -94,7 +94,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Query::fetch_one",
                                 ))?
                             {
@@ -143,7 +143,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Row::try_get",
                             ),
                         );
@@ -186,7 +186,7 @@ fn main() {
                             terrane_query_contract::RowAccess > ::try_get(&row,
                             "missing")) })) { Ok(result) => result ?, Err(payload) =>
                             return Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_query_witness",
+                            "terrane-query-witness",
                             "terrane_query_witness::Row::try_get")) } { Ok(value) =>
                             Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
@@ -251,7 +251,7 @@ fn main() {
                             terrane_query_contract::RowAccess > ::try_get(&row, "count"))
                             })) { Ok(result) => result ?, Err(payload) => return
                             Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_query_witness",
+                            "terrane-query-witness",
                             "terrane_query_witness::Row::try_get")) } { Ok(value) =>
                             Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
@@ -315,7 +315,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Connection::close",
                                 ))?
                             {

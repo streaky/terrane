@@ -165,7 +165,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(__terrane_descriptor_view_1536.inspect_method()) }))
         { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_recursive_descriptor_witness",
+        ::__terrane_dependency_panic(payload, "terrane-recursive-descriptor-witness",
         "terrane_recursive_descriptor_witness::Descriptor::inspect_method")) }; Ok:: < _,
         crate ::TerraneForeignError > (value) } } (), 9 /* terrane-site: src/main.trn:26:13-26:35 */) })
     );
@@ -236,7 +236,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(__terrane_descriptor_view_1784.consume_method()) }))
         { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "terrane_recursive_descriptor_witness",
+        ::__terrane_dependency_panic(payload, "terrane-recursive-descriptor-witness",
         "terrane_recursive_descriptor_witness::Descriptor::consume_method")) }; Ok:: < _,
         crate ::TerraneForeignError > (value) } } (), 14 /* terrane-site: src/main.trn:34:13-34:36 */) })
     );

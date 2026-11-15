@@ -735,7 +735,13 @@ pub fn make<T: core::default::Default>() -> Result<
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::make"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-direct-specialization-witness",
+                    "witness::make",
+                ),
+            )
         }
     }
 }

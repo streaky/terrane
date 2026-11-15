@@ -13,7 +13,7 @@ async fn wait_next(mut sequence: TokioSequence) -> Result<(), TerraneError> {
                             .await
                             .map_err(|payload| crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_sequence_witness",
+                                "terrane-sequence-witness",
                                 "terrane_sequence_witness::TokioSequence::next",
                             ))?
                         {

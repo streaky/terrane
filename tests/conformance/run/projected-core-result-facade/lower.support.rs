@@ -1072,8 +1072,8 @@ pub fn terrane_static_trn_427269646765526561646572_opaque_static(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `{}` member `{}` failed: {error}", "facade",
-                            "facade::BridgeReader"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "terrane-result-facade-witness", "facade::BridgeReader"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -1084,7 +1084,7 @@ pub fn terrane_static_trn_427269646765526561646572_opaque_static(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::BridgeReader",
                 ),
             )
@@ -1111,7 +1111,13 @@ pub fn terrane_static_trn_526561646572_open(
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::Reader"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::Reader",
+                ),
+            )
         }
     }
 }
@@ -1130,7 +1136,7 @@ pub fn terrane_static_trn_4475726174696f6e_from_secs(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "core::time::Duration",
                 ),
             )
@@ -1146,7 +1152,7 @@ pub fn bridge_reader() -> Result<BridgeReader, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::bridge_reader",
                 ),
             )
@@ -1168,7 +1174,7 @@ pub fn character(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "core::char::from_u32",
                 ),
             )
@@ -1183,7 +1189,13 @@ pub fn describe(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::describe"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::describe",
+                ),
+            )
         }
     }
 }
@@ -1191,7 +1203,13 @@ pub fn duration() -> Result<Duration, crate::TerraneForeignError> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| facade::duration())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::duration"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::duration",
+                ),
+            )
         }
     }
 }
@@ -1215,7 +1233,13 @@ pub fn external(
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::external"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::external",
+                ),
+            )
         }
     }
 }
@@ -1233,7 +1257,7 @@ pub fn external_maybe(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::external_maybe",
                 ),
             )
@@ -1254,8 +1278,8 @@ pub fn inferred_call(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `{}` member `{}` failed: {error}", "facade",
-                            "facade::inferred_call"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "terrane-result-facade-witness", "facade::inferred_call"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -1266,7 +1290,7 @@ pub fn inferred_call(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::inferred_call",
                 ),
             )
@@ -1282,7 +1306,7 @@ pub fn inferred_client() -> Result<InferredClient, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::inferred_client",
                 ),
             )
@@ -1300,7 +1324,13 @@ pub fn maybe(
             Ok(value.map(|value| terrane_int_support::Int::from(i128::from(value))))
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::maybe"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::maybe",
+                ),
+            )
         }
     }
 }
@@ -1329,7 +1359,13 @@ pub fn nested(
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::nested"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::nested",
+                ),
+            )
         }
     }
 }
@@ -1356,7 +1392,7 @@ pub fn new_version(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::new_version",
                 ),
             )
@@ -1386,7 +1422,7 @@ pub fn old_transitive(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::old_transitive",
                 ),
             )
@@ -1403,8 +1439,8 @@ pub fn opaque(ok: bool) -> Result<terrane_int_support::Int, crate::TerraneForeig
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `{}` member `{}` failed: {error}", "facade",
-                            "facade::opaque"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "terrane-result-facade-witness", "facade::opaque"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -1412,7 +1448,13 @@ pub fn opaque(ok: bool) -> Result<terrane_int_support::Int, crate::TerraneForeig
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::opaque"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::opaque",
+                ),
+            )
         }
     }
 }
@@ -1430,8 +1472,8 @@ pub fn opaque_transitive(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `{}` member `{}` failed: {error}", "facade",
-                            "facade::opaque_transitive"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "terrane-result-facade-witness", "facade::opaque_transitive"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -1442,7 +1484,7 @@ pub fn opaque_transitive(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::opaque_transitive",
                 ),
             )
@@ -1462,8 +1504,8 @@ pub fn parse(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `{}` member `{}` failed: {error}", "facade",
-                            "facade::parse"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "terrane-result-facade-witness", "facade::parse"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -1471,7 +1513,13 @@ pub fn parse(
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::parse"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::parse",
+                ),
+            )
         }
     }
 }
@@ -1482,7 +1530,13 @@ pub fn pick(
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| facade::pick(left))) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::pick"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::pick",
+                ),
+            )
         }
     }
 }
@@ -1498,7 +1552,7 @@ pub fn public_error_text(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::public_error_text",
                 ),
             )
@@ -1514,7 +1568,7 @@ pub fn public_error_value() -> Result<TransitiveFailure, crate::TerraneForeignEr
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::public_error_value",
                 ),
             )
@@ -1544,7 +1598,7 @@ pub fn public_transitive(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::public_transitive",
                 ),
             )
@@ -1555,7 +1609,13 @@ pub fn reader() -> Result<Reader, crate::TerraneForeignError> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| facade::reader())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::reader"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::reader",
+                ),
+            )
         }
     }
 }
@@ -1579,7 +1639,13 @@ pub fn renamed(
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::renamed"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::renamed",
+                ),
+            )
         }
     }
 }
@@ -1587,7 +1653,13 @@ pub fn response() -> Result<facade::Response<i64>, crate::TerraneForeignError> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| facade::response())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "facade", "facade::response"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-result-facade-witness",
+                    "facade::response",
+                ),
+            )
         }
     }
 }
@@ -1616,8 +1688,8 @@ pub fn text(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `{}` member `{}` failed: {error}", "facade",
-                            "core::str::from_utf8"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "terrane-result-facade-witness", "core::str::from_utf8"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -1628,7 +1700,7 @@ pub fn text(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "core::str::from_utf8",
                 ),
             )
@@ -1647,7 +1719,7 @@ pub fn error_text(error: Error) -> Result<String, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::util::error_text",
                 ),
             )
@@ -1663,7 +1735,7 @@ pub fn error_value() -> Result<Error, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "facade",
+                    "terrane-result-facade-witness",
                     "facade::util::error_value",
                 ),
             )

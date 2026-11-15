@@ -554,7 +554,13 @@ pub fn terrane_static_trn_486f6c646572_new() -> Result<
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Holder"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-invocation-scoped-witness",
+                    "witness::Holder",
+                ),
+            )
         }
     }
 }

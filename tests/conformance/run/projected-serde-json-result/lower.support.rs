@@ -550,7 +550,7 @@ pub fn from_str<T: for<'a> serde_core::de::Deserialize<'a>>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "serde-json",
+                    "serde_json",
                     "serde_json::from_str",
                 ),
             )

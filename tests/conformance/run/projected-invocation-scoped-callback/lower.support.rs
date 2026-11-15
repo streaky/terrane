@@ -770,7 +770,7 @@ pub fn terrane_static_trn_4d757461626c655374617465_new(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::MutableState",
                 ),
             )
@@ -788,7 +788,7 @@ pub fn borrowed_button<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::borrowed_button",
                 ),
             )
@@ -807,7 +807,7 @@ pub fn borrowed_button_group<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::borrowed_button_group",
                 ),
             )
@@ -831,7 +831,7 @@ pub fn borrowed_group<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::borrowed_group",
                 ),
             )
@@ -849,7 +849,7 @@ pub fn borrowed_label<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::borrowed_label",
                 ),
             )
@@ -868,7 +868,7 @@ pub fn borrowed_label_group<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::borrowed_label_group",
                 ),
             )
@@ -887,7 +887,7 @@ pub fn borrowed_row<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::borrowed_row",
                 ),
             )
@@ -908,7 +908,7 @@ pub fn borrowed_value<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::borrowed_value",
                 ),
             )
@@ -927,7 +927,13 @@ pub fn button(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::button"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-invocation-scoped-witness",
+                    "witness::button",
+                ),
+            )
         }
     }
 }
@@ -943,7 +949,13 @@ pub fn label(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::label"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-invocation-scoped-witness",
+                    "witness::label",
+                ),
+            )
         }
     }
 }
@@ -963,7 +975,13 @@ pub fn launch<
     ) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::launch"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-invocation-scoped-witness",
+                    "witness::launch",
+                ),
+            )
         }
     }
 }
@@ -978,7 +996,7 @@ pub fn mutable_state_label<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::mutable_state_label",
                 ),
             )
@@ -994,7 +1012,7 @@ pub fn reset_trace() -> Result<(), crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::reset_trace",
                 ),
             )
@@ -1010,7 +1028,13 @@ pub fn row(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::row"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-invocation-scoped-witness",
+                    "witness::row",
+                ),
+            )
         }
     }
 }
@@ -1029,7 +1053,7 @@ pub fn traced_label(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-invocation-scoped-witness",
                     "witness::traced_label",
                 ),
             )

@@ -995,7 +995,13 @@ pub fn terrane_static_trn_486f7374_new() -> Result<Host, crate::TerraneForeignEr
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Host"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-borrowed-interior-witness",
+                    "witness::Host",
+                ),
+            )
         }
     }
 }
@@ -1015,7 +1021,11 @@ pub fn terrane_static_trn_54657272616e654e73446570735769746e65737352657175657374
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::Request"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-borrowed-interior-witness",
+                    "witness::Request",
+                ),
             )
         }
     }
@@ -1029,7 +1039,7 @@ pub fn clone_count() -> Result<terrane_int_support::Int, crate::TerraneForeignEr
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-borrowed-interior-witness",
                     "witness::clone_count",
                 ),
             )
@@ -1045,7 +1055,11 @@ pub fn consume(
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::consume"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-borrowed-interior-witness",
+                    "witness::consume",
+                ),
             )
         }
     }
@@ -1061,7 +1075,7 @@ pub fn make_view<'view>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-borrowed-interior-witness",
                     "witness::make_view",
                 ),
             )
@@ -1079,7 +1093,13 @@ pub fn render<
     ) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::render"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-borrowed-interior-witness",
+                    "witness::render",
+                ),
+            )
         }
     }
 }
@@ -1092,7 +1112,7 @@ pub fn root_count() -> Result<terrane_int_support::Int, crate::TerraneForeignErr
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-borrowed-interior-witness",
                     "witness::root_count",
                 ),
             )
@@ -1111,7 +1131,7 @@ pub fn root_only() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-borrowed-interior-witness",
                     "witness::root_only",
                 ),
             )

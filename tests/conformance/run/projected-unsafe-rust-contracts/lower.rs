@@ -17,7 +17,7 @@ fn view<'view>(state: &'view String) -> witness::ScopedView<'view> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-unsafe-contract-witness",
                                 "witness::borrowed_view",
                             ),
                         );
@@ -46,8 +46,8 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(witness::render_unsafe(&state, view)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_unsafe")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-unsafe-contract-witness",
+        "witness::render_unsafe")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (), 2 /* terrane-site: src/main.trn:11:13-11:39 */))
     );
 }

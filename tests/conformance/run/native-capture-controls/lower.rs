@@ -130,7 +130,7 @@ fn main() {
                                                 return Err(
                                                     crate::__terrane_dependency_panic(
                                                         payload,
-                                                        "witness",
+                                                        "native-mutable-witness",
                                                         "witness::Counter::value",
                                                     ),
                                                 );
@@ -240,7 +240,7 @@ fn main() {
                                                     return Err(
                                                         crate::__terrane_dependency_panic(
                                                             payload,
-                                                            "witness",
+                                                            "native-mutable-witness",
                                                             "witness::OpaqueValue::value",
                                                         ),
                                                     );
@@ -288,8 +288,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&callback_counter).value()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Counter::value"))
-            }; Ok:: < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload, "native-mutable-witness",
+            "witness::Counter::value")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             15 /* terrane-site: src/main.trn:47:13-47:36 */))
         );
@@ -323,7 +323,7 @@ fn main() {
                                                 return Err(
                                                     crate::__terrane_dependency_panic(
                                                         payload,
-                                                        "witness",
+                                                        "native-mutable-witness",
                                                         "witness::Counter::value",
                                                     ),
                                                 );

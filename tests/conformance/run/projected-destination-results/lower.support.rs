@@ -572,7 +572,7 @@ pub fn default_value<T: core::default::Default>() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "factory",
+                    "terrane-generic-factory-witness",
                     "factory::default_value",
                 ),
             )
@@ -591,7 +591,7 @@ pub fn renamed_bound_value<T: for<'value> factory::Decode<'value>>() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "factory",
+                    "terrane-generic-factory-witness",
                     "factory::renamed_bound_value",
                 ),
             )
@@ -610,7 +610,7 @@ pub fn sample_numeric_rows<T: factory::Sample>() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "factory",
+                    "terrane-generic-factory-witness",
                     "factory::sample_numeric_rows",
                 ),
             )
@@ -629,7 +629,7 @@ pub fn sample_rows<T: factory::Sample>() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "factory",
+                    "terrane-generic-factory-witness",
                     "factory::sample_rows",
                 ),
             )
@@ -645,7 +645,7 @@ pub fn sample_value<T: factory::Sample>() -> Result<T, crate::TerraneForeignErro
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "factory",
+                    "terrane-generic-factory-witness",
                     "factory::sample_value",
                 ),
             )

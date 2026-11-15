@@ -30,7 +30,7 @@ fn total(
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::CopyView::size",
                                     ),
                                 );
@@ -63,7 +63,7 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&h).copy_view()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 2 /* terrane-site: src/main.trn:14:38-14:50 */); value }
         ],

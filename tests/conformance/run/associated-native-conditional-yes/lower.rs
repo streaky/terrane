@@ -22,7 +22,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-conditional-response",
                                     "witness::execute",
                                 ),
                             );

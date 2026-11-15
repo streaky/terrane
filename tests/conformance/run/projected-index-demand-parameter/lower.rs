@@ -35,7 +35,7 @@ fn read(values: terrane_collection_support::List<Token>) -> Result<u64, TerraneE
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "terrane_query_witness",
+                                                "terrane-query-witness",
                                                 "terrane_query_witness::Token::value",
                                             ),
                                         );

@@ -29,14 +29,14 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&plain).label()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_owner_witness", "terrane_owner_witness::PlainOwner::label")) }; Ok:: <
+        "terrane-owner-witness", "terrane_owner_witness::PlainOwner::label")) }; Ok:: <
         _, crate ::TerraneForeignError > (value) } } (), 4 /* terrane-site: src/main.trn:11:11-11:23 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _, crate
         ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&defaulted).label()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_owner_witness", "terrane_owner_witness::DefaultOwner::label")) }; Ok:: <
+        "terrane-owner-witness", "terrane_owner_witness::DefaultOwner::label")) }; Ok:: <
         _, crate ::TerraneForeignError > (value) } } (), 5 /* terrane-site: src/main.trn:11:27-11:43 */)), terrane_scalar_support::scalar_text(&<
         terrane_owner_witness::DefaultOwner < std::string::String > > ::CODE),
         terrane_scalar_support::scalar_text(&html)

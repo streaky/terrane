@@ -29,7 +29,7 @@ async fn call_opaque_async() -> Result<terrane_int_support::Int, TerraneError> {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "facade",
+                                    "terrane-result-facade-witness",
                                     "facade::BridgeReader::opaque_async",
                                 ))?
                             {
@@ -43,7 +43,8 @@ async fn call_opaque_async() -> Result<terrane_int_support::Int, TerraneError> {
                                                 crate::TERRANE_DEPENDENCY_ERROR,
                                                 format!(
                                                     "Rust dependency `{}` member `{}` failed: {error}",
-                                                    "facade", "facade::BridgeReader::opaque_async"
+                                                    "terrane-result-facade-witness",
+                                                    "facade::BridgeReader::opaque_async"
                                                 ),
                                                 crate::TERRANE_NO_SITE,
                                             ),
@@ -104,7 +105,7 @@ fn checked_inferred_method() -> Result<terrane_int_support::Int, TerraneError> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "facade",
+                                "terrane-result-facade-witness",
                                 "facade::InferredClient::call",
                             ),
                         );
@@ -118,7 +119,8 @@ fn checked_inferred_method() -> Result<terrane_int_support::Int, TerraneError> {
                                     crate::TERRANE_DEPENDENCY_ERROR,
                                     format!(
                                         "Rust dependency `{}` member `{}` failed: {error}",
-                                        "facade", "facade::InferredClient::call"
+                                        "terrane-result-facade-witness",
+                                        "facade::InferredClient::call"
                                     ),
                                     crate::TERRANE_NO_SITE,
                                 ),
@@ -149,7 +151,7 @@ async fn checked_inferred_async() -> Result<terrane_int_support::Int, TerraneErr
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "facade",
+                                    "terrane-result-facade-witness",
                                     "facade::InferredClient::asynchronous",
                                 ))?
                             {
@@ -163,7 +165,8 @@ async fn checked_inferred_async() -> Result<terrane_int_support::Int, TerraneErr
                                                 crate::TERRANE_DEPENDENCY_ERROR,
                                                 format!(
                                                     "Rust dependency `{}` member `{}` failed: {error}",
-                                                    "facade", "facade::InferredClient::asynchronous"
+                                                    "terrane-result-facade-witness",
+                                                    "facade::InferredClient::asynchronous"
                                                 ),
                                                 crate::TERRANE_NO_SITE,
                                             ),
@@ -527,7 +530,7 @@ fn main() {
             Result < _, crate ::TerraneForeignError > { Ok((&owner)
             .read(__terrane_conversion_input_0)) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "facade", "facade::Reader::read")) } { Ok(value) =>
+            "terrane-result-facade-witness", "facade::Reader::read")) } { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
             Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
             ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))) } } (),
@@ -536,14 +539,13 @@ fn main() {
             __terrane_future = { let __terrane_call = (&owner).asynchronous(true);
             Box::pin(async move { match crate
             ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(| payload
-            | crate ::__terrane_dependency_panic(payload, "facade",
-            "facade::Reader::asynchronous")) ? { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
-            Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-            ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))) } }) };
-            async move { __terrane_raised_err(__terrane_future. await,
-            36 /* terrane-site: src/main.trn:77:71-77:95 */) } }). await,
-            36 /* terrane-site: src/main.trn:77:71-77:95 */))
+            | crate ::__terrane_dependency_panic(payload,
+            "terrane-result-facade-witness", "facade::Reader::asynchronous")) ? {
+            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+            Err(error) => Err(crate ::TerraneForeignError(crate
+            ::TerraneError::custom_raised(crate ::DescriptorId(2), error.to_string(),
+            crate ::TERRANE_NO_SITE))) } }) }; async move {
+            __terrane_raised_err(__terrane_future. await, 36 /* terrane-site: src/main.trn:77:71-77:95 */) } }). await, 36 /* terrane-site: src/main.trn:77:71-77:95 */))
         );
         let __terrane_completion_4: TerraneCompletion<()> = (|| {
             let __terrane_try_4: TerraneCompletion<()> = (|| {
@@ -555,10 +557,10 @@ fn main() {
                     _, crate ::TerraneForeignError > { Ok((&owner)
                     .read(__terrane_conversion_input_0)) })) { Ok(result) => result ?,
                     Err(payload) => return Err(crate
-                    ::__terrane_dependency_panic(payload, "facade",
-                    "facade::Reader::read")) } { Ok(value) =>
-                    Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
-                    Err(crate ::TerraneForeignError(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane-result-facade-witness", "facade::Reader::read")) } {
+                    Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+                    Err(error) => Err(crate ::TerraneForeignError(crate
                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                     .to_string(), crate ::TERRANE_NO_SITE))) } } (),
                     37 /* terrane-site: src/main.trn:79:17-79:34 */) })
@@ -604,10 +606,10 @@ fn main() {
                     let __terrane_future = { let __terrane_call = (&owner)
                     .asynchronous(false); Box::pin(async move { match crate
                     ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(|
-                    payload | crate ::__terrane_dependency_panic(payload, "facade",
-                    "facade::Reader::asynchronous")) ? { Ok(value) =>
-                    Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
-                    Err(crate ::TerraneForeignError(crate
+                    payload | crate ::__terrane_dependency_panic(payload,
+                    "terrane-result-facade-witness", "facade::Reader::asynchronous")) ? {
+                    Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+                    Err(error) => Err(crate ::TerraneForeignError(crate
                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                     .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
                     __terrane_raised_err(__terrane_future. await, 38 /* terrane-site: src/main.trn:83:23-83:48 */) } }). await, 38 /* terrane-site: src/main.trn:83:23-83:48 */))
@@ -1005,11 +1007,11 @@ fn main() {
             Result < _, crate ::TerraneForeignError > { Ok((&bridge)
             .typed(__terrane_conversion_input_0)) })) { Ok(result) => result ?,
             Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-            "facade", "facade::BridgeReader::typed")) } { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
-            Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-            ::DescriptorId(4), error.to_string(), crate ::TERRANE_NO_SITE))) } } (),
-            57 /* terrane-site: src/main.trn:123:13-123:31 */) })
+            "terrane-result-facade-witness", "facade::BridgeReader::typed")) } {
+            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+            Err(error) => Err(crate ::TerraneForeignError(crate
+            ::TerraneError::custom_raised(crate ::DescriptorId(4), error.to_string(),
+            crate ::TERRANE_NO_SITE))) } } (), 57 /* terrane-site: src/main.trn:123:13-123:31 */) })
         );
         let __terrane_completion_12: TerraneCompletion<()> = (|| {
             let __terrane_try_12: TerraneCompletion<()> = (|| {
@@ -1021,10 +1023,10 @@ fn main() {
                     _, crate ::TerraneForeignError > { Ok((&bridge)
                     .typed(__terrane_conversion_input_0)) })) { Ok(result) => result ?,
                     Err(payload) => return Err(crate
-                    ::__terrane_dependency_panic(payload, "facade",
-                    "facade::BridgeReader::typed")) } { Ok(value) =>
-                    Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
-                    Err(crate ::TerraneForeignError(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane-result-facade-witness", "facade::BridgeReader::typed")) } {
+                    Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+                    Err(error) => Err(crate ::TerraneForeignError(crate
                     ::TerraneError::custom_raised(crate ::DescriptorId(4), error
                     .to_string(), crate ::TERRANE_NO_SITE))) } } (),
                     58 /* terrane-site: src/main.trn:125:17-125:36 */) })
@@ -1067,16 +1069,15 @@ fn main() {
             let __terrane_future = { let __terrane_call = (&bridge).opaque_async(true);
             Box::pin(async move { match crate
             ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(| payload
-            | crate ::__terrane_dependency_panic(payload, "facade",
-            "facade::BridgeReader::opaque_async")) ? { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(error) =>
-            Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-            ::TERRANE_DEPENDENCY_ERROR,
-            format!("Rust dependency `{}` member `{}` failed: {error}", "facade",
-            "facade::BridgeReader::opaque_async"), crate ::TERRANE_NO_SITE))) } }) };
-            async move { __terrane_raised_err(__terrane_future. await,
-            59 /* terrane-site: src/main.trn:128:19-128:44 */) } }). await,
-            59 /* terrane-site: src/main.trn:128:19-128:44 */))
+            | crate ::__terrane_dependency_panic(payload,
+            "terrane-result-facade-witness", "facade::BridgeReader::opaque_async")) ? {
+            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+            Err(error) => Err(crate ::TerraneForeignError(crate
+            ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+            format!("Rust dependency `{}` member `{}` failed: {error}",
+            "terrane-result-facade-witness", "facade::BridgeReader::opaque_async"), crate
+            ::TERRANE_NO_SITE))) } }) }; async move {
+            __terrane_raised_err(__terrane_future. await, 59 /* terrane-site: src/main.trn:128:19-128:44 */) } }). await, 59 /* terrane-site: src/main.trn:128:19-128:44 */))
         );
         let __terrane_completion_13: TerraneCompletion<()> = async {
             let __terrane_try_13: TerraneCompletion<()> = async {

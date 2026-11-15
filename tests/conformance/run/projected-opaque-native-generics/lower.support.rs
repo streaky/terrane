@@ -573,7 +573,7 @@ pub fn default_pair() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::default_pair",
                 ),
             )
@@ -595,7 +595,7 @@ pub fn flag_code(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::flag_code",
                 ),
             )
@@ -615,7 +615,13 @@ pub fn flags() -> Result<
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::flags"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-opaque-native-witness",
+                    "witness::flags",
+                ),
+            )
         }
     }
 }
@@ -638,7 +644,13 @@ pub fn lookup() -> Result<
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::lookup"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-opaque-native-witness",
+                    "witness::lookup",
+                ),
+            )
         }
     }
 }
@@ -651,7 +663,7 @@ pub fn make_flag() -> Result<witness::Opaque<bool>, crate::TerraneForeignError> 
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::make_flag",
                 ),
             )
@@ -670,7 +682,7 @@ pub fn make_nested() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::make_nested",
                 ),
             )
@@ -686,7 +698,7 @@ pub fn make_text() -> Result<witness::Opaque<String>, crate::TerraneForeignError
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::make_text",
                 ),
             )
@@ -710,7 +722,7 @@ pub fn mapping_value(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::mapping_value",
                 ),
             )
@@ -724,7 +736,13 @@ pub fn pair() -> Result<
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::pair())) {
         Ok(value) => Ok(terrane_collection_support::Tuple::new(vec![value.0, value.1])),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::pair"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-opaque-native-witness",
+                    "witness::pair",
+                ),
+            )
         }
     }
 }
@@ -758,7 +776,7 @@ pub fn pair_code(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::pair_code",
                 ),
             )
@@ -777,7 +795,7 @@ pub fn pair_text(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-opaque-native-witness",
                     "witness::pair_text",
                 ),
             )

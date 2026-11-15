@@ -573,7 +573,7 @@ pub fn evaluations() -> Result<terrane_int_support::Int, crate::TerraneForeignEr
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-expression-macro-witness",
                     "witness::evaluations",
                 ),
             )
@@ -584,7 +584,13 @@ pub fn next() -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::next())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::next"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-expression-macro-witness",
+                    "witness::next",
+                ),
+            )
         }
     }
 }
@@ -595,7 +601,13 @@ pub fn sum_terrane_deps_witness() -> Result<
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::sum())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::sum"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-expression-macro-witness",
+                    "witness::sum",
+                ),
+            )
         }
     }
 }

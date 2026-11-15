@@ -17,7 +17,7 @@ fn exact_label<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -49,7 +49,7 @@ fn exact_nested<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -74,7 +74,7 @@ fn exact_nested<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_button",
                             ),
                         );
@@ -109,7 +109,7 @@ fn exact_nested<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_group",
                                 ),
                             );
@@ -139,7 +139,7 @@ fn exact_typed<'view>(
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_value",
                             ),
                         );
@@ -173,7 +173,7 @@ fn exact_recursive<'view>(state: &'view String) -> witness::BorrowedLabel<'view>
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -202,7 +202,7 @@ fn exact_wrapped_binding<'view>(state: &'view String) -> witness::BorrowedGroup<
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -233,7 +233,7 @@ fn exact_wrapped_binding<'view>(state: &'view String) -> witness::BorrowedGroup<
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_label_group",
                                 ),
                             );
@@ -267,7 +267,7 @@ fn exact_ping<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -300,7 +300,7 @@ fn exact_pong<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -327,7 +327,7 @@ fn exact_inner_label<'view>(state: &'view String) -> witness::BorrowedLabel<'vie
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -360,7 +360,7 @@ fn exact_outer_group<'view>(state: &'view String) -> witness::BorrowedGroup<'vie
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_label_group",
                                 ),
                             );
@@ -400,7 +400,7 @@ fn exact_reassign_helper_then_producer<'view>(
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -429,7 +429,7 @@ fn exact_reassign_reverse<'view>(state: &'view String) -> witness::BorrowedLabel
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -462,7 +462,7 @@ fn exact_reassign_conditional<'view>(
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -498,7 +498,7 @@ fn exact_reassign_alias<'view>(state: &'view String) -> witness::BorrowedLabel<'
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -537,7 +537,7 @@ fn exact_bound_wrapped<'view>(state: &'view String) -> witness::BorrowedGroup<'v
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_label_group",
                                 ),
                             );
@@ -573,7 +573,7 @@ fn exact_mixed_branch<'view>(state: &'view String) -> witness::BorrowedLabel<'vi
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -609,7 +609,7 @@ fn exact_helper_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_label",
                                 ),
                             );
@@ -644,7 +644,7 @@ fn exact_helper_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_row",
                                 ),
                             );
@@ -678,7 +678,7 @@ fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_label",
                                 ),
                             );
@@ -709,7 +709,7 @@ fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "witness",
+                                        "terrane-invocation-scoped-witness",
                                         "witness::borrowed_label_group",
                                     ),
                                 );
@@ -736,7 +736,7 @@ fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_button",
                             ),
                         );
@@ -767,7 +767,7 @@ fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_button_group",
                                 ),
                             );
@@ -800,7 +800,7 @@ fn exact_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view>
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_label",
                                 ),
                             );
@@ -828,7 +828,7 @@ fn exact_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view>
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_label",
                                 ),
                             );
@@ -863,7 +863,7 @@ fn exact_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view>
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::borrowed_row",
                                 ),
                             );
@@ -935,7 +935,7 @@ fn nested(state: &i64) -> Widget {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::into_widget",
                                 ),
                             );
@@ -977,7 +977,7 @@ fn branch(state: &i64) -> Widget {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "witness",
+                                        "terrane-invocation-scoped-witness",
                                         "witness::into_widget",
                                     ),
                                 );
@@ -1017,7 +1017,7 @@ fn branch(state: &i64) -> Widget {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::into_widget",
                                 ),
                             );
@@ -1059,7 +1059,7 @@ fn aggregate(state: &i64) -> Widget {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "witness",
+                                        "terrane-invocation-scoped-witness",
                                         "witness::into_widget",
                                     ),
                                 );
@@ -1098,7 +1098,7 @@ fn aggregate(state: &i64) -> Widget {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "witness",
+                                        "terrane-invocation-scoped-witness",
                                         "witness::into_widget",
                                     ),
                                 );
@@ -1137,7 +1137,7 @@ fn aggregate(state: &i64) -> Widget {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "witness",
+                                        "terrane-invocation-scoped-witness",
                                         "witness::into_widget",
                                     ),
                                 );
@@ -1173,7 +1173,7 @@ fn aggregate(state: &i64) -> Widget {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::into_widget",
                                 ),
                             );
@@ -1236,7 +1236,7 @@ fn borrowed_title<'view>(title: &'view String) -> witness::BorrowedLabel<'view> 
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::borrowed_label",
                             ),
                         );
@@ -1279,7 +1279,7 @@ fn update(state: &mut MutableState, message: terrane_int_support::Int) {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-invocation-scoped-witness",
                                     "witness::MutableState::mark",
                                 ),
                             );
@@ -1307,7 +1307,7 @@ fn application_view<'view>(state: &'view MutableState) -> witness::BorrowedLabel
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-invocation-scoped-witness",
                                 "witness::mutable_state_label",
                             ),
                         );
@@ -1345,9 +1345,9 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::render_scoped")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        52 /* terrane-site: src/main.trn:148:13-148:58 */) })
+        "terrane-invocation-scoped-witness", "witness::render_scoped")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 52 /* terrane-site: src/main.trn:148:13-148:58 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1357,8 +1357,8 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_exact")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-invocation-scoped-witness",
+        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         53 /* terrane-site: src/main.trn:149:13-149:62 */) })
     );
@@ -1370,8 +1370,8 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_typed)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_exact")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-invocation-scoped-witness",
+        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         54 /* terrane-site: src/main.trn:150:13-150:68 */) })
     );
@@ -1386,10 +1386,10 @@ fn main() {
         ::TerraneForeignError > { let callback_value = callback(&* callback_argument_0);
         Ok(callback_value) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error.0) } } })) })) { Ok(result) => result ?, Err(payload)
-        => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_default")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        55 /* terrane-site: src/main.trn:151:13-151:42 */) })
+        => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_default")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 55 /* terrane-site: src/main.trn:151:13-151:42 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1399,8 +1399,8 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_nested)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_exact")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-invocation-scoped-witness",
+        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         56 /* terrane-site: src/main.trn:152:13-152:69 */) })
     );
@@ -1412,8 +1412,8 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_branch)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_exact")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-invocation-scoped-witness",
+        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         57 /* terrane-site: src/main.trn:153:13-153:69 */) })
     );
@@ -1425,8 +1425,8 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_aggregate)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_exact")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-invocation-scoped-witness",
+        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         58 /* terrane-site: src/main.trn:154:13-154:72 */) })
     );
@@ -1438,8 +1438,8 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_recursive)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_exact")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-invocation-scoped-witness",
+        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         59 /* terrane-site: src/main.trn:155:13-155:72 */) })
     );
@@ -1451,10 +1451,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_wrapped_binding)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        60 /* terrane-site: src/main.trn:156:13-156:78 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 60 /* terrane-site: src/main.trn:156:13-156:78 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1464,8 +1464,8 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_ping)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_exact")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-invocation-scoped-witness",
+        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         61 /* terrane-site: src/main.trn:157:13-157:67 */) })
     );
@@ -1477,10 +1477,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_outer_group)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        62 /* terrane-site: src/main.trn:158:13-158:74 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 62 /* terrane-site: src/main.trn:158:13-158:74 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1490,10 +1490,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_forwarded_binding)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        63 /* terrane-site: src/main.trn:159:13-159:80 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 63 /* terrane-site: src/main.trn:159:13-159:80 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1503,10 +1503,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_bound_wrapped)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        64 /* terrane-site: src/main.trn:160:13-160:76 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 64 /* terrane-site: src/main.trn:160:13-160:76 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1516,10 +1516,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_mixed_branch)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        65 /* terrane-site: src/main.trn:161:13-161:75 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 65 /* terrane-site: src/main.trn:161:13-161:75 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1529,10 +1529,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_helper_aggregate)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        66 /* terrane-site: src/main.trn:162:13-162:79 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 66 /* terrane-site: src/main.trn:162:13-162:79 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1542,10 +1542,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_reassign_helper_then_producer)) })) { Ok(result) => result ?, Err(payload)
-        => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        67 /* terrane-site: src/main.trn:163:13-163:92 */) })
+        => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 67 /* terrane-site: src/main.trn:163:13-163:92 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1555,10 +1555,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_reassign_reverse)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        68 /* terrane-site: src/main.trn:164:13-164:79 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 68 /* terrane-site: src/main.trn:164:13-164:79 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1568,10 +1568,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_reassign_conditional)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        69 /* terrane-site: src/main.trn:165:13-165:83 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 69 /* terrane-site: src/main.trn:165:13-165:83 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1581,10 +1581,10 @@ fn main() {
         crate ::TerraneForeignError > { Ok(witness::render_exact:: < String, bool >
         (&exact_state, __terrane_conversion_input_1, __terrane_conversion_input_2,
         exact_reassign_alias)) })) { Ok(result) => result ?, Err(payload) => return
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::render_exact")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        70 /* terrane-site: src/main.trn:166:13-166:77 */) })
+        Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-invocation-scoped-witness", "witness::render_exact")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 70 /* terrane-site: src/main.trn:166:13-166:77 */) })
     );
     offset = 2;
     captured = {
@@ -1617,9 +1617,9 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::render_scoped")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        73 /* terrane-site: src/main.trn:170:13-170:60 */) })
+        "terrane-invocation-scoped-witness", "witness::render_scoped")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 73 /* terrane-site: src/main.trn:170:13-170:60 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1634,9 +1634,9 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::render_scoped")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        74 /* terrane-site: src/main.trn:171:13-171:66 */) })
+        "terrane-invocation-scoped-witness", "witness::render_scoped")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 74 /* terrane-site: src/main.trn:171:13-171:66 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1651,9 +1651,9 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::render_scoped")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        75 /* terrane-site: src/main.trn:172:13-172:58 */) })
+        "terrane-invocation-scoped-witness", "witness::render_scoped")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 75 /* terrane-site: src/main.trn:172:13-172:58 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
@@ -1668,9 +1668,9 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::render_scoped")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        76 /* terrane-site: src/main.trn:173:13-173:58 */) })
+        "terrane-invocation-scoped-witness", "witness::render_scoped")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 76 /* terrane-site: src/main.trn:173:13-173:58 */) })
     );
     zero = 0;
     println!(
@@ -1686,9 +1686,9 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::render_scoped")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        77 /* terrane-site: src/main.trn:175:13-175:57 */) })
+        "terrane-invocation-scoped-witness", "witness::render_scoped")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 77 /* terrane-site: src/main.trn:175:13-175:57 */) })
     );
     __terrane_raised(reset_trace(), 78 /* terrane-site: src/main.trn:176:5-176:17 */);
     println!(
@@ -1704,9 +1704,9 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::render_scoped")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        79 /* terrane-site: src/main.trn:177:13-177:61 */) })
+        "terrane-invocation-scoped-witness", "witness::render_scoped")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 79 /* terrane-site: src/main.trn:177:13-177:61 */) })
     );
     application = DemoApplication::terrane_construct();
     println!(
@@ -1738,8 +1738,8 @@ fn main() {
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } })) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::run_application")) }; Ok:: < _, crate ::TerraneForeignError
-        > (terrane_int_support::Int::from(i128::from(value))) } } (),
-        81 /* terrane-site: src/main.trn:180:13-180:79 */) })
+        "terrane-invocation-scoped-witness", "witness::run_application")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 81 /* terrane-site: src/main.trn:180:13-180:79 */) })
     );
 }

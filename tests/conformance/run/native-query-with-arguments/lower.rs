@@ -44,7 +44,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "native_query_witness",
+                                        "native-query-witness",
                                         "native_query_witness::Arguments::push",
                                     ),
                                 );
@@ -80,7 +80,7 @@ fn main() {
                                     .await
                                     .map_err(|payload| crate::__terrane_dependency_panic(
                                         payload,
-                                        "native_query_witness",
+                                        "native-query-witness",
                                         "native_query_witness::Query::execute",
                                     ))?;
                                 Ok::<_, crate::TerraneForeignError>(value)
@@ -103,7 +103,7 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&result).rows_affected()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "native_query_witness",
+            ::__terrane_dependency_panic(payload, "native-query-witness",
             "native_query_witness::StoreResult::rows_affected")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 5 /* terrane-site: src/main.trn:11:11-11:32 */))
@@ -114,7 +114,7 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&result).persistent()) })) { Ok(result)
             => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "native_query_witness",
+            ::__terrane_dependency_panic(payload, "native-query-witness",
             "native_query_witness::StoreResult::persistent")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 6 /* terrane-site: src/main.trn:12:11-12:29 */))
         );

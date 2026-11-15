@@ -544,7 +544,7 @@ pub fn consume_text(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-clone-capability-witness",
                     "witness::consume_text",
                 ),
             )
@@ -560,7 +560,7 @@ pub fn make_text() -> Result<witness::Opaque<String>, crate::TerraneForeignError
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-clone-capability-witness",
                     "witness::make_text",
                 ),
             )

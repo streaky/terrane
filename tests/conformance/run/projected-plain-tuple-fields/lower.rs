@@ -153,7 +153,7 @@ fn main() {
         ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
         ::TERRANE_NO_SITE))) ?,) })) })) { Ok(result) => result ?, Err(payload) => return
         Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_recursive_descriptor_witness",
+        "terrane-recursive-descriptor-witness",
         "terrane_recursive_descriptor_witness::Plain::add")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 11 /* terrane-site: src/main.trn:14:13-14:37 */) })

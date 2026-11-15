@@ -61,7 +61,7 @@ fn inspect<TerraneType4D: MakerProtocol>(maker: &TerraneType4D) {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&value).label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 1 /* terrane-site: src/main.trn:15:13-15:29 */))
     );
