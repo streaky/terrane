@@ -56,7 +56,12 @@ pub fn mutate<Input, Output>(
     mutator.mutate(input)
 }
 
+pub type Auxiliary<Output = u8> = Output;
+
 pub trait AsyncHandler<T, State>: Clone + Send + Sync + Sized + 'static {
+    fn auxiliary(&self) -> Auxiliary {
+        7
+    }
     type Future: Future<Output = String> + Send;
     fn call(self, input: i64, state: State) -> Self::Future;
     fn native_suffix(&self) -> &'static str {

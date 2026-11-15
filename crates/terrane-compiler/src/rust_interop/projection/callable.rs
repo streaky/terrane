@@ -747,13 +747,22 @@ pub(super) fn project_callable_adapter_bounds(
         if unsupported_shape && !has_callable_blanket(declaration, index, paths) {
             continue;
         }
-        let native_function = declaration.items.iter().find_map(|item_id| {
+        let mut required_functions = declaration.items.iter().filter_map(|item_id| {
             let item = index.get(item_id)?;
             let ItemEnum::Function(function) = &item.inner else {
                 return None;
             };
-            Some((item.name.clone()?, function))
+            (!function.has_body).then(|| (item.name.clone(), function))
         });
+        let native_function = required_functions
+            .next()
+            .and_then(|(name, function)| name.map(|name| (name, function)));
+        if required_functions.next().is_some() {
+            return Err(format!(
+                "generic input `{parameter_name}` uses unsupported callable trait `{}`: multiple required operations",
+                requested_trait.path
+            ));
+        }
         let (callback_known, terminal_defaults) = native_function
             .as_ref()
             .and_then(|(_, function)| function.sig.output.as_ref())

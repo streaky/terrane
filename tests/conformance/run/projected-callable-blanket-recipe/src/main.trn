@@ -16,6 +16,9 @@ async function produce-async int;
 async function produce-async-one-argument int; value int
     return value + 1
 
+async function produce-async-output int;
+    return 300
+
 function initial string;
     return 'value'
 
@@ -47,6 +50,8 @@ async function main;
     print; (accept; (blank;))
     router MethodRouter = MethodRouter::new;
     print; (await router.dispatch; produce-async)
+    router MethodRouter = MethodRouter::new;
+    print; (await router.dispatch; produce-async-output)
     router MethodRouter = MethodRouter::new;
     print; (await router.dispatch; produce-async-one-argument)
     print; (registration-value; (await registered; produce-async-one-argument))
