@@ -1,7 +1,7 @@
 inferred private failure
 transitive public failure
 41
-caught: Rust dependency `facade` member `facade::parse` failed: invalid digit found in string
+caught: Rust dependency `terrane-result-facade-witness` member `facade::parse` failed: invalid digit found in string
 true
 true
 left 1
@@ -28,7 +28,7 @@ true
 7
 typed newer failure
 8
-Rust dependency `facade` member `facade::opaque_transitive` failed: transitive hidden failure
+Rust dependency `terrane-result-facade-witness` member `facade::opaque_transitive` failed: transitive hidden failure
 9
 public transitive: transitive public failure
 10
@@ -40,6 +40,6 @@ typed transitive method failure
 8
 true
 11
-Rust dependency `facade` member `facade::inferred_call` failed: inferred private failure
+Rust dependency `terrane-result-facade-witness` member `facade::inferred_call` failed: inferred private failure
 true
 true

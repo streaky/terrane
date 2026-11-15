@@ -9,7 +9,7 @@ mod dependency_panic_tests {
             let error = result.expect_err("the generated boundary must map the native panic");
             let rendered = error.render();
             assert!(
-                rendered.contains("Rust dependency `terrane_query_witness`"),
+                rendered.contains("Rust dependency `terrane-query-witness`"),
                 "{rendered}"
             );
             assert!(
