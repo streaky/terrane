@@ -1,3 +1,4 @@
 scripts/**
+tests/**
 package-lock.json
 *.vsix
