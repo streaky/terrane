@@ -1,0 +1,18 @@
+namespace pipeline-inline-capture-return
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function view mutable ref list of int; values mutable ref list of int
+    return values
+function run; values mutable ref list of int
+    with pipeline-sequential result = view; values
+        .map; (mutable function int; value int
+            values.append; value
+            return value)
+        .collect;
+    print; result.length
+
+function main;
+    values = list; 1, 2, 3
+    run; values

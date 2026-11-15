@@ -151,6 +151,11 @@ pub(super) fn first_owner_access_between(
     if node.span.end <= window.start || node.span.start >= window.end {
         return None;
     }
+    if node.kind == SyntaxKind::AnonymousFunction
+        && super::callable_captures::conflicts_with_window(package, unit, node, window)
+    {
+        return Some(node.span);
+    }
     let mut end = window.end;
     let through_reference = |expression: &SyntaxNode| {
         root_place_binding(package, unit, expression)

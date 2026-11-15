@@ -1,4 +1,5 @@
 use super::{prelude::*, types::ungrouped_expression};
+mod callable_captures;
 #[cfg(test)]
 mod evaluation_tests;
 mod exclusive_loans;
@@ -4578,108 +4579,12 @@ fn validate_reassigned_reference_versions(
     Ok(())
 }
 
-fn validate_callable_reference_capture_access(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
-    node: &SyntaxNode,
-) -> Result<(), SemanticFailure> {
-    fn carrier_for_closure<'a>(
-        unit: &'a SemanticUnit,
-        node: &'a SyntaxNode,
-        closure: Span,
-    ) -> Option<&'a TypedBinding> {
-        node.children
-            .iter()
-            .find_map(|child| carrier_for_closure(unit, child, closure))
-            .or_else(|| {
-                (matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
-                    && node.span.start <= closure.start
-                    && closure.end <= node.span.end)
-                    .then(|| {
-                        unit.typed_bindings
-                            .iter()
-                            .find(|binding| binding.span == node.span)
-                    })
-                    .flatten()
-            })
-    }
-
-    for child in &node.children {
-        validate_callable_reference_capture_access(package, unit, child)?;
-    }
-    if node.kind == SyntaxKind::AnonymousFunction
-        && let Some(contract) = super::bindings::callback_contract(package, unit, node)
-        && contract.written_invocation_mode != InvocationMode::Consuming
-    {
-        let Some(carrier) = carrier_for_closure(unit, &unit.tree.root, node.span) else {
-            return Ok(());
-        };
-        let Some((_, _, cleanup_end)) = unit
-            .callable_drops_after
-            .iter()
-            .filter(|(_, carriers)| carriers.contains(&carrier.span))
-            .map(|(boundary, _)| *boundary)
-            .max_by_key(|boundary| boundary.2 - boundary.1)
-        else {
-            return Ok(());
-        };
-        for capture in &contract.captures {
-            let binding_span = package
-                .resolve_name_at(unit, node.span.start, capture)
-                .and_then(|symbol| symbol.declaration_span);
-            let Some(binding) = binding_span.and_then(|span| {
-                unit.typed_bindings.iter().find(|binding| {
-                    binding.span == span
-                        && matches!(binding.value_type, ValueType::MutableReference(_))
-                })
-            }) else {
-                continue;
-            };
-            let Some(provenance) = unit
-                .reference_provenance
-                .get(&(binding.span.start, binding.span.end))
-            else {
-                continue;
-            };
-            let writes_only = contract.written_invocation_mode == InvocationMode::Shared;
-            if let Some(conflict) = first_owner_access_between(
-                package,
-                unit,
-                &unit.tree.root,
-                OwnerAccessWindow {
-                    owner: provenance.owner,
-                    borrowed_path: &provenance.path,
-                    observer: node.span,
-                    provenances: &unit.reference_provenance,
-                    writes_only,
-                    start: node.span.end,
-                    end: cleanup_end,
-                },
-            ) {
-                let owner_name = unit
-                    .typed_bindings
-                    .iter()
-                    .find(|binding| binding.span == provenance.owner)
-                    .map_or("<unknown>", |binding| binding.name.as_str());
-                return Err(failure(
-                    &unit.source,
-                    "T0149",
-                    format!(
-                        "cannot access owner `{owner_name}` while a captured reference is live"
-                    ),
-                    conflict,
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
 pub(super) fn validate_referenced_replacements(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
+    let return_lenders = std::cell::OnceCell::new();
     for unit in &package.units {
-        validate_callable_reference_capture_access(package, unit, &unit.tree.root)?;
+        callable_captures::validate(package, unit, &unit.tree.root, &return_lenders)?;
         exclusive_loans::validate_shared_iteration_access(package, unit, &unit.tree.root)?;
         for (&observer_key, provenance) in &unit.reference_provenance {
             let Some(observer) = unit.typed_bindings.iter().find(|binding| {
