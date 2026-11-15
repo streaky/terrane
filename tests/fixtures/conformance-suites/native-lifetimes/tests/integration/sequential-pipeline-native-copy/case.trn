@@ -1,0 +1,26 @@
+namespace sequential-pipeline-native-copy
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+from /deps/terrane-query-witness import CopyProbe
+
+function identity-probe CopyProbe; value CopyProbe
+    return value
+
+function positive bool; value CopyProbe
+    return (value.value;) > 0
+
+function test-scenario;
+    values = list; (CopyProbe::new; 1), (CopyProbe::new; 2)
+    CopyProbe::reset_clones;
+    with pipeline-sequential collected = values
+        .take; 1
+        .collect;
+    print; (CopyProbe::clones;)
+    with pipeline-sequential mapped = values
+        .filter; positive
+        .map; identity-probe
+        .filter; positive
+        .collect;
+    print; (CopyProbe::clones;)
+    print; collected.length, ', ', mapped.length, ', ', values.length

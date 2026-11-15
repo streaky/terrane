@@ -30,3 +30,9 @@ caught pipeline error
 10
 3, 3
 2
+1, 2; original 1
+1, 2
+1, 2
+2, 2
+2; reused 2
+10; limit 340282366920938463463374607431768211456

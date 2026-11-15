@@ -79,6 +79,22 @@ impl Token {
         7
     }
 }
+static COPY_PROBE_CLONES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+#[derive(Copy)]
+pub struct CopyProbe(i64);
+impl Clone for CopyProbe {
+    fn clone(&self) -> Self {
+        COPY_PROBE_CLONES.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        *self
+    }
+}
+impl CopyProbe {
+    pub fn new(value: i64) -> Self { Self(value) }
+    pub fn value(&self) -> i64 { self.0 }
+    pub fn reset_clones() { COPY_PROBE_CLONES.store(0, std::sync::atomic::Ordering::SeqCst); }
+    pub fn clones() -> usize { COPY_PROBE_CLONES.load(std::sync::atomic::Ordering::SeqCst) }
+}
+
 pub use std::net::IpAddr as Address;
 pub fn sample_address() -> Address { [127, 0, 0, 1].into() }
 pub fn same_address(left: &Address, right: &Address) -> bool { std::ptr::eq(left, right) }

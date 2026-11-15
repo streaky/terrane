@@ -78,27 +78,7 @@ impl Emitter<'_> {
                 PipelineStage::Filter { stage_node, .. }
                 | PipelineStage::Map { stage_node, .. } => {
                     let argument = &node.children[*stage_node].children[1].children[0];
-                    let direct = (argument.kind == SyntaxKind::Name)
-                        .then(|| self.contract_for_call(argument, false))
-                        .flatten()
-                        .filter(|contract| {
-                            contract.owner.is_none()
-                                && !contract.is_anonymous
-                                && contract.generic_parameters.is_empty()
-                                && contract.captures.is_empty()
-                                && contract.written_invocation_mode == InvocationMode::Shared
-                                && self.package.units.iter().any(|unit| {
-                                    unit.source.id() == contract.span.file
-                                        && !unit.namespace.starts_with("/deps/")
-                                })
-                        })
-                        .map(|contract| function_name(self.package, contract));
-                    let value = direct.unwrap_or_else(|| {
-                        self.expression_as(
-                            argument,
-                            self.value_type(argument).expect("typed callback"),
-                        )
-                    });
+                    let value = self.pipeline_callback(argument, node);
                     write!(
                         setup,
                         "let __terrane_pipeline_callback_{stage_node} = {value}; "
@@ -107,13 +87,88 @@ impl Emitter<'_> {
                 }
                 PipelineStage::Take { stage_node } => {
                     let argument = &node.children[*stage_node].children[1].children[0];
-                    let value = self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
-                    write!(setup, "let __terrane_pipeline_count_{stage_node} = {value}; let mut __terrane_pipeline_remaining_{stage_node} = if __terrane_pipeline_count_{stage_node} <= terrane_int_support::Int::from(0_i64) {{ 0 }} else {{ __terrane_pipeline_count_{stage_node}.as_usize().unwrap_or(usize::MAX) }}; ").unwrap();
+                    let value = self.pipeline_take(argument, *stage_node);
+                    setup.push_str(&value);
                     limits.push(format!("__terrane_pipeline_remaining_{stage_node}"));
                 }
             }
         }
         (setup, limits)
+    }
+
+    fn pipeline_take(&mut self, argument: &SyntaxNode, stage: usize) -> String {
+        let mut argument = argument;
+        while argument.kind == SyntaxKind::GroupExpression
+            && let [inner] = argument.children.as_slice()
+        {
+            argument = inner;
+        }
+        let (prelude, count, zero) = if argument.kind == SyntaxKind::Name
+            && self.value_type(argument) == Some(ValueType::Scalar(ScalarType::Int))
+            && self.small_int_binding(argument).is_none()
+        {
+            let (prelude, reference) = self.operand_reference_parts(argument, false);
+            (prelude, reference, "&terrane_int_support::Int::from(0_i64)")
+        } else {
+            (
+                String::new(),
+                self.expression_as(argument, ValueType::Scalar(ScalarType::Int)),
+                "terrane_int_support::Int::from(0_i64)",
+            )
+        };
+        // Finish this read (including any guard) before the next stage operand.
+        format!(
+            "let mut __terrane_pipeline_remaining_{stage} = {{ {prelude}let __terrane_pipeline_count_{stage} = {count}; if __terrane_pipeline_count_{stage} <= {zero} {{ 0 }} else {{ __terrane_pipeline_count_{stage}.as_usize().unwrap_or(usize::MAX) }} }}; "
+        )
+    }
+
+    fn pipeline_callback(&mut self, argument: &SyntaxNode, scope: &SyntaxNode) -> String {
+        let mut argument = argument;
+        while argument.kind == SyntaxKind::GroupExpression
+            && let [inner] = argument.children.as_slice()
+        {
+            argument = inner;
+        }
+        let direct = (argument.kind == SyntaxKind::Name)
+            .then(|| self.contract_for_call(argument, false))
+            .flatten()
+            .filter(|contract| {
+                contract.owner.is_none()
+                    && !contract.is_anonymous
+                    && contract.generic_parameters.is_empty()
+                    && contract.captures.is_empty()
+                    && contract.written_invocation_mode == InvocationMode::Shared
+                    && self.package.units.iter().any(|unit| {
+                        unit.source.id() == contract.span.file
+                            && !unit.namespace.starts_with("/deps/")
+                    })
+            })
+            .map(|contract| function_name(self.package, contract));
+        if let Some(direct) = direct {
+            return direct;
+        }
+        let value_type = self.value_type(argument).expect("typed callback");
+        if argument.kind == SyntaxKind::Name
+            && let Some(binding) = self.local_typed_binding(argument)
+            && self.flow_binding_type(binding) == value_type
+            && !self.reference_backed(binding)
+            && !self.contains_guarded_read(argument)
+        {
+            if !self.binding_value_is_reused(argument)
+                && !self.non_consuming_capture_read(argument)
+                && !self.binding_may_be_unassigned(binding)
+            {
+                return self.expression(argument);
+            }
+            if matches!(&value_type, ValueType::Function(_, _, effects)
+                if effects.modes.written == InvocationMode::Shared)
+                && self.read_borrow_is_stable_in(argument, scope)
+            {
+                let (prelude, reference) = self.operand_reference_parts(argument, false);
+                return format!("{{ {prelude}{reference} }}");
+            }
+        }
+        self.expression_as(argument, value_type)
     }
 
     fn pipeline_body(
@@ -145,7 +200,11 @@ impl Emitter<'_> {
                 } => {
                     let is_filter = matches!(stage, PipelineStage::Filter { .. });
                     let argument = Self::pipeline_item_argument(
-                        &item, &item_type, parameter, borrowed, is_filter,
+                        &item,
+                        self.pipeline_item_is_copy(&item_type),
+                        parameter,
+                        borrowed,
+                        is_filter,
                     );
                     let callback = format!("__terrane_pipeline_callback_{stage_node}");
                     let call = match effects.modes.written {
@@ -183,7 +242,7 @@ impl Emitter<'_> {
             }
         }
         let output = if borrowed {
-            if rust_value_is_copy(&item_type) {
+            if self.pipeline_item_is_copy(&item_type) {
                 format!("*{item}")
             } else {
                 format!("(*{item}).clone()")
@@ -195,9 +254,13 @@ impl Emitter<'_> {
         body
     }
 
+    fn pipeline_item_is_copy(&self, value_type: &ValueType) -> bool {
+        rust_value_is_copy(value_type) || self.package.native_value_is_copyable(value_type)
+    }
+
     fn pipeline_item_argument(
         item: &str,
-        actual: &ValueType,
+        copy: bool,
         expected: &ValueType,
         borrowed: bool,
         preserve: bool,
@@ -210,12 +273,12 @@ impl Emitter<'_> {
             };
         }
         if borrowed {
-            if rust_value_is_copy(actual) {
+            if copy {
                 format!("*{item}")
             } else {
                 format!("(*{item}).clone()")
             }
-        } else if preserve && !rust_value_is_copy(actual) {
+        } else if preserve && !copy {
             format!("{item}.clone()")
         } else {
             item.to_owned()

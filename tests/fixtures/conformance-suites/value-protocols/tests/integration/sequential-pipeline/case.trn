@@ -173,6 +173,51 @@ function test-scenario;
     .take; limit
     .collect;
   print; typed.length
+  inspect-copy-contracts; values
+
+function inspect-copy-contracts; values ref list of int
+  state int = 0
+  counter = mutable function int; value ref int
+    state = state + 1
+    return state
+  with sequential copied = values
+    .map; counter
+    .take; 2
+    .collect;
+  print; copied[0], ', ', copied[1], '; original ', (counter; values[0])
+
+  loop-state int = 0
+  loop-counter = mutable function int; value ref int
+    loop-state = loop-state + 1
+    return loop-state
+  for iteration in (range; 0, 2)
+    with sequential repeated = values
+      .map; loop-counter
+      .take; 2
+      .collect;
+    print; repeated[0], ', ', repeated[1]
+
+  reusable = function int;
+    with sequential captured = values
+      .map; counter
+      .take; 1
+      .collect;
+    return captured[0]
+  print; (reusable;), ', ', (reusable;)
+
+  increment = function int; value ref int
+    return value + 1
+  with sequential shared = values
+    .map; increment
+    .take; 1
+    .collect;
+  print; shared[0], '; reused ', (increment; values[0])
+
+  big-limit int = 340282366920938463463374607431768211456
+  with sequential big-prefix = values
+    .take; big-limit
+    .collect;
+  print; big-prefix.length, '; limit ', big-limit
 
 class counter-box
   predicates int = 0
