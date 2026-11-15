@@ -7,6 +7,7 @@ const DEFINITION: &str = "/core/modifiers::modifier";
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub(crate) enum ModifierOperation {
     ScopedAccess,
+    PipelineSequential,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -63,11 +64,19 @@ fn resolve_operation(
     );
     let operation = match operation.as_str() {
         "scoped-access" if structural => ModifierOperation::ScopedAccess,
+        "pipeline-sequential" if structural => ModifierOperation::PipelineSequential,
         "scoped-access" => {
             return Err(error(
                 unit,
                 application.span,
                 "scoped-access requires the compiler-defined structural contract",
+            ));
+        }
+        "pipeline-sequential" => {
+            return Err(error(
+                unit,
+                application.span,
+                "pipeline-sequential requires the compiler-defined structural contract",
             ));
         }
         _ => {
@@ -94,6 +103,27 @@ fn resolve_operation(
                     unit,
                     application.span,
                     "the scoped-access operation does not accept configuration fields",
+                ));
+            }
+        }
+        ModifierOperation::PipelineSequential => {
+            // A user-defined modifier schema can admit callable/class targets
+            // while selecting this operation; generic admission is not enough.
+            if !matches!(
+                declaration.kind,
+                SyntaxKind::Binding | SyntaxKind::Assignment
+            ) {
+                return Err(error(
+                    unit,
+                    declaration.span,
+                    "pipeline-sequential applies to a binding declaration",
+                ));
+            }
+            if !matches!(payload, CompileTimeValue::Map(fields) if fields.is_empty()) {
+                return Err(error(
+                    unit,
+                    application.span,
+                    "pipeline-sequential does not accept configuration fields",
                 ));
             }
         }
@@ -197,6 +227,15 @@ fn resolve_application(
         operation,
         payload,
     })
+}
+
+pub(super) fn has_applications(package: &SemanticPackage) -> bool {
+    fn contains(node: &SyntaxNode) -> bool {
+        !node.modifier_applications.is_empty()
+            || node.kind == SyntaxKind::WithRegion
+            || node.children.iter().any(contains)
+    }
+    package.units.iter().any(|unit| contains(&unit.tree.root))
 }
 
 fn collect(

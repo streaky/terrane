@@ -55,6 +55,32 @@ Executable evidence includes `string-display-composition`, `string-display-bound
 `switch-boundaries` under `tests/conformance/run/`. The switch scoreboard entry therefore records
 an explicit null milestone rather than retroactively attributing this bundle to milestone 4.
 
+### Ordered sequential collection pipelines
+
+This explicitly approved language extension is bundled with the collection/compiler
+work rather than retroactively assigned to a numbered milestone. Its scoreboard
+entry therefore has `milestone: null`.
+
+- **Capability:** `with pipeline-sequential` selects an ordered, fused
+  `filter`/`map`/`take`/`collect` initializer over lists and list references.
+  The typed modifier identity selects compiler-owned operations; ordinary fluent
+  methods retain normal lookup and semantics. Parallel/SIMD strategies and general
+  iterable sources are outside this capability.
+- **Exit criterion:** source and stage operands evaluate once in written order;
+  callbacks short-circuit at each take limit; borrowing, native Copy, required
+  value copies, callback state isolation and throwing effects remain correct.
+  Valid source produces readable warning-free Rust with one traversal, no
+  intermediate collections and one output vector; invalid stages, types and
+  declaration targets fail in source terms. Repeated callable operands share a
+  setup lifetime and cannot move a carrier still borrowed by another stage.
+- **Evidence:** `sequential-pipeline` and `sequential-pipeline-native-copy` run
+  cases, the `sequential-pipeline-*` rejection cases, generated Rust at the
+  `value-protocols`/`native-lifetimes` suite roots, and the latest committed
+  workspace run in `docs/test-scoreboard.yaml`. Canonical syntax, ownership and
+  current limits live in the manual's
+  [collection contract](../manual/reference/records/language/collections.yaml#sequential-pipelines)
+  and [lowering contract](../manual/reference/records/internals/proof-guided-lowering.yaml#sequential-pipelines).
+
 ## 3. Delivery principles
 
 1. **Tests define implemented behavior.** The design draft informs the implementation, but an executable conformance case is required before a feature is considered supported.

@@ -1,0 +1,6 @@
+namespace pipeline-target-callable
+from /core/modifiers import pipeline-sequential
+with pipeline-sequential function helper int;
+    return 1
+function main;
+    print; (helper;)

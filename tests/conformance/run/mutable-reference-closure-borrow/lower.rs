@@ -12,7 +12,7 @@ fn main() {
         let borrowed: &mut terrane_int_support::Int = &mut value;
         let count: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
         let mut callback: TerraneBorrowedMutableCallable<'_, (), ()> = {
-            let borrowed = borrowed;
+            let borrowed = &mut *borrowed;
             let mut count = count.clone();
             TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
                 count = count.clone() + terrane_int_support::Int::from(1_i128);

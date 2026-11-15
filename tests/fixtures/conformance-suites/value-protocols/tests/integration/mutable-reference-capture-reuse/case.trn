@@ -1,0 +1,23 @@
+namespace mutable-reference-capture-reuse
+
+from /core/collections import list
+
+function test-scenario;
+  values list of int = list; 1, 2
+  mutate-and-read; values
+  print; values[0], ', ', values[1], ', ', values[2]
+
+function mutate-and-read; values mutable ref list of int
+  callback = mutable function int;
+    values.append; 3
+    return values.length
+  print; (callback;)
+  values.append; 4
+  print; values.length
+
+  reader = function int;
+    return values.length
+  print; values.length
+  print; (reader;)
+  values.append; 5
+  print; values.length

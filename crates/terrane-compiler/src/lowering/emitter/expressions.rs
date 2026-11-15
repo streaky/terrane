@@ -427,6 +427,7 @@ impl Emitter<'_> {
 
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
+            SyntaxKind::PipelineExpression => self.sequential_pipeline(node),
             SyntaxKind::InitializationExpression => self.initialization_expression(node),
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
@@ -1872,15 +1873,16 @@ impl Emitter<'_> {
         }
     }
 
-    fn adaptive_comparison_operand(&mut self, node: &SyntaxNode) -> String {
+    fn adaptive_comparison_operand(&mut self, node: &SyntaxNode, scalar: ScalarType) -> String {
         if node.kind == SyntaxKind::GroupExpression
             && let [inner] = node.children.as_slice()
         {
-            return self.adaptive_comparison_operand(inner);
+            return self.adaptive_comparison_operand(inner, scalar);
         }
         // Rust comparison operators borrow places, including dereferenced refinements.
         // Shared/captured reads still need snapshots before evaluating a sibling operand.
-        if node.kind == SyntaxKind::Name
+        if scalar == ScalarType::Int
+            && node.kind == SyntaxKind::Name
             && self.is_adaptive_expression(node)
             && self.small_int_binding(node).is_none()
             && !self.async_mutable_captures.contains(self.text(node))
@@ -1896,7 +1898,20 @@ impl Emitter<'_> {
             }
             return self.expression(node);
         }
-        self.expression_as(node, ValueType::Scalar(ScalarType::Int))
+        if node.kind == SyntaxKind::Name
+            && let Some(
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item),
+            ) = self.value_type(node)
+            && item.value_type() == ValueType::Scalar(scalar)
+        {
+            if self.receiver_needs_live_guard(node) || self.contains_guarded_read(node) {
+                return self.expression_as(node, ValueType::Scalar(scalar));
+            }
+            return format!("*({})", self.expression(node));
+        }
+        self.expression_as(node, ValueType::Scalar(scalar))
     }
 
     pub(super) fn adaptive_binary(&mut self, node: &SyntaxNode) -> String {
@@ -1922,8 +1937,27 @@ impl Emitter<'_> {
         left: &SyntaxNode,
         right: &SyntaxNode,
     ) -> Option<ScalarType> {
+        self.numeric_operation_type_with_references(left, right, false)
+    }
+
+    fn numeric_operation_type_with_references(
+        &self,
+        left: &SyntaxNode,
+        right: &SyntaxNode,
+        unwrap_references: bool,
+    ) -> Option<ScalarType> {
         let scalar = |value_type| match value_type {
             ValueType::Scalar(scalar) => Some(scalar),
+            ValueType::Reference(item)
+            | ValueType::MutableReference(item)
+            | ValueType::SharedReference(item)
+                if unwrap_references =>
+            {
+                match item.value_type() {
+                    ValueType::Scalar(scalar) => Some(scalar),
+                    _ => None,
+                }
+            }
             _ => None,
         };
         let left_type = self.value_type(left).and_then(scalar);
@@ -2294,10 +2328,11 @@ impl Emitter<'_> {
         }
         if comparison
             && (self.is_adaptive_expression(left)
-                || self.numeric_operation_type(left, right) == Some(ScalarType::Int))
+                || self.numeric_operation_type_with_references(left, right, true)
+                    == Some(ScalarType::Int))
         {
-            let left = self.adaptive_comparison_operand(left);
-            let right = self.adaptive_comparison_operand(right);
+            let left = self.adaptive_comparison_operand(left, ScalarType::Int);
+            let right = self.adaptive_comparison_operand(right, ScalarType::Int);
             return format!("({left} {source_operator} {right})");
         }
         if self.value_type(node) == Some(ValueType::Scalar(ScalarType::Int)) {
@@ -2340,9 +2375,22 @@ impl Emitter<'_> {
             let call = format!("terrane_int_support::fixed_{operation}({left}, {right})");
             return self.fallible(call, node);
         }
-        if let Some(operation_type) = self.numeric_operation_type(left, right) {
-            let left = self.expression_as(left, ValueType::Scalar(operation_type));
-            let right = self.expression_as(right, ValueType::Scalar(operation_type));
+        let operation_type = if comparison {
+            self.numeric_operation_type_with_references(left, right, true)
+        } else {
+            self.numeric_operation_type(left, right)
+        };
+        if let Some(operation_type) = operation_type {
+            let left = if comparison {
+                self.adaptive_comparison_operand(left, operation_type)
+            } else {
+                self.expression_as(left, ValueType::Scalar(operation_type))
+            };
+            let right = if comparison {
+                self.adaptive_comparison_operand(right, operation_type)
+            } else {
+                self.expression_as(right, ValueType::Scalar(operation_type))
+            };
             return format!("({left} {source_operator} {right})");
         }
         let operator = match source_operator {

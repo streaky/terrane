@@ -1,0 +1,8 @@
+namespace pipeline-repeat
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+function main;
+    values = list; 1
+    with pipeline-sequential, pipeline-sequential result = values
+        .collect;
+    print; result.length

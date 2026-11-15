@@ -949,7 +949,7 @@ fn nested(state: &i64) -> Widget {
     };
 }
 fn branch(state: &i64) -> Widget {
-    if state.clone() > 0 {
+    if *state > 0 {
         return {
             let __terrane_conversion_input_0 = {
                 let __terrane_conversion_input_0 = terrane_int_support::Int::from(

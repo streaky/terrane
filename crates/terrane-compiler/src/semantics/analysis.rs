@@ -1137,6 +1137,15 @@ fn analyze_parsed_with_projection(
         return Ok(semantic);
     }
     let stage = crate::compilation_progress::start("type inference", package.root.display());
+    // Typed modifier identity is required before pipeline initializer inference.
+    // The declaration-only evaluator reads schema declarations and constants,
+    // not executable initializer effects.
+    super::objects::prepare_type_declarations(&mut semantic)?;
+    if super::modifiers::has_applications(&semantic) {
+        super::annotations::populate_declaration_metadata(&mut semantic)?;
+        super::modifiers::resolve_declaration_modifiers(&mut semantic)?;
+        super::pipeline_syntax::normalize(&mut semantic)?;
+    }
     super::throw_construction::normalize(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
@@ -1186,6 +1195,7 @@ fn analyze_parsed_with_projection(
     let stage =
         crate::compilation_progress::start("final semantic validation", package.root.display());
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
+    super::pipelines::validate(&semantic)?;
     super::objects::validate_closed_interface_bindings(&semantic)?;
     super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
@@ -1242,6 +1252,10 @@ fn analyze_parsed_with_projection(
         unit.evaluation_steps = collect_evaluation_steps(&unit.source, &unit.tree.root);
     }
     record_function_references(&mut semantic);
+    // Refresh metadata after inferred result/field types, escaping throwables
+    // and exact invocation modes settle. This is not the early schema snapshot.
+    // Metadata refresh replaces constant-read facts; resolving modifiers again
+    // restores the compile-time reads made by their argument payloads.
     super::annotations::populate_declaration_metadata(&mut semantic)?;
     super::modifiers::resolve_declaration_modifiers(&mut semantic)?;
     super::scoped_regions::validate_scoped_regions(&semantic)?;

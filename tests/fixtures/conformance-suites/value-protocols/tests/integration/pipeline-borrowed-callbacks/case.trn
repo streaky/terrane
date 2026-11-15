@@ -1,0 +1,84 @@
+namespace pipeline-borrowed-callbacks
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function collect-other; values mutable ref list of int, other list of int
+    grow = mutable function bool; value int
+        values.append; value
+        return true
+    with pipeline-sequential filtered = other
+        .filter; grow
+        .collect;
+    print; filtered.length, ' ', values.length
+
+    with pipeline-sequential mapped = other
+        .map; (mutable function int; value int
+            values.append; value
+            return value * 2)
+        .collect;
+    print; mapped[0], ' ', mapped[1], ' ', values.length
+
+    map-ref = mutable function int; value ref int
+        values.append; value
+        return value
+    with pipeline-sequential borrowed-input = other
+        .map; map-ref
+        .take; 1
+        .collect;
+    print; borrowed-input[0], ' ', values.length
+
+    with pipeline-sequential inline-filter = other
+        .filter; (mutable function bool; value int
+            values.append; value
+            return value > 0)
+        .take; 1
+        .collect;
+    print; inline-filter.length, ' ', values.length
+
+    with pipeline-sequential earlier-count = other
+        .take; values.length
+        .filter; (mutable function bool; value int
+            values.append; value
+            return true)
+        .collect;
+    print; earlier-count.length, ' ', values.length
+
+    with pipeline-sequential generated = make-other; values
+        .filter; (mutable function bool; value int
+            values.append; value
+            return true)
+        .collect;
+    print; generated[0], ' ', values.length
+
+function make-other list of int; values mutable ref list of int
+    return list; values.length
+
+function observe-state; values ref list of int
+    seen int = 0
+    reader = mutable function int; value int
+        seen = seen + 1
+        return seen + values.length
+    with pipeline-sequential first = values
+        .map; reader
+        .take; 1
+        .collect;
+    with pipeline-sequential second = values
+        .map; (reader)
+        .take; 1
+        .collect;
+    print; first[0], ' ', second[0]
+
+    accepts = function bool; value int
+        return value <= values.length
+    with pipeline-sequential shared = values
+        .filter; accepts
+        .filter; (accepts)
+        .collect;
+    print; shared.length
+
+function test-scenario;
+    values = list; 1, 2, 3
+    collect-other; values, (list; 7, 8)
+    observe-state; values
+    print; values.length

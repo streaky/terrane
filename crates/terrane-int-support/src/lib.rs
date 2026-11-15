@@ -177,7 +177,11 @@ impl Int {
     }
     #[must_use]
     pub fn as_usize(&self) -> Option<usize> {
-        self.as_big().to_usize()
+        match self {
+            Self::Small(value) => usize::try_from(*value).ok(),
+            Self::Wide(value) => usize::try_from(*value).ok(),
+            Self::Big(value) => value.to_usize(),
+        }
     }
 
     /// Constructs an exact integer from a compiler-validated decimal literal.

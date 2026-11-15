@@ -1,0 +1,12 @@
+namespace sequential-pipeline-callback-argument
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function main;
+  values = list; 1, 2, 3
+  predicate = function bool; value string
+    return value.length > 0
+  with pipeline-sequential result = values
+    .filter; predicate
+    .collect;

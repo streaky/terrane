@@ -1,0 +1,9 @@
+namespace pipeline-custom-callable-target
+from /core/collections import list
+from /core/modifiers import modifier
+@[modifier; operation = 'pipeline-sequential', targets = (list; 'callable'), structural = true]
+class callable-pipeline
+with callable-pipeline function helper int;
+    return 1
+function main;
+    print; (helper;)

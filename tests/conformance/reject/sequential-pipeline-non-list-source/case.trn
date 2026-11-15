@@ -1,0 +1,7 @@
+namespace sequential-pipeline-non-list-source
+
+from /core/modifiers import pipeline-sequential
+
+function main;
+  with pipeline-sequential result = 42
+    .collect;

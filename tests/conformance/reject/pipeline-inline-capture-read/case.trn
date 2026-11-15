@@ -1,0 +1,15 @@
+namespace pipeline-inline-capture-read
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function run; values mutable ref list of int
+    with pipeline-sequential result = values
+        .filter; (mutable function bool; value int
+            return value < values.length)
+        .collect;
+    print; result.length
+
+function main;
+    values = list; 1, 2, 3
+    run; values

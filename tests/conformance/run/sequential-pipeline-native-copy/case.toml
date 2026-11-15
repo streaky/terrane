@@ -1,0 +1,4 @@
+phase = "run"
+status = "accept"
+suite = "native-lifetimes"
+test = "/sequential-pipeline-native-copy::test-scenario"

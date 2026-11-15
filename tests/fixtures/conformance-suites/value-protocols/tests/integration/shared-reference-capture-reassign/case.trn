@@ -1,0 +1,15 @@
+namespace shared-reference-capture-reassign
+
+class handle-counter
+    value int = 0
+
+function test-scenario;
+    counts = shared ref (instance handle-counter;)
+    original = counts
+    replacement = shared ref (instance handle-counter;)
+    replacement.value = 10
+    change = mutable function int;
+        counts.value = 1
+        counts = replacement
+        return counts.value
+    print; (change;), ' ', replacement.value, ' ', original.value

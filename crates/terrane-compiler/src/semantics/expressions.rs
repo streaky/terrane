@@ -324,6 +324,10 @@ fn infer_value_type_uncached(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
+    if node.kind == SyntaxKind::PipelineExpression {
+        return super::pipelines::pipeline_plan(unit, node, bindings)
+            .map(|plan| plan.map(|plan| plan.result_type));
+    }
     if matches!(node.kind, SyntaxKind::Name | SyntaxKind::CallExpression)
         && collection_constructor_identity(unit, node, bindings).is_some()
         && let Some(expected) =

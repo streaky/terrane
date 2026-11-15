@@ -1009,6 +1009,29 @@ pub(crate) fn binding_requires_mutable_storage(
     binding_storage_is_replaced(package, unit, declaration_span, closure_writes, false)
 }
 
+/// Whether a scope replaces the handle/value itself, rather than its referent.
+pub(crate) fn binding_storage_is_written_in(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    declaration_span: Span,
+    scope: Span,
+) -> bool {
+    let identity = unit
+        .flow_binding_ids
+        .get(&span_key(declaration_span))
+        .copied()
+        .unwrap_or(declaration_span);
+    package
+        .binding_events
+        .get(&span_key(identity))
+        .is_some_and(|events| {
+            events.iter().any(|event| {
+                matches!(event, BindingEvent::Write { span, .. }
+            if span.file == scope.file && scope.start <= span.start && span.end <= scope.end)
+            })
+        })
+}
+
 pub(crate) fn binding_storage_is_replaced(
     package: &SemanticPackage,
     unit: &SemanticUnit,

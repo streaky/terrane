@@ -1,4 +1,5 @@
 use super::{prelude::*, types::ungrouped_expression};
+mod callable_captures;
 #[cfg(test)]
 mod evaluation_tests;
 mod exclusive_loans;
@@ -4581,7 +4582,9 @@ fn validate_reassigned_reference_versions(
 pub(super) fn validate_referenced_replacements(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
+    let return_lenders = std::cell::OnceCell::new();
     for unit in &package.units {
+        callable_captures::validate(package, unit, &unit.tree.root, &return_lenders)?;
         exclusive_loans::validate_shared_iteration_access(package, unit, &unit.tree.root)?;
         for (&observer_key, provenance) in &unit.reference_provenance {
             let Some(observer) = unit.typed_bindings.iter().find(|binding| {

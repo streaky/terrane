@@ -508,7 +508,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 57] = [
+    pub static FILES: [&str; 58] = [
         "tests/integration/completion-finally-view-post-read/case.trn",
         "tests/integration/completion-native-catch-post-read/case.trn",
         "tests/integration/completion-native-post-read/case.trn",
@@ -565,9 +565,10 @@ mod __terrane_trace {
         "tests/integration/nested-view-ref-value-loop/case.trn",
         "tests/integration/nested-view-value-ref-loop/case.trn",
         "tests/integration/nested-view-value-value-loop/case.trn",
+        "tests/integration/sequential-pipeline-native-copy/case.trn",
         "tests/integration/shared-loop-read-control/case.trn",
     ];
-    pub static FUNCTIONS: [&str; 71] = [
+    pub static FUNCTIONS: [&str; 73] = [
         "/completion-finally-view-post-read::test-scenario",
         "/completion-native-catch-post-read::test-scenario",
         "/completion-native-post-read::test-scenario",
@@ -638,9 +639,11 @@ mod __terrane_trace {
         "/nested-view-ref-value-loop::test-scenario",
         "/nested-view-value-ref-loop::test-scenario",
         "/nested-view-value-value-loop::test-scenario",
+        "/sequential-pipeline-native-copy::positive",
+        "/sequential-pipeline-native-copy::test-scenario",
         "/shared-loop-read-control::test-scenario",
     ];
-    pub static SITES: [Site; 395] = [
+    pub static SITES: [Site; 401] = [
         /* terrane-site-row: site 0: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:6:9-6:21) */
         { Site { function: 0, file: 0, line: 6, column: 9, end_line: 6, end_column: 21 } },
         /* terrane-site-row: site 1: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:7:9-7:21) */
@@ -1421,16 +1424,28 @@ mod __terrane_trace {
         { Site { function: 69, file: 55, line: 7, column: 28, end_line: 7, end_column: 45 } },
         /* terrane-site-row: site 389: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:10:21-10:32) */
         { Site { function: 69, file: 55, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 390: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
-        { Site { function: 70, file: 56, line: 18, column: 14, end_line: 18, end_column: 26 } },
-        /* terrane-site-row: site 391: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
-        { Site { function: 70, file: 56, line: 19, column: 20, end_line: 19, end_column: 37 } },
-        /* terrane-site-row: site 392: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
-        { Site { function: 70, file: 56, line: 21, column: 17, end_line: 21, end_column: 27 } },
-        /* terrane-site-row: site 393: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
-        { Site { function: 70, file: 56, line: 24, column: 21, end_line: 24, end_column: 33 } },
-        /* terrane-site-row: site 394: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
-        { Site { function: 70, file: 56, line: 25, column: 20, end_line: 25, end_column: 37 } },
+        /* terrane-site-row: site 390: /sequential-pipeline-native-copy::positive (tests/integration/sequential-pipeline-native-copy/case.trn:11:13-11:25) */
+        { Site { function: 70, file: 56, line: 11, column: 13, end_line: 11, end_column: 25 } },
+        /* terrane-site-row: site 391: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:14:21-14:38) */
+        { Site { function: 71, file: 56, line: 14, column: 21, end_line: 14, end_column: 38 } },
+        /* terrane-site-row: site 392: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:14:42-14:59) */
+        { Site { function: 71, file: 56, line: 14, column: 42, end_line: 14, end_column: 59 } },
+        /* terrane-site-row: site 393: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:15:5-15:29) */
+        { Site { function: 71, file: 56, line: 15, column: 5, end_line: 15, end_column: 29 } },
+        /* terrane-site-row: site 394: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:19:13-19:31) */
+        { Site { function: 71, file: 56, line: 19, column: 13, end_line: 19, end_column: 31 } },
+        /* terrane-site-row: site 395: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:25:13-25:31) */
+        { Site { function: 71, file: 56, line: 25, column: 13, end_line: 25, end_column: 31 } },
+        /* terrane-site-row: site 396: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
+        { Site { function: 72, file: 57, line: 18, column: 14, end_line: 18, end_column: 26 } },
+        /* terrane-site-row: site 397: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
+        { Site { function: 72, file: 57, line: 19, column: 20, end_line: 19, end_column: 37 } },
+        /* terrane-site-row: site 398: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
+        { Site { function: 72, file: 57, line: 21, column: 17, end_line: 21, end_column: 27 } },
+        /* terrane-site-row: site 399: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
+        { Site { function: 72, file: 57, line: 24, column: 21, end_line: 24, end_column: 33 } },
+        /* terrane-site-row: site 400: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
+        { Site { function: 72, file: 57, line: 25, column: 20, end_line: 25, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1491,6 +1506,7 @@ fn __terrane_uninitialized_binding(
 // Namespace: deps/terrane-query-witness
 pub use terrane_query_witness::Cl;
 pub use terrane_query_witness::CloneEnum;
+pub use terrane_query_witness::CopyProbe;
 pub type CopyView<'a> = terrane_query_witness::CopyView<'a>;
 pub use terrane_query_witness::Holder;
 pub use terrane_query_witness::NE;
@@ -1507,6 +1523,66 @@ pub fn terrane_static_trn_436c_new() -> Result<Cl, crate::TerraneForeignError> {
                     payload,
                     "terrane-query-witness",
                     "terrane_query_witness::Cl",
+                ),
+            )
+        }
+    }
+}
+pub fn terrane_static_trn_436f707950726f6265_clones() -> Result<
+    terrane_int_support::Int,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::CopyProbe::clones()),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::CopyProbe",
+                ),
+            )
+        }
+    }
+}
+pub fn terrane_static_trn_436f707950726f6265_new(
+    value: terrane_int_support::Int,
+) -> Result<CopyProbe, crate::TerraneForeignError> {
+    let value = terrane_int_support::coerce::<i64>(&value)
+        .map_err(|error| crate::TerraneForeignError(
+            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+        ))?;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::CopyProbe::new(value)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::CopyProbe",
+                ),
+            )
+        }
+    }
+}
+pub fn terrane_static_trn_436f707950726f6265_reset_clones() -> Result<
+    (),
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::CopyProbe::reset_clones()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::CopyProbe",
                 ),
             )
         }
@@ -1563,5 +1639,71 @@ pub fn query<'view>(
                 ),
             )
         }
+    }
+}
+// Source: core/modifiers.trn
+// Namespace: core/modifiers
+#[derive(Clone)]
+pub struct Modifier {
+    pub operation: String,
+    pub targets: terrane_collection_support::List<String>,
+    pub structural: bool,
+    pub repeatable: bool,
+}
+impl Modifier {
+    pub fn terrane_construct() -> Self {
+        Self {
+            operation: String::new(),
+            targets: terrane_collection_support::List::<
+                String,
+            >::new(vec![String::from("binding")]),
+            structural: false,
+            repeatable: false,
+        }
+    }
+}
+#[derive(Clone)]
+pub struct ScopedAccess {}
+impl ScopedAccess {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+}
+#[derive(Clone)]
+pub struct PipelineSequential {}
+impl PipelineSequential {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+}
+// Source: core/annotations.trn
+// Namespace: core/annotations
+#[derive(Clone)]
+pub struct Annotation {
+    pub targets: terrane_collection_support::List<AnnotationTarget>,
+    pub repeatable: bool,
+}
+impl Annotation {
+    pub fn terrane_construct() -> Self {
+        Self {
+            targets: terrane_collection_support::List::<
+                AnnotationTarget,
+            >::new(Vec::new()),
+            repeatable: false,
+        }
+    }
+}
+#[derive(Clone)]
+pub enum AnnotationTarget {
+    Class,
+    Callable,
+    Parameter,
+    Field,
+}
+#[derive(Clone)]
+pub struct Descriptor {}
+impl Descriptor {
+    pub fn terrane_construct() -> Self {
+        Self {}
     }
 }

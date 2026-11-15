@@ -3552,7 +3552,6 @@ pub(super) fn prepare_type_declarations(
 pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     let target = crate::compilation_progress::owned_target(package.root.display());
     let stage = crate::compilation_progress::start("preparing type declarations", &target);
-    prepare_type_declarations(package)?;
     validate_closed_projected_types(package)?;
     validate_descriptor_value_uses(package)?;
     stage.finish();

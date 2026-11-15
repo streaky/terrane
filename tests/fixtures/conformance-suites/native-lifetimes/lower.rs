@@ -7882,6 +7882,134 @@ fn test_scenario_terrane_nested_view_value_value_loop() {
         }
     }
 }
+// Source: tests/integration/sequential-pipeline-native-copy/case.trn
+// Namespace: sequential-pipeline-native-copy
+fn identity_probe(value: CopyProbe) -> CopyProbe {
+    return value;
+}
+fn positive(value: CopyProbe) -> bool {
+    return __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&value).value()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::CopyProbe::value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(terrane_int_support::Int::from(i128::from(value)))
+            }
+        }(),
+
+            390 /* terrane-site: tests/integration/sequential-pipeline-native-copy/case.trn:11:13-11:25 */,
+    ) > terrane_int_support::Int::from(0_i128);
+}
+fn test_scenario_terrane_sequential_pipeline_native_copy() {
+    let values: terrane_collection_support::List<CopyProbe>;
+    let collected: terrane_collection_support::List<CopyProbe>;
+    let mapped: terrane_collection_support::List<CopyProbe>;
+    values = terrane_collection_support::List::<
+        CopyProbe,
+    >::new(
+        vec![
+            { let __terrane_conversion_input_0 = terrane_int_support::Int::from(1_i128);
+            __terrane_raised(terrane_static_trn_436f707950726f6265_new(__terrane_conversion_input_0),
+            391 /* terrane-site: tests/integration/sequential-pipeline-native-copy/case.trn:14:21-14:38 */) },
+            { let __terrane_conversion_input_0 = terrane_int_support::Int::from(2_i128);
+            __terrane_raised(terrane_static_trn_436f707950726f6265_new(__terrane_conversion_input_0),
+            392 /* terrane-site: tests/integration/sequential-pipeline-native-copy/case.trn:14:42-14:59 */) }
+        ],
+    );
+    __terrane_raised(
+        terrane_static_trn_436f707950726f6265_reset_clones(),
+
+            393 /* terrane-site: tests/integration/sequential-pipeline-native-copy/case.trn:15:5-15:29 */,
+    );
+    collected = {
+        let __terrane_pipeline_source = &values;
+        let mut __terrane_pipeline_remaining_1 = {
+            let __terrane_pipeline_count_1 = terrane_int_support::Int::from(1_i128);
+            if __terrane_pipeline_count_1 <= terrane_int_support::Int::from(0_i64) {
+                0
+            } else {
+                __terrane_pipeline_count_1.as_usize().unwrap_or(usize::MAX)
+            }
+        };
+        let mut __terrane_pipeline_output: Vec<CopyProbe> = Vec::with_capacity(
+            __terrane_pipeline_source
+                .as_slice()
+                .len()
+                .min(__terrane_pipeline_remaining_1),
+        );
+        if !(__terrane_pipeline_remaining_1 == 0) {
+            for __terrane_pipeline_item in __terrane_pipeline_source.as_slice() {
+                {
+                    __terrane_pipeline_remaining_1 -= 1;
+                    __terrane_pipeline_output.push(*__terrane_pipeline_item);
+                }
+                if __terrane_pipeline_remaining_1 == 0 {
+                    break;
+                }
+            }
+        }
+        terrane_collection_support::List::new(__terrane_pipeline_output)
+    };
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_static_trn_436f707950726f6265_clones(),
+        394 /* terrane-site: tests/integration/sequential-pipeline-native-copy/case.trn:19:13-19:31 */))
+    );
+    mapped = {
+        let __terrane_pipeline_source = &values;
+        let __terrane_pipeline_callback_1 = positive;
+        let __terrane_pipeline_callback_2 = identity_probe;
+        let __terrane_pipeline_callback_3 = positive;
+        let mut __terrane_pipeline_output: Vec<CopyProbe> = Vec::new();
+        for __terrane_pipeline_item in __terrane_pipeline_source.as_slice() {
+            '__terrane_pipeline_candidate: {
+                if !__terrane_pipeline_callback_1(*__terrane_pipeline_item) {
+                    break '__terrane_pipeline_candidate;
+                }
+                let __terrane_pipeline_mapped_2 = __terrane_pipeline_callback_2(
+                    *__terrane_pipeline_item,
+                );
+                if !__terrane_pipeline_callback_3(__terrane_pipeline_mapped_2) {
+                    break '__terrane_pipeline_candidate;
+                }
+                __terrane_pipeline_output.push(__terrane_pipeline_mapped_2);
+            }
+        }
+        terrane_collection_support::List::new(__terrane_pipeline_output)
+    };
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_static_trn_436f707950726f6265_clones(),
+        395 /* terrane-site: tests/integration/sequential-pipeline-native-copy/case.trn:25:13-25:31 */))
+    );
+    println!(
+        "{}{}{}{}{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(collected
+        .length())), String::from(", "),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(mapped
+        .length())), String::from(", "),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
+        .length()))
+    );
+}
 // Source: tests/integration/shared-loop-read-control/case.trn
 // Namespace: shared-loop-read-control
 fn test_scenario_terrane_shared_loop_read_control() {
@@ -7947,7 +8075,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
     holder = __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
 
-            390 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:18:14-18:26 */,
+            396 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:18:14-18:26 */,
     );
     views = terrane_collection_support::List::<
         terrane_query_witness::CopyView<'_>,
@@ -7960,7 +8088,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
             result ?, Err(payload) => return Err(crate
             ::__terrane_dependency_panic(payload, "terrane_query_witness",
             "terrane_query_witness::Holder::copy_view")) }; Ok:: < _, crate
-            ::TerraneForeignError > (value) } } (), 391 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:19:20-19:37 */); value }
+            ::TerraneForeignError > (value) } } (), 397 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:19:20-19:37 */); value }
         ],
     );
     let __terrane_iterable_3 = &views;
@@ -7979,7 +8107,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
             ::__terrane_dependency_panic(payload, "terrane_query_witness",
             "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
-            } } (), 392 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:21:17-21:27 */))
+            } } (), 398 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:21:17-21:27 */))
         );
         println!(
             "{}",
@@ -8002,7 +8130,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
                 ::__terrane_dependency_panic(payload, "terrane_query_witness",
                 "terrane_query_witness::CopyView::size")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-                u128)) } } (), 393 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:24:21-24:33 */))
+                u128)) } } (), 399 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:24:21-24:33 */))
             );
         }
     }
@@ -8031,7 +8159,7 @@ fn test_scenario_terrane_shared_loop_read_control() {
                 }
             }(),
 
-                394 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:25:20-25:37 */,
+                400 /* terrane-site: tests/integration/shared-loop-read-control/case.trn:25:20-25:37 */,
         );
         views.push_unique(__terrane_collection_argument_0);
     };
@@ -8263,6 +8391,9 @@ fn main() {
             test_scenario_terrane_nested_view_value_value_loop();
         }
         "56" => {
+            test_scenario_terrane_sequential_pipeline_native_copy();
+        }
+        "57" => {
             test_scenario_terrane_shared_loop_read_control();
         }
         _ => {
