@@ -2,7 +2,7 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.7",
+  "version": "0.0.10",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
@@ -11,10 +11,13 @@
   },
   "scripts": {
     "package-server": "node ./scripts/package-server.js",
-    "check": "node --check extension.js && node --check scripts/package-server.js"
+    "check": "node --check extension.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check scripts/package-server.js",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
-    "vscode-languageclient": "^10.1.0"
+    "vscode-languageclient": "^10.1.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   },
   "categories": [
     "Programming Languages"
@@ -44,7 +47,10 @@
       {
         "language": "terrane",
         "scopeName": "source.terrane",
-        "path": "./syntaxes/terrane.tmLanguage.json"
+        "path": "./syntaxes/terrane.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.rust": "rust"
+        }
       },
       {
         "scopeName": "markdown.terrane.codeblock",
@@ -53,7 +59,30 @@
           "text.html.markdown"
         ],
         "embeddedLanguages": {
-          "meta.embedded.block.terrane": "terrane"
+          "meta.embedded.block.terrane": "terrane",
+          "meta.embedded.block.rust": "rust"
+        }
+      }
+    ],
+    "colors": [
+      {
+        "id": "terrane.rustBlockBackground",
+        "description": "Subtle background for embedded Rust sections.",
+        "defaults": {
+          "dark": "#80808014",
+          "light": "#80808014",
+          "highContrast": "#00000000",
+          "highContrastLight": "#00000000"
+        }
+      },
+      {
+        "id": "terrane.rustBlockBorder",
+        "description": "Left border separating embedded Rust sections from Terrane.",
+        "defaults": {
+          "dark": "#80808088",
+          "light": "#80808088",
+          "highContrast": "contrastBorder",
+          "highContrastLight": "contrastBorder"
         }
       }
     ],
@@ -64,6 +93,12 @@
           "type": "string",
           "default": "",
           "description": "Path to a Terrane language server executable. Empty uses the binary bundled with the extension."
+        },
+        "terrane.rustBlocks.decorate": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Separate embedded Rust sections with a subtle background and left border."
         }
       }
     }

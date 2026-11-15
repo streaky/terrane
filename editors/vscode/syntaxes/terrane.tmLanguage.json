@@ -3,15 +3,35 @@
   "name": "Terrane",
   "scopeName": "source.terrane",
   "patterns": [
+    { "include": "#rust-block" },
     { "include": "#comments" },
     { "include": "#block-text" },
     { "include": "#tail-text" },
     { "include": "#quoted-text" },
     { "include": "#numbers" },
+    { "include": "#annotations" },
     { "include": "#keywords" },
     { "include": "#operators" }
   ],
   "repository": {
+    "rust-block": {
+      "name": "meta.rust-block.terrane",
+      "begin": "^([ \\t]*)(?:(?:(return)[ \\t]+)?(?:(unsafe)[ \\t]+)?(rust)|([^'\"#=>/\\r\\n]+=[ \\t]*)(?:(unsafe)[ \\t]+)?(rust))[ \\t]*((?://|#).*)?$",
+      "beginCaptures": {
+        "2": { "name": "keyword.control.terrane" },
+        "3": { "name": "keyword.control.terrane" },
+        "4": { "name": "keyword.control.terrane" },
+        "5": { "patterns": [{ "include": "$self" }] },
+        "6": { "name": "keyword.control.terrane" },
+        "7": { "name": "keyword.control.terrane" },
+        "8": { "name": "comment.line.terrane" }
+      },
+      "while": "^(?:\\1[ \\t]+|[ \\t]*$)",
+      "contentName": "meta.embedded.block.rust",
+      "patterns": [
+        { "include": "source.rust" }
+      ]
+    },
     "comments": {
       "patterns": [
         {
@@ -30,18 +50,24 @@
       ]
     },
     "block-text": {
-      "name": "string.unquoted.block.terrane",
-      "begin": "^(\\s*)>>\\s*$",
-      "end": "^(?!\\1[ \\t]+)(?=\\S)",
+      "begin": "^([ \\t]*)(?:([^'\"#>/\\r\\n]*?(?:[=;(,]|\\breturn))[ \\t]*)?(>>)[ \\t]*$",
+      "beginCaptures": {
+        "2": { "patterns": [{ "include": "$self" }] },
+        "3": { "name": "punctuation.definition.string.begin.terrane" }
+      },
+      "while": "^(?:\\1[ \\t]+|[ \\t]*$)",
+      "contentName": "string.unquoted.block.terrane",
       "patterns": [
         { "include": "#escapes" }
       ]
     },
     "tail-text": {
-      "match": "(^\\s*)(>.*$)|([=;(,]\\s*)(>.*$)",
+      "match": "(^[ \\t]*)(>.*$)|([=;(,][ \\t]*)(>.*$)|(^[ \\t]*return[ \\t]+)(>.*$)",
       "captures": {
         "2": { "name": "string.unquoted.tail.terrane" },
-        "4": { "name": "string.unquoted.tail.terrane" }
+        "4": { "name": "string.unquoted.tail.terrane" },
+        "5": { "patterns": [{ "include": "#keywords" }] },
+        "6": { "name": "string.unquoted.tail.terrane" }
       }
     },
     "quoted-text": {
@@ -66,13 +92,20 @@
       "name": "constant.numeric.terrane",
       "match": "\\b(?:0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*|[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*)?)\\b"
     },
+    "annotations": {
+      "match": "(@\\[)([A-Za-z_][A-Za-z0-9_+*%<>-]*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.annotation.terrane" },
+        "2": { "name": "entity.name.type.annotation.terrane" }
+      }
+    },
     "keywords": {
       "name": "keyword.control.terrane",
-      "match": "\\b(?:a|and|as|async|await|break|case|catch|class|constant|construct|continue|destruct|else|extends|false|finally|for|from|function|global|goto|if|implements|import|in|interface|is|label|match|move|namespace|not|of|or|private|protected|public|ref|return|rust|select|shared|static|switch|this|throw|throws|to|trait|true|try|unsafe|use|uses|when|while|yield)\\b"
+      "match": "(?<![A-Za-z0-9_+*%<>-])(?:a|and|as|associated|async|await|break|case|catch|class|constant|construct|consuming|continue|destruct|else|enum|extends|false|finally|for|from|function|global|goto|if|implements|import|in|instance|interface|is|label|match|move|mutable|namespace|none|not|of|or|owning|private|protected|public|ref|return|rust|select|self|shared|static|switch|this|throw|throws|to|trait|true|try|unsafe|use|uses|when|while|with|yield)(?![A-Za-z0-9_+*%<>-])"
     },
     "operators": {
       "name": "keyword.operator.terrane",
-      "match": "(?<!\\S)(?:\\+\\+|--|==|!=|<=|>=|=>|[-+*/%<>=!&|^~])(?=\\s|$)"
+      "match": "\\+\\+|--|::|(?<!\\S)(?:<<|>>|==|!=|<=|>=|=>|[-+*/%<>=!&^~])(?=\\s|$)|\\|"
     }
   }
 }

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
 const { LanguageClient } = require('vscode-languageclient/node');
+const { createRustBlockDecorations } = require('./rust-block-decorations');
 
 let client;
 
@@ -28,6 +29,7 @@ async function activate(context) {
     vscode.window.showErrorMessage(message);
     throw new Error(message);
   }
+  context.subscriptions.push(await createRustBlockDecorations());
 
   client = new LanguageClient(
     'terraneLanguageServer',
