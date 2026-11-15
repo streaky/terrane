@@ -8419,35 +8419,79 @@ fn closed_written_projected_type(
     }
 }
 
-fn close_written_native_arguments(
+fn supplied_native_arguments(identity: &ObjectIdentity) -> &[ValueType] {
+    if identity.type_arguments.is_empty() {
+        identity
+            .application
+            .as_deref()
+            .map_or(&[], std::slice::from_ref)
+    } else {
+        &identity.type_arguments
+    }
+}
+
+#[derive(Clone, Copy)]
+enum NativeDefaultProjection {
+    SourceCanonical,
+    SignatureOnly(NativeAliasUse),
+}
+
+fn close_native_arguments(
     package: &SemanticPackage,
     generic_parameters: &[crate::rust_interop::projection::ProjectedGenericParameter],
-    supplied_arguments: &[ValueType],
-) -> Option<(
-    BTreeMap<String, ValueType>,
-    BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
-)> {
-    let mut selections = BTreeMap::new();
-    let mut substitutions =
-        BTreeMap::<String, crate::rust_interop::projection::ProjectedType>::new();
-    for (index, parameter) in generic_parameters.iter().enumerate() {
-        let projected_argument = if let Some(argument) = supplied_arguments.get(index) {
-            closed_written_projected_type(package, argument)?
-        } else {
-            let default = parameter.default.as_ref()?;
-            substitutions
-                .iter()
-                .fold(default.clone(), |ty, (name, value)| {
-                    substitute_projected_generic(&ty, name, value)
-                })
-        };
-        let selected = closed_projected_native_argument(package, &projected_argument)?;
-        let canonical_projected_argument = destination_projected_type(package, &selected).ok()?;
-        substitutions.insert(parameter.name.clone(), canonical_projected_argument);
-        selections.insert(parameter.name.clone(), selected);
+    identity: &ObjectIdentity,
+    default_projection: NativeDefaultProjection,
+) -> Result<
+    (
+        BTreeMap<String, ValueType>,
+        Vec<crate::rust_interop::projection::ProjectedType>,
+    ),
+    DestinationProjectionError,
+> {
+    let supplied_arguments = supplied_native_arguments(identity);
+    if supplied_arguments.len() > generic_parameters.len() {
+        return Err("too many native generic selections".into());
     }
-    Some((selections, substitutions))
+    let mut selections = BTreeMap::new();
+    let mut arguments = Vec::with_capacity(generic_parameters.len());
+    for (index, parameter) in generic_parameters.iter().enumerate() {
+        let supplied = identity
+            .native_arguments
+            .get(&parameter.name)
+            .or_else(|| supplied_arguments.get(index));
+        let mut argument = if let Some(value) = supplied {
+            match default_projection {
+                NativeDefaultProjection::SourceCanonical => {
+                    closed_written_projected_type(package, value)
+                        .ok_or("native generic selection has no closed source representation")?
+                }
+                NativeDefaultProjection::SignatureOnly(alias_use) => {
+                    projected_type_with_alias_use(package, value, alias_use)?
+                }
+            }
+        } else {
+            let default = parameter
+                .default
+                .as_ref()
+                .ok_or("missing native generic selection")?;
+            generic_parameters.iter().zip(&arguments).fold(
+                default.clone(),
+                |ty, (parameter, argument)| {
+                    substitute_projected_generic(&ty, &parameter.name, argument)
+                },
+            )
+        };
+        if matches!(default_projection, NativeDefaultProjection::SourceCanonical) {
+            let selected = closed_projected_native_argument(package, &argument)
+                .ok_or("native generic selection has no closed source representation")?;
+            argument = destination_projected_type(package, &selected)?;
+            selections.insert(parameter.name.clone(), selected);
+        }
+        arguments.push(argument);
+    }
+    Ok((selections, arguments))
 }
+
 fn close_nongeneric_native_nominal(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
@@ -8495,47 +8539,35 @@ pub(super) fn close_written_native_nominal(
     else {
         return None;
     };
-    let supplied_arguments = if !identity.type_arguments.is_empty() {
-        identity.type_arguments.as_slice()
-    } else if let Some(application) = identity.application.as_deref() {
-        std::slice::from_ref(application)
-    } else {
-        &[]
-    };
+    let supplied_arguments = supplied_native_arguments(identity);
     if supplied_arguments.len() > generic_parameters.len() {
         return None;
     }
     if generic_parameters.is_empty() {
         return close_nongeneric_native_nominal(package, identity, &item.rust_path);
     }
-    let (selections, substitutions) =
-        close_written_native_arguments(package, generic_parameters, supplied_arguments)?;
-    let alias_native = if package.projection.dependencies.iter().any(|dependency| {
+    let (selections, substitutions) = close_native_arguments(
+        package,
+        generic_parameters,
+        identity,
+        NativeDefaultProjection::SourceCanonical,
+    )
+    .ok()?;
+    let rust_path = if package.projection.dependencies.iter().any(|dependency| {
         dependency
             .native_alias_identities
             .contains_key(&item.rust_path)
     }) {
-        let arguments = generic_parameters
-            .iter()
-            .map(|parameter| substitutions[&parameter.name].clone())
-            .collect::<Vec<_>>();
         let alias = crate::rust_interop::projection::ProjectedType::Foreign {
             rust_path: item.rust_path.clone(),
             base_rust_path: item.rust_path.clone(),
             name: item.name.clone(),
-            arguments,
+            arguments: substitutions,
         };
-        Some(
-            package
-                .projection
-                .canonical_native_alias(&alias)?
-                .rust_type(),
-        )
-    } else {
-        None
-    };
-    let rust_path = if let Some(native) = alias_native {
-        native
+        package
+            .projection
+            .canonical_native_alias(&alias)?
+            .rust_type()
     } else {
         let base_rust_path = crate::rust_ir::rust_type_constructor(
             &package.projection.canonical_native_type(&item.rust_path),
@@ -8543,9 +8575,9 @@ pub(super) fn close_written_native_nominal(
         format!(
             "{}<{}>",
             base_rust_path,
-            generic_parameters
+            substitutions
                 .iter()
-                .map(|parameter| substitutions[&parameter.name].rust_type())
+                .map(crate::rust_interop::projection::ProjectedType::rust_type)
                 .collect::<Vec<_>>()
                 .join(", ")
         )
@@ -8783,32 +8815,14 @@ fn destination_projected_native_nominal(
     identity: &ObjectIdentity,
     item: &crate::rust_interop::projection::ProjectedItem,
     generic_parameters: &[crate::rust_interop::projection::ProjectedGenericParameter],
-    supplied_arguments: &[ValueType],
     alias_use: NativeAliasUse,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
-    let mut arguments = Vec::with_capacity(generic_parameters.len());
-    for (index, parameter) in generic_parameters.iter().enumerate() {
-        let argument = if let Some(value) = identity
-            .native_arguments
-            .get(&parameter.name)
-            .or_else(|| supplied_arguments.get(index))
-        {
-            projected_type_with_alias_use(package, value, alias_use)?
-        } else {
-            // Native defaults are already admitted signature types. They need
-            // not have independently importable source identities.
-            let default = parameter.default.as_ref().ok_or_else(|| {
-                DestinationProjectionError::from("missing native generic selection")
-            })?;
-            generic_parameters.iter().zip(&arguments).fold(
-                default.clone(),
-                |ty, (parameter, argument)| {
-                    substitute_projected_generic(&ty, &parameter.name, argument)
-                },
-            )
-        };
-        arguments.push(argument);
-    }
+    let (_, arguments) = close_native_arguments(
+        package,
+        generic_parameters,
+        identity,
+        NativeDefaultProjection::SignatureOnly(alias_use),
+    )?;
     if package.projection.dependencies.iter().any(|dependency| {
         dependency
             .native_alias_identities
@@ -8879,13 +8893,7 @@ fn projected_object_with_alias_use(
     {
         return projected_object_with_alias_use(package, &selected, alias_use);
     }
-    let supplied_arguments = if !identity.type_arguments.is_empty() {
-        identity.type_arguments.as_slice()
-    } else if let Some(application) = identity.application.as_deref() {
-        std::slice::from_ref(application)
-    } else {
-        &[]
-    };
+    let supplied_arguments = supplied_native_arguments(identity);
     if let Some(item) = package.projection.item(&identity.namespace, &identity.name)
         && let crate::rust_interop::projection::ProjectedKind::ForeignType {
             generic_parameters,
@@ -8908,7 +8916,6 @@ fn projected_object_with_alias_use(
             identity,
             item,
             generic_parameters,
-            supplied_arguments,
             alias_use,
         );
     }
