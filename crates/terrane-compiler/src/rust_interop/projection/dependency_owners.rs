@@ -1299,6 +1299,19 @@ pub(super) fn rewrite_projected_rust_root(
     }
 }
 
+fn rewrite_projected_generic_root(
+    generic: &mut super::ProjectedGenericParameter,
+    package_root: &str,
+    dependency_root: &str,
+) {
+    for bound in &mut generic.rust_bounds {
+        *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+    }
+    if let Some(default) = &mut generic.default {
+        rewrite_projected_rust_root(default, package_root, dependency_root);
+    }
+}
+
 pub(super) fn rewrite_projected_function_root(
     function: &mut ProjectedFunction,
     package_root: &str,
@@ -1327,9 +1340,7 @@ pub(super) fn rewrite_projected_function_root(
         .iter_mut()
         .chain(&mut function.operation_owner_generics)
     {
-        for bound in &mut generic.rust_bounds {
-            *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
-        }
+        rewrite_projected_generic_root(generic, package_root, dependency_root);
     }
     for bound in &mut function.receiver_bounds {
         *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
@@ -1385,14 +1396,19 @@ pub(super) fn rewrite_projected_owner_root(
                 methods,
                 static_methods,
                 constants,
+                generic_parameters,
                 ..
             }
             | ProjectedKind::Enum {
                 methods,
                 static_methods,
                 constants,
+                generic_parameters,
                 ..
             } => {
+                for generic in generic_parameters {
+                    rewrite_projected_generic_root(generic, package_root, dependency_root);
+                }
                 for function in methods.iter_mut().chain(static_methods) {
                     rewrite_projected_function_root(function, package_root, dependency_root);
                 }
