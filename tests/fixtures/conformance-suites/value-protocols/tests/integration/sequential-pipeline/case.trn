@@ -1,0 +1,179 @@
+namespace sequential-pipeline
+
+from /core/collections import list, range
+from /core/modifiers import pipeline-sequential
+from /core/modifiers import pipeline-sequential as sequential
+from /core/errors import arithmetic-overflow
+
+function source-list list of int;
+  return list; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+function borrow-list ref list of int; values ref list of int
+  return values
+
+function large-source list of int;
+  values list of int = list
+  for value in (range; 0, 1000)
+    values.append; value
+  return values
+
+function failing-map int throws arithmetic-overflow; value int
+  if value == 2
+    throw arithmetic-overflow
+  return value
+
+function identity-map int; value int
+  return value
+
+function string-size int; value ref string
+  return value.length
+
+function make-mapper function from int to int;
+  print; 'mapper evaluated'
+  return identity-map
+
+function make-count int;
+  print; 'count evaluated'
+  return 0
+
+function observed-source ref list of int; values ref list of int
+  print; 'source evaluated'
+  return values
+
+function test-scenario;
+  values = source-list;
+  counts = shared ref (instance counter-box;)
+  borrowed = borrow-list; values
+  predicate = mutable function bool; value int
+    counts.predicates = counts.predicates + 1
+    return value % 2 == 0
+  mapper = mutable function string; value int
+    counts.mapped = counts.mapped + 1
+    return 'item:' + value
+  with pipeline-sequential pipeline = borrowed
+    .filter; predicate
+    .map; mapper
+    .take; 3
+    .collect;
+  print; pipeline.length
+  print; pipeline[0]
+  print; pipeline[1]
+  print; pipeline[2]
+  print; counts.predicates
+  print; counts.mapped
+  print; values.length
+
+  zero-counts = shared ref (instance counter-box;)
+  zero-predicate = mutable function bool; value int
+    zero-counts.predicates = zero-counts.predicates + 1
+    return true
+  zero-mapper = mutable function int; value int
+    zero-counts.mapped = zero-counts.mapped + 1
+    return value
+  with pipeline-sequential zero = values
+    .filter; zero-predicate
+    .map; zero-mapper
+    .take; 0
+    .collect;
+  print; zero.length
+  print; zero-counts.predicates
+  print; zero-counts.mapped
+
+  before-counts = shared ref (instance counter-box;)
+  before-predicate = mutable function bool; value int
+    before-counts.predicates = before-counts.predicates + 1
+    return value % 2 == 0
+  with pipeline-sequential before = values
+    .take; 3
+    .filter; before-predicate
+    .collect;
+  print; before.length
+  print; before[0]
+  print; before-counts.predicates
+
+  type-mapper = function string; value int
+    return 'n=' + value
+  with pipeline-sequential changed-type = values
+    .map; type-mapper
+    .collect;
+  print; changed-type.length
+  print; changed-type[0]
+
+  empty list of int = list
+  empty-counts = shared ref (instance counter-box;)
+  empty-predicate = mutable function bool; value int
+    empty-counts.predicates = empty-counts.predicates + 1
+    return true
+  with pipeline-sequential empty-result = empty
+    .filter; empty-predicate
+    .collect;
+  print; empty-result.length
+  print; empty-counts.predicates
+
+  with pipeline-sequential multiple-takes = values
+    .take; 7
+    .take; 2
+    .collect;
+  print; multiple-takes.length
+  print; multiple-takes[1]
+
+  large = large-source;
+  large-counts = shared ref (instance counter-box;)
+  large-predicate = mutable function bool; value int
+    large-counts.predicates = large-counts.predicates + 1
+    return value % 2 == 0
+  large-mapper = mutable function int; value int
+    large-counts.mapped = large-counts.mapped + 1
+    return value
+  with pipeline-sequential bounded = large
+    .filter; large-predicate
+    .map; large-mapper
+    .take; 5
+    .collect;
+  print; bounded.length
+  print; large-counts.predicates
+  print; large-counts.mapped
+
+  with sequential upfront = observed-source; values
+    .map; (make-mapper;)
+    .take; (make-count;)
+    .collect;
+  print; upfront.length
+
+  with sequential safe-prefix = values
+    .map; failing-map
+    .take; 1
+    .collect;
+  print; safe-prefix[0]
+  try
+    with sequential failed = values
+      .map; failing-map
+      .collect;
+    print; failed.length
+  catch arithmetic-overflow
+    print; 'caught pipeline error'
+
+  with sequential negative = values
+    .map; failing-map
+    .take; -1
+    .collect;
+  print; negative.length
+  with sequential huge = values
+    .take; 184467440737095516160000
+    .collect;
+  print; huge.length
+  with sequential twice = values
+    .map; type-mapper
+    .map; string-size
+    .take; 2
+    .collect;
+  print; twice[0], ', ', twice[1]
+  limit uint8 = 2
+  with sequential typed list of int = values
+    .take; limit
+    .collect;
+  print; typed.length
+
+class counter-box
+  predicates int = 0
+  mapped int = 0

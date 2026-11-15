@@ -427,6 +427,7 @@ impl Emitter<'_> {
 
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
+            SyntaxKind::PipelineExpression => self.sequential_pipeline(node),
             SyntaxKind::InitializationExpression => self.initialization_expression(node),
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),

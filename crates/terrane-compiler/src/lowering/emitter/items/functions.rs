@@ -1269,6 +1269,13 @@ impl Emitter<'_> {
             let mutable = if contract.written_invocation_mode != InvocationMode::Shared
                 && binding.is_some_and(|binding| {
                     !matches!(binding.value_type, ValueType::MutableReference(_))
+                        && (!matches!(binding.value_type, ValueType::SharedReference(_))
+                            || crate::semantics::binding_storage_is_written_in(
+                                self.package,
+                                self.unit,
+                                binding.span,
+                                node.span,
+                            ))
                         && crate::semantics::binding_span_is_mutated_in(
                             self.package,
                             self.unit,

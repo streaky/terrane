@@ -1447,6 +1447,13 @@ impl ScopedAccess {
         Self {}
     }
 }
+#[derive(Clone)]
+pub struct PipelineSequential {}
+impl PipelineSequential {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+}
 // Source: core/time.trn
 // Namespace: core/time
 #[derive(Clone)]

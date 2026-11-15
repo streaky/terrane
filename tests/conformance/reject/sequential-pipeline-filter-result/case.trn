@@ -1,0 +1,12 @@
+namespace sequential-pipeline-filter-result
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function main;
+  values = list; 1, 2, 3
+  predicate = function int; value int
+    return value
+  with pipeline-sequential result = values
+    .filter; predicate
+    .collect;

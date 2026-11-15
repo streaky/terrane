@@ -1137,6 +1137,10 @@ fn analyze_parsed_with_projection(
         return Ok(semantic);
     }
     let stage = crate::compilation_progress::start("type inference", package.root.display());
+    super::objects::prepare_type_declarations(&mut semantic)?;
+    super::annotations::populate_declaration_metadata(&mut semantic)?;
+    super::modifiers::resolve_declaration_modifiers(&mut semantic)?;
+    super::pipeline_syntax::normalize(&mut semantic)?;
     super::throw_construction::normalize(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
@@ -1186,6 +1190,7 @@ fn analyze_parsed_with_projection(
     let stage =
         crate::compilation_progress::start("final semantic validation", package.root.display());
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
+    super::pipelines::validate(&semantic)?;
     super::objects::validate_closed_interface_bindings(&semantic)?;
     super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.

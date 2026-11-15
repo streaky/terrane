@@ -1464,6 +1464,19 @@ fn escaping_node_errors(
         return EscapingTraversal::Complete(direct_errors(package, unit, node));
     }
     let mut local_errors = local_builtin_errors(package, unit, node);
+    if node.kind == SyntaxKind::PipelineExpression {
+        for stage in node.children.iter().skip(1) {
+            if stage.children.first().is_some_and(|operation| {
+                matches!(node_text(&unit.source, operation), "filter" | "map")
+            }) && let Some(callback) = stage
+                .children
+                .get(1)
+                .and_then(|arguments| arguments.children.first())
+            {
+                local_errors.extend(callable_expression_errors(unit, callback, inferred));
+            }
+        }
+    }
     if node.kind == SyntaxKind::CallExpression
         && let Some(contract) =
             super::native_constructors::implicit_record_constructor(package, unit, node)

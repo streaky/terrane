@@ -607,6 +607,8 @@ mutated value while the iterator retains the original shared storage.
 Only lists currently expose `.clear`; map and set mutation intentionally use their documented
 member sets rather than inheriting a speculative uniform clear operation.
 
+`with pipeline-sequential` selects ordered, fused list processing with `filter`, `map`, `take`, and terminal `collect` stages. Import the modifier from `/core/modifiers`. Stable input is borrowed, only the final list is materialized, and take limits stop callback execution on demand. Sources are currently lists or list references, and callbacks are synchronous, repeatable one-argument callables. See the [pipeline contract](../manual/reference/records/language/collections.yaml#sequential-pipelines) for stage order, upfront operand evaluation, effects, ownership, and current restrictions.
+
 ## Type descriptor objects
 
 Every implemented scalar type has one canonical descriptor object:

@@ -34,6 +34,8 @@ mod expressions;
 mod logging;
 mod macros;
 pub(crate) mod modifiers;
+mod pipeline_syntax;
+pub(crate) mod pipelines;
 pub(crate) use macros::macro_argument;
 mod member_inference;
 pub(crate) use member_inference::platform_result_member_type;
@@ -106,8 +108,8 @@ pub(crate) use analysis::analyze_declarations;
 pub use analysis::{analyze, dependency_projection_demands};
 pub(crate) use bindings::{
     binding_read_value_is_reused, binding_requires_mutable_storage, binding_storage_is_replaced,
-    binding_store_value_is_read, binding_stores_are_independent, callback_contract,
-    descriptor_binding_is_materialized,
+    binding_storage_is_written_in, binding_store_value_is_read, binding_stores_are_independent,
+    callback_contract, descriptor_binding_is_materialized,
 };
 pub(crate) use calls::selected_callable_contract;
 pub(crate) use capabilities::{protocol_transfer_capabilities, rust_value_is_copy};

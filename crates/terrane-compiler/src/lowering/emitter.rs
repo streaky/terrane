@@ -11,6 +11,7 @@ mod members;
 mod native_arguments;
 mod native_callable;
 pub(super) mod pipeline;
+mod pipelines;
 mod read_access;
 mod statements;
 mod task_storage;

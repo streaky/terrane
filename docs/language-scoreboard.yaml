@@ -710,7 +710,7 @@ features:
   notes: Single-evaluation selectors, lazy ordered equality alternatives or truth predicates, optional final default, no fallthrough, and ordinary function-owned branch joins.
   sources:
   - docs/language-spec-concise.md#CONTROL
-  - tests/fixtures/conformance-suites/control-flow/tests/integration/switch-statements/case.trn
+  - tests/conformance/run/switch-statements/case.trn
   - docs/compiler-plan.md#Bundled text composition and ordered branching
   - tests/fixtures/conformance-suites/control-flow/tests/integration/switch-boundaries/case.trn
 - id: structured-errors
@@ -810,7 +810,7 @@ features:
   - docs/language-spec-concise.md#TEXT DISPLAY
   - docs/compiler-plan.md#Milestone 4.6
   - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-composition/case.trn
-  - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-boundaries/case.trn
+  - tests/fixtures/conformance-suites/unsafe-protocols/tests/integration/string-display-boundaries/case.trn
   - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-generic/case.trn
   - tests/conformance/run/string-display-imported/src/main.trn
   - tests/fixtures/conformance-suites/control-flow/tests/integration/switch-boundaries/case.trn
@@ -982,6 +982,22 @@ features:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 13
   - tests/fixtures/conformance-suites/value-protocols/tests/integration/string-result-list-iteration/case.trn
+- id: sequential-pipelines
+  name: Ordered fused list pipelines
+  category: text-data
+  status: done
+  completion: 100
+  milestone: null
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/language/collections.yaml
+    - manual/reference/records/language/declarations/modifiers.yaml
+    - manual/reference/records/internals/proof-guided-lowering.yaml
+  notes: The typed pipeline-sequential modifier realizes filter, map, take and terminal collect in one ordered list traversal; stable sources are borrowed and only the final collection is materialized. Parallel/vectorized strategies and general iterable sources are not implemented.
+  sources:
+  - docs/language-spec-concise.md#COLLECTION / TEXT
+  - tests/fixtures/conformance-suites/value-protocols/tests/integration/sequential-pipeline/case.trn
 - id: classes
   name: Classes and construction
   category: objects

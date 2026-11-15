@@ -1,0 +1,9 @@
+namespace sequential-pipeline-missing-collect
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function main;
+  values = list; 1, 2, 3
+  with pipeline-sequential result = values
+    .take; 2

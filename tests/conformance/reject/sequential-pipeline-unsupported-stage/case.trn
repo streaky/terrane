@@ -1,0 +1,10 @@
+namespace sequential-pipeline-unsupported-stage
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function main;
+  values = list; 1, 2, 3
+  with pipeline-sequential result = values
+    .reverse;
+    .collect;

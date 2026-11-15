@@ -1,0 +1,32 @@
+3
+item:2
+item:4
+item:6
+6
+3
+10
+0
+0
+0
+1
+2
+3
+10
+n=1
+0
+0
+2
+2
+5
+9
+5
+source evaluated
+mapper evaluated
+count evaluated
+0
+1
+caught pipeline error
+0
+10
+3, 3
+2
