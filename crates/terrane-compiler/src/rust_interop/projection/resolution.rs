@@ -593,9 +593,10 @@ pub fn resolve(
         removed: Vec::new(),
     };
     super::owning_callbacks::canonicalize_parameters(&mut projection);
-    // Recovered external operations arrive after initial item normalization.
-    // Canonicalize complete inventories before hashing and publication.
+    // Recovery stages can append inventory after the round normalizers. Normalize
+    // items, members, and declined diagnostics together before hashing/publication.
     for dependency in &mut projection.dependencies {
+        super::data::normalize_projected_items(&mut dependency.items, &mut dependency.declined);
         super::data::normalize_projected_inventory(&mut dependency.items);
     }
     write_workspace_with_bound_dependencies(

@@ -72,7 +72,7 @@ fn projection(dependency: ProjectedDependency) -> Projection {
 }
 
 #[test]
-fn final_inventory_order_replays_and_metadata_changes_remain_visible() {
+fn final_inventory_replays() {
     let mut first_dependency = projection_with_operations(false);
     let mut reversed_dependency = projection_with_operations(true);
     normalize_projected_inventory(&mut first_dependency.items);
