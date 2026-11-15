@@ -1,0 +1,7 @@
+namespace pipeline-target-nonlocal
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+with pipeline-sequential result = (list; 1)
+    .collect;
+function main;
+    print; result.length

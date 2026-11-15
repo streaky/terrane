@@ -48,8 +48,17 @@ impl Emitter<'_> {
             unreachable!("collect produces a list");
         };
         let output_type = rust_value_type(self.package, output_item.value_type());
+        let allocation = if has_filter {
+            "Vec::new()".to_owned()
+        } else {
+            let mut capacity = "__terrane_pipeline_source.as_slice().len()".to_owned();
+            for limit in &limits {
+                write!(capacity, ".min({limit})").unwrap();
+            }
+            format!("Vec::with_capacity({capacity})")
+        };
         format!(
-            "{{ {setup}let mut __terrane_pipeline_output: Vec<{output_type}> = Vec::new(); {loop_body} terrane_collection_support::List::new(__terrane_pipeline_output) }}"
+            "{{ {setup}let mut __terrane_pipeline_output: Vec<{output_type}> = {allocation}; {loop_body} terrane_collection_support::List::new(__terrane_pipeline_output) }}"
         )
     }
 
@@ -73,12 +82,15 @@ impl Emitter<'_> {
             .unwrap();
         }
         let mut limits = Vec::new();
+        // Every callback operand remains live until traversal finishes, including
+        // borrows established by earlier stages of the same pipeline.
+        let mut borrowed_callbacks = BTreeSet::new();
         for stage in stages {
             match stage {
                 PipelineStage::Filter { stage_node, .. }
                 | PipelineStage::Map { stage_node, .. } => {
                     let argument = &node.children[*stage_node].children[1].children[0];
-                    let value = self.pipeline_callback(argument, node);
+                    let value = self.pipeline_callback(argument, node, &mut borrowed_callbacks);
                     write!(
                         setup,
                         "let __terrane_pipeline_callback_{stage_node} = {value}; "
@@ -122,7 +134,12 @@ impl Emitter<'_> {
         )
     }
 
-    fn pipeline_callback(&mut self, argument: &SyntaxNode, scope: &SyntaxNode) -> String {
+    fn pipeline_callback(
+        &mut self,
+        argument: &SyntaxNode,
+        scope: &SyntaxNode,
+        borrowed_callbacks: &mut BTreeSet<crate::Span>,
+    ) -> String {
         let mut argument = argument;
         while argument.kind == SyntaxKind::GroupExpression
             && let [inner] = argument.children.as_slice()
@@ -157,6 +174,7 @@ impl Emitter<'_> {
             if !self.binding_value_is_reused(argument)
                 && !self.non_consuming_capture_read(argument)
                 && !self.binding_may_be_unassigned(binding)
+                && !borrowed_callbacks.contains(&binding.span)
             {
                 return self.expression(argument);
             }
@@ -164,6 +182,7 @@ impl Emitter<'_> {
                 if effects.modes.written == InvocationMode::Shared)
                 && self.read_borrow_is_stable_in(argument, scope)
             {
+                borrowed_callbacks.insert(binding.span);
                 let (prelude, reference) = self.operand_reference_parts(argument, false);
                 return format!("{{ {prelude}{reference} }}");
             }

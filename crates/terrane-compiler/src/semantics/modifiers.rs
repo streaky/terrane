@@ -107,6 +107,8 @@ fn resolve_operation(
             }
         }
         ModifierOperation::PipelineSequential => {
+            // A user-defined modifier schema can admit callable/class targets
+            // while selecting this operation; generic admission is not enough.
             if !matches!(
                 declaration.kind,
                 SyntaxKind::Binding | SyntaxKind::Assignment
@@ -225,6 +227,15 @@ fn resolve_application(
         operation,
         payload,
     })
+}
+
+pub(super) fn has_applications(package: &SemanticPackage) -> bool {
+    fn contains(node: &SyntaxNode) -> bool {
+        !node.modifier_applications.is_empty()
+            || node.kind == SyntaxKind::WithRegion
+            || node.children.iter().any(contains)
+    }
+    package.units.iter().any(|unit| contains(&unit.tree.root))
 }
 
 fn collect(

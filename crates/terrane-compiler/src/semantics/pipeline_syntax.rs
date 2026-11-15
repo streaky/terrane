@@ -36,12 +36,19 @@ fn rewrite(
             || node
                 .assignment_target()
                 .is_none_or(|target| target.kind != SyntaxKind::Name)
-            || applications.len() != 1
         {
             return Err(failure(
                 source,
                 "S2121",
-                "pipeline-sequential requires a local binding and cannot compose with another modifier operation",
+                "pipeline-sequential requires a local named binding or assignment",
+                node.span,
+            ));
+        }
+        if applications.len() != 1 {
+            return Err(failure(
+                source,
+                "S2121",
+                "pipeline-sequential cannot compose with another modifier operation",
                 node.span,
             ));
         }

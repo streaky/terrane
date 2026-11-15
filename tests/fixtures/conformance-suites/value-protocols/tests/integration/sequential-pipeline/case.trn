@@ -219,6 +219,25 @@ function inspect-copy-contracts; values ref list of int
     .collect;
   print; big-prefix.length, '; limit ', big-limit
 
+  small = list; 1, 2, 3, 4
+  keep = function bool; value int
+    return value > 1
+  with sequential shared-twice = small
+    .filter; keep
+    .filter; (keep)
+    .collect;
+  print; shared-twice.length
+
+  seen int = 0
+  limited = mutable function bool; value int
+    seen = seen + 1
+    return seen <= 2
+  with sequential forked = small
+    .filter; limited
+    .filter; limited
+    .collect;
+  print; forked.length, ': ', forked[0], ', ', forked[1]
+
 class counter-box
   predicates int = 0
   mapped int = 0
