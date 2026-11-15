@@ -34,7 +34,7 @@ async function createRustBlockDecorations() {
       }
       let entry = cache.get(document);
       if (!entry || entry.version !== document.version) {
-        const ranges = scanner.findBlocks(documentLines(document)).map(block => new vscode.Range(
+        const ranges = scanner.findBlocks(documentLines(document), document).map(block => new vscode.Range(
           block.start, 0, block.end, document.lineAt(block.end).text.length,
         ));
         entry = { version: document.version, ranges };

@@ -12,7 +12,10 @@ const blocks = text => scanner.findBlocks(text.split('\n'));
 
 test('includes each supported Rust header and its body, not the next Terrane line', () => {
   for (const header of ['rust', 'unsafe rust', 'return rust', 'return unsafe rust',
-    'value int = rust', 'value int = unsafe rust', 'rust # native', 'rust // native']) {
+    'value int = rust', 'value int = unsafe rust', 'rust # native', 'rust // native',
+    'rust /* note */', 'return /* note */ unsafe rust',
+    "@[command-option; '--value'] value string = rust",
+    "@[option; 'a/>b'] value string = unsafe rust"]) {
     assert.deepEqual(blocks(`function main;\n  ${header}\n    42\n  print; 42`), [{ start: 1, end: 2 }]);
   }
 });
@@ -40,12 +43,21 @@ test('does not decorate apparent Rust headers inside Terrane comments or text', 
     '# value int = rust\n  42',
     '  // value int = rust\n    42',
     '/*\n  rust\n    42\n*/',
-    "value = 'native\n  rust\n    42'",
     'value = >>\n  rust\n    42',
     'return >>\n  rust\n    42',
     '>value int = rust\n  42',
     'value = >value int = rust\n  42',
   ]) assert.deepEqual(blocks(text), [], text);
+});
+
+test('an unfinished Terrane quote does not hide a later native section', () => {
+  assert.deepEqual(blocks("value = 'native\n  rust\n    42"), [{ start: 1, end: 2 }]);
+});
+
+test('comparison and compound operators are not Rust assignment markers', () => {
+  for (const header of ['count += rust', 'a != rust', 'a <= rust', 'a == rust', 'a -= rust']) {
+    assert.deepEqual(blocks(`${header}\n  42`), [], header);
+  }
 });
 
 test('Rust comments, raw strings and nested indentation cannot start extra sections', () => {

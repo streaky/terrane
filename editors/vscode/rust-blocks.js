@@ -21,18 +21,49 @@ async function createRustBlockScanner() {
     loadGrammar: async scope => scope === 'source.terrane' ? rawGrammar : null,
   });
   const grammar = await registry.loadGrammar('source.terrane');
+  const documents = new WeakMap();
 
   return {
-    findBlocks(lines) {
-      const blocks = [];
-      let state = INITIAL;
-      let block;
-      let lineNumber = 0;
-      for (const text of lines) {
-        const result = grammar.tokenizeLine(text, state);
+    findBlocks(lines, document) {
+      const text = Array.from(lines);
+      const previous = document ? documents.get(document) : undefined;
+      let first = 0;
+      let suffix = 0;
+      if (previous) {
+        while (first < text.length && first < previous.lines.length
+          && text[first] === previous.lines[first].text) first++;
+        if (first === text.length && first === previous.lines.length) return previous.blocks;
+        while (suffix < text.length - first && suffix < previous.lines.length - first
+          && text[text.length - suffix - 1] === previous.lines[previous.lines.length - suffix - 1].text) suffix++;
+      }
+
+      let states = previous ? previous.lines.slice(0, first) : [];
+      let state = first ? states[first - 1].state : INITIAL;
+      for (let line = first; line < text.length; line++) {
+        const oldLine = previous ? line + previous.lines.length - text.length : -1;
+        if (previous && line >= text.length - suffix) {
+          const oldState = oldLine ? previous.lines[oldLine - 1].state : INITIAL;
+          if (state.equals(oldState)) {
+            // The remaining text and incoming grammar state agree. Reuse the tail,
+            // including after line insertions/deletions, without retokenizing it.
+            states = states.concat(previous.lines.slice(oldLine));
+            break;
+          }
+        }
+        const result = grammar.tokenizeLine(text[line], state);
         state = result.ruleStack;
-        const inRust = result.tokens.some(token => token.scopes.includes('meta.rust-block.terrane'));
-        const inBody = result.tokens.some(token => token.scopes.includes('meta.embedded.block.rust'));
+        states.push({
+          text: text[line],
+          state,
+          inRust: result.tokens.some(token => token.scopes.includes('meta.rust-block.terrane')),
+          inBody: result.tokens.some(token => token.scopes.includes('meta.embedded.block.rust')),
+        });
+      }
+
+      const blocks = [];
+      let block;
+      for (let lineNumber = 0; lineNumber < states.length; lineNumber++) {
+        const { text: line, inRust, inBody } = states[lineNumber];
         if (block && (!inRust || !inBody)) {
           blocks.push(block);
           block = undefined;
@@ -40,11 +71,11 @@ async function createRustBlockScanner() {
         if (inRust) {
           if (!block) block = { start: lineNumber, end: lineNumber };
           // Keep internal blank lines, but do not shade separators after the body.
-          if (text.trim()) block.end = lineNumber;
+          if (line.trim()) block.end = lineNumber;
         }
-        lineNumber++;
       }
       if (block) blocks.push(block);
+      if (document) documents.set(document, { lines: states, blocks });
       return blocks;
     },
     dispose() {

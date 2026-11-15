@@ -10,13 +10,15 @@
     { "include": "#quoted-text" },
     { "include": "#numbers" },
     { "include": "#annotations" },
+    { "include": "#literals" },
+    { "include": "#contextual-keywords" },
     { "include": "#keywords" },
     { "include": "#operators" }
   ],
   "repository": {
     "rust-block": {
       "name": "meta.rust-block.terrane",
-      "begin": "^([ \\t]*)(?:(?:(return)[ \\t]+)?(?:(unsafe)[ \\t]+)?(rust)|([^'\"#=>/\\r\\n]+=[ \\t]*)(?:(unsafe)[ \\t]+)?(rust))[ \\t]*((?://|#).*)?$",
+      "begin": "^([ \\t]*)(?![ \\t]|>|return[ \\t]+>)(?:(?:(return)(?:[ \\t]|/\\*.*?\\*/)+)?(?:(unsafe)(?:[ \\t]|/\\*.*?\\*/)+)?(rust)|((?:'(?:[^'\\\\\\r\\n]|\\\\.)*'|\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"|/\\*.*?\\*/|/(?![/*])|(?![=;,(\\[{+*/%<>=!&|^~:-][ \\t]*>)[^'\"/#\\r\\n])*?(?<![+*/%<>=!&|^~:-])=(?:[ \\t]|/\\*.*?\\*/)*)(?:(unsafe)(?:[ \\t]|/\\*.*?\\*/)+)?(rust))((?:[ \\t]|/\\*.*?\\*/)*(?:(?://|#).*)?)$",
       "beginCaptures": {
         "2": { "name": "keyword.control.terrane" },
         "3": { "name": "keyword.control.terrane" },
@@ -24,7 +26,7 @@
         "5": { "patterns": [{ "include": "$self" }] },
         "6": { "name": "keyword.control.terrane" },
         "7": { "name": "keyword.control.terrane" },
-        "8": { "name": "comment.line.terrane" }
+        "8": { "patterns": [{ "include": "#comments" }] }
       },
       "while": "^(?:\\1[ \\t]+|[ \\t]*$)",
       "contentName": "meta.embedded.block.rust",
@@ -50,7 +52,7 @@
       ]
     },
     "block-text": {
-      "begin": "^([ \\t]*)(?:([^'\"#>/\\r\\n]*?(?:[=;(,]|\\breturn))[ \\t]*)?(>>)[ \\t]*$",
+      "begin": "^([ \\t]*)(?![ \\t]|>(?!>)|return[ \\t]+>(?!>))(?:((?:(?:'(?:[^'\\\\\\r\\n]|\\\\.)*'|\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"|/\\*.*?\\*/|/(?![/*])|(?![=;,(\\[{+*/%<>=!&|^~:-][ \\t]*>)[^'\"/#\\r\\n])*?(?:[=;,(\\[{]|[+*/%<>=!&|^~:-])|return)(?:[ \\t]|/\\*.*?\\*/)*))?(>>)[ \\t]*$",
       "beginCaptures": {
         "2": { "patterns": [{ "include": "$self" }] },
         "3": { "name": "punctuation.definition.string.begin.terrane" }
@@ -76,7 +78,7 @@
       "beginCaptures": {
         "0": { "name": "punctuation.definition.string.begin.terrane" }
       },
-      "end": "'",
+      "end": "'|$",
       "endCaptures": {
         "0": { "name": "punctuation.definition.string.end.terrane" }
       },
@@ -101,11 +103,30 @@
     },
     "keywords": {
       "name": "keyword.control.terrane",
-      "match": "(?<![A-Za-z0-9_+*%<>-])(?:a|and|as|associated|async|await|break|case|catch|class|constant|construct|consuming|continue|destruct|else|enum|extends|false|finally|for|from|function|global|goto|if|implements|import|in|instance|interface|is|label|match|move|mutable|namespace|none|not|of|or|owning|private|protected|public|ref|return|rust|select|self|shared|static|switch|this|throw|throws|to|trait|true|try|unsafe|use|uses|when|while|with|yield)(?![A-Za-z0-9_+*%<>-])"
+      "match": "(?<![A-Za-z0-9_+*%<>-])(?:a|and|as|async|await|break|case|catch|class|constant|construct|continue|destruct|else|extends|finally|for|from|function|global|goto|if|implements|import|in|instance|interface|is|label|match|move|mutable|namespace|not|of|or|private|protected|public|ref|return|rust|select|self|shared|static|switch|this|throw|throws|to|trait|try|unsafe|use|uses|when|while|with|yield)(?![A-Za-z0-9_+*%<>-])"
+    },
+    "literals": {
+      "name": "constant.language.terrane",
+      "match": "(?<![A-Za-z0-9_+*%<>-])(?:true|false|none)(?![A-Za-z0-9_+*%<>-])"
+    },
+    "contextual-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.terrane",
+          "match": "(?<![A-Za-z0-9_+*%<>-])(?:consuming(?=[ \\t]+(?:async[ \\t]+)?function\\b)|owning(?=[ \\t]+interface\\b)|enum(?=[ \\t]+[A-Za-z_]))(?![A-Za-z0-9_+*%<>-])"
+        },
+        {
+          "match": "(?<![A-Za-z0-9_+*%<>-])(associated)([ \\t]+)(type)(?![A-Za-z0-9_+*%<>-])",
+          "captures": {
+            "1": { "name": "keyword.control.terrane" },
+            "3": { "name": "keyword.control.terrane" }
+          }
+        }
+      ]
     },
     "operators": {
       "name": "keyword.operator.terrane",
-      "match": "\\+\\+|--|::|(?<!\\S)(?:<<|>>|==|!=|<=|>=|=>|[-+*/%<>=!&^~])(?=\\s|$)|\\|"
+      "match": "(?<![+*%<>-])(?:\\+\\+|--)(?![A-Za-z0-9_+*%<>-])|::|(?<!\\S)(?:<<|>>|==|!=|<=|>=|=>|[-+*/%<>=!&^~])(?=\\s|$)|\\|"
     }
   }
 }
