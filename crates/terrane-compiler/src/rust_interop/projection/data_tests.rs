@@ -1,7 +1,7 @@
 use super::super::test_support::projected_function_item;
 use super::*;
 
-fn projection_with_operations(reverse: bool) -> Projection {
+fn projection_with_operations(reverse: bool) -> ProjectedDependency {
     let mut owner = projected_function_item("/deps/witness", "Value", "witness::Value");
     owner.kind = serde_json::from_value(serde_json::json!({
         "ForeignType": { "methods": [] }
@@ -33,21 +33,33 @@ fn projection_with_operations(reverse: bool) -> Projection {
     let mut items = vec![owner];
     let mut declined = Vec::new();
     merge_projected_trait_operations(&mut items, &mut declined, operations);
-    normalize_projected_items(&mut items, &mut declined);
-    normalize_projected_members(&mut items);
+    let free_names = if reverse {
+        ["alpha_free", "zeta_free"]
+    } else {
+        ["zeta_free", "alpha_free"]
+    };
+    items.extend(
+        free_names.map(|name| {
+            projected_function_item("/deps/witness", name, &format!("witness::{name}"))
+        }),
+    );
+    ProjectedDependency {
+        name: "witness".to_owned(),
+        package: "witness".to_owned(),
+        version: "1.0.0".to_owned(),
+        native_alias_identities: BTreeMap::new(),
+        items,
+        declined,
+        associated_implementations: Vec::new(),
+        partial_declines: Vec::new(),
+    }
+}
+
+fn projection(dependency: ProjectedDependency) -> Projection {
     Projection {
         cache_identity: "same-inputs".to_owned(),
         content_hash: String::new(),
-        dependencies: vec![ProjectedDependency {
-            name: "witness".to_owned(),
-            package: "witness".to_owned(),
-            version: "1.0.0".to_owned(),
-            native_alias_identities: BTreeMap::new(),
-            items,
-            declined,
-            associated_implementations: Vec::new(),
-            partial_declines: Vec::new(),
-        }],
+        dependencies: vec![dependency],
         native_owner_aliases: BTreeMap::new(),
         containment: Containment::Enforced,
         bound_dependencies: Vec::new(),
@@ -60,9 +72,13 @@ fn projection_with_operations(reverse: bool) -> Projection {
 }
 
 #[test]
-fn member_order_replays() {
-    let first = projection_with_operations(false);
-    let mut reversed = projection_with_operations(true);
+fn final_inventory_order_replays_and_metadata_changes_remain_visible() {
+    let mut first_dependency = projection_with_operations(false);
+    let mut reversed_dependency = projection_with_operations(true);
+    normalize_projected_inventory(&mut first_dependency.items);
+    normalize_projected_inventory(&mut reversed_dependency.items);
+    let first = projection(first_dependency);
+    let mut reversed = projection(reversed_dependency);
     assert_eq!(
         projection_content_hash(&first).unwrap(),
         projection_content_hash(&reversed).unwrap()

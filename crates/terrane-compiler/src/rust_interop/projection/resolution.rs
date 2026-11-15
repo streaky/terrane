@@ -593,10 +593,10 @@ pub fn resolve(
         removed: Vec::new(),
     };
     super::owning_callbacks::canonicalize_parameters(&mut projection);
-    // Recovered external operations arrive in Rustdoc map iteration order.
-    // Canonicalize complete member inventories before hashing and publication.
+    // Recovered external operations arrive after initial item normalization.
+    // Canonicalize complete inventories before hashing and publication.
     for dependency in &mut projection.dependencies {
-        super::data::normalize_projected_members(&mut dependency.items);
+        super::data::normalize_projected_inventory(&mut dependency.items);
     }
     write_workspace_with_bound_dependencies(
         &workspace,

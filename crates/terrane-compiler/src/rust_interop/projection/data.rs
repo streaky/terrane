@@ -2,7 +2,14 @@ use super::functions::project_function_inner;
 use super::*;
 #[path = "descriptor_fields.rs"]
 mod descriptor_fields;
-pub(super) fn normalize_projected_members(items: &mut [ProjectedItem]) {
+pub(super) fn normalize_projected_inventory(items: &mut [ProjectedItem]) {
+    items.sort_unstable_by(|left, right| {
+        (&left.namespace, &left.name, &left.rust_path).cmp(&(
+            &right.namespace,
+            &right.name,
+            &right.rust_path,
+        ))
+    });
     for item in items {
         if let ProjectedKind::ForeignType {
             methods,

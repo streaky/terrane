@@ -775,7 +775,13 @@ pub(super) fn project_callable_adapter_bounds(
                     requested_trait.path
                 ));
             }
-            continue;
+            // A raw callable entrypoint can use the native blanket without
+            // synthesizing its auxiliary methods, associated items or supertraits.
+            // Owning adapters still need the complete source-interface surface;
+            // methodless marker traits retain ordinary generic argument inference.
+            if owning_carrier || native_function.is_none() {
+                continue;
+            }
         }
         let native_method = native_function.as_ref().map(|(name, _)| name.clone());
         let native_result = native_function

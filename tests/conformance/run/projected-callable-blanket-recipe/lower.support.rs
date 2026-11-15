@@ -509,29 +509,53 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 11] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:33:13-33:28) */
-        { Site { function: 0, file: 0, line: 33, column: 13, end_line: 33, end_column: 28 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:34:13-34:37) */
-        { Site { function: 0, file: 0, line: 34, column: 13, end_line: 34, end_column: 37 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:35:13-35:34) */
-        { Site { function: 0, file: 0, line: 35, column: 13, end_line: 35, end_column: 34 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:36:13-36:35) */
-        { Site { function: 0, file: 0, line: 36, column: 13, end_line: 36, end_column: 35 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:37:13-37:48) */
-        { Site { function: 0, file: 0, line: 37, column: 13, end_line: 37, end_column: 48 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:38:13-38:55) */
-        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 55 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:39:13-39:41) */
-        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 41 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:40:13-40:42) */
-        { Site { function: 0, file: 0, line: 40, column: 13, end_line: 40, end_column: 42 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:41:13-41:34) */
-        { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 34 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:42:22-42:28) */
-        { Site { function: 0, file: 0, line: 42, column: 22, end_line: 42, end_column: 28 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:42:13-42:29) */
-        { Site { function: 0, file: 0, line: 42, column: 13, end_line: 42, end_column: 29 } },
+    pub static SITES: [Site; 23] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:38:13-38:28) */
+        { Site { function: 0, file: 0, line: 38, column: 13, end_line: 38, end_column: 28 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:39:13-39:37) */
+        { Site { function: 0, file: 0, line: 39, column: 13, end_line: 39, end_column: 37 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:40:13-40:34) */
+        { Site { function: 0, file: 0, line: 40, column: 13, end_line: 40, end_column: 34 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:41:13-41:35) */
+        { Site { function: 0, file: 0, line: 41, column: 13, end_line: 41, end_column: 35 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:42:13-42:48) */
+        { Site { function: 0, file: 0, line: 42, column: 13, end_line: 42, end_column: 48 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:43:13-43:55) */
+        { Site { function: 0, file: 0, line: 43, column: 13, end_line: 43, end_column: 55 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:44:13-44:41) */
+        { Site { function: 0, file: 0, line: 44, column: 13, end_line: 44, end_column: 41 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:45:13-45:42) */
+        { Site { function: 0, file: 0, line: 45, column: 13, end_line: 45, end_column: 42 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:46:13-46:34) */
+        { Site { function: 0, file: 0, line: 46, column: 13, end_line: 46, end_column: 34 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:47:22-47:28) */
+        { Site { function: 0, file: 0, line: 47, column: 22, end_line: 47, end_column: 28 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:47:13-47:29) */
+        { Site { function: 0, file: 0, line: 47, column: 13, end_line: 47, end_column: 29 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:48:27-48:45) */
+        { Site { function: 0, file: 0, line: 48, column: 27, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:49:36-49:49) */
+        { Site { function: 0, file: 0, line: 49, column: 36, end_line: 49, end_column: 49 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:49:19-49:49) */
+        { Site { function: 0, file: 0, line: 49, column: 19, end_line: 49, end_column: 49 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:50:27-50:45) */
+        { Site { function: 0, file: 0, line: 50, column: 27, end_line: 50, end_column: 45 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:51:36-51:62) */
+        { Site { function: 0, file: 0, line: 51, column: 36, end_line: 51, end_column: 62 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:51:19-51:62) */
+        { Site { function: 0, file: 0, line: 51, column: 19, end_line: 51, end_column: 62 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:52:52-52:78) */
+        { Site { function: 0, file: 0, line: 52, column: 52, end_line: 52, end_column: 78 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:52:40-52:78) */
+        { Site { function: 0, file: 0, line: 52, column: 40, end_line: 52, end_column: 78 } },
+        /* terrane-site-row: site 19: /app::main (src/main.trn:52:13-52:79) */
+        { Site { function: 0, file: 0, line: 52, column: 13, end_line: 52, end_column: 79 } },
+        /* terrane-site-row: site 20: /app::main (src/main.trn:53:63-53:89) */
+        { Site { function: 0, file: 0, line: 53, column: 63, end_line: 53, end_column: 89 } },
+        /* terrane-site-row: site 21: /app::main (src/main.trn:53:51-53:89) */
+        { Site { function: 0, file: 0, line: 53, column: 51, end_line: 53, end_column: 89 } },
+        /* terrane-site-row: site 22: /app::main (src/main.trn:53:13-53:90) */
+        { Site { function: 0, file: 0, line: 53, column: 13, end_line: 53, end_column: 90 } },
     ];
     #[cold]
     #[inline(never)]
@@ -712,10 +736,79 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+fn __terrane_run<F: Future>(future: F) -> F::Output {
+    let live = std::sync::Arc::new(TerraneRuntimeLiveness {
+        active: std::sync::atomic::AtomicUsize::new(0),
+        drain: std::sync::Mutex::new(()),
+        changed: std::sync::Condvar::new(),
+    });
+    let worker_live = live.clone();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .on_thread_start(move || {
+            TERRANE_RUNTIME_LIVE
+                .with(|current| {
+                    *current.borrow_mut() = Some((
+                        tokio::runtime::Handle::current().id(),
+                        worker_live.clone(),
+                    ));
+                });
+        })
+        .enable_all()
+        .build()
+        .expect("Terrane async runtime must initialize");
+    let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
+    let future = Box::pin(future);
+    runtime
+        .block_on(async move {
+            let output = __terrane_async_entry(future).await;
+            __terrane_wait_projected_cleanups().await;
+            output
+        })
+}
+async fn __terrane_dependency_await_unwind<F: Future>(
+    future: F,
+) -> Result<F::Output, Box<dyn std::any::Any + Send>> {
+    let mut future = std::pin::pin!(future);
+    std::future::poll_fn(|context| {
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| { future.as_mut().poll(context) }),
+            ) {
+                Ok(std::task::Poll::Ready(value)) => std::task::Poll::Ready(Ok(value)),
+                Ok(std::task::Poll::Pending) => std::task::Poll::Pending,
+                Err(payload) => std::task::Poll::Ready(Err(payload)),
+            }
+        })
+        .await
+}
 // Source: <terrane>/projected/deps/terrane-callable-recipe-witness.trn
 // Namespace: deps/terrane-callable-recipe-witness
 pub use core::convert::Infallible;
 pub use terrane_callable_recipe_witness::MethodRouter;
+pub fn terrane_static_trn_4d6574686f64526f75746572_new<
+    Error,
+    State: core::default::Default,
+>() -> Result<
+    terrane_callable_recipe_witness::MethodRouter<State, Error>,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_callable_recipe_witness::MethodRouter::<
+            State,
+            Error,
+        >::new()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-callable-recipe-witness",
+                    "terrane_callable_recipe_witness::MethodRouter<State, Error>",
+                ),
+            )
+        }
+    }
+}
 pub fn accept(
     router: MethodRouter<(), Infallible>,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
@@ -749,6 +842,48 @@ pub fn blank() -> Result<
                     payload,
                     "terrane-callable-recipe-witness",
                     "terrane_callable_recipe_witness::blank",
+                ),
+            )
+        }
+    }
+}
+pub fn registration_value(
+    router: MethodRouter<(), Infallible>,
+) -> Result<String, crate::TerraneForeignError> {
+    let router = router;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_callable_recipe_witness::registration_value(
+            router,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-callable-recipe-witness",
+                    "terrane_callable_recipe_witness::registration_value",
+                ),
+            )
+        }
+    }
+}
+pub fn registration_value_with_state(
+    router: MethodRouter<String, Infallible>,
+) -> Result<String, crate::TerraneForeignError> {
+    let router = router;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_callable_recipe_witness::registration_value_with_state(
+            router,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-callable-recipe-witness",
+                    "terrane_callable_recipe_witness::registration_value_with_state",
                 ),
             )
         }

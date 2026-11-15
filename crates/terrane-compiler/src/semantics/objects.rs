@@ -6925,11 +6925,26 @@ fn specialize_projected_destination(
                 );
                 continue;
             }
-            super::calls::bind_projected_generics(
-                &expected,
-                &actual,
-                &mut value_bindings,
-            )
+            let destination_selected_parameters = matches!(
+                &projected_parameter.ty,
+                crate::rust_interop::projection::ProjectedType::Callback {
+                    parameters_destination_selected: true,
+                    ..
+                }
+            );
+            if destination_selected_parameters {
+                bind_projected_callback_generics(
+                    package,
+                    &expected,
+                    &actual,
+                    None,
+                    &mut value_bindings,
+                    &mut native_bindings,
+                    true,
+                )
+            } else {
+                super::calls::bind_projected_generics(&expected, &actual, &mut value_bindings)
+            }
             .map_err(|generic| {
                 failure(
                     &unit.source,
@@ -6940,6 +6955,35 @@ fn specialize_projected_destination(
                     value.span,
                 )
             })?;
+            if destination_selected_parameters {
+                let callback = actual_projected
+                    .filter(|projected| {
+                        matches!(
+                            projected,
+                            crate::rust_interop::projection::ProjectedType::Callback { .. }
+                        ) && !projected.contains_open_generic()
+                    })
+                    .map_or_else(|| destination_projected_type(package, &actual), Ok)
+                    .map_err(|reason| {
+                        failure(
+                            &unit.source,
+                            "T0129",
+                            format!("projected callback cannot use `{actual}`: {reason}"),
+                            value.span,
+                        )
+                    })?;
+                callback_bindings.insert(parameter_index, callback);
+                callback_value_bindings.insert(
+                    parameter_index,
+                    merge_projected_callback_value_shape(
+                        &expected,
+                        &actual,
+                        None,
+                        &unit.namespace,
+                        None,
+                    ),
+                );
+            }
         }
         let explicit_projected = explicit_projected_callable_arguments(callee)
             .map(|types| {
@@ -8739,18 +8783,32 @@ fn destination_projected_native_nominal(
     identity: &ObjectIdentity,
     item: &crate::rust_interop::projection::ProjectedItem,
     generic_parameters: &[crate::rust_interop::projection::ProjectedGenericParameter],
+    supplied_arguments: &[ValueType],
     alias_use: NativeAliasUse,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
-    let arguments = generic_parameters
-        .iter()
-        .map(|parameter| {
-            identity
-                .native_arguments
-                .get(&parameter.name)
-                .ok_or_else(|| DestinationProjectionError::from("missing native generic selection"))
-                .and_then(|value| projected_type_with_alias_use(package, value, alias_use))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut arguments = Vec::with_capacity(generic_parameters.len());
+    for (index, parameter) in generic_parameters.iter().enumerate() {
+        let argument = if let Some(value) = identity
+            .native_arguments
+            .get(&parameter.name)
+            .or_else(|| supplied_arguments.get(index))
+        {
+            projected_type_with_alias_use(package, value, alias_use)?
+        } else {
+            // Native defaults are already admitted signature types. They need
+            // not have independently importable source identities.
+            let default = parameter.default.as_ref().ok_or_else(|| {
+                DestinationProjectionError::from("missing native generic selection")
+            })?;
+            generic_parameters.iter().zip(&arguments).fold(
+                default.clone(),
+                |ty, (parameter, argument)| {
+                    substitute_projected_generic(&ty, &parameter.name, argument)
+                },
+            )
+        };
+        arguments.push(argument);
+    }
     if package.projection.dependencies.iter().any(|dependency| {
         dependency
             .native_alias_identities
@@ -8821,8 +8879,14 @@ fn projected_object_with_alias_use(
     {
         return projected_object_with_alias_use(package, &selected, alias_use);
     }
-    if !identity.native_arguments.is_empty()
-        && let Some(item) = package.projection.item(&identity.namespace, &identity.name)
+    let supplied_arguments = if !identity.type_arguments.is_empty() {
+        identity.type_arguments.as_slice()
+    } else if let Some(application) = identity.application.as_deref() {
+        std::slice::from_ref(application)
+    } else {
+        &[]
+    };
+    if let Some(item) = package.projection.item(&identity.namespace, &identity.name)
         && let crate::rust_interop::projection::ProjectedKind::ForeignType {
             generic_parameters,
             ..
@@ -8830,12 +8894,21 @@ fn projected_object_with_alias_use(
         | crate::rust_interop::projection::ProjectedKind::Enum {
             generic_parameters, ..
         } = &item.kind
+        && (!identity.native_arguments.is_empty()
+            || (!generic_parameters.is_empty()
+                && generic_parameters
+                    .iter()
+                    .enumerate()
+                    .all(|(index, parameter)| {
+                        index < supplied_arguments.len() || parameter.default.is_some()
+                    })))
     {
         return destination_projected_native_nominal(
             package,
             identity,
             item,
             generic_parameters,
+            supplied_arguments,
             alias_use,
         );
     }

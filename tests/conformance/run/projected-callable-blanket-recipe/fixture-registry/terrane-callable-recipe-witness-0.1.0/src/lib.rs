@@ -56,14 +56,36 @@ pub fn mutate<Input, Output>(
     mutator.mutate(input)
 }
 
-pub trait AsyncHandler<T, State> {}
+pub trait AsyncHandler<T, State>: Clone + Send + Sync + Sized + 'static {
+    type Future: Future<Output = String> + Send;
+    fn call(self, input: i64, state: State) -> Self::Future;
+    fn native_suffix(&self) -> &'static str {
+        ":native"
+    }
+}
 
 impl<F, Fut, Output, State> AsyncHandler<((),), State> for F
 where
     F: FnOnce() -> Fut + Clone + Send + Sync + 'static,
-    Fut: Future<Output = Output> + Send,
+    Fut: Future<Output = Output> + Send + 'static,
     Output: std::fmt::Display,
 {
+    type Future = std::pin::Pin<Box<dyn Future<Output = String> + Send>>;
+    fn call(self, _input: i64, _state: State) -> Self::Future {
+        Box::pin(async move { self().await.to_string() })
+    }
+}
+
+impl<F, Fut, Output, State> AsyncHandler<(i64,), State> for F
+where
+    F: FnOnce(i64) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Output> + Send + 'static,
+    Output: std::fmt::Display,
+{
+    type Future = std::pin::Pin<Box<dyn Future<Output = String> + Send>>;
+    fn call(self, input: i64, _state: State) -> Self::Future {
+        Box::pin(async move { self(input).await.to_string() })
+    }
 }
 
 pub fn install<H, T>(handler: H) -> u32
@@ -135,18 +157,58 @@ where
 pub struct MethodRouter<State = (), Error = std::convert::Infallible> {
     state: std::marker::PhantomData<State>,
     error: std::marker::PhantomData<Error>,
+    rendered: Option<String>,
 }
 
 pub fn blank() -> MethodRouter<(), std::convert::Infallible> {
     MethodRouter {
         state: std::marker::PhantomData,
         error: std::marker::PhantomData,
+        rendered: None,
     }
 }
 
 pub fn accept(router: MethodRouter<()>) -> u32 {
     let _ = router;
     42
+}
+
+impl<State: Default, Error> MethodRouter<State, Error> {
+    pub fn new() -> Self {
+        Self {
+            state: std::marker::PhantomData,
+            error: std::marker::PhantomData,
+            rendered: None,
+        }
+    }
+    pub async fn dispatch<H, T>(self, handler: H) -> String
+    where
+        H: AsyncHandler<T, State>,
+    {
+        let suffix = handler.native_suffix();
+        handler.call(41, State::default()).await + suffix
+    }
+}
+
+pub async fn registered<H, T, State: Default>(handler: H) -> MethodRouter<State>
+where
+    H: AsyncHandler<T, State>,
+{
+    let suffix = handler.native_suffix();
+    let rendered = handler.call(41, State::default()).await + suffix;
+    MethodRouter {
+        state: std::marker::PhantomData,
+        error: std::marker::PhantomData,
+        rendered: Some(rendered),
+    }
+}
+
+pub fn registration_value(router: MethodRouter) -> String {
+    router.rendered.expect("registered callback result")
+}
+
+pub fn registration_value_with_state(router: MethodRouter<String>) -> String {
+    router.rendered.expect("registered callback result")
 }
 
 pub struct View<'a> {

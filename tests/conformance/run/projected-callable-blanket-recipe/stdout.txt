@@ -8,3 +8,7 @@ true
 true
 4
 42
+42:native
+42:native
+42:native
+42:native
