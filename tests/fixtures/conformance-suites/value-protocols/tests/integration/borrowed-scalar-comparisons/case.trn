@@ -1,0 +1,50 @@
+namespace borrowed-scalar-comparisons
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function greater bool; value ref int
+  return value > 1
+
+function less bool; value ref int
+  return 1 < value
+
+function compare bool; left ref int, right ref int
+  return left > right
+
+function local-compare bool; value int
+  borrowed ref int = ref value
+  return borrowed > 2
+
+function mutable-compare bool; value int
+  borrowed mutable ref int = mutable ref value
+  return borrowed < 10
+
+function fixed-width bool; value ref uint8
+  return value > 1
+
+function shared-compare bool; value shared ref int
+  return value > 1
+
+function pipeline-result int;
+  values = list; 1, 2, 3
+  predicate = function bool; value ref int
+    return value > 1
+  with pipeline-sequential result = values
+    .filter; predicate
+    .collect;
+  return result.length
+
+function test-scenario;
+  value int = 5
+  other int = 3
+  print; (greater; value)
+  print; (less; value)
+  print; (compare; value, other)
+  print; (local-compare; 4)
+  print; (mutable-compare; 4)
+  print; (shared-compare; value)
+  small uint8 = 3
+  print; (fixed-width; small)
+  print; (pipeline-result;)
+
