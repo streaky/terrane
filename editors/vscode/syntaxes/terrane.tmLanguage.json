@@ -13,12 +13,14 @@
     { "include": "#literals" },
     { "include": "#contextual-keywords" },
     { "include": "#keywords" },
-    { "include": "#operators" }
+    { "include": "#operators" },
+    { "include": "#lexical-tokens" }
   ],
   "repository": {
     "rust-block": {
       "name": "meta.rust-block.terrane",
-      "begin": "^([ \\t]*)(?![ \\t]|>|return[ \\t]+>)(?:(?:(return)(?:[ \\t]|/\\*.*?\\*/)+)?(?:(unsafe)(?:[ \\t]|/\\*.*?\\*/)+)?(rust)|((?:'(?:[^'\\\\\\r\\n]|\\\\.)*'|\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"|/\\*.*?\\*/|/(?![/*])|(?![=;,(\\[{+*/%<>=!&|^~:-][ \\t]*>)[^'\"/#\\r\\n])*?(?<![+*/%<>=!&|^~:-])=(?:[ \\t]|/\\*.*?\\*/)*)(?:(unsafe)(?:[ \\t]|/\\*.*?\\*/)+)?(rust))((?:[ \\t]|/\\*.*?\\*/)*(?:(?://|#).*)?)$",
+      "comment": "Repeated inline comments must stop at their first terminator, never backtrack across later comments. Pipe and colon are separate lexer tokens, not compound-operator prefixes.",
+      "begin": "^([ \\t]*)(?![ \\t]|>|return[ \\t]+>)(?:(?:(return)(?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)+)?(?:(unsafe)(?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)+)?(rust)|((?:'(?:[^'\\\\\\r\\n]|\\\\.)*'|\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"|/\\*(?:[^*]|\\*(?!/))*\\*/|/(?![/*])|(?![=;,(\\[{+*/%<>=!&^~-][ \\t]*>)[^'\"/#\\r\\n])*?(?<![+*/%<>=!&^~-])=(?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)*)(?:(unsafe)(?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)+)?(rust))((?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)*(?:(?://|#).*)?)$",
       "beginCaptures": {
         "2": { "name": "keyword.control.terrane" },
         "3": { "name": "keyword.control.terrane" },
@@ -52,7 +54,8 @@
       ]
     },
     "block-text": {
-      "begin": "^([ \\t]*)(?![ \\t]|>(?!>)|return[ \\t]+>(?!>))(?:((?:(?:'(?:[^'\\\\\\r\\n]|\\\\.)*'|\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"|/\\*.*?\\*/|/(?![/*])|(?![=;,(\\[{+*/%<>=!&|^~:-][ \\t]*>)[^'\"/#\\r\\n])*?(?:[=;,(\\[{]|[+*/%<>=!&|^~:-])|return)(?:[ \\t]|/\\*.*?\\*/)*))?(>>)[ \\t]*$",
+      "comment": "Expression starts follow lexer token kinds: Pipe and Colon are not Operator. Inline comment atoms cannot cross a closing delimiter.",
+      "begin": "^([ \\t]*)(?![ \\t]|>(?!>)|return[ \\t]+>(?!>))(?:((?:(?:'(?:[^'\\\\\\r\\n]|\\\\.)*'|\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"|/\\*(?:[^*]|\\*(?!/))*\\*/|/(?![/*])|(?![=;,(\\[{+*/%<>=!&^~-][ \\t]*>)[^'\"/#\\r\\n])*?(?:[=;,(\\[{]|[+*/%<>=!&^~-])|return)(?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)*))?(>>)[ \\t]*$",
       "beginCaptures": {
         "2": { "patterns": [{ "include": "$self" }] },
         "3": { "name": "punctuation.definition.string.begin.terrane" }
@@ -64,12 +67,11 @@
       ]
     },
     "tail-text": {
-      "match": "(^[ \\t]*)(>.*$)|([=;(,][ \\t]*)(>.*$)|(^[ \\t]*return[ \\t]+)(>.*$)",
+      "comment": "Operators merge only doubled + - < > or a trailing =, not arbitrary runs. A single > can follow another operator without trivia; lexical fallback tokens protect joined identifiers and ++/-- from partial matches.",
+      "match": "((?:^[ \\t]*(?:return(?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)+)?|[=;,(\\[{](?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)*|(?:<<|>>|[+*/%<>=!&^~@-]=?)(?:[ \\t]|/\\*(?:[^*]|\\*(?!/))*\\*/)+|(?:<<|>=|[+*/%<=!&^~@-]=?)))(>(?!>).*$)",
       "captures": {
-        "2": { "name": "string.unquoted.tail.terrane" },
-        "4": { "name": "string.unquoted.tail.terrane" },
-        "5": { "patterns": [{ "include": "#keywords" }] },
-        "6": { "name": "string.unquoted.tail.terrane" }
+        "1": { "patterns": [{ "include": "$self" }] },
+        "2": { "name": "string.unquoted.tail.terrane" }
       }
     },
     "quoted-text": {
@@ -122,6 +124,13 @@
             "3": { "name": "keyword.control.terrane" }
           }
         }
+      ]
+    },
+    "lexical-tokens": {
+      "comment": "Consume unscoped lexemes so later regex searches cannot begin inside joined names or split an increment/decrement token.",
+      "patterns": [
+        { "match": "[A-Za-z_][A-Za-z0-9_]*(?:[+*%<>-]+[A-Za-z0-9_]+)*" },
+        { "match": "\\+\\+|--|<<|>>|[+*/%<>=!&^~@-]=?" }
       ]
     },
     "operators": {

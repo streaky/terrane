@@ -60,6 +60,17 @@ test('comparison and compound operators are not Rust assignment markers', () => 
   }
 });
 
+test('pipe and colon followed by assignment retain lexer Rust markers during recovery', () => {
+  for (const prefix of ['|', ':', '::']) {
+    assert.deepEqual(blocks(`a ${prefix}= rust\n  42`), [{ start: 0, end: 1 }]);
+  }
+});
+
+test('comment-heavy nonmatching candidates do not hide a later Rust assignment marker', () => {
+  const comments = '/* note */ '.repeat(60);
+  assert.deepEqual(blocks(`value = ${comments}intermediate = rust\n  42`), [{ start: 0, end: 1 }]);
+});
+
 test('Rust comments, raw strings and nested indentation cannot start extra sections', () => {
   assert.deepEqual(blocks('rust\n  /*\n    rust\n  */\n  let text = r#"\n    unsafe rust\n  "#;\nreturn'), [
     { start: 0, end: 6 },

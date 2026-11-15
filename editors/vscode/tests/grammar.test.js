@@ -66,13 +66,72 @@ test('contextual words retain identifier highlighting outside their syntactic ro
 
 test('block text starts after complete expression prefixes and dedentation ends it', () => {
   for (const header of ['>>', 'value = >>', 'return >>', 'x = a + >>', "call; 'a', >>",
-    "call; 'a/>b', >>", 'value = [ >>', 'value = { >>', 'value = a | >>', 'value = /* note */ >>']) {
+    "call; 'a/>b', >>", 'value = [ >>', 'value = { >>', 'value = /* note */ >>']) {
     const rows = tokenize(`${header}\n  rust\n    opaque = rust\nreturn none`);
     has(rows[1], 'rust', 'string.unquoted.block.terrane');
     has(rows[2], 'rust', 'string.unquoted.block.terrane');
     lacks(rows[1], 'rust', 'meta.rust-block.terrane');
     lacks(rows[3], 'return', 'string.unquoted.block.terrane');
   }
+});
+
+test('pipe and colon tokens do not introduce block-text bodies', () => {
+  for (const prefix of ['|', ':', '::']) {
+    const rows = tokenize(`value = a ${prefix} >>\n  body\nreturn none`);
+    lacks(rows[1], 'body', 'string.unquoted.block.terrane');
+    lacks(rows[1], 'body', 'meta.embedded.block.rust');
+  }
+});
+
+test('tail text follows expression-start delimiters and operator tokens', () => {
+  for (const line of ['>tail', '  >tail', 'return >tail', 'value = >tail',
+    'value = a + >tail', 'value = a+ >tail', 'value = a == >tail',
+    'call; >tail', "call; 'first', >tail", 'value = (>tail', 'value = [>tail',
+    'value = {>tail', 'value = a + /* note */ >tail', 'return/* note */>tail']) {
+    const rows = tokenize(`${line}\nreturn none`);
+    has(rows[0], '>tail', 'string.unquoted.tail.terrane');
+    lacks(rows[1], 'return', 'string.unquoted.tail.terrane');
+  }
+});
+
+test('tail text does not start after pipe/colon or inside opaque text and identifiers', () => {
+  for (const line of ['value = a | >tail', 'value = a : >tail', 'value = a :: >tail',
+    'value = a+>tail', '# value = a + >tail', '// value = a + >tail',
+    "value = 'a + >tail'", '/* value = a + >tail */']) {
+    lacks(tokenize(line)[0], '>tail', 'string.unquoted.tail.terrane');
+  }
+});
+
+test('tail text may immediately follow a distinct operator token', () => {
+  for (const line of ['value = a +>tail', 'value = 3 +>tail', 'value = 3+>tail',
+    'value = 3.5+>tail', 'value = 0xff+>tail', "value = 'b' <>tail",
+    "value = 'b' ->tail", 'value = a!>tail', 'value = a&>tail',
+    'value = a <<>tail', 'value = a >=>tail', 'value = a >> >tail']) {
+    const rows = tokenize(`${line}\nreturn none`);
+    has(rows[0], '>tail', 'string.unquoted.tail.terrane');
+    lacks(rows[1], 'return', 'string.unquoted.tail.terrane');
+  }
+});
+
+test('adjacency cannot split joined names, update tokens or shift operands into text', () => {
+  for (const line of ['value = a+>tail', 'value = a+++>tail', 'value = a-++>tail',
+    'value = a<<>tail', 'value = 3++>tail', 'value = a ++>tail', 'value = 3-->tail',
+    'value = a -->tail', 'value = a >>tail', 'value = a >tail']) {
+    lacks(tokenize(line)[0], '>tail', 'string.unquoted.tail.terrane');
+  }
+});
+
+test('many inline comments retain native headers and ordinary expression scopes', () => {
+  const comments = '/* note ** still comment */ '.repeat(60);
+  const rows = tokenize(`value int = ${comments}rust\n  42\nreturn none`);
+  has(rows[0], 'rust', 'meta.rust-block.terrane');
+  has(rows[1], '42', 'meta.embedded.block.rust');
+  lacks(rows[2], 'return', 'meta.embedded.block.rust');
+  const ordinary = tokenize(`value = ${comments}false\n  body`);
+  has(ordinary[0], 'false', 'constant.language.terrane');
+  lacks(ordinary[1], 'body', 'meta.embedded.block.rust');
+  const text = tokenize(`value = ${comments}>>\n  text body\nreturn none`);
+  has(text[1], 'text', 'string.unquoted.block.terrane');
 });
 
 test('quoted arguments are preserved in block-text and Rust initializer headers', () => {
