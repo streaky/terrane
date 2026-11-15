@@ -4811,7 +4811,7 @@ fn specialize_projected_result_batch(
             package,
             unit,
             &unit.tree.root,
-            None,
+            ProjectedDestinationContext::default(),
             None,
             unit_index,
             &mut pending,
@@ -6150,11 +6150,58 @@ fn rust_type_text_equal(left: &str, right: &str) -> bool {
         .eq(right.chars().filter(|character| !character.is_whitespace()))
 }
 
+fn projected_destination_parameter_index(
+    unit: &SemanticUnit,
+    parameters: &[crate::rust_interop::projection::ProjectedParameter],
+    arguments: &SyntaxNode,
+    value: &SyntaxNode,
+) -> Option<usize> {
+    (0..parameters.len()).find(|&index| {
+        super::bindings::projected_argument_for_parameter(unit, parameters, arguments, index)
+            .is_some_and(|argument| argument.span == value.span)
+    })
+}
+
+#[derive(Clone, Copy, Default)]
+struct ProjectedDestinationContext<'a> {
+    value_type: Option<&'a ValueType>,
+    projected_type: Option<&'a crate::rust_interop::projection::ProjectedType>,
+}
+
+impl<'a> ProjectedDestinationContext<'a> {
+    fn source(value_type: Option<&'a ValueType>) -> Self {
+        Self {
+            value_type,
+            projected_type: None,
+        }
+    }
+
+    fn project(
+        self,
+        package: &SemanticPackage,
+    ) -> Result<
+        Option<std::borrow::Cow<'a, crate::rust_interop::projection::ProjectedType>>,
+        DestinationProjectionError,
+    > {
+        if let Some(projected) = self.projected_type
+            && !projected.contains_open_generic()
+        {
+            Ok(Some(std::borrow::Cow::Borrowed(projected)))
+        } else {
+            self.value_type
+                .map(|value_type| {
+                    destination_projected_type(package, value_type).map(std::borrow::Cow::Owned)
+                })
+                .transpose()
+        }
+    }
+}
+
 fn collect_projected_destinations(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    expected: Option<&ValueType>,
+    expected: ProjectedDestinationContext<'_>,
     function_return: Option<&ValueType>,
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
@@ -6180,7 +6227,11 @@ fn collect_projected_destinations(
             package,
             unit,
             child,
-            transparent_destination.then_some(expected).flatten(),
+            if transparent_destination {
+                expected
+            } else {
+                ProjectedDestinationContext::default()
+            },
             function_return,
             unit_index,
             pending,
@@ -6198,7 +6249,7 @@ fn collect_projected_destination_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    expected: Option<&ValueType>,
+    expected: ProjectedDestinationContext<'_>,
     function_return: Option<&ValueType>,
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
@@ -6242,7 +6293,7 @@ fn collect_projected_destination_node(
             package,
             unit,
             value,
-            None,
+            ProjectedDestinationContext::default(),
             function_result,
             unit_index,
             pending,
@@ -6267,15 +6318,26 @@ fn collect_projected_destination_node(
                     )?;
                 }
             } else {
-                for (index, argument) in arguments.children.iter().enumerate() {
+                for argument in &arguments.children {
+                    let value = argument.children.last().unwrap_or(argument);
+                    let parameter_index = projected_destination_parameter_index(
+                        unit,
+                        &specialization.projected_parameters,
+                        arguments,
+                        value,
+                    );
                     collect_projected_destinations(
                         package,
                         unit,
-                        argument.children.last().unwrap_or(argument),
-                        specialization
-                            .value_parameters
-                            .get(index)
-                            .and_then(Option::as_ref),
+                        value,
+                        ProjectedDestinationContext {
+                            value_type: parameter_index
+                                .and_then(|index| specialization.value_parameters.get(index))
+                                .and_then(Option::as_ref),
+                            projected_type: parameter_index
+                                .and_then(|index| specialization.projected_parameters.get(index))
+                                .map(|parameter| &parameter.ty),
+                        },
                         function_return,
                         unit_index,
                         pending,
@@ -6289,7 +6351,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                None,
+                ProjectedDestinationContext::default(),
                 function_return,
                 unit_index,
                 pending,
@@ -6301,7 +6363,7 @@ fn collect_projected_destination_node(
         && let [callee, arguments] = node.children.as_slice()
         && let Some(item) = projected_macro_for_call(package, unit, callee)
     {
-        let destination = expected.ok_or_else(|| {
+        let destination = expected.value_type.ok_or_else(|| {
             failure(
                 &unit.source,
                 "T0119",
@@ -6406,7 +6468,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                None,
+                ProjectedDestinationContext::default(),
                 return_type.as_ref(),
                 unit_index,
                 pending,
@@ -6430,7 +6492,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                function_return,
+                ProjectedDestinationContext::source(function_return),
                 function_return,
                 unit_index,
                 pending,
@@ -6479,11 +6541,11 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                if Some(child) == initializer {
+                ProjectedDestinationContext::source(if Some(child) == initializer {
                     written_destination.as_ref()
                 } else {
                     None
-                },
+                }),
                 function_return,
                 unit_index,
                 pending,
@@ -6506,7 +6568,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 receiver,
-                Some(&destination),
+                ProjectedDestinationContext::source(Some(&destination)),
                 function_return,
                 unit_index,
                 pending,
@@ -6516,7 +6578,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 callee,
-                None,
+                ProjectedDestinationContext::default(),
                 function_return,
                 unit_index,
                 pending,
@@ -6529,20 +6591,52 @@ fn collect_projected_destination_node(
             )) => parameters,
             Ok(_) | Err(_) => Vec::new(),
         };
+        let projected_function = if arguments.children.is_empty() {
+            None
+        } else {
+            projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
+        };
+        let owner_substitutions = projected_function
+            .as_ref()
+            .map(|_| projected_call_owner_substitutions(package, unit, callee))
+            .transpose()
+            .map_err(|reason| failure(&unit.source, "T0129", reason, callee.span))?
+            .unwrap_or_default();
         for (index, argument) in arguments.children.iter().enumerate() {
             let value = argument.children.last().unwrap_or(argument);
+            let parameter_index = projected_function.as_ref().and_then(|function| {
+                projected_destination_parameter_index(unit, &function.parameters, arguments, value)
+            });
+            let projected_destination = projected_function
+                .as_ref()
+                .and_then(|function| {
+                    parameter_index.and_then(|index| function.parameters.get(index))
+                })
+                .map(|parameter| {
+                    owner_substitutions.iter().fold(
+                        std::borrow::Cow::Borrowed(&parameter.ty),
+                        |ty, (name, selected)| {
+                            std::borrow::Cow::Owned(substitute_projected_generic(
+                                &ty, name, selected,
+                            ))
+                        },
+                    )
+                });
             collect_projected_destinations(
                 package,
                 unit,
                 value,
-                parameter_types
-                    .get(index)
-                    .or_else(|| {
-                        parameter_types
-                            .last()
-                            .filter(|parameter| parameter.is_variadic())
-                    })
-                    .map(CallableParameterType::value_type_ref),
+                ProjectedDestinationContext {
+                    value_type: parameter_types
+                        .get(parameter_index.unwrap_or(index))
+                        .or_else(|| {
+                            parameter_types
+                                .last()
+                                .filter(|parameter| parameter.is_variadic())
+                        })
+                        .map(CallableParameterType::value_type_ref),
+                    projected_type: projected_destination.as_deref(),
+                },
                 function_return,
                 unit_index,
                 pending,
@@ -6565,7 +6659,7 @@ fn specialize_projected_destination(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    expected: Option<&ValueType>,
+    expected: ProjectedDestinationContext<'_>,
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
@@ -7492,9 +7586,8 @@ fn specialize_projected_destination(
             .map(|(name, projected)| (name.clone(), projected.rust_type()))
             .collect::<BTreeMap<_, _>>();
         let mut specialization_substitutions = projected_bindings.clone();
-        if let (Some(destination_result), Some(destination)) =
-            (&function.destination_result, expected)
-            && let Ok(expected_projected) = destination_projected_type(package, destination)
+        if let Some(destination_result) = &function.destination_result
+            && let Ok(Some(expected_projected)) = expected.project(package)
         {
             let all_parameters = destination_result
                 .parameters
@@ -7545,7 +7638,9 @@ fn specialize_projected_destination(
                     &expected_projected,
                 );
                 specialization_substitutions.extend(substitutions);
-                value_type = destination.clone();
+                if let Some(destination) = expected.value_type {
+                    value_type = destination.clone();
+                }
             }
         }
         let callable_lifetimes = function
@@ -7818,20 +7913,15 @@ fn specialize_projected_destination(
             .iter()
             .any(|generic| generic.input_selected)
     {
-        let destination = expected.cloned();
-        let expected_projected = destination
-            .as_ref()
-            .map(|destination| {
-                destination_projected_type(package, destination).map_err(|reason| {
-                    failure(
-                        &unit.source,
-                        "T0118",
-                        format!("projected result destination `{destination}` is not supported: {reason}"),
-                        node.span,
-                    )
-                })
-            })
-            .transpose()?;
+        let destination = expected.value_type.cloned();
+        let expected_projected = expected.project(package).map_err(|reason| {
+            failure(
+                &unit.source,
+                "T0118",
+                format!("projected result destination is not supported: {reason}"),
+                node.span,
+            )
+        })?;
         let explicit = explicit_projected_callable_arguments(callee)
             .map(|types| {
                 let selected_names = destination_result
@@ -7914,7 +8004,7 @@ fn specialize_projected_destination(
                     expected_projected,
                 )
                 .map_err(|parameter| failure(&unit.source, "T0117", format!("projected result template repeats its generic parameter with incompatible destination types (`{parameter}`)"), node.span))?
-                .ok_or_else(|| failure(&unit.source, "T0117", format!("projected result template `{}` cannot produce the required destination `{}`", result_template.terrane_name(), destination.as_ref().expect("expected destination")), node.span))
+                .ok_or_else(|| failure(&unit.source, "T0117", format!("projected result template `{}` cannot produce the required destination `{}`", result_template.terrane_name(), expected_projected.terrane_name()), node.span))
             })
             .transpose()?;
         if let (Some(explicit), Some(destination_selection)) =
