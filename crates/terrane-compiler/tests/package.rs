@@ -784,6 +784,54 @@ fn discovered_test_tiers_lower_without_rediscovery_warnings() {
 }
 
 #[test]
+fn test_discovery_ignores_nested_compiler_inventory() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"nested-test-inventory\"\nprelude = false\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write(
+        "src/library.trn",
+        "namespace app\npublic constant value = 1\n",
+    );
+    package.write(
+        "tests/unit/fixture/.trn/terrane-projection.generated.trn",
+        "this generated inventory is intentionally malformed",
+    );
+    package.write(
+        "tests/unit/fixture/real.trn",
+        "namespace app\nfunction test-authored;\n",
+    );
+    package.write(
+        "tests/integration/api.trn",
+        "namespace app-tests\nfunction test-integration;\n",
+    );
+
+    let test_package = TestPackage::load(&package.0).unwrap();
+    let mut discovered = discover_test_package(&test_package, CompilerOptions::default()).unwrap();
+    discovered.sort_by_key(|tier| tier.tier);
+    assert_eq!(
+        discovered.iter().map(|tier| tier.tier).collect::<Vec<_>>(),
+        [TestTier::Unit, TestTier::Integration],
+    );
+    let cases = discovered
+        .into_iter()
+        .flat_map(|tier| tier.cases)
+        .map(|case| (case.tier, case.identity))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cases,
+        [
+            (TestTier::Unit, "/app::test-authored".to_owned()),
+            (
+                TestTier::Integration,
+                "/app-tests::test-integration".to_owned()
+            ),
+        ],
+    );
+}
+
+#[test]
 fn discovered_tests_keep_production_index_expression_source_provenance() {
     let workspace = TempPackage::new();
     workspace.write(
