@@ -7949,7 +7949,12 @@ fn test_scenario_terrane_sequential_pipeline_native_copy() {
                 __terrane_pipeline_count_1.as_usize().unwrap_or(usize::MAX)
             }
         };
-        let mut __terrane_pipeline_output: Vec<CopyProbe> = Vec::new();
+        let mut __terrane_pipeline_output: Vec<CopyProbe> = Vec::with_capacity(
+            __terrane_pipeline_source
+                .as_slice()
+                .len()
+                .min(__terrane_pipeline_remaining_1),
+        );
         if !(__terrane_pipeline_remaining_1 == 0) {
             for __terrane_pipeline_item in __terrane_pipeline_source.as_slice() {
                 {
