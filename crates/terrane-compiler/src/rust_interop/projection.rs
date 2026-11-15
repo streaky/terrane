@@ -194,6 +194,36 @@ pub struct Projection {
     pub removed: Vec<RemovedItem>,
 }
 
+impl Projection {
+    #[must_use]
+    pub(crate) fn dependency_for_namespace(&self, namespace: &str) -> Option<&ProjectedDependency> {
+        let remainder = namespace.strip_prefix("/deps/")?;
+        let alias = remainder.split('/').next()?;
+        self.dependencies
+            .iter()
+            .find(|dependency| dependency.name == alias)
+    }
+
+    pub(crate) fn package_for_rust_crate(&self, rust_crate: &str) -> Option<&str> {
+        let matches_alias = |alias: &str| {
+            alias
+                .bytes()
+                .map(|byte| if byte == b'-' { b'_' } else { byte })
+                .eq(rust_crate.bytes())
+        };
+        self.dependencies
+            .iter()
+            .find(|dependency| matches_alias(&dependency.name))
+            .map(|dependency| dependency.package.as_str())
+            .or_else(|| {
+                self.bound_dependencies
+                    .iter()
+                    .find(|dependency| matches_alias(&dependency.name))
+                    .map(|dependency| dependency.package.as_str())
+            })
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedNativeAlias {
     pub native_type: ProjectedType,

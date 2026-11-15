@@ -508,12 +508,14 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 3] = [
+    pub static FUNCTIONS: [&str; 5] = [
         "/app::update-twice",
         "/app::generic-panic-attributed",
+        "/app::free-panic-attributed",
+        "/app::generic-free-panic-attributed",
         "/app::main",
     ];
-    pub static SITES: [Site; 15] = [
+    pub static SITES: [Site; 17] = [
         /* terrane-site-row: site 0: /app::update-twice (src/main.trn:7:13-7:30) */
         { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 30 } },
         /* terrane-site-row: site 1: /app::update-twice (src/main.trn:8:13-8:30) */
@@ -522,28 +524,32 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 9, column: 12, end_line: 9, end_column: 26 } },
         /* terrane-site-row: site 3: /app::generic-panic-attributed (src/main.trn:13:23-13:38) */
         { Site { function: 1, file: 0, line: 13, column: 23, end_line: 13, end_column: 38 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:20:30-20:52) */
-        { Site { function: 2, file: 0, line: 20, column: 30, end_line: 20, end_column: 52 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:21:19-21:37) */
-        { Site { function: 2, file: 0, line: 21, column: 19, end_line: 21, end_column: 37 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:22:23-22:38) */
-        { Site { function: 2, file: 0, line: 22, column: 23, end_line: 22, end_column: 38 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:23:49-23:61) */
-        { Site { function: 2, file: 0, line: 23, column: 49, end_line: 23, end_column: 61 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:25:18-25:34) */
-        { Site { function: 2, file: 0, line: 25, column: 18, end_line: 25, end_column: 34 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:26:28-26:51) */
-        { Site { function: 2, file: 0, line: 26, column: 28, end_line: 26, end_column: 51 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:27:32-27:52) */
-        { Site { function: 2, file: 0, line: 27, column: 32, end_line: 27, end_column: 52 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:28:67-28:84) */
-        { Site { function: 2, file: 0, line: 28, column: 67, end_line: 28, end_column: 84 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:30:15-30:31) */
-        { Site { function: 2, file: 0, line: 30, column: 15, end_line: 30, end_column: 31 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:31:13-31:34) */
-        { Site { function: 2, file: 0, line: 31, column: 13, end_line: 31, end_column: 34 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:33:9-33:26) */
-        { Site { function: 2, file: 0, line: 33, column: 9, end_line: 33, end_column: 26 } },
+        /* terrane-site-row: site 4: /app::free-panic-attributed (src/main.trn:20:9-20:20) */
+        { Site { function: 2, file: 0, line: 20, column: 9, end_line: 20, end_column: 20 } },
+        /* terrane-site-row: site 5: /app::generic-free-panic-attributed (src/main.trn:28:9-28:42) */
+        { Site { function: 3, file: 0, line: 28, column: 9, end_line: 28, end_column: 42 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:35:30-35:52) */
+        { Site { function: 4, file: 0, line: 35, column: 30, end_line: 35, end_column: 52 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:36:19-36:37) */
+        { Site { function: 4, file: 0, line: 36, column: 19, end_line: 36, end_column: 37 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:37:23-37:38) */
+        { Site { function: 4, file: 0, line: 37, column: 23, end_line: 37, end_column: 38 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:38:49-38:61) */
+        { Site { function: 4, file: 0, line: 38, column: 49, end_line: 38, end_column: 61 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:40:18-40:34) */
+        { Site { function: 4, file: 0, line: 40, column: 18, end_line: 40, end_column: 34 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:41:28-41:51) */
+        { Site { function: 4, file: 0, line: 41, column: 28, end_line: 41, end_column: 51 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:42:32-42:52) */
+        { Site { function: 4, file: 0, line: 42, column: 32, end_line: 42, end_column: 52 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:43:67-43:84) */
+        { Site { function: 4, file: 0, line: 43, column: 67, end_line: 43, end_column: 84 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:45:15-45:31) */
+        { Site { function: 4, file: 0, line: 45, column: 15, end_line: 45, end_column: 31 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:46:13-46:34) */
+        { Site { function: 4, file: 0, line: 46, column: 13, end_line: 46, end_column: 34 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:48:9-48:26) */
+        { Site { function: 4, file: 0, line: 48, column: 9, end_line: 48, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]
@@ -586,7 +592,11 @@ pub fn terrane_static_trn_4d757461746f72_new(
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::Mutator"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-default-witness",
+                    "witness::Mutator",
+                ),
             )
         }
     }
@@ -603,8 +613,24 @@ pub fn terrane_static_trn_4f76657272696464656e_new() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-default-witness",
                     "witness::Overridden",
+                ),
+            )
+        }
+    }
+}
+pub fn panic_free() -> Result<(), crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| witness::panic_free()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-default-witness",
+                    "witness::panic_free",
                 ),
             )
         }

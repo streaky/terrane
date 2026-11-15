@@ -1395,11 +1395,16 @@ pub(super) fn emit_dependency_unit(
             projected.result,
             crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
         );
-        let dependency_name = unit
-            .namespace
-            .strip_prefix("/deps/")
-            .and_then(|namespace| namespace.split('/').next())
-            .unwrap_or("dependency");
+        let dependency_name = package
+            .projection
+            .dependency_for_namespace(&unit.namespace)
+            .map_or_else(
+                || {
+                    crate::rust_ir::rust_callable_origin(&item.rust_path)
+                        .map_or_else(|| "dependency".to_owned(), |(crate_name, _)| crate_name)
+                },
+                |dependency| dependency.package.clone(),
+            );
         let parameters = contract
             .parameters
             .iter()

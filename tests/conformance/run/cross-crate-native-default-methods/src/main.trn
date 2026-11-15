@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Overridden, Wrapped, Mutator
+from /deps/witness import Overridden, Wrapped, Mutator, panic_free, panic_generic
 from /core/errors import throwable
 
 function update-twice uint8; mutator mutable ref Mutator
@@ -13,7 +13,22 @@ function generic-panic-attributed bool; value Wrapped of uint8
         wide uint32 = value.selected;
         return wide == 0
     catch throwable as error
-        return (error.message.contains; 'Rust dependency `witness`') and (error.message.contains; 'member `witness::Wrapped::selected`') and (error.message.contains; 'generic selector panic')
+        return (error.message.contains; 'Rust dependency `native-default-witness`') and (error.message.contains; 'member `witness::Wrapped::selected`') and (error.message.contains; 'generic selector panic')
+
+function free-panic-attributed bool;
+    try
+        panic_free;
+        return false
+    catch throwable as error
+        return (error.message.contains; 'Rust dependency `native-default-witness`') and (error.message.contains; 'member `witness::panic_free`') and (error.message.contains; 'free function panic')
+
+function generic-free-panic-attributed bool;
+    try
+        payload uint8 = 9
+        (panic_generic of uint8); payload
+        return false
+    catch throwable as error
+        return (error.message.contains; 'Rust dependency `native-default-witness`') and (error.message.contains; 'member `witness::panic_generic`') and (error.message.contains; 'generic free function panic')
 
 function main;
     seed uint8 = 9
