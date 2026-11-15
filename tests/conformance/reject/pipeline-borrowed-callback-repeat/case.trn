@@ -1,0 +1,16 @@
+namespace pipeline-borrowed-callback-repeat
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+function run; values mutable ref list of int
+    other = list; 7, 8
+    callback = mutable function bool; value int
+        values.append; value
+        return true
+    with pipeline-sequential result = other
+        .filter; callback
+        .filter; (callback)
+        .collect;
+    print; result.length
+function main;
+    values = list; 1, 2, 3
+    run; values

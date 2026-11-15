@@ -269,6 +269,58 @@ fn require_cloneable(
     }
 }
 
+fn validate_borrowed_callback_loans(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    stages: &[PipelineStage],
+) -> Result<(), SemanticFailure> {
+    let mut exclusive = BTreeSet::new();
+    for stage in stages {
+        let (stage_node, effects) = match stage {
+            PipelineStage::Filter {
+                stage_node,
+                effects,
+                ..
+            }
+            | PipelineStage::Map {
+                stage_node,
+                effects,
+                ..
+            } => (stage_node, effects),
+            PipelineStage::Take { .. } => continue,
+        };
+        if !effects.borrowed_environment || effects.modes.written != InvocationMode::Mutable {
+            continue;
+        }
+        let argument =
+            super::types::ungrouped_expression(&node.children[*stage_node].children[1].children[0]);
+        if argument.kind != SyntaxKind::Name {
+            continue;
+        }
+        let identity = unit
+            .flow_binding_ids
+            .get(&(argument.span.file, argument.span.start, argument.span.end))
+            .copied()
+            .or_else(|| {
+                package
+                    .resolve_name_at(unit, argument.span.start, node_text(&unit.source, argument))
+                    .and_then(|symbol| symbol.declaration_span)
+            });
+        if let Some(identity) = identity
+            && !exclusive.insert(identity)
+        {
+            return Err(diagnostic(
+                unit,
+                argument.span,
+                "S2122",
+                "a borrowed mutable callable cannot be loaned to more than one pipeline stage",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -283,6 +335,7 @@ fn validate_node(
                 "pipeline stage types could not be resolved",
             )
         })?;
+        validate_borrowed_callback_loans(package, unit, node, &plan.stages)?;
         let mut item_type = list_item_type(&plan.source_type)
             .expect("pipeline_plan validated list source")
             .value_type();

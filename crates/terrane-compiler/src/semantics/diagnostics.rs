@@ -933,14 +933,26 @@ fn binding_mutation_count(
     let exclusive_address = node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("mutable ref")
         && node.children.last().is_some_and(resolves_to_binding);
-    let borrowed_callable_call = node.kind == SyntaxKind::CallExpression
-        && node.children.first().is_some_and(|callee| {
-            matches!(
-                unit.inferred_value_type(callee),
-                Some(ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects))
-                    if effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
-            ) && resolves_to_binding(callee)
-        });
+    let callable_operand = match node.kind {
+        SyntaxKind::CallExpression => node.children.first(),
+        SyntaxKind::PipelineStage
+            if node.children.first().is_some_and(|operation| {
+                matches!(node_text(&unit.source, operation), "filter" | "map")
+            }) =>
+        {
+            node.children
+                .get(1)
+                .and_then(|arguments| arguments.children.first())
+        }
+        _ => None,
+    };
+    let borrowed_callable_call = callable_operand.is_some_and(|callee| {
+        matches!(
+            unit.inferred_value_type(callee),
+            Some(ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects))
+                if effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
+        ) && resolves_to_binding(callee)
+    });
     let field_extraction = node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("move")
         && node.children.last().is_some_and(|target| {

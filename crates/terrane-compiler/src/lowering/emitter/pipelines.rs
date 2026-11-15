@@ -90,10 +90,12 @@ impl Emitter<'_> {
                 PipelineStage::Filter { stage_node, .. }
                 | PipelineStage::Map { stage_node, .. } => {
                     let argument = &node.children[*stage_node].children[1].children[0];
-                    let value = self.pipeline_callback(argument, node, &mut borrowed_callbacks);
+                    let (value, mutable) =
+                        self.pipeline_callback(argument, node, &mut borrowed_callbacks);
+                    let mutable = if mutable { "mut " } else { "" };
                     write!(
                         setup,
-                        "let __terrane_pipeline_callback_{stage_node} = {value}; "
+                        "let {mutable}__terrane_pipeline_callback_{stage_node} = {value}; "
                     )
                     .unwrap();
                 }
@@ -139,7 +141,7 @@ impl Emitter<'_> {
         argument: &SyntaxNode,
         scope: &SyntaxNode,
         borrowed_callbacks: &mut BTreeSet<crate::Span>,
-    ) -> String {
+    ) -> (String, bool) {
         let mut argument = argument;
         while argument.kind == SyntaxKind::GroupExpression
             && let [inner] = argument.children.as_slice()
@@ -162,7 +164,7 @@ impl Emitter<'_> {
             })
             .map(|contract| function_name(self.package, contract));
         if let Some(direct) = direct {
-            return direct;
+            return (direct, false);
         }
         let value_type = self.value_type(argument).expect("typed callback");
         if argument.kind == SyntaxKind::Name
@@ -171,12 +173,21 @@ impl Emitter<'_> {
             && !self.reference_backed(binding)
             && !self.contains_guarded_read(argument)
         {
+            if let ValueType::Function(_, _, effects) = &value_type
+                && effects.borrowed_environment
+            {
+                // The named carrier retains its planned last-use cleanup. Lend
+                // it to the stage instead of moving it and later dropping it twice.
+                let mutable = effects.modes.written == InvocationMode::Mutable;
+                let (prelude, reference) = self.operand_reference_parts(argument, mutable);
+                return (format!("{{ {prelude}{reference} }}"), false);
+            }
             if !self.binding_value_is_reused(argument)
                 && !self.non_consuming_capture_read(argument)
                 && !self.binding_may_be_unassigned(binding)
                 && !borrowed_callbacks.contains(&binding.span)
             {
-                return self.expression(argument);
+                return (self.expression(argument), false);
             }
             if matches!(&value_type, ValueType::Function(_, _, effects)
                 if effects.modes.written == InvocationMode::Shared)
@@ -184,10 +195,12 @@ impl Emitter<'_> {
             {
                 borrowed_callbacks.insert(binding.span);
                 let (prelude, reference) = self.operand_reference_parts(argument, false);
-                return format!("{{ {prelude}{reference} }}");
+                return (format!("{{ {prelude}{reference} }}"), false);
             }
         }
-        self.expression_as(argument, value_type)
+        let mutable = matches!(&value_type, ValueType::Function(_, _, effects)
+            if effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable);
+        (self.expression_as(argument, value_type), mutable)
     }
 
     fn pipeline_body(
