@@ -1304,6 +1304,11 @@ impl Emitter<'_> {
                         !self.reference_owner_uses_shared_storage(provenance.owner)
                     })
             });
+            let borrowed_mutable = borrowed
+                && matches!(
+                    binding.map(|binding| &binding.value_type),
+                    Some(ValueType::MutableReference(_))
+                );
             if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
                 self.registry.uses_async_mutable_state.set(true);
                 write!(
@@ -1316,27 +1321,26 @@ impl Emitter<'_> {
                 continue;
             }
             if transfer || borrowed {
-                write!(captures, "let {mutable}{name} = {source}; ")
+                // Repeatable captures borrow the exclusive handle, not move it.
+                let reborrow = if borrowed_mutable {
+                    match contract.written_invocation_mode {
+                        InvocationMode::Shared => "&*",
+                        InvocationMode::Mutable => "&mut *",
+                        InvocationMode::Consuming => "",
+                    }
+                } else {
+                    ""
+                };
+                write!(captures, "let {mutable}{name} = {reborrow}{source}; ")
                     .expect("writing to a String cannot fail");
             } else {
                 write!(captures, "let {mutable}{name} = {source}.clone(); ")
                     .expect("writing to a String cannot fail");
             }
-            if borrowed
-                && matches!(
-                    binding.map(|binding| &binding.value_type),
-                    Some(ValueType::MutableReference(_))
-                )
-                && contract.written_invocation_mode == InvocationMode::Mutable
-            {
+            if borrowed_mutable && contract.written_invocation_mode == InvocationMode::Mutable {
                 write!(invocation_captures, "let mut {name} = &mut *{name}; ")
                     .expect("writing to a String cannot fail");
-            } else if borrowed
-                && matches!(
-                    binding.map(|binding| &binding.value_type),
-                    Some(ValueType::MutableReference(_))
-                )
-                && contract.written_invocation_mode == InvocationMode::Shared
+            } else if borrowed_mutable && contract.written_invocation_mode == InvocationMode::Shared
             {
                 write!(invocation_captures, "let {name} = &*{name}; ")
                     .expect("writing to a String cannot fail");

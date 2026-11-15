@@ -1,0 +1,17 @@
+namespace pipeline-mutable-capture-alias
+
+from /core/collections import list
+from /core/modifiers import pipeline-sequential
+
+function main;
+  values list of int = list; 1, 2
+  run-pipeline; values
+
+function run-pipeline; values mutable ref list of int
+  callback = mutable function int; item ref int
+    values.append; 9
+    return item
+  with pipeline-sequential result = values
+    .map; callback
+    .collect;
+  print; result.length
