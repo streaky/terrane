@@ -5272,6 +5272,7 @@ fn merge_projected_callback_shape(
             native_result,
             native_substitutions,
             parameters: template_parameters,
+            admitted_shapes: template_admitted_shapes,
             result: template_result,
             parameters_destination_selected,
             parameter_rust_types,
@@ -5334,6 +5335,7 @@ fn merge_projected_callback_shape(
             crate::rust_ir::instantiate_rust_generics(result, &parameter_replacements)
         }),
         native_substitutions: native_substitutions.clone(),
+        admitted_shapes: template_admitted_shapes.clone(),
         parameters_destination_selected: *parameters_destination_selected,
         parameters: parameters.clone(),
         parameter_borrows: parameter_borrows.clone(),
@@ -5403,6 +5405,80 @@ fn merge_projected_callback_value_shape(
         ),
         _ => actual.clone(),
     }
+}
+
+fn validate_projected_callback_source_shape(
+    package: &SemanticPackage,
+    projected: &crate::rust_interop::projection::ProjectedType,
+    actual: &ValueType,
+) -> Result<(), String> {
+    use crate::rust_interop::projection::ProjectedType;
+    let ProjectedType::Callback {
+        parameters,
+        admitted_shapes,
+        is_async,
+        ..
+    } = projected
+    else {
+        return Ok(());
+    };
+    let (actual_parameters, actual_async) = match actual {
+        ValueType::Function(parameters, ..) => (parameters, false),
+        ValueType::AsyncFunction(parameters, ..) => (parameters, true),
+        _ => return Err(format!("expected a callback, actual `{actual}`")),
+    };
+    let shapes = if admitted_shapes.is_empty() {
+        std::slice::from_ref(parameters)
+    } else {
+        admitted_shapes.as_slice()
+    };
+    let accepted = actual_async == *is_async
+        && shapes.iter().any(|shape| {
+            if shape.len() != actual_parameters.len() {
+                return false;
+            }
+            let mut bindings = BTreeMap::new();
+            shape
+                .iter()
+                .zip(actual_parameters)
+                .all(|(expected, actual)| {
+                    let Some(expected) = closed_projected_value_type(package, expected) else {
+                        return false;
+                    };
+                    let expected = &expected;
+                    let actual = actual.value_type_ref();
+                    // Borrow authority and exact native producer types are checked
+                    // by the selected callback ABI; match payload shapes here.
+                    let actual = match actual {
+                        ValueType::Reference(inner)
+                        | ValueType::MutableReference(inner)
+                        | ValueType::SharedReference(inner) => inner.value_type_ref(),
+                        _ => actual,
+                    };
+                    value_types_compatible(&[], expected, actual)
+                        && super::calls::bind_projected_generics(expected, actual, &mut bindings)
+                            .is_ok()
+                })
+        });
+    if accepted {
+        return Ok(());
+    }
+    let shapes = shapes
+        .iter()
+        .map(|shape| {
+            let parameters = shape
+                .iter()
+                .map(ProjectedType::terrane_name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({parameters})")
+        })
+        .collect::<Vec<_>>()
+        .join(" or ");
+    let expected_async = if *is_async { "async " } else { "" };
+    Err(format!(
+        "expected {expected_async}callback with parameters {shapes}, actual `{actual}`"
+    ))
 }
 
 fn bind_projected_callback_generics(
@@ -6756,6 +6832,16 @@ fn specialize_projected_destination(
                 }
                 _ => false,
             };
+            if matches!(
+                actual,
+                ValueType::Function(..) | ValueType::AsyncFunction(..)
+            ) && matches!(
+                &projected_parameter.ty,
+                crate::rust_interop::projection::ProjectedType::Callback { .. }
+            ) {
+                validate_projected_callback_source_shape(package, &projected_parameter.ty, &actual)
+                    .map_err(|reason| failure(&unit.source, "T0129", reason, value.span))?;
+            }
             if let (
                 crate::rust_interop::projection::ProjectedType::Callback {
                     parameters_destination_selected,
@@ -9075,6 +9161,7 @@ fn projected_callback_with_alias_use(
         native_substitutions: BTreeMap::new(),
         parameters,
         parameter_rust_types,
+        admitted_shapes: Vec::new(),
         parameters_destination_selected: false,
         result: Box::new(result),
         invocation_mode: InvocationMode::Shared,
@@ -9481,6 +9568,7 @@ pub(super) fn substitute_projected_generic(
             native_result,
             native_substitutions,
             parameters,
+            admitted_shapes,
             parameter_rust_types,
             parameter_borrows,
             parameters_destination_selected,
@@ -9513,6 +9601,15 @@ pub(super) fn substitute_projected_generic(
                         name.clone(),
                         substitute_projected_generic(ty, parameter, destination),
                     )
+                })
+                .collect(),
+            admitted_shapes: admitted_shapes
+                .iter()
+                .map(|shape| {
+                    shape
+                        .iter()
+                        .map(|ty| substitute_projected_generic(ty, parameter, destination))
+                        .collect()
                 })
                 .collect(),
             parameters_destination_selected: *parameters_destination_selected,

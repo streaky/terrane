@@ -317,6 +317,7 @@ fn callback_name_is_lsp_signature() {
         parameters: vec![ProjectedType::String, ProjectedType::Bool],
         parameter_rust_types: vec!["String".to_owned(), "bool".to_owned()],
         parameter_borrows: vec![false, false],
+        admitted_shapes: Vec::new(),
         parameters_destination_selected: false,
         result: Box::new(ProjectedType::Int),
         invocation_mode: InvocationMode::Shared,

@@ -337,12 +337,18 @@ fn rebind_owner_type(ty: &mut ProjectedType, native: &ProjectedType, facade: &Pr
         }
         ProjectedType::Callback {
             parameters,
+            admitted_shapes,
             result,
             native_substitutions,
             ..
         } => {
             for parameter in parameters {
                 rebind_owner_type(parameter, native, facade);
+            }
+            for shape in admitted_shapes {
+                for parameter in shape {
+                    rebind_owner_type(parameter, native, facade);
+                }
             }
             rebind_owner_type(result, native, facade);
             for substitution in native_substitutions.values_mut() {

@@ -165,7 +165,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "371";
+const PROJECTION_SCHEMA: &str = "372";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
@@ -924,6 +924,8 @@ pub enum ProjectedType {
         parameter_rust_types: Vec<String>,
         #[serde(default)]
         parameter_borrows: Vec<bool>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        admitted_shapes: Vec<Vec<ProjectedType>>,
         #[serde(default)]
         parameters_destination_selected: bool,
         result: Box<ProjectedType>,
@@ -1098,8 +1100,15 @@ impl ProjectedType {
                 .as_ref()
                 .is_some_and(|binding| binding.ty.contains_opaque()),
             Self::Callback {
-                parameters, result, ..
-            } => parameters.iter().any(Self::contains_opaque) || result.contains_opaque(),
+                parameters,
+                admitted_shapes,
+                result,
+                ..
+            } => {
+                parameters.iter().any(Self::contains_opaque)
+                    || admitted_shapes.iter().flatten().any(Self::contains_opaque)
+                    || result.contains_opaque()
+            }
             _ => false,
         }
     }
@@ -1125,11 +1134,18 @@ impl ProjectedType {
                 .as_ref()
                 .is_some_and(|binding| binding.ty.contains_generic(generic)),
             Self::Callback {
-                parameters, result, ..
+                parameters,
+                admitted_shapes,
+                result,
+                ..
             } => {
                 parameters
                     .iter()
                     .any(|parameter| parameter.contains_generic(generic))
+                    || admitted_shapes
+                        .iter()
+                        .flatten()
+                        .any(|parameter| parameter.contains_generic(generic))
                     || result.contains_generic(generic)
             }
             _ => false,
@@ -1155,9 +1171,17 @@ impl ProjectedType {
                 .as_ref()
                 .is_some_and(|binding| binding.ty.contains_open_generic()),
             Self::Callback {
-                parameters, result, ..
+                parameters,
+                admitted_shapes,
+                result,
+                ..
             } => {
-                parameters.iter().any(Self::contains_open_generic) || result.contains_open_generic()
+                parameters.iter().any(Self::contains_open_generic)
+                    || admitted_shapes
+                        .iter()
+                        .flatten()
+                        .any(Self::contains_open_generic)
+                    || result.contains_open_generic()
             }
             _ => false,
         }

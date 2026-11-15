@@ -68,6 +68,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
             native_substitutions: BTreeMap::new(),
             parameter_rust_types: vec!["&T".to_owned()],
             parameter_borrows: vec![true],
+            admitted_shapes: Vec::new(),
             parameters_destination_selected: false,
             result: Box::new(ProjectedType::Generic("U".to_owned())),
             invocation_mode: InvocationMode::Consuming,

@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-method-router-witness import MethodRouter
+
+async function produce-text int; value string
+    return value.length
+
+async function main;
+    router MethodRouter = MethodRouter::new;
+    await router.dispatch; produce-text

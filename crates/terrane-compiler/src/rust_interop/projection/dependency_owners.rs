@@ -1250,6 +1250,7 @@ pub(super) fn rewrite_projected_rust_root(
         }
         ProjectedType::Callback {
             parameters,
+            admitted_shapes,
             result,
             native_bound,
             native_result,
@@ -1258,6 +1259,11 @@ pub(super) fn rewrite_projected_rust_root(
         } => {
             for parameter in parameters {
                 rewrite_projected_rust_root(parameter, package_root, dependency_root);
+            }
+            for shape in admitted_shapes {
+                for parameter in shape {
+                    rewrite_projected_rust_root(parameter, package_root, dependency_root);
+                }
             }
             rewrite_projected_rust_root(result, package_root, dependency_root);
             for substitution in native_substitutions.values_mut() {

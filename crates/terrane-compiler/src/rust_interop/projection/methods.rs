@@ -603,6 +603,7 @@ fn substitute_projected_lifetimes(
         ProjectedType::Callback {
             rust_name,
             parameters,
+            admitted_shapes,
             result,
             parameter_rust_types,
             native_bound,
@@ -629,6 +630,11 @@ fn substitute_projected_lifetimes(
             }
             for parameter in parameters {
                 substitute_projected_lifetimes(parameter, &callback_substitutions);
+            }
+            for shape in admitted_shapes {
+                for parameter in shape {
+                    substitute_projected_lifetimes(parameter, &callback_substitutions);
+                }
             }
             substitute_projected_lifetimes(result, &callback_substitutions);
         }

@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-method-router-witness import MethodRouter
+
+async function produce-two int; first int, second int
+    return first + second
+
+async function main;
+    router MethodRouter = MethodRouter::new;
+    await router.dispatch; produce-two

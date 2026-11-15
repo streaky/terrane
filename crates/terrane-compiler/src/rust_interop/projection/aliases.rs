@@ -232,6 +232,7 @@ impl super::Projection {
             ProjectedType::Callback {
                 rust_name,
                 parameters,
+                admitted_shapes,
                 result,
                 native_bound,
                 native_result,
@@ -244,6 +245,11 @@ impl super::Projection {
                     let old = parameter.rust_type();
                     self.resolve_alias_child(parameter, bindings, active, expanded)?;
                     replacements.push((old, parameter.rust_type()));
+                }
+                for shape in admitted_shapes {
+                    for parameter in shape {
+                        self.resolve_alias_child(parameter, bindings, active, expanded)?;
+                    }
                 }
                 let old = result.rust_type();
                 self.resolve_alias_child(result, bindings, active, expanded)?;
@@ -686,9 +692,15 @@ fn retarget_type(ty: &mut ProjectedType, target: &str, alias: &ProjectedType) {
             }
         }
         ProjectedType::Callback {
-            parameters, result, ..
+            parameters,
+            admitted_shapes,
+            result,
+            ..
         } => {
-            for parameter in parameters {
+            for parameter in parameters
+                .iter_mut()
+                .chain(admitted_shapes.iter_mut().flatten())
+            {
                 retarget_type(parameter, target, alias);
             }
             retarget_type(result, target, alias);

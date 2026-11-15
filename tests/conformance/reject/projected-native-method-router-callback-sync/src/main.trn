@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/terrane-method-router-witness import MethodRouter
+
+function produce-sync int;
+    return 42
+
+async function main;
+    router MethodRouter = MethodRouter::new;
+    await router.dispatch; produce-sync

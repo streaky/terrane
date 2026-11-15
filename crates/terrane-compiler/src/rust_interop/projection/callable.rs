@@ -252,8 +252,9 @@ pub(super) fn project_callback_bounds(
             .iter()
             .map(|input| matches!(input, Type::BorrowedRef { .. }))
             .collect(),
-        result: Box::new(result),
+        admitted_shapes: Vec::new(),
         parameters_destination_selected: false,
+        result: Box::new(result),
         invocation_mode: kind,
         is_async,
         retained,
@@ -327,6 +328,16 @@ fn merge_destination_selected_callable_candidates(
     {
         return None;
     }
+    let mut admitted_shapes = Vec::new();
+    for (candidate, _, _) in candidates {
+        let ProjectedType::Callback { parameters, .. } = candidate else {
+            return None;
+        };
+        if !admitted_shapes.contains(parameters) {
+            admitted_shapes.push(parameters.clone());
+        }
+    }
+
     Some((
         ProjectedType::Callback {
             carrier: *carrier,
@@ -338,6 +349,7 @@ fn merge_destination_selected_callable_candidates(
             parameters: Vec::new(),
             parameter_borrows: Vec::new(),
             parameter_rust_types: Vec::new(),
+            admitted_shapes,
             parameters_destination_selected: true,
             result: result.clone(),
             invocation_mode: *invocation_mode,
@@ -995,6 +1007,7 @@ pub(super) fn project_callable_adapter_bounds(
                     } else {
                         vec![false; inputs.len()]
                     },
+                    admitted_shapes: Vec::new(),
                     parameters_destination_selected: false,
                     result: Box::new(result),
                     invocation_mode,
