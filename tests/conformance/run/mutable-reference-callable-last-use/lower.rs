@@ -9,7 +9,7 @@ fn branch(condition: bool) {
     value = terrane_int_support::Int::from(0_i128);
     borrowed = &mut value;
     callback = {
-        let borrowed = borrowed;
+        let borrowed = &mut *borrowed;
         TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
             *borrowed = (*borrowed).clone() + terrane_int_support::Int::from(1_i128);
             ()
@@ -32,7 +32,7 @@ fn __trn_6c6f6f70() {
     value = terrane_int_support::Int::from(0_i128);
     borrowed = &mut value;
     callback = {
-        let borrowed = borrowed;
+        let borrowed = &mut *borrowed;
         TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
             *borrowed = (*borrowed).clone() + terrane_int_support::Int::from(1_i128);
             ()
@@ -54,7 +54,7 @@ fn transferred() {
     value = terrane_int_support::Int::from(0_i128);
     borrowed = &mut value;
     callback = {
-        let borrowed = borrowed;
+        let borrowed = &mut *borrowed;
         TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
             *borrowed = (*borrowed).clone() + terrane_int_support::Int::from(1_i128);
             ()
@@ -73,7 +73,7 @@ fn unused_transfer() {
     value = terrane_int_support::Int::from(0_i128);
     borrowed = &mut value;
     callback = {
-        let borrowed = borrowed;
+        let borrowed = &mut *borrowed;
         TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
             *borrowed = (*borrowed).clone() + terrane_int_support::Int::from(1_i128);
             ()
@@ -116,8 +116,8 @@ fn two_captures() {
     left_borrow = &mut left;
     right_borrow = &mut right;
     callback = {
-        let left_borrow = left_borrow;
-        let right_borrow = right_borrow;
+        let left_borrow = &mut *left_borrow;
+        let right_borrow = &mut *right_borrow;
         TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
             *left_borrow = (*left_borrow).clone()
                 + terrane_int_support::Int::from(1_i128);
@@ -138,7 +138,7 @@ fn nested_branch(outer: bool, inner: bool) {
     value = terrane_int_support::Int::from(0_i128);
     borrowed = &mut value;
     callback = {
-        let borrowed = borrowed;
+        let borrowed = &mut *borrowed;
         TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
             *borrowed = (*borrowed).clone() + terrane_int_support::Int::from(1_i128);
             ()
@@ -187,7 +187,7 @@ fn returned_call() -> terrane_int_support::Int {
     value = terrane_int_support::Int::from(0_i128);
     borrowed = &mut value;
     callback = {
-        let borrowed = borrowed;
+        let borrowed = &mut *borrowed;
         TerraneBorrowedMutableCallable::new(move |(): ()| -> terrane_int_support::Int {
             *borrowed = (*borrowed).clone() + terrane_int_support::Int::from(1_i128);
             return (*borrowed).clone();
