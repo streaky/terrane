@@ -1609,7 +1609,7 @@ fn enqueue_object_identity_dependencies(
     if let Some(application) = &identity.application {
         enqueue_value_type_object_dependencies(application, queue);
     }
-    for argument in identity.native_arguments.values() {
+    for argument in identity.additional_native_arguments() {
         enqueue_value_type_object_dependencies(argument, queue);
     }
     queue.push(identity.base());

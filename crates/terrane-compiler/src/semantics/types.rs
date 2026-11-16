@@ -1947,7 +1947,7 @@ pub(crate) fn reference_target_types_equal(
     reference_storage_types_equal(&expected, &actual)
 }
 
-fn reference_storage_types_equal(expected: &ValueType, actual: &ValueType) -> bool {
+pub(super) fn reference_storage_types_equal(expected: &ValueType, actual: &ValueType) -> bool {
     if expected == actual {
         return true;
     }

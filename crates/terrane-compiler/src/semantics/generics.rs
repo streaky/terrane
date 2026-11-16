@@ -262,7 +262,7 @@ pub(super) fn select_unit_callable_contract_result(
             .children
             .first()
             .filter(|name| name.kind == SyntaxKind::Name && argument.children.len() > 1);
-        let parameter = super::calls::resolve_call_parameter(
+        let (_, parameter) = super::calls::resolve_call_parameter(
             unit,
             argument,
             named,

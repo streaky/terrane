@@ -2918,7 +2918,7 @@ fn open_interface_name(package: &SemanticPackage, value_type: &ValueType) -> Opt
                     .type_arguments
                     .iter()
                     .chain(identity.application.as_deref())
-                    .chain(identity.native_arguments.values())
+                    .chain(identity.additional_native_arguments())
                     .find_map(|argument| open_interface_name(package, argument))
             })
         }
@@ -3096,7 +3096,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                     else {
                         continue;
                     };
-                    let inherited = ObjectIdentity {
+                    let inherited = super::model::ObjectIdentityData {
                         namespace: item.namespace.clone(),
                         name: item.name.clone(),
                         is_unsafe: matches!(
@@ -3111,7 +3111,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                         native_arguments: interface_identity.native_arguments.clone(),
                         native_parameters: interface_identity.native_parameters.clone(),
                         native_arguments_key: interface_identity.native_arguments_key.clone(),
-                    };
+                    }.into();
                     if !object.interfaces.contains(&inherited) {
                         object.interfaces.push(inherited);
                     }
@@ -3143,7 +3143,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
             })
             .into_iter()
             .flat_map(|interface| &interface.supertraits)
-            .map(|supertrait| ObjectIdentity {
+            .map(|supertrait| super::model::ObjectIdentityData {
                 namespace: supertrait.namespace.clone(),
                 name: supertrait.name.clone(),
                 is_unsafe: package
@@ -3163,7 +3163,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                 native_arguments_key: identity.native_arguments_key.clone(),
                 type_arguments: Vec::new(),
                 type_arguments_key: None,
-            })
+            }.into())
             .collect::<Vec<_>>();
         let projectable = package
             .projection
@@ -4441,7 +4441,7 @@ fn refine_projected_call_result(
                             ValueType::Object(identity)
                             | ValueType::InvocationScopedNative {
                                 family: identity, ..
-                            } => Some(identity.namespace),
+                            } => Some(identity.into_namespace()),
                             _ => None,
                         })
                         .unwrap_or_else(|| package.units[unit_index].namespace.clone());
@@ -8141,7 +8141,7 @@ fn specialize_projected_destination(
                                 ValueType::Object(identity)
                                 | ValueType::InvocationScopedNative {
                                     family: identity, ..
-                                } => Some(identity.namespace),
+                                } => Some(identity.into_namespace()),
                                 _ => None,
                             })
                     })
@@ -8231,10 +8231,20 @@ fn explicit_projected_callable_arguments(callee: &SyntaxNode) -> Option<Vec<&Syn
 
 fn close_projected_foreign_generic_arguments(
     package: &SemanticPackage,
+    mut identity: ObjectIdentity,
+    projected: &crate::rust_interop::projection::ProjectedType,
     generic_parameters: &[crate::rust_interop::projection::ProjectedGenericParameter],
-    arguments: &[crate::rust_interop::projection::ProjectedType],
-) -> Option<(Vec<ValueType>, BTreeMap<String, ValueType>)> {
+) -> Option<ObjectIdentity> {
     use crate::rust_interop::projection::ProjectedType;
+    let ProjectedType::Foreign {
+        name,
+        rust_path,
+        base_rust_path,
+        arguments,
+    } = projected
+    else {
+        return None;
+    };
     if arguments.len() > generic_parameters.len() {
         return None;
     }
@@ -8259,7 +8269,33 @@ fn close_projected_foreign_generic_arguments(
         .iter()
         .map(|parameter| selections[&parameter.name].clone())
         .collect();
-    Some((language_arguments, selections))
+    let projected_arguments = generic_parameters
+        .iter()
+        .map(|parameter| substitutions.remove(&parameter.name))
+        .collect::<Option<Vec<_>>>()?;
+    // Keep the exact native arguments instead of round-tripping the semantic facade.
+    let selected = ProjectedType::Foreign {
+        name: name.clone(),
+        rust_path: rust_path.clone(),
+        base_rust_path: base_rust_path.clone(),
+        arguments: projected_arguments,
+    };
+    let native = package
+        .projection
+        .canonical_native_alias(&selected)
+        .unwrap_or(selected)
+        .rust_type();
+    identity = identity
+        .with_type_arguments(language_arguments)
+        .with_native_parameters(
+            generic_parameters
+                .iter()
+                .map(|parameter| parameter.name.clone())
+                .collect(),
+        )
+        .with_native_arguments(selections)
+        .with_native_projection(native);
+    Some(identity)
 }
 fn closed_projected_foreign_value_type(
     package: &SemanticPackage,
@@ -8299,20 +8335,12 @@ fn closed_projected_foreign_value_type(
         _ => None,
     } && !generic_parameters.is_empty()
     {
-        if arguments.len() > generic_parameters.len() {
-            return None;
-        }
-        let (language_arguments, selections) =
-            close_projected_foreign_generic_arguments(package, generic_parameters, arguments)?;
-        identity = identity
-            .with_type_arguments(language_arguments)
-            .with_native_parameters(
-                generic_parameters
-                    .iter()
-                    .map(|parameter| parameter.name.clone())
-                    .collect(),
-            )
-            .with_native_arguments(selections);
+        identity = close_projected_foreign_generic_arguments(
+            package,
+            identity,
+            projected,
+            generic_parameters,
+        )?;
     } else if let Some(constructor) = package
         .projection
         .projected_constructor(&identity.namespace, &identity.name)
@@ -8336,12 +8364,12 @@ fn closed_projected_foreign_value_type(
             .collect::<Option<BTreeMap<_, _>>>()?;
         identity = identity.with_native_arguments(selections);
     }
-    if !identity.native_arguments.is_empty() {
+    if identity.native_projection.is_none() && !identity.native_arguments.is_empty() {
         let native = destination_projected_object(package, &identity)
             .ok()?
             .rust_type();
         identity = identity.with_native_projection(native);
-    } else if !source_abi {
+    } else if identity.native_projection.is_none() && !source_abi {
         identity = identity.with_native_projection(
             package
                 .projection
@@ -8484,67 +8512,91 @@ fn closed_projected_value_type_with_context(
     })
 }
 
+fn canonicalize_native_object_identity(package: &SemanticPackage, identity: &mut ObjectIdentity) {
+    let mut type_arguments = identity.type_arguments.clone();
+    for argument in &mut type_arguments {
+        canonicalize_native_value_type(package, argument);
+    }
+    let application = identity.application.as_deref().map(|original| {
+        if let Some(index) = identity
+            .type_arguments
+            .iter()
+            .position(|argument| super::model::shares_value_payload(argument, original))
+        {
+            return type_arguments[index].clone();
+        }
+        let mut application = original.clone();
+        canonicalize_native_value_type(package, &mut application);
+        application
+    });
+    let mut native_arguments = identity.native_arguments.clone();
+    for argument in native_arguments.values_mut() {
+        if let Some(index) = identity
+            .type_arguments
+            .iter()
+            .position(|original| super::model::shares_value_payload(original, argument))
+        {
+            argument.clone_from(&type_arguments[index]);
+        } else if let (Some(original), Some(canonical)) =
+            (identity.application.as_deref(), application.as_ref())
+            && super::model::shares_value_payload(original, argument)
+        {
+            argument.clone_from(canonical);
+        } else {
+            canonicalize_native_value_type(package, argument);
+        }
+    }
+    *identity = identity
+        .clone()
+        .with_type_arguments(type_arguments)
+        .with_native_arguments(native_arguments);
+    if let Some(application) = application {
+        *identity = identity.clone().with_application(application);
+    }
+    // An interface value is the source protocol carrier, not its native
+    // Box<dyn Trait<...>> crossing. Keep its associated application intact.
+    if package
+        .projection
+        .item(&identity.namespace, &identity.name)
+        .is_some_and(|item| {
+            matches!(
+                item.kind,
+                crate::rust_interop::projection::ProjectedKind::Interface(_)
+            )
+        })
+    {
+        return;
+    }
+    // Named selections already carry the native signature's exact types.
+    // Reclosing them as source arguments both repeats the whole subtree
+    // and can reinterpret an adapted source facade's scalar spelling.
+    if identity.native_arguments.is_empty()
+        && let Some(closed) = close_written_native_nominal(package, identity)
+    {
+        *identity = closed;
+    }
+    if let Ok(projected) = destination_projected_object(package, identity) {
+        let native = package
+            .projection
+            .canonical_native_alias(&projected)
+            .unwrap_or(projected)
+            .rust_type();
+        identity.native_projection = Some(
+            package
+                .projection
+                .canonical_native_type(&native)
+                .into_owned(),
+        );
+    }
+}
+
 /// Rebuild native representations after source-generic substitution.
 pub(crate) fn canonicalize_native_value_type(
     package: &SemanticPackage,
     value_type: &mut ValueType,
 ) {
     match value_type {
-        ValueType::Object(identity) => {
-            let mut type_arguments = identity.type_arguments.clone();
-            for argument in &mut type_arguments {
-                canonicalize_native_value_type(package, argument);
-            }
-            let mut native_arguments = identity.native_arguments.clone();
-            for argument in native_arguments.values_mut() {
-                canonicalize_native_value_type(package, argument);
-            }
-            let application = identity
-                .application
-                .as_deref()
-                .cloned()
-                .map(|mut application| {
-                    canonicalize_native_value_type(package, &mut application);
-                    application
-                });
-            *identity = identity
-                .clone()
-                .with_type_arguments(type_arguments)
-                .with_native_arguments(native_arguments);
-            if let Some(application) = application {
-                *identity = identity.clone().with_application(application);
-            }
-            // An interface value is the source protocol carrier, not its native
-            // Box<dyn Trait<...>> crossing. Keep its associated application intact.
-            if package
-                .projection
-                .item(&identity.namespace, &identity.name)
-                .is_some_and(|item| {
-                    matches!(
-                        item.kind,
-                        crate::rust_interop::projection::ProjectedKind::Interface(_)
-                    )
-                })
-            {
-                return;
-            }
-            if let Some(closed) = close_written_native_nominal(package, identity) {
-                *identity = closed;
-            }
-            if let Ok(projected) = destination_projected_object(package, identity) {
-                let native = package
-                    .projection
-                    .canonical_native_alias(&projected)
-                    .unwrap_or(projected)
-                    .rust_type();
-                identity.native_projection = Some(
-                    package
-                        .projection
-                        .canonical_native_type(&native)
-                        .into_owned(),
-                );
-            }
-        }
+        ValueType::Object(identity) => canonicalize_native_object_identity(package, identity),
         ValueType::Optional(inner) => canonicalize_native_value_type(package, inner),
         ValueType::Reference(inner)
         | ValueType::MutableReference(inner)
@@ -8677,6 +8729,20 @@ fn close_nongeneric_native_nominal(
     identity: &ObjectIdentity,
     rust_path: &str,
 ) -> Option<ObjectIdentity> {
+    if let Some(projected) = package
+        .projection
+        .projected_type(&identity.namespace, &identity.name)
+        && let Some(canonical) = package.projection.canonical_native_alias(&projected)
+    {
+        return Some(
+            identity.clone().with_native_projection(
+                package
+                    .projection
+                    .canonical_native_type(&canonical.rust_type())
+                    .into_owned(),
+            ),
+        );
+    }
     let constructor = crate::rust_ir::rust_type_constructor(rust_path)?;
     if identity.native_projection.is_none()
         && !package
@@ -9332,7 +9398,7 @@ pub(super) fn projected_call_owner_substitutions(
     let Some(function) = function.filter(|function| !function.operation_owner_generics.is_empty())
     else {
         return owner
-            .native_arguments
+            .into_native_arguments()
             .into_iter()
             .map(|(name, value_type)| {
                 destination_projected_type(package, &value_type)

@@ -14,10 +14,6 @@ struct CacheFile {
     entries: BTreeMap<String, Option<super::ValueType>>,
 }
 
-#[expect(
-    clippy::large_enum_variant,
-    reason = "Inline cached types avoid an extra allocation for every selected answer"
-)]
 #[derive(Clone)]
 pub(super) enum CachedAnswer {
     Selected(super::ValueType),

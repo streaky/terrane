@@ -5,6 +5,8 @@ use crate::rust_interop::projection::{
     ProjectedKind, Projection, ProjectionResolution, ProjectionSource,
 };
 
+mod native_identity_storage;
+
 fn ambiguous_projection() -> Projection {
     let dependency = |package: &str, rust_path: &str, send: bool| ProjectedDependency {
         name: package.to_owned(),

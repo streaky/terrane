@@ -150,3 +150,26 @@ impl Cl {
         3
     }
 }
+#[derive(Default)]
+pub struct Layer<T>(T);
+// Each layer adds several JSON containers; 32 exceed the default decoder limit.
+pub type Deep = Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<Layer<u8>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
+trait Depth {
+    fn depth(&self) -> i64;
+}
+impl Depth for u8 {
+    fn depth(&self) -> i64 {
+        i64::from(*self)
+    }
+}
+impl<T: Depth> Depth for Layer<T> {
+    fn depth(&self) -> i64 {
+        self.0.depth() + 1
+    }
+}
+pub fn make_deep() -> Deep {
+    Deep::default()
+}
+pub fn read_deep(value: &Deep) -> i64 {
+    value.depth()
+}

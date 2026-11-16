@@ -508,7 +508,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 58] = [
+    pub static FILES: [&str; 59] = [
         "tests/integration/completion-finally-view-post-read/case.trn",
         "tests/integration/completion-native-catch-post-read/case.trn",
         "tests/integration/completion-native-post-read/case.trn",
@@ -565,10 +565,11 @@ mod __terrane_trace {
         "tests/integration/nested-view-ref-value-loop/case.trn",
         "tests/integration/nested-view-value-ref-loop/case.trn",
         "tests/integration/nested-view-value-value-loop/case.trn",
+        "tests/integration/projected-deep-rustdoc/case.trn",
         "tests/integration/sequential-pipeline-native-copy/case.trn",
         "tests/integration/shared-loop-read-control/case.trn",
     ];
-    pub static FUNCTIONS: [&str; 73] = [
+    pub static FUNCTIONS: [&str; 75] = [
         "/completion-finally-view-post-read::test-scenario",
         "/completion-native-catch-post-read::test-scenario",
         "/completion-native-post-read::test-scenario",
@@ -639,11 +640,13 @@ mod __terrane_trace {
         "/nested-view-ref-value-loop::test-scenario",
         "/nested-view-value-ref-loop::test-scenario",
         "/nested-view-value-value-loop::test-scenario",
+        "/projected-deep-rustdoc::read-again",
+        "/projected-deep-rustdoc::test-scenario",
         "/sequential-pipeline-native-copy::positive",
         "/sequential-pipeline-native-copy::test-scenario",
         "/shared-loop-read-control::test-scenario",
     ];
-    pub static SITES: [Site; 401] = [
+    pub static SITES: [Site; 404] = [
         /* terrane-site-row: site 0: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:6:9-6:21) */
         { Site { function: 0, file: 0, line: 6, column: 9, end_line: 6, end_column: 21 } },
         /* terrane-site-row: site 1: /completion-finally-view-post-read::test-scenario (tests/integration/completion-finally-view-post-read/case.trn:7:9-7:21) */
@@ -1424,28 +1427,34 @@ mod __terrane_trace {
         { Site { function: 69, file: 55, line: 7, column: 28, end_line: 7, end_column: 45 } },
         /* terrane-site-row: site 389: /nested-view-value-value-loop::test-scenario (tests/integration/nested-view-value-value-loop/case.trn:10:21-10:32) */
         { Site { function: 69, file: 55, line: 10, column: 21, end_line: 10, end_column: 32 } },
-        /* terrane-site-row: site 390: /sequential-pipeline-native-copy::positive (tests/integration/sequential-pipeline-native-copy/case.trn:11:13-11:25) */
-        { Site { function: 70, file: 56, line: 11, column: 13, end_line: 11, end_column: 25 } },
-        /* terrane-site-row: site 391: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:14:21-14:38) */
-        { Site { function: 71, file: 56, line: 14, column: 21, end_line: 14, end_column: 38 } },
-        /* terrane-site-row: site 392: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:14:42-14:59) */
-        { Site { function: 71, file: 56, line: 14, column: 42, end_line: 14, end_column: 59 } },
-        /* terrane-site-row: site 393: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:15:5-15:29) */
-        { Site { function: 71, file: 56, line: 15, column: 5, end_line: 15, end_column: 29 } },
-        /* terrane-site-row: site 394: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:19:13-19:31) */
-        { Site { function: 71, file: 56, line: 19, column: 13, end_line: 19, end_column: 31 } },
-        /* terrane-site-row: site 395: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:25:13-25:31) */
-        { Site { function: 71, file: 56, line: 25, column: 13, end_line: 25, end_column: 31 } },
-        /* terrane-site-row: site 396: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
-        { Site { function: 72, file: 57, line: 18, column: 14, end_line: 18, end_column: 26 } },
-        /* terrane-site-row: site 397: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
-        { Site { function: 72, file: 57, line: 19, column: 20, end_line: 19, end_column: 37 } },
-        /* terrane-site-row: site 398: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
-        { Site { function: 72, file: 57, line: 21, column: 17, end_line: 21, end_column: 27 } },
-        /* terrane-site-row: site 399: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
-        { Site { function: 72, file: 57, line: 24, column: 21, end_line: 24, end_column: 33 } },
-        /* terrane-site-row: site 400: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
-        { Site { function: 72, file: 57, line: 25, column: 20, end_line: 25, end_column: 37 } },
+        /* terrane-site-row: site 390: /projected-deep-rustdoc::read-again (tests/integration/projected-deep-rustdoc/case.trn:6:12-6:28) */
+        { Site { function: 70, file: 56, line: 6, column: 12, end_line: 6, end_column: 28 } },
+        /* terrane-site-row: site 391: /projected-deep-rustdoc::test-scenario (tests/integration/projected-deep-rustdoc/case.trn:9:18-9:28) */
+        { Site { function: 71, file: 56, line: 9, column: 18, end_line: 9, end_column: 28 } },
+        /* terrane-site-row: site 392: /projected-deep-rustdoc::test-scenario (tests/integration/projected-deep-rustdoc/case.trn:11:13-11:29) */
+        { Site { function: 71, file: 56, line: 11, column: 13, end_line: 11, end_column: 29 } },
+        /* terrane-site-row: site 393: /sequential-pipeline-native-copy::positive (tests/integration/sequential-pipeline-native-copy/case.trn:11:13-11:25) */
+        { Site { function: 72, file: 57, line: 11, column: 13, end_line: 11, end_column: 25 } },
+        /* terrane-site-row: site 394: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:14:21-14:38) */
+        { Site { function: 73, file: 57, line: 14, column: 21, end_line: 14, end_column: 38 } },
+        /* terrane-site-row: site 395: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:14:42-14:59) */
+        { Site { function: 73, file: 57, line: 14, column: 42, end_line: 14, end_column: 59 } },
+        /* terrane-site-row: site 396: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:15:5-15:29) */
+        { Site { function: 73, file: 57, line: 15, column: 5, end_line: 15, end_column: 29 } },
+        /* terrane-site-row: site 397: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:19:13-19:31) */
+        { Site { function: 73, file: 57, line: 19, column: 13, end_line: 19, end_column: 31 } },
+        /* terrane-site-row: site 398: /sequential-pipeline-native-copy::test-scenario (tests/integration/sequential-pipeline-native-copy/case.trn:25:13-25:31) */
+        { Site { function: 73, file: 57, line: 25, column: 13, end_line: 25, end_column: 31 } },
+        /* terrane-site-row: site 399: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:18:14-18:26) */
+        { Site { function: 74, file: 58, line: 18, column: 14, end_line: 18, end_column: 26 } },
+        /* terrane-site-row: site 400: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:19:20-19:37) */
+        { Site { function: 74, file: 58, line: 19, column: 20, end_line: 19, end_column: 37 } },
+        /* terrane-site-row: site 401: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:21:17-21:27) */
+        { Site { function: 74, file: 58, line: 21, column: 17, end_line: 21, end_column: 27 } },
+        /* terrane-site-row: site 402: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:24:21-24:33) */
+        { Site { function: 74, file: 58, line: 24, column: 21, end_line: 24, end_column: 33 } },
+        /* terrane-site-row: site 403: /shared-loop-read-control::test-scenario (tests/integration/shared-loop-read-control/case.trn:25:20-25:37) */
+        { Site { function: 74, file: 58, line: 25, column: 20, end_line: 25, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1508,7 +1517,9 @@ pub use terrane_query_witness::Cl;
 pub use terrane_query_witness::CloneEnum;
 pub use terrane_query_witness::CopyProbe;
 pub type CopyView<'a> = terrane_query_witness::CopyView<'a>;
+pub use terrane_query_witness::Deep;
 pub use terrane_query_witness::Holder;
+pub use terrane_query_witness::Layer;
 pub use terrane_query_witness::NE;
 pub use terrane_query_witness::Token;
 pub type View<'a> = terrane_query_witness::View<'a>;
@@ -1623,6 +1634,87 @@ pub fn terrane_static_trn_546f6b656e_new() -> Result<Token, crate::TerraneForeig
         }
     }
 }
+pub fn make_deep() -> Result<
+    terrane_query_witness::Layer<
+        terrane_query_witness::Layer<
+            terrane_query_witness::Layer<
+                terrane_query_witness::Layer<
+                    terrane_query_witness::Layer<
+                        terrane_query_witness::Layer<
+                            terrane_query_witness::Layer<
+                                terrane_query_witness::Layer<
+                                    terrane_query_witness::Layer<
+                                        terrane_query_witness::Layer<
+                                            terrane_query_witness::Layer<
+                                                terrane_query_witness::Layer<
+                                                    terrane_query_witness::Layer<
+                                                        terrane_query_witness::Layer<
+                                                            terrane_query_witness::Layer<
+                                                                terrane_query_witness::Layer<
+                                                                    terrane_query_witness::Layer<
+                                                                        terrane_query_witness::Layer<
+                                                                            terrane_query_witness::Layer<
+                                                                                terrane_query_witness::Layer<
+                                                                                    terrane_query_witness::Layer<
+                                                                                        terrane_query_witness::Layer<
+                                                                                            terrane_query_witness::Layer<
+                                                                                                terrane_query_witness::Layer<
+                                                                                                    terrane_query_witness::Layer<
+                                                                                                        terrane_query_witness::Layer<
+                                                                                                            terrane_query_witness::Layer<
+                                                                                                                terrane_query_witness::Layer<
+                                                                                                                    terrane_query_witness::Layer<
+                                                                                                                        terrane_query_witness::Layer<
+                                                                                                                            terrane_query_witness::Layer<
+                                                                                                                                terrane_query_witness::Layer<u8>,
+                                                                                                                            >,
+                                                                                                                        >,
+                                                                                                                    >,
+                                                                                                                >,
+                                                                                                            >,
+                                                                                                        >,
+                                                                                                    >,
+                                                                                                >,
+                                                                                            >,
+                                                                                        >,
+                                                                                    >,
+                                                                                >,
+                                                                            >,
+                                                                        >,
+                                                                    >,
+                                                                >,
+                                                            >,
+                                                        >,
+                                                    >,
+                                                >,
+                                            >,
+                                        >,
+                                    >,
+                                >,
+                            >,
+                        >,
+                    >,
+                >,
+            >,
+        >,
+    >,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::make_deep()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::make_deep",
+                ),
+            )
+        }
+    }
+}
 pub fn query<'view>(
     sql: &'view str,
 ) -> Result<terrane_query_witness::View<'view>, crate::TerraneForeignError> {
@@ -1636,6 +1728,86 @@ pub fn query<'view>(
                     payload,
                     "terrane-query-witness",
                     "terrane_query_witness::query",
+                ),
+            )
+        }
+    }
+}
+pub fn read_deep(
+    value: &terrane_query_witness::Layer<
+        terrane_query_witness::Layer<
+            terrane_query_witness::Layer<
+                terrane_query_witness::Layer<
+                    terrane_query_witness::Layer<
+                        terrane_query_witness::Layer<
+                            terrane_query_witness::Layer<
+                                terrane_query_witness::Layer<
+                                    terrane_query_witness::Layer<
+                                        terrane_query_witness::Layer<
+                                            terrane_query_witness::Layer<
+                                                terrane_query_witness::Layer<
+                                                    terrane_query_witness::Layer<
+                                                        terrane_query_witness::Layer<
+                                                            terrane_query_witness::Layer<
+                                                                terrane_query_witness::Layer<
+                                                                    terrane_query_witness::Layer<
+                                                                        terrane_query_witness::Layer<
+                                                                            terrane_query_witness::Layer<
+                                                                                terrane_query_witness::Layer<
+                                                                                    terrane_query_witness::Layer<
+                                                                                        terrane_query_witness::Layer<
+                                                                                            terrane_query_witness::Layer<
+                                                                                                terrane_query_witness::Layer<
+                                                                                                    terrane_query_witness::Layer<
+                                                                                                        terrane_query_witness::Layer<
+                                                                                                            terrane_query_witness::Layer<
+                                                                                                                terrane_query_witness::Layer<
+                                                                                                                    terrane_query_witness::Layer<
+                                                                                                                        terrane_query_witness::Layer<
+                                                                                                                            terrane_query_witness::Layer<
+                                                                                                                                terrane_query_witness::Layer<u8>,
+                                                                                                                            >,
+                                                                                                                        >,
+                                                                                                                    >,
+                                                                                                                >,
+                                                                                                            >,
+                                                                                                        >,
+                                                                                                    >,
+                                                                                                >,
+                                                                                            >,
+                                                                                        >,
+                                                                                    >,
+                                                                                >,
+                                                                            >,
+                                                                        >,
+                                                                    >,
+                                                                >,
+                                                            >,
+                                                        >,
+                                                    >,
+                                                >,
+                                            >,
+                                        >,
+                                    >,
+                                >,
+                            >,
+                        >,
+                    >,
+                >,
+            >,
+        >,
+    >,
+) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::read_deep(value)),
+    ) {
+        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::read_deep",
                 ),
             )
         }

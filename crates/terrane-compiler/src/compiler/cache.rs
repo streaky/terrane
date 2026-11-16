@@ -8,7 +8,7 @@ use sha2::Digest as _;
 
 use crate::{CompilerOptions, Package};
 
-const FORMAT: u32 = 1;
+const FORMAT: u32 = 2;
 
 struct Fingerprint(crate::cache_io::HashWriter);
 impl Fingerprint {

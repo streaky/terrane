@@ -234,8 +234,9 @@ fn argument<'a>(
             .children
             .first()
             .filter(|x| x.kind == SyntaxKind::Name && v.children.len() > 1);
-        if let Ok(param) = resolve_call_parameter(unit, v, name, c, &mut p, &mut named)
-            && param.span == c.parameters.get(index)?.span
+        if let Ok((resolved_index, _)) =
+            resolve_call_parameter(unit, v, name, c, &mut p, &mut named)
+            && resolved_index == index
         {
             return v.children.last().or(Some(v));
         }

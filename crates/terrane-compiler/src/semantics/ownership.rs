@@ -3859,7 +3859,7 @@ fn record_implicit_reference_owners(
                 &mut named_seen,
             )
             .ok();
-            if parameter.is_some_and(|parameter| {
+            if parameter.is_some_and(|(_, parameter)| {
                 matches!(
                     parameter.value_type,
                     Some(ValueType::Reference(_) | ValueType::MutableReference(_))

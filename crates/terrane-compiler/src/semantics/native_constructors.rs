@@ -122,7 +122,7 @@ fn set_native_constructor_effects(
             .children
             .first()
             .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
-        let Ok(parameter) = super::calls::resolve_call_parameter(
+        let Ok((_, parameter)) = super::calls::resolve_call_parameter(
             unit,
             argument,
             name,
@@ -894,8 +894,7 @@ fn cacheable_native_selection_input(value_type: &ValueType) -> bool {
                 .iter()
                 .all(cacheable_native_selection_input)
             && value
-                .native_arguments
-                .values()
+                .additional_native_arguments()
                 .all(cacheable_native_selection_input)
     }
     match value_type {
@@ -1160,7 +1159,7 @@ fn visit_native_objects<E>(
                 .type_arguments
                 .iter()
                 .chain(identity.application.iter().map(std::convert::AsRef::as_ref))
-                .chain(identity.native_arguments.values())
+                .chain(identity.additional_native_arguments())
             {
                 visit_native_objects(argument, visit)?;
             }
