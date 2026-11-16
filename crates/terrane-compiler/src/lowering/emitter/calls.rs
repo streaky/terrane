@@ -3363,7 +3363,7 @@ impl Emitter<'_> {
         let call = if let Some((native_path, fields, borrowed_view)) = projected_native_construction
         {
             let selected_native = self.value_type(node).and_then(|value| match value {
-                ValueType::Object(identity) => identity.native_projection,
+                ValueType::Object(identity) => identity.into_native_projection(),
                 _ => None,
             });
             let native_path = selected_native.as_deref().unwrap_or(native_path);

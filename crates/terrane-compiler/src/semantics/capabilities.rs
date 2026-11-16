@@ -389,7 +389,7 @@ fn collect_native_types(
         ValueType::Object(identity)
             if identity.application.as_deref().is_none_or(is_closed)
                 && identity.type_arguments.iter().all(is_closed)
-                && identity.native_arguments.values().all(is_closed) =>
+                && identity.additional_native_arguments().all(is_closed) =>
         {
             if let Some(native) = &identity.native_projection {
                 types.entry(native.clone()).or_insert((unit_index, span));
@@ -427,7 +427,7 @@ pub(super) fn walk_value_type<'a>(
             for argument in &identity.type_arguments {
                 walk_value_type(argument, visit);
             }
-            for argument in identity.native_arguments.values() {
+            for argument in identity.additional_native_arguments() {
                 walk_value_type(argument, visit);
             }
         }

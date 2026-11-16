@@ -8,6 +8,7 @@ mod survey;
 use std::collections::{BTreeMap, BTreeSet};
 
 use rustdoc_types::{Crate as RustdocCrate, Id, Item, ItemEnum, ItemKind, Visibility};
+use serde::Deserialize;
 
 pub use cargo_toolchain::{
     cargo_target_override, configure_cargo_command, configure_projection_cargo_command,
@@ -59,7 +60,14 @@ pub fn parse_rustdoc(
     bytes: &[u8],
     toolchain: &str,
 ) -> Result<RustdocCrate, AnalysisError> {
-    let document: RustdocCrate = serde_json::from_slice(bytes).map_err(|error| AnalysisError {
+    // Valid Rustdoc types can exceed JSON's default depth (for example nested
+    // generic integer types). Grow the parser stack rather than rejecting them
+    // or simply disabling its limit on an ordinary fixed-size thread stack.
+    let mut deserializer = serde_json::Deserializer::from_slice(bytes);
+    deserializer.disable_recursion_limit();
+    let document = RustdocCrate::deserialize(serde_stacker::Deserializer::new(&mut deserializer))
+        .and_then(|document| deserializer.end().map(|()| document))
+        .map_err(|error| AnalysisError {
         message: format!(
             "rustdoc JSON schema mismatch for `{package}`: {error}; expected rustdoc format {} from `{toolchain}`",
             rustdoc_types::FORMAT_VERSION
@@ -409,6 +417,76 @@ mod tests {
             format_version: rustdoc_types::FORMAT_VERSION,
         };
         (document, Id(10), Id(11), Id(12))
+    }
+
+    #[test]
+    fn deep_rustdoc_preserves_types_and_validation() {
+        use rustdoc_types::{GenericArg, GenericArgs, Generics, Path, Type, TypeAlias};
+
+        let (mut document, _, _, _) = hidden_surface_document();
+        let mut nested = Type::Primitive("u8".to_owned());
+        for _ in 0..96 {
+            nested = Type::ResolvedPath(Path {
+                path: "sample::Wrapper".to_owned(),
+                id: Id(31),
+                args: Some(Box::new(GenericArgs::AngleBracketed {
+                    args: vec![GenericArg::Type(nested)],
+                    constraints: Vec::new(),
+                })),
+            });
+        }
+        document.index.insert(
+            Id(30),
+            item(
+                Id(30),
+                Some("Deep"),
+                Vec::new(),
+                ItemEnum::TypeAlias(TypeAlias {
+                    type_: nested,
+                    generics: Generics {
+                        params: Vec::new(),
+                        where_predicates: Vec::new(),
+                    },
+                }),
+            ),
+        );
+        let mut bytes = serde_json::to_vec(&document).unwrap();
+        let parsed = parse_rustdoc("sample", &bytes, RUSTDOC_TOOLCHAIN).unwrap();
+        let ItemEnum::TypeAlias(alias) = &parsed.index[&Id(30)].inner else {
+            panic!("type alias was not preserved");
+        };
+        let mut layer = &alias.type_;
+        for _ in 0..96 {
+            let Type::ResolvedPath(path) = layer else {
+                panic!("generic wrapper was not preserved");
+            };
+            assert_eq!(path.path, "sample::Wrapper");
+            let Some(GenericArgs::AngleBracketed { args, constraints }) = path.args.as_deref()
+            else {
+                panic!("generic arguments were not preserved");
+            };
+            assert_eq!(constraints.as_slice(), []);
+            let [GenericArg::Type(inner)] = args.as_slice() else {
+                panic!("nested type argument was not preserved");
+            };
+            layer = inner;
+        }
+        assert_eq!(layer, &Type::Primitive("u8".to_owned()));
+
+        bytes.extend_from_slice(b" {}");
+        let trailing = parse_rustdoc("sample", &bytes, RUSTDOC_TOOLCHAIN).unwrap_err();
+        assert!(trailing.message.contains("trailing characters"));
+        document.format_version += 1;
+        let incompatible = parse_rustdoc(
+            "sample",
+            &serde_json::to_vec(&document).unwrap(),
+            RUSTDOC_TOOLCHAIN,
+        )
+        .unwrap_err();
+        assert!(incompatible.message.contains(&format!(
+            "format {} is unsupported",
+            document.format_version
+        )));
     }
 
     #[test]

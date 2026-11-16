@@ -640,19 +640,26 @@ fn validate_node_call_contracts<'a>(
                     }
                     selected
                 });
+            let native_function = projected_function_for_call(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            );
+            let native_parameters = native_function.as_ref().map(|function| {
+                unit.projected_call_specializations
+                    .get(&(node.span.file, node.span.start, node.span.end))
+                    .map_or(function.parameters.as_slice(), |specialization| {
+                        specialization.projected_parameters.as_slice()
+                    })
+            });
             validate_call_arguments(
                 package,
                 unit,
                 arguments,
                 specialized.as_ref().unwrap_or(contract),
                 scoped_bindings,
-                projected_function_for_call(
-                    package,
-                    unit,
-                    callee,
-                    crate::syntax::call_is_unsafe(node),
-                )
-                .is_some(),
+                native_parameters,
                 receiver_call_borrow(
                     package,
                     unit,
@@ -1525,14 +1532,15 @@ pub(super) fn resolve_call_parameter<'a>(
     contract: &'a FunctionContract,
     positional: &mut usize,
     named_seen: &mut bool,
-) -> Result<&'a ParameterContract, SemanticFailure> {
+) -> Result<(usize, &'a ParameterContract), SemanticFailure> {
     if let Some(name) = name {
         *named_seen = true;
         let name_text = node_text(&unit.source, name);
-        let parameter = contract
+        let (index, parameter) = contract
             .parameters
             .iter()
-            .find(|parameter| parameter.name == name_text)
+            .enumerate()
+            .find(|(_, parameter)| parameter.name == name_text)
             .ok_or_else(|| {
                 failure(
                     &unit.source,
@@ -1555,7 +1563,7 @@ pub(super) fn resolve_call_parameter<'a>(
                 name.span,
             ));
         }
-        return Ok(parameter);
+        return Ok((index, parameter));
     }
     if *named_seen {
         return Err(failure(
@@ -1579,8 +1587,9 @@ pub(super) fn resolve_call_parameter<'a>(
             argument.span,
         )
     })?;
+    let index = (*positional).min(contract.parameters.len() - 1);
     *positional += 1;
-    Ok(parameter)
+    Ok((index, parameter))
 }
 
 fn bind_destination_selected_callback(
@@ -1885,15 +1894,35 @@ fn validate_union_generic_argument(
     Ok(())
 }
 
+fn native_borrow_matches(
+    expected: &ValueType,
+    actual: &ValueType,
+    native_parameter: Option<&crate::rust_interop::projection::ProjectedParameter>,
+) -> bool {
+    native_parameter.is_some_and(
+        crate::rust_interop::projection::ProjectedParameter::preserves_borrowed_storage,
+    ) && !matches!(
+        expected,
+        ValueType::Reference(_) | ValueType::MutableReference(_) | ValueType::SharedReference(_)
+    ) && matches!(
+        actual,
+        ValueType::Reference(inner)
+            | ValueType::MutableReference(inner)
+            | ValueType::SharedReference(inner)
+            if super::types::reference_storage_types_equal(expected, inner.value_type_ref())
+    )
+}
+
 fn validate_argument_destination(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
     name: &str,
     (expected, actual): (&ValueType, &ValueType),
-    native_callback: bool,
+    native_parameter: Option<&crate::rust_interop::projection::ProjectedParameter>,
     generic_bindings: &mut BTreeMap<String, ValueType>,
 ) -> Result<(), SemanticFailure> {
+    let native_callback = native_parameter.is_some();
     let generic_failure = |generic| {
         failure(
             &unit.source,
@@ -1921,6 +1950,9 @@ fn validate_argument_destination(
     let (expected, actual) = canonical_types
         .as_ref()
         .map_or((expected, actual), |(expected, actual)| (expected, actual));
+    if native_borrow_matches(expected, actual, native_parameter) {
+        return Ok(());
+    }
     let validation_expected = match (expected, actual) {
         (
             ValueType::Reference(expected),
@@ -2036,7 +2068,7 @@ pub(super) fn validate_call_arguments(
     arguments: &SyntaxNode,
     contract: &FunctionContract,
     bindings: &[TypedBinding],
-    native_callback: bool,
+    native_parameters: Option<&[crate::rust_interop::projection::ProjectedParameter]>,
     receiver: Option<(Span, Vec<ReferenceProjection>, bool, Span)>,
 ) -> Result<(), SemanticFailure> {
     let mut borrows = Vec::new();
@@ -2052,7 +2084,7 @@ pub(super) fn validate_call_arguments(
             .children
             .first()
             .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
-        let parameter = resolve_call_parameter(
+        let (parameter_index, parameter) = resolve_call_parameter(
             unit,
             argument,
             name,
@@ -2095,7 +2127,7 @@ pub(super) fn validate_call_arguments(
                 &expected,
                 bindings,
                 &parameter.name,
-                native_callback,
+                native_parameters.is_some(),
             )?;
             if contextual_collection_constructor_matches(unit, value, &expected, bindings) {
                 validate_collection_constructor_value(
@@ -2117,7 +2149,7 @@ pub(super) fn validate_call_arguments(
                     value,
                     &parameter.name,
                     (&expected, &actual),
-                    native_callback,
+                    native_parameters.and_then(|parameters| parameters.get(parameter_index)),
                     &mut generic_bindings,
                 )
                 .map_err(|failure| {

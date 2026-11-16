@@ -63,7 +63,8 @@ fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&Obje
             for argument in identity
                 .type_arguments
                 .iter()
-                .chain(identity.native_arguments.values())
+                .chain(identity.application.as_deref())
+                .chain(identity.additional_native_arguments())
             {
                 visit_value_type_objects(argument, visit);
             }

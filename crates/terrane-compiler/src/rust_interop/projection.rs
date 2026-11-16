@@ -2497,14 +2497,16 @@ impl Projection {
             ProjectedType::Foreign { name, .. } => Some(name.as_str()),
             _ => None,
         };
+        let canonical_owner = self.canonical_native_type(owner);
         self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
             .filter(|item| {
-                projected_owner_path_matches(
-                    &self.canonical_native_type(&item.rust_path),
-                    &self.canonical_native_type(owner),
-                )
+                projected_owner_path_matches(&item.rust_path, owner)
+                    || projected_owner_path_matches(
+                        &self.canonical_native_type(&item.rust_path),
+                        &canonical_owner,
+                    )
             })
             .min_by_key(|item| {
                 (
