@@ -2,6 +2,7 @@ namespace app
 
 from /deps/witness import Overridden, Wrapped, Mutator, panic_free, panic_generic
 from /core/errors import throwable
+from /deps/custom-lib-panic-witness import Panicker as CustomPanicker, fail_free as custom-fail-free
 
 function update-twice uint8; mutator mutable ref Mutator
     print; (mutator.update; 2)
@@ -30,7 +31,30 @@ function generic-free-panic-attributed bool;
     catch throwable as error
         return (error.message.contains; 'Rust dependency `native-default-witness`') and (error.message.contains; 'member `witness::panic_generic`') and (error.message.contains; 'generic free function panic')
 
-function main;
+function custom-free-panic-attributed bool;
+    try
+        custom-fail-free;
+        return false
+    catch throwable as error
+        return (error.message.contains; 'Rust dependency `custom-lib-panic-witness`') and (error.message.contains; '::fail_free`') and (error.message.contains; 'custom library free panic')
+
+function custom-method-panic-attributed bool;
+    value = CustomPanicker::new;
+    try
+        value.fail;
+        return false
+    catch throwable as error
+        return (error.message.contains; 'Rust dependency `custom-lib-panic-witness`') and (error.message.contains; '::Panicker::fail`') and (error.message.contains; 'custom library instance panic')
+
+async function custom-async-panic-attributed bool;
+    value = CustomPanicker::new;
+    try
+        await value.fail_async;
+        return false
+    catch throwable as error
+        return (error.message.contains; 'Rust dependency `custom-lib-panic-witness`') and (error.message.contains; '::Panicker::fail_async`') and (error.message.contains; 'custom library async panic')
+
+async function main;
     seed uint8 = 9
     value Wrapped of uint8 = instance Wrapped; seed
     owner uint8 = value.owner_value;

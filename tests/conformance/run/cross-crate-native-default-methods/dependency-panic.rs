@@ -14,4 +14,13 @@ mod dependency_panic_tests {
     fn generic_free_package_label() {
         assert!(super::generic_free_panic_attributed());
     }
+
+    #[test]
+    fn custom_library_package_labels() {
+        assert!(super::custom_free_panic_attributed());
+        assert!(super::custom_method_panic_attributed());
+        super::__terrane_run(async {
+            assert!(super::custom_async_panic_attributed().await);
+        });
+    }
 }

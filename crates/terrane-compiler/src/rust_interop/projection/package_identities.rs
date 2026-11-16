@@ -84,11 +84,7 @@ impl<'a> Packages<'a> {
     }
 
     pub(super) fn library_name(&self, identity: &str) -> Option<&'a str> {
-        self.package(identity)?["targets"]
-            .as_array()?
-            .iter()
-            .find(|target| library_target(target))?["name"]
-            .as_str()
+        library_name(self.package(identity)?)
     }
 
     pub(super) fn document(&self, document: &RustdocCrate) -> Option<&'a str> {
@@ -197,6 +193,14 @@ impl<'a> Packages<'a> {
                 .map_or_default(|(path, _)| path.clone()),
         }
     }
+}
+
+pub(super) fn library_name(package: &Value) -> Option<&str> {
+    package["targets"]
+        .as_array()?
+        .iter()
+        .find(|target| library_target(target))?["name"]
+        .as_str()
 }
 
 fn library_named(package: &Value, name: &str) -> bool {

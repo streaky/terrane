@@ -89,7 +89,11 @@ fn locked_transitive_owner() {
     let private_dependencies = recursive_owner_dependencies(
         &[response_status()],
         &[dependency("reqwest")],
-        &directory,
+        &serde_json::json!({"packages": [{
+            "name": "http", "version": "1.3.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "targets": [{"name": "http", "kind": ["lib"]}]
+        }]}),
         false,
     )
     .unwrap();
@@ -156,4 +160,41 @@ fn locked_transitive_owner() {
     assert!(error.message.contains("0.2.12"));
     assert!(error.message.contains("1.3.1"));
     fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn library_owners() {
+    let metadata = serde_json::json!({"packages": [
+        {
+            "name": "custom-owner", "version": "1.2.3",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "targets": [{"name": "custom_library", "kind": ["lib"]}]
+        },
+        {
+            "name": "other-owner", "version": "4.5.6",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "targets": [{"name": "custom_library", "kind": ["lib"]}]
+        }
+    ]});
+    let required = BTreeSet::from(["custom_library".to_owned()]);
+    // A target-name collision cannot choose a package by iteration order.
+    assert_eq!(
+        resolved_projected_dependencies(required.clone(), &metadata, false).unwrap(),
+        Vec::new()
+    );
+    let unique = serde_json::json!({"packages": [metadata["packages"][0].clone()]});
+    let resolved = resolved_projected_dependencies(required, &unique, false).unwrap();
+    assert_eq!(
+        resolved,
+        vec![ProjectedBoundDependency {
+            name: "custom_library".to_owned(),
+            package: "custom-owner".to_owned(),
+            version: "=1.2.3".to_owned(),
+            features: Vec::new(),
+        }]
+    );
+    assert_eq!(
+        bound_library_root(&unique, &resolved[0]).unwrap(),
+        "custom_library"
+    );
 }

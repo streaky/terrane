@@ -454,7 +454,7 @@ pub fn resolve(
         &public_errors,
         &mut bound_dependencies,
         &workspace,
-        true,
+        &metadata,
         true,
     )?;
     // An impl signature can reference an external alias whose error shape was
@@ -479,7 +479,7 @@ pub fn resolve(
         &public_errors,
         &mut bound_dependencies,
         &workspace,
-        false,
+        &metadata,
         false,
     )?;
     owners.finish();
@@ -566,7 +566,7 @@ pub fn resolve(
     )?;
     decline_functions_with_missing_generic_interfaces(&mut projected);
     for dependency in
-        projected_bound_dependencies(&projected, dependencies, &bound_dependencies, &workspace)?
+        projected_bound_dependencies(&projected, dependencies, &bound_dependencies, &metadata)?
     {
         if !bound_dependencies
             .iter()
@@ -621,53 +621,42 @@ fn normalize_projected_round(
     public_errors: &BTreeSet<String>,
     bound_dependencies: &mut Vec<super::ProjectedBoundDependency>,
     workspace: &Path,
-    enforce_error_owner_reachability: bool,
-    discover_bound_dependencies: bool,
+    metadata: &serde_json::Value,
+    initial_round: bool,
 ) -> Result<(), ProjectionError> {
+    let packages = super::package_identities::Packages::new(metadata, BTreeMap::new());
+    let mut owner_roots = BTreeMap::new();
     for dependency in dependencies {
-        rewrite_projected_owner_root(
-            projected,
-            &dependency.package.replace('-', "_"),
-            &dependency.name.replace('-', "_"),
-        );
+        let root = packages
+            .direct(&dependency.name)
+            .and_then(|identity| packages.library_name(identity))
+            .ok_or_else(|| ProjectionError {
+                message: format!(
+                    "dependency `{}` has no resolved Cargo library target",
+                    dependency.name
+                ),
+            })?;
+        let alias = dependency.name.replace('-', "_");
+        rewrite_projected_owner_root(projected, root, &alias);
+        owner_roots.insert(alias, root.to_owned());
     }
     // Preserve already-known private root identity before reconciling methods
     // attached in later rounds. A private name is not itself export evidence.
     for dependency in bound_dependencies.iter() {
-        rewrite_projected_owner_root(
-            projected,
-            &dependency.package.replace('-', "_"),
-            &dependency.name,
-        );
+        let root = super::dependency_owners::bound_library_root(metadata, dependency)?;
+        rewrite_projected_owner_root(projected, root, &dependency.name);
+        owner_roots.insert(dependency.name.clone(), root.to_owned());
     }
-    let owner_roots = dependencies
-        .iter()
-        .map(|dependency| {
-            (
-                dependency.name.replace('-', "_"),
-                dependency.package.replace('-', "_"),
-            )
-        })
-        .chain(bound_dependencies.iter().map(|dependency| {
-            (
-                dependency.name.clone(),
-                dependency.package.replace('-', "_"),
-            )
-        }))
-        .collect::<BTreeMap<_, _>>();
     // Reconcile complete public error identities before reachability can reject
     // an opaque error owner or bind it as an unnecessary private dependency.
     canonicalize_projected_type_names(projected, public_errors, &owner_roots);
-    if discover_bound_dependencies {
+    if initial_round {
         *bound_dependencies =
-            recursive_owner_dependencies(projected, dependencies, workspace, false)?;
+            recursive_owner_dependencies(projected, dependencies, metadata, false)?;
     }
     for dependency in bound_dependencies.iter() {
-        rewrite_projected_owner_root(
-            projected,
-            &dependency.package.replace('-', "_"),
-            &dependency.name,
-        );
+        let root = super::dependency_owners::bound_library_root(metadata, dependency)?;
+        rewrite_projected_owner_root(projected, root, &dependency.name);
     }
     enforce_transitive_reachability(
         projected,
@@ -677,7 +666,7 @@ fn normalize_projected_round(
         false,
     )?;
     bound_dependencies.sort_by(|left, right| left.name.cmp(&right.name));
-    if enforce_error_owner_reachability {
+    if initial_round {
         enforce_transitive_reachability(
             projected,
             dependencies,
