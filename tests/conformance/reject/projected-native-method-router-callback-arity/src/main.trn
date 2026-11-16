@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/terrane-method-router-witness import MethodRouter
+from /deps/terrane-callable-recipe-witness import MethodRouter
 
 async function produce-two int; first int, second int
     return first + second

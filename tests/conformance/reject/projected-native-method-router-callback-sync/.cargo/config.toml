@@ -1,2 +1,2 @@
 [patch.crates-io]
-terrane-method-router-witness = { path = "../../../fixtures/native-conformance/projected-method-router-callback/terrane-method-router-witness-0.1.0" }
+terrane-callable-recipe-witness = { path = "../../run/projected-callable-blanket-recipe/fixture-registry/terrane-callable-recipe-witness-0.1.0" }

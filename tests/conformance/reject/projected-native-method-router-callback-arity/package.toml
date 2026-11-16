@@ -3,5 +3,5 @@ package = "projected-native-method-router-callback-arity"
 [namespaces]
 app = "src"
 
-[rust-dependencies.terrane-method-router-witness]
-version = "0.1.0"
+[rust-dependencies.terrane-callable-recipe-witness]
+version = "=0.1.9"
