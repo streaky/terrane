@@ -3669,20 +3669,31 @@ impl Emitter<'_> {
                         )
                     }));
         let call = if let Some(method) = foreign_method {
-            let (dependency, member) = if callee.kind == SyntaxKind::Name {
-                let dependency = self
-                    .package
-                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
-                    .and_then(|symbol| symbol.namespace.strip_prefix("/deps/"))
-                    .and_then(|namespace| namespace.split('/').next())
-                    .unwrap_or("dependency")
-                    .to_owned();
+            let callable_head = callee.type_designator_head().unwrap_or(callee);
+            let (dependency, member) = if callable_head.kind == SyntaxKind::Name {
                 let member = method.native_path.clone().unwrap_or_else(|| {
                     method
                         .native_owner
                         .as_deref()
                         .map_or_else(|| name.clone(), |owner| format!("{owner}::{}", method.name))
                 });
+                let (crate_name, member) = crate::rust_ir::rust_callable_origin(&member)
+                    .unwrap_or_else(|| ("dependency".to_owned(), member));
+                let dependency = self
+                    .package
+                    .resolve_name_at(
+                        self.unit,
+                        callable_head.span.start,
+                        self.text(callable_head),
+                    )
+                    .and_then(|symbol| {
+                        self.package
+                            .projection
+                            .dependency_for_namespace(&symbol.namespace)
+                            .map(|dependency| dependency.package.as_str())
+                    })
+                    .or_else(|| self.package.projection.package_for_rust_crate(&crate_name))
+                    .map_or(crate_name, str::to_owned);
                 (dependency, member)
             } else {
                 let native_path = method.native_path.clone().unwrap_or_else(|| {
@@ -3690,7 +3701,7 @@ impl Emitter<'_> {
                         .native_owner
                         .clone()
                         .or_else(|| {
-                            self.projected_receiver_identity(&callee.children[0])
+                            self.projected_receiver_identity(&callable_head.children[0])
                                 .and_then(|identity| {
                                     self.package
                                         .projection
@@ -3701,19 +3712,25 @@ impl Emitter<'_> {
                         .unwrap_or_else(|| "dependency::ForeignType".to_owned());
                     format!("{owner}::{}", method.name)
                 });
-                crate::rust_ir::rust_callable_origin(&native_path).unwrap_or_else(|| {
-                    (
-                        native_path
-                            .split("::")
-                            .next()
-                            .unwrap_or("dependency")
-                            .trim()
-                            .to_owned(),
-                        native_path,
-                    )
-                })
+                let (crate_name, member) = crate::rust_ir::rust_callable_origin(&native_path)
+                    .unwrap_or_else(|| {
+                        (
+                            native_path
+                                .split("::")
+                                .next()
+                                .unwrap_or("dependency")
+                                .trim()
+                                .to_owned(),
+                            native_path,
+                        )
+                    });
+                let dependency = self
+                    .package
+                    .projection
+                    .package_for_rust_crate(&crate_name)
+                    .map_or(crate_name, str::to_owned);
+                (dependency, member)
             };
-            let member = crate::rust_ir::rust_type_constructor(&member).unwrap_or(member);
             let call = if method.is_unsafe {
                 format!("unsafe {{ {call} }}")
             } else {

@@ -366,6 +366,9 @@ fn discover_test_files(
     let mut entries = entries.filter_map(Result::ok).collect::<Vec<_>>();
     entries.sort_by_key(std::fs::DirEntry::path);
     for entry in entries {
+        if entry.file_name() == ".trn" {
+            continue;
+        }
         let path = entry.path();
         let file_type = match entry.file_type() {
             Ok(file_type) => file_type,

@@ -547,7 +547,7 @@ fn main() {
                     "projected `char` requires exactly one Unicode scalar", crate
                     ::TERRANE_NO_SITE))) ?)) })) { Ok(result) => result ?, Err(payload)
                     => return Err(crate ::__terrane_dependency_panic(payload,
-                    "terrane_recursive_descriptor_witness",
+                    "terrane-recursive-descriptor-witness",
                     "terrane_recursive_descriptor_witness::Count::char_value")) }; Ok:: <
                     _, crate ::TerraneForeignError >
                     (terrane_int_support::Int::from_u128(value as u128)) } } (),
@@ -600,7 +600,7 @@ fn main() {
                     ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
                     ::TERRANE_NO_SITE))) ?)) })) { Ok(result) => result ?, Err(payload)
                     => return Err(crate ::__terrane_dependency_panic(payload,
-                    "terrane_recursive_descriptor_witness",
+                    "terrane-recursive-descriptor-witness",
                     "terrane_recursive_descriptor_witness::Count::int_value")) }; Ok:: <
                     _, crate ::TerraneForeignError >
                     (terrane_int_support::Int::from(i128::from(value))) } } (),
@@ -655,7 +655,7 @@ fn main() {
                     ::TERRANE_NO_SITE))) ?) } (), 35 /* terrane-site: src/main.trn:71:41-71:45 */)); Box::pin(async move { { let value =
                     crate ::__terrane_dependency_await_unwind(__terrane_call). await
                     .map_err(| payload | crate ::__terrane_dependency_panic(payload,
-                    "terrane_recursive_descriptor_witness",
+                    "terrane-recursive-descriptor-witness",
                     "terrane_recursive_descriptor_witness::Count::async_char")) ?; Ok:: <
                     _, crate ::TerraneForeignError >
                     (terrane_int_support::Int::from_u128(value as u128)) } }) }; async
@@ -712,7 +712,7 @@ fn main() {
                     ::TERRANE_NO_SITE))) ?) } (), 37 /* terrane-site: src/main.trn:75:40-75:63 */)); Box::pin(async move { { let value =
                     crate ::__terrane_dependency_await_unwind(__terrane_call). await
                     .map_err(| payload | crate ::__terrane_dependency_panic(payload,
-                    "terrane_recursive_descriptor_witness",
+                    "terrane-recursive-descriptor-witness",
                     "terrane_recursive_descriptor_witness::Count::async_int")) ?; Ok:: <
                     _, crate ::TerraneForeignError >
                     (terrane_int_support::Int::from(i128::from(value))) } }) }; async

@@ -22,7 +22,7 @@ fn main() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&* observer).get()) })) { Ok(result)
                 => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_callable_send_witness",
+                ::__terrane_dependency_panic(payload, "terrane-callable-send-witness",
                 "terrane_callable_send_witness::Local::get")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 1 /* terrane-site: src/main.trn:7:17-7:30 */))
@@ -41,7 +41,7 @@ fn main() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&* observer).get()) })) { Ok(result)
                 => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_callable_send_witness",
+                ::__terrane_dependency_panic(payload, "terrane-callable-send-witness",
                 "terrane_callable_send_witness::Local::get")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 2 /* terrane-site: src/main.trn:10:17-10:30 */))
@@ -61,7 +61,7 @@ fn main() {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
                 crate ::TerraneForeignError > { Ok((&* observer).get()) })) { Ok(result)
                 => result ?, Err(payload) => return Err(crate
-                ::__terrane_dependency_panic(payload, "terrane_callable_send_witness",
+                ::__terrane_dependency_panic(payload, "terrane-callable-send-witness",
                 "terrane_callable_send_witness::Local::get")) }; Ok:: < _, crate
                 ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
                 u128)) } } (), 3 /* terrane-site: src/main.trn:14:17-14:30 */))

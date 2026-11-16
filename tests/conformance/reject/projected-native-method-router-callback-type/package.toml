@@ -1,0 +1,7 @@
+package = "projected-native-method-router-callback-type"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-callable-recipe-witness]
+version = "=0.1.9"

@@ -589,7 +589,7 @@ pub fn terrane_static_trn_4275696c646572_new<S>() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-cached-result-witness",
                     "witness::Builder<S>",
                 ),
             )
@@ -608,7 +608,7 @@ pub fn terrane_static_trn_44656661756c744f6e6c79_new() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-cached-result-witness",
                     "witness::DefaultOnly<T>",
                 ),
             )
@@ -624,7 +624,7 @@ pub fn bool_builder() -> Result<witness::Builder<bool>, crate::TerraneForeignErr
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-cached-result-witness",
                     "witness::bool_builder",
                 ),
             )
@@ -659,7 +659,7 @@ pub fn make_lane<S>(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-cached-result-witness",
                     "witness::make_lane",
                 ),
             )

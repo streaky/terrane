@@ -252,8 +252,9 @@ pub(super) fn project_callback_bounds(
             .iter()
             .map(|input| matches!(input, Type::BorrowedRef { .. }))
             .collect(),
-        result: Box::new(result),
+        admitted_shapes: Vec::new(),
         parameters_destination_selected: false,
+        result: Box::new(result),
         invocation_mode: kind,
         is_async,
         retained,
@@ -327,6 +328,16 @@ fn merge_destination_selected_callable_candidates(
     {
         return None;
     }
+    let mut admitted_shapes = Vec::new();
+    for (candidate, _, _) in candidates {
+        let ProjectedType::Callback { parameters, .. } = candidate else {
+            return None;
+        };
+        if !admitted_shapes.contains(parameters) {
+            admitted_shapes.push(parameters.clone());
+        }
+    }
+
     Some((
         ProjectedType::Callback {
             carrier: *carrier,
@@ -338,6 +349,7 @@ fn merge_destination_selected_callable_candidates(
             parameters: Vec::new(),
             parameter_borrows: Vec::new(),
             parameter_rust_types: Vec::new(),
+            admitted_shapes,
             parameters_destination_selected: true,
             result: result.clone(),
             invocation_mode: *invocation_mode,
@@ -747,13 +759,22 @@ pub(super) fn project_callable_adapter_bounds(
         if unsupported_shape && !has_callable_blanket(declaration, index, paths) {
             continue;
         }
-        let native_function = declaration.items.iter().find_map(|item_id| {
+        let mut required_functions = declaration.items.iter().filter_map(|item_id| {
             let item = index.get(item_id)?;
             let ItemEnum::Function(function) = &item.inner else {
                 return None;
             };
-            Some((item.name.clone()?, function))
+            (!function.has_body).then(|| (item.name.clone(), function))
         });
+        let native_function = required_functions
+            .next()
+            .and_then(|(name, function)| name.map(|name| (name, function)));
+        if required_functions.next().is_some() {
+            return Err(format!(
+                "generic input `{parameter_name}` uses unsupported callable trait `{}`: multiple required operations",
+                requested_trait.path
+            ));
+        }
         let (callback_known, terminal_defaults) = native_function
             .as_ref()
             .and_then(|(_, function)| function.sig.output.as_ref())
@@ -775,7 +796,13 @@ pub(super) fn project_callable_adapter_bounds(
                     requested_trait.path
                 ));
             }
-            continue;
+            // A raw callable entrypoint can use the native blanket without
+            // synthesizing its auxiliary methods, associated items or supertraits.
+            // Owning adapters still need the complete source-interface surface;
+            // methodless marker traits retain ordinary generic argument inference.
+            if owning_carrier || native_function.is_none() {
+                continue;
+            }
         }
         let native_method = native_function.as_ref().map(|(name, _)| name.clone());
         let native_result = native_function
@@ -980,6 +1007,7 @@ pub(super) fn project_callable_adapter_bounds(
                     } else {
                         vec![false; inputs.len()]
                     },
+                    admitted_shapes: Vec::new(),
                     parameters_destination_selected: false,
                     result: Box::new(result),
                     invocation_mode,

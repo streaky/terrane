@@ -39,7 +39,8 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                                             Result < _, crate ::TerraneForeignError > { Ok((&* state)
                                             .get_label()) })) { Ok(result) => result ?, Err(payload) =>
                                             return Err(crate ::__terrane_dependency_panic(payload,
-                                            "witness", "witness::State::get_label")) }; Ok:: < _, crate
+                                            "terrane-scoped-macro-witness",
+                                            "witness::State::get_label")) }; Ok:: < _, crate
                                             ::TerraneForeignError > (value.to_owned()) } } (),
                                             0 /* terrane-site: src/main.trn:9:134-9:150 */);
                                             __terrane_raised(| | -> Result < _, crate
@@ -48,11 +49,12 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                                             Result < _, crate ::TerraneForeignError > {
                                             Ok(witness::text(__terrane_conversion_input_0)) })) {
                                             Ok(result) => result ?, Err(payload) => return Err(crate
-                                            ::__terrane_dependency_panic(payload, "witness",
-                                            "witness::text")) }; Ok:: < _, crate ::TerraneForeignError >
-                                            (value) } } (), 1 /* terrane-site: src/main.trn:9:118-9:151 */) }), witness::row(children
-                                            .into_unique_vec().into_iter().map(Into::into).collect:: <
-                                            Vec < _ > > ())
+                                            ::__terrane_dependency_panic(payload,
+                                            "terrane-scoped-macro-witness", "witness::text")) }; Ok:: <
+                                            _, crate ::TerraneForeignError > (value) } } (),
+                                            1 /* terrane-site: src/main.trn:9:118-9:151 */) }),
+                                            witness::row(children.into_unique_vec().into_iter()
+                                            .map(Into::into).collect:: < Vec < _ > > ())
                                         ),
                                     )
                                 }),
@@ -62,7 +64,7 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
+                                            "terrane-scoped-macro-witness",
                                             "witness::column",
                                         ),
                                     );

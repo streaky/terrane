@@ -20,7 +20,7 @@ async fn socket_session(mut socket: WebSocket) {
                             ::__terrane_dependency_await_unwind(__terrane_call). await
                             .map_err(| payload | crate
                             ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
+                            "terrane-websocket-peer-witness",
                             "terrane_websocket_peer_witness::WebSocket::recv")) ? {
                             Ok(value) => Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
@@ -54,7 +54,7 @@ async fn socket_session(mut socket: WebSocket) {
                                 "Close".to_owned() }) })) { Ok(result) => result ?,
                                 Err(payload) => return Err(crate
                                 ::__terrane_dependency_panic(payload,
-                                "terrane_websocket_peer_witness",
+                                "terrane-websocket-peer-witness",
                                 "terrane_websocket_peer_witness::Message::variant-name")) };
                                 Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                 1 /* terrane-site: src/main.trn:11:23-11:44 */
@@ -77,7 +77,7 @@ async fn socket_session(mut socket: WebSocket) {
                                     .expect("semantic optional narrowing").into_text()) })) {
                                     Ok(result) => result ?, Err(payload) => return Err(crate
                                     ::__terrane_dependency_panic(payload,
-                                    "terrane_websocket_peer_witness",
+                                    "terrane-websocket-peer-witness",
                                     "terrane_websocket_peer_witness::Message::into_text")) } {
                                     Ok(value) => Ok(value), Err(error) => Err(crate
                                     ::TerraneForeignError(crate
@@ -104,7 +104,7 @@ async fn socket_session(mut socket: WebSocket) {
                                 Ok(terrane_websocket_peer_witness::Message::Close(__terrane_conversion_input_0))
                                 })) { Ok(result) => result ?, Err(payload) => return
                                 Err(crate ::__terrane_dependency_panic(payload,
-                                "terrane_websocket_peer_witness",
+                                "terrane-websocket-peer-witness",
                                 "terrane_websocket_peer_witness::Message::Close")) }; Ok:: <
                                 _, crate ::TerraneForeignError > (value) } } (),
                                 3 /* terrane-site: src/main.trn:16:34-16:54 */) });
@@ -112,7 +112,7 @@ async fn socket_session(mut socket: WebSocket) {
                                 ::__terrane_dependency_await_unwind(__terrane_call). await
                                 .map_err(| payload | crate
                                 ::__terrane_dependency_panic(payload,
-                                "terrane_websocket_peer_witness",
+                                "terrane-websocket-peer-witness",
                                 "terrane_websocket_peer_witness::WebSocket::send")) ? {
                                 Ok(value) => Ok(value), Err(error) => Err(crate
                                 ::TerraneForeignError(crate
@@ -140,7 +140,7 @@ async fn socket_session(mut socket: WebSocket) {
                             ::__terrane_dependency_await_unwind(__terrane_call). await
                             .map_err(| payload | crate
                             ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
+                            "terrane-websocket-peer-witness",
                             "terrane_websocket_peer_witness::WebSocket::send")) ? {
                             Ok(value) => Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
@@ -167,7 +167,7 @@ async fn socket_session(mut socket: WebSocket) {
                                     .expect("semantic optional narrowing").into_data()) })) {
                                     Ok(result) => result ?, Err(payload) => return Err(crate
                                     ::__terrane_dependency_panic(payload,
-                                    "terrane_websocket_peer_witness",
+                                    "terrane-websocket-peer-witness",
                                     "terrane_websocket_peer_witness::Message::into_data")) };
                                     Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                     9 /* terrane-site: src/main.trn:21:21-21:46 */
@@ -190,7 +190,7 @@ async fn socket_session(mut socket: WebSocket) {
                             Ok(terrane_websocket_peer_witness::Message::Binary(__terrane_conversion_input_0))
                             })) { Ok(result) => result ?, Err(payload) => return
                             Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
+                            "terrane-websocket-peer-witness",
                             "terrane_websocket_peer_witness::Message::Binary")) }; Ok:: <
                             _, crate ::TerraneForeignError > (value) } } (),
                             10 /* terrane-site: src/main.trn:23:32-23:61 */) });
@@ -198,7 +198,7 @@ async fn socket_session(mut socket: WebSocket) {
                             ::__terrane_dependency_await_unwind(__terrane_call). await
                             .map_err(| payload | crate
                             ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
+                            "terrane-websocket-peer-witness",
                             "terrane_websocket_peer_witness::WebSocket::send")) ? {
                             Ok(value) => Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
@@ -225,7 +225,7 @@ async fn socket_session(mut socket: WebSocket) {
                                     .expect("semantic optional narrowing").into_data()) })) {
                                     Ok(result) => result ?, Err(payload) => return Err(crate
                                     ::__terrane_dependency_panic(payload,
-                                    "terrane_websocket_peer_witness",
+                                    "terrane-websocket-peer-witness",
                                     "terrane_websocket_peer_witness::Message::into_data")) };
                                     Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                     13 /* terrane-site: src/main.trn:25:21-25:46 */
@@ -248,7 +248,7 @@ async fn socket_session(mut socket: WebSocket) {
                             Ok(terrane_websocket_peer_witness::Message::Pong(__terrane_conversion_input_0))
                             })) { Ok(result) => result ?, Err(payload) => return
                             Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
+                            "terrane-websocket-peer-witness",
                             "terrane_websocket_peer_witness::Message::Pong")) }; Ok:: <
                             _, crate ::TerraneForeignError > (value) } } (),
                             14 /* terrane-site: src/main.trn:27:32-27:59 */) });
@@ -256,7 +256,7 @@ async fn socket_session(mut socket: WebSocket) {
                             ::__terrane_dependency_await_unwind(__terrane_call). await
                             .map_err(| payload | crate
                             ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
+                            "terrane-websocket-peer-witness",
                             "terrane_websocket_peer_witness::WebSocket::send")) ? {
                             Ok(value) => Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
@@ -283,7 +283,7 @@ async fn socket_session(mut socket: WebSocket) {
                                     .expect("semantic optional narrowing").into_data()) })) {
                                     Ok(result) => result ?, Err(payload) => return Err(crate
                                     ::__terrane_dependency_panic(payload,
-                                    "terrane_websocket_peer_witness",
+                                    "terrane-websocket-peer-witness",
                                     "terrane_websocket_peer_witness::Message::into_data")) };
                                     Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                     17 /* terrane-site: src/main.trn:29:21-29:46 */

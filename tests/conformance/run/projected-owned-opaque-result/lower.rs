@@ -16,7 +16,7 @@ fn main() {
         ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
         ::TERRANE_NO_SITE))) ?)).value()) })) { Ok(result) => result ?, Err(payload) =>
         return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_opaque_result_witness",
+        "terrane-opaque-result-witness",
         "terrane_opaque_result_witness::Wrapper::value")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 0 /* terrane-site: src/main.trn:8:13-8:30 */))

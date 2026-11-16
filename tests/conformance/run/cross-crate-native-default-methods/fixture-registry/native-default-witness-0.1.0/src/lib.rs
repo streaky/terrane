@@ -1,5 +1,13 @@
 pub use native_default_provider::{MutableValue, NativeValue};
 
+pub fn panic_free() {
+    panic!("free function panic");
+}
+
+pub fn panic_generic<T>(_value: T) {
+    panic!("generic free function panic: {}", std::any::type_name::<T>());
+}
+
 pub struct Wrapped<T>(pub T);
 
 impl<T: From<u8>> NativeValue for Wrapped<T> {

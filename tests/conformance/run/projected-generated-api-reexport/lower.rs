@@ -29,7 +29,7 @@ fn vector_length(x: f32, y: f32) -> f32 {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_generated_api_facade",
+                                "terrane-generated-api-facade",
                                 "terrane_generated_api_facade::builtin::Vector2::length",
                             ),
                         );
@@ -56,7 +56,7 @@ fn generated_position(node: &Node2D) -> Vector2 {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_generated_api_facade",
+                                "terrane-generated-api-facade",
                                 "terrane_generated_api_facade::classes::Node2D::get_position",
                             ),
                         );
@@ -92,7 +92,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&position).length()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_generated_api_facade",
+        "terrane-generated-api-facade",
         "terrane_generated_api_facade::builtin::Vector2::length")) }; Ok:: < _, crate
         ::TerraneForeignError > (value) } } (), 4 /* terrane-site: src/main.trn:18:13-18:29 */))
     );

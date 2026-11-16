@@ -22,7 +22,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&facade_value).value()) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_reexport_facade_witness",
+        "terrane-reexport-facade-witness",
         "terrane_reexport_facade_witness::GeneratedValue::value")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
         (), 1 /* terrane-site: src/main.trn:12:13-12:32 */))

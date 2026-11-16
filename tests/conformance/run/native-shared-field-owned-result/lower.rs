@@ -28,7 +28,7 @@ fn go(w: std::sync::Arc<TerraneSharedCell<Wrapped>>) {
         .expect("shared reference lock poisoned").inner.as_mut()
         .expect("required field initialized").label_len()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 0 /* terrane-site: src/main.trn:12:13-12:31 */);
         __terrane_call_result })

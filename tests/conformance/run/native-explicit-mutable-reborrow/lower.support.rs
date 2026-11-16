@@ -786,7 +786,11 @@ pub fn terrane_static_trn_436f756e746572_new(
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::Counter"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-mutable-witness",
+                    "witness::Counter",
+                ),
             )
         }
     }
@@ -806,7 +810,7 @@ pub fn terrane_static_trn_4f706171756556616c7565_new(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-mutable-witness",
                     "witness::OpaqueValue",
                 ),
             )
@@ -822,7 +826,7 @@ pub async fn checksum(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-mutable-witness",
                     "witness::checksum",
                 ),
             )
@@ -838,7 +842,7 @@ pub fn optional_counter() -> Result<Option<Counter>, crate::TerraneForeignError>
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-mutable-witness",
                     "witness::optional_counter",
                 ),
             )
@@ -852,7 +856,13 @@ pub fn rows() -> Result<
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::rows())) {
         Ok(value) => Ok(terrane_collection_support::List::new(value)),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::rows"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-mutable-witness",
+                    "witness::rows",
+                ),
+            )
         }
     }
 }
@@ -876,7 +886,13 @@ pub fn sum(
     ) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::sum"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-mutable-witness",
+                    "witness::sum",
+                ),
+            )
         }
     }
 }

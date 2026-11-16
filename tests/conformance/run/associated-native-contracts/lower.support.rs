@@ -751,7 +751,7 @@ pub fn terrane_static_trn_4578656375746f72_new() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-associated-call",
                     "witness::Executor",
                 ),
             )
@@ -765,7 +765,13 @@ pub fn batch() -> Result<
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::batch())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::batch"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-associated-call",
+                    "witness::batch",
+                ),
+            )
         }
     }
 }
@@ -778,7 +784,7 @@ pub fn borrowed_output() -> Result<BorrowedOutput, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-associated-call",
                     "witness::borrowed_output",
                 ),
             )
@@ -796,7 +802,7 @@ pub fn child_count(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-associated-call",
                     "witness::child_count",
                 ),
             )
@@ -815,7 +821,7 @@ pub fn mapped_batch() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-associated-call",
                     "witness::mapped_batch",
                 ),
             )
@@ -826,7 +832,13 @@ pub fn marked() -> Result<Marked, crate::TerraneForeignError> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::marked())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::marked"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-associated-call",
+                    "witness::marked",
+                ),
+            )
         }
     }
 }
@@ -837,7 +849,13 @@ pub fn mode(present: bool) -> Result<Option<Mode>, crate::TerraneForeignError> {
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::mode"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-associated-call",
+                    "witness::mode",
+                ),
+            )
         }
     }
 }
@@ -853,7 +871,7 @@ pub fn set_batch() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-associated-call",
                     "witness::set_batch",
                 ),
             )
@@ -872,7 +890,7 @@ pub fn shared_executor() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-associated-call",
                     "witness::shared_executor",
                 ),
             )

@@ -17,7 +17,7 @@ fn consume_generic<TerraneType54>(value: Boxed<TerraneType54>) -> TerraneType54 
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-native-identity-witness",
                                 "witness::Boxed::into_value",
                             ),
                         );
@@ -54,7 +54,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-native-identity-witness",
                                     "witness::consume_native",
                                 ),
                             );

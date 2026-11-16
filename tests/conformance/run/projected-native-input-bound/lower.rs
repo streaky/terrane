@@ -39,7 +39,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_native_bound_witness",
+                                    "terrane-native-bound-witness",
                                     "terrane_native_bound_witness::Border::rounded",
                                 ),
                             );
@@ -68,7 +68,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_native_bound_witness",
+                                    "terrane-native-bound-witness",
                                     "terrane_native_bound_witness::Border::rounded",
                                 ),
                             );

@@ -23,7 +23,7 @@ fn check_attribution() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "panic_api",
+                                    "native-deref-panic-witness",
                                     "panic_api::Locks::locked",
                                 ),
                             );
@@ -43,9 +43,10 @@ fn check_attribution() {
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result <
                     _, crate ::TerraneForeignError > { Ok(< panic_api::Record >
                     ::value(&guard)) })) { Ok(result) => result ?, Err(payload) => return
-                    Err(crate ::__terrane_dependency_panic(payload, "panic_api",
-                    "panic_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError
-                    > (terrane_int_support::Int::from(i128::from(value))) } } (),
+                    Err(crate ::__terrane_dependency_panic(payload,
+                    "native-deref-panic-witness", "panic_api::Record::value")) }; Ok:: <
+                    _, crate ::TerraneForeignError >
+                    (terrane_int_support::Int::from(i128::from(value))) } } (),
                     2 /* terrane-site: src/main.trn:8:21-8:33 */))
                 );
                 TerraneCompletion::Normal

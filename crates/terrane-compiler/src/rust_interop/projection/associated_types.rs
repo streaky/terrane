@@ -302,6 +302,7 @@ fn normalize<'b>(
         )?,
         ProjectedType::Callback {
             parameters,
+            admitted_shapes,
             native_substitutions,
             result,
             ..
@@ -314,6 +315,17 @@ fn normalize<'b>(
                     active,
                     oracle,
                 )?;
+            }
+            for shape in admitted_shapes {
+                for parameter in shape {
+                    normalize(
+                        parameter,
+                        substitutions,
+                        implementations.clone(),
+                        active,
+                        oracle,
+                    )?;
+                }
             }
             for value in native_substitutions.values_mut() {
                 normalize(
@@ -520,15 +532,21 @@ fn substitute_type(
             } => apply(&mut binding.ty, substitutions, active)?,
             ProjectedType::Callback {
                 parameters,
+                admitted_shapes,
                 native_substitutions,
                 result,
                 ..
             } => {
-                for p in parameters {
-                    apply(p, substitutions, active)?;
+                for parameter in parameters {
+                    apply(parameter, substitutions, active)?;
                 }
-                for v in native_substitutions.values_mut() {
-                    apply(v, substitutions, active)?;
+                for shape in admitted_shapes {
+                    for parameter in shape {
+                        apply(parameter, substitutions, active)?;
+                    }
+                }
+                for value in native_substitutions.values_mut() {
+                    apply(value, substitutions, active)?;
                 }
                 apply(result, substitutions, active)?;
             }

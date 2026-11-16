@@ -17,7 +17,7 @@ fn present(value: witness::Opaque<String>) -> bool {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-opaque-native-witness",
                                     "witness::Opaque::into_value",
                                 ),
                             );
@@ -58,9 +58,9 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(flag.into_value()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Opaque::into_value")) }; Ok:: < _, crate ::TerraneForeignError >
-        (value) } } (), 4 /* terrane-site: src/main.trn:13:13-13:29 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-opaque-native-witness", "witness::Opaque::into_value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (value) } } (), 4 /* terrane-site: src/main.trn:13:13-13:29 */))
     );
     nested = __terrane_raised(
         make_nested(),
@@ -116,7 +116,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-opaque-native-witness",
                                 "witness::Opaque::into_value",
                             ),
                         );
@@ -132,9 +132,9 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(inner.into_value()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Opaque::into_value")) }; Ok:: < _, crate ::TerraneForeignError >
-        (value) } } (), 15 /* terrane-site: src/main.trn:24:13-24:30 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-opaque-native-witness", "witness::Opaque::into_value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (value) } } (), 15 /* terrane-site: src/main.trn:24:13-24:30 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -142,7 +142,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(defaulted.into_value()) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::Opaque::into_value")) }; Ok:: < _, crate
-        ::TerraneForeignError > (value) } } (), 16 /* terrane-site: src/main.trn:25:13-25:34 */))
+        "terrane-opaque-native-witness", "witness::Opaque::into_value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (value) } } (), 16 /* terrane-site: src/main.trn:25:13-25:34 */))
     );
 }

@@ -26,7 +26,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::ConnectionOptions::connect",
                                 ))?
                             {
@@ -106,7 +106,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_query_witness",
+                                        "terrane-query-witness",
                                         "terrane_query_witness::Query::bind",
                                     ),
                                 );
@@ -129,7 +129,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Query::execute",
                                 ))?
                             {
@@ -164,7 +164,7 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&result).rows_affected()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_query_witness",
+            ::__terrane_dependency_panic(payload, "terrane-query-witness",
             "terrane_query_witness::StoreResult::rows_affected")) }; Ok:: < _, crate
             ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128))
             } } (), 6 /* terrane-site: src/main.trn:11:11-11:32 */))
@@ -205,7 +205,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Query::fetch_one",
                                 ))?
                             {
@@ -254,7 +254,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_query_witness",
+                                "terrane-query-witness",
                                 "terrane_query_witness::Row::try_get",
                             ),
                         );
@@ -293,7 +293,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_query_witness",
+                                    "terrane-query-witness",
                                     "terrane_query_witness::Connection::close",
                                 ))?
                             {

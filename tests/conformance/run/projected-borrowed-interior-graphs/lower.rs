@@ -154,7 +154,7 @@ fn entry_value(entry: &Entry) -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-borrowed-interior-witness",
                                 "witness::Entry::value",
                             ),
                         );
@@ -240,7 +240,7 @@ fn request_view<'view>(
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-borrowed-interior-witness",
                                 "witness::make_view",
                             ),
                         );
@@ -269,7 +269,9 @@ impl TerraneNsAppRootAliasIdentity2F61707000726F6F742D616C696173 {
         }
     }
 }
-fn root_value(root: &mut witness::RootAlias) -> terrane_int_support::Int {
+fn root_value(
+    root: &mut witness::RootAlias<witness::Entry>,
+) -> terrane_int_support::Int {
     return __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
             {
@@ -284,7 +286,7 @@ fn root_value(root: &mut witness::RootAlias) -> terrane_int_support::Int {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-borrowed-interior-witness",
                                 "witness::Entry::value",
                             ),
                         );
@@ -369,7 +371,7 @@ fn default_http_status(
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "axum_core",
+                                                "axum-core",
                                                 "axum_core::response::Response::status",
                                             ),
                                         );
@@ -527,8 +529,8 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&request).extensions().entry().value()) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::Entry::value")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-borrowed-interior-witness",
+        "witness::Entry::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         13 /* terrane-site: src/main.trn:65:13-65:50 */))
     );
@@ -542,9 +544,9 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&request).headers().length()) })) { Ok(result) =>
         result ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::Header::length")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        15 /* terrane-site: src/main.trn:67:13-67:39 */))
+        "terrane-borrowed-interior-witness", "witness::Header::length")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 15 /* terrane-site: src/main.trn:67:13-67:39 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(clone_count(),
@@ -583,8 +585,8 @@ fn main() {
             crate ::TerraneForeignError > { Ok(match &selected { Some(value) => value, _
             => unreachable!("flow-proven storage refinement") } .value()) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Entry::value")) };
-            Ok:: < _, crate ::TerraneForeignError >
+            ::__terrane_dependency_panic(payload, "terrane-borrowed-interior-witness",
+            "witness::Entry::value")) }; Ok:: < _, crate ::TerraneForeignError >
             (terrane_int_support::Int::from(i128::from(value))) } } (),
             18 /* terrane-site: src/main.trn:71:17-71:32 */))
         );
@@ -753,7 +755,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-borrowed-interior-witness",
                                     "witness::Canvas::draw_circle",
                                 ),
                             );
@@ -794,7 +796,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "terrane-borrowed-interior-witness",
                                     "witness::Canvas::draw_circle",
                                 ),
                             );
@@ -811,10 +813,10 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&host).total()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Host::total")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        27 /* terrane-site: src/main.trn:87:13-87:24 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-borrowed-interior-witness", "witness::Host::total")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 27 /* terrane-site: src/main.trn:87:13-87:24 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
@@ -825,8 +827,8 @@ fn main() {
         __terrane_raised(terrane_static_trn_54657272616e654e73446570735769746e657373526571756573744964656e74697479324636343635373037333246373736393734364536353733373330303532363537313735363537333734_new(__terrane_conversion_input_0),
         28 /* terrane-site: src/main.trn:88:16-88:32 */) }).extensions().entry()
         .value()) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::Entry::value")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-borrowed-interior-witness",
+        "witness::Entry::value")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (),
         29 /* terrane-site: src/main.trn:88:13-88:61 */))
     );

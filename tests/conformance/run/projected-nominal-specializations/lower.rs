@@ -30,7 +30,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_point_witness",
+                                "terrane-point-witness",
                                 "terrane_point_witness::Point::snap",
                             ),
                         );
@@ -47,7 +47,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&snapped).total()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_point_witness", "terrane_point_witness::Point::total")) }; Ok:: < _,
+        "terrane-point-witness", "terrane_point_witness::Point::total")) }; Ok:: < _,
         crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 2 /* terrane-site: src/main.trn:8:13-8:27 */))
     );

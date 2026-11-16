@@ -39,7 +39,7 @@ fn main() {
         ::TerraneForeignError > { Ok(__terrane_owner_1.lock()
         .expect("shared reference lock poisoned").label_len()) })) { Ok(result) => result
         ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
         u128)) } } (), 2 /* terrane-site: src/main.trn:14:13-14:29 */);
         __terrane_call_result })

@@ -35,7 +35,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_static_witness",
+                                        "terrane-static-witness",
                                         "terrane_static_witness::GenericFactory::open",
                                     ),
                                 );

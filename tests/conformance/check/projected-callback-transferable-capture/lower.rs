@@ -43,7 +43,7 @@ fn main() {
                                         return Err(
                                             crate::__terrane_dependency_panic(
                                                 payload,
-                                                "terrane_callback_witness",
+                                                "terrane-callback-witness",
                                                 "terrane_callback_witness::Marker::value",
                                             ),
                                         );

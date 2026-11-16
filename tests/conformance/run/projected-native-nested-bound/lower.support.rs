@@ -538,7 +538,13 @@ pub fn nested() -> Result<
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| witness::nested())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::nested"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-nested-bound-witness",
+                    "witness::nested",
+                ),
+            )
         }
     }
 }
@@ -550,7 +556,13 @@ pub fn read(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::read"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-nested-bound-witness",
+                    "witness::read",
+                ),
+            )
         }
     }
 }

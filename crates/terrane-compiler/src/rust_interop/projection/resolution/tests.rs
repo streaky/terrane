@@ -260,3 +260,107 @@ fn member_cache_replays() {
     assert_eq!(cache["content_hash"], first_hash);
     fs::remove_dir_all(root).unwrap();
 }
+
+fn publication_fixture(root: &std::path::Path) {
+    for (name, manifest, source) in [
+        (
+            "replay-owner",
+            "[package]\nname = \"replay-owner\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+            "pub struct Value;\n",
+        ),
+        (
+            "replay-witness",
+            "[package]\nname = \"replay-witness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nreplay-owner = \"=0.1.0\"\n",
+            "pub trait Extra { fn zeta(&self) -> i64 { 2 } fn alpha(&self) -> i64 { 1 } }\nimpl Extra for replay_owner::Value {}\n",
+        ),
+    ] {
+        let crate_root = root.join("fixture-registry").join(format!("{name}-0.1.0"));
+        fs::create_dir_all(crate_root.join("src")).unwrap();
+        fs::write(crate_root.join("Cargo.toml"), manifest).unwrap();
+        fs::write(crate_root.join("src/lib.rs"), source).unwrap();
+    }
+    fs::create_dir_all(root.join(".cargo")).unwrap();
+    fs::write(
+        root.join(".cargo/config.toml"),
+        "[patch.crates-io]\nreplay-owner = { path = \"fixture-registry/replay-owner-0.1.0\" }\nreplay-witness = { path = \"fixture-registry/replay-witness-0.1.0\" }\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join(DEPENDENCY_LOCK_FILE),
+        "version = 4\n\n[[package]]\nname = \"replay-owner\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"replay-witness\"\nversion = \"0.1.0\"\ndependencies = [\n \"replay-owner\",\n]\n",
+    )
+    .unwrap();
+}
+
+#[test]
+fn publication_replays() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/projection-publication-regression")
+        .join(std::process::id().to_string());
+    publication_fixture(&root);
+    let mut owner = dependency("replay-owner", "replay-owner", &[]);
+    owner.version = "=0.1.0".to_owned();
+    let mut witness = dependency("replay-witness", "replay-witness", &[]);
+    witness.version = "=0.1.0".to_owned();
+    let dependencies = [owner, witness];
+    let assert_recovered = |projection: &Projection| {
+        let value = projection
+            .dependencies
+            .iter()
+            .find(|dependency| dependency.name == "replay-owner")
+            .unwrap()
+            .items
+            .iter()
+            .find(|item| item.name == "Value")
+            .unwrap();
+        let ProjectedKind::ForeignType { methods, .. } = &value.kind else {
+            panic!("expected projected replay owner");
+        };
+        assert_eq!(
+            methods
+                .iter()
+                .filter(|method| matches!(method.name.as_str(), "alpha" | "zeta"))
+                .map(|method| method.name.as_str())
+                .collect::<Vec<_>>(),
+            ["alpha", "zeta"]
+        );
+    };
+    let first = resolve(&root, &dependencies, None).unwrap();
+    assert_recovered(&first);
+    let published_path = root.join(".trn/dependencies/projection.json");
+    let read_published =
+        || serde_json::from_slice::<Projection>(&fs::read(&published_path).unwrap()).unwrap();
+    let mut published = read_published();
+    assert_recovered(&published);
+    assert_eq!(published.content_hash, first.content_hash);
+    published.cache_identity = "stale-publication-identity".to_owned();
+    fs::write(&published_path, serde_json::to_vec(&published).unwrap()).unwrap();
+    let rebuilt = resolve(&root, &dependencies, None).unwrap();
+    assert_eq!(rebuilt.resolution.outcome, ResolutionOutcome::LocalRustdoc);
+    assert_recovered(&rebuilt);
+    let republished = read_published();
+    assert_recovered(&republished);
+    assert_eq!(republished.content_hash, first.content_hash);
+    let mut changed = rebuilt.clone();
+    let method = changed
+        .dependencies
+        .iter_mut()
+        .find(|dependency| dependency.name == "replay-owner")
+        .unwrap()
+        .items
+        .iter_mut()
+        .find(|item| item.name == "Value")
+        .and_then(|item| match &mut item.kind {
+            ProjectedKind::ForeignType { methods, .. } => {
+                methods.iter_mut().find(|method| method.name == "alpha")
+            }
+            _ => None,
+        })
+        .unwrap();
+    method.result = ProjectedType::Bool;
+    assert_ne!(
+        projection_content_hash(&rebuilt).unwrap(),
+        projection_content_hash(&changed).unwrap()
+    );
+    fs::remove_dir_all(root).unwrap();
+}

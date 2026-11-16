@@ -17,8 +17,8 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< provider::Value as contract::Doubled >
         ::doubled(&value)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "provider", "provider::Value::doubled")) };
-        Ok:: < _, crate ::TerraneForeignError >
+        ::__terrane_dependency_panic(payload, "terrane-foreign-owner-value",
+        "provider::Value::doubled")) }; Ok:: < _, crate ::TerraneForeignError >
         (terrane_int_support::Int::from(i128::from(value))) } } (), 1 /* terrane-site: src/main.trn:7:13-7:27 */))
     );
     println!(
@@ -28,8 +28,9 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(< provider::Value as contract::Doubled >
         ::doubled(__terrane_native_input_0)) })) { Ok(result) => result ?, Err(payload)
-        => return Err(crate ::__terrane_dependency_panic(payload, "provider",
-        "provider::Value::doubled")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (), 2 /* terrane-site: src/main.trn:8:13-8:35 */) })
+        => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-foreign-owner-value", "provider::Value::doubled")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 2 /* terrane-site: src/main.trn:8:13-8:35 */) })
     );
 }

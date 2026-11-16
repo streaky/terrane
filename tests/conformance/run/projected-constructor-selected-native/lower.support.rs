@@ -590,7 +590,7 @@ pub fn address_port(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-constructor-selected-witness",
                     "witness::address_port",
                 ),
             )
@@ -608,7 +608,7 @@ pub fn frame_port(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-constructor-selected-witness",
                     "witness::frame_port",
                 ),
             )
@@ -627,7 +627,7 @@ pub fn into_address(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-constructor-selected-witness",
                     "witness::into_address",
                 ),
             )
@@ -645,7 +645,7 @@ pub fn maybe_port(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-constructor-selected-witness",
                     "witness::maybe_port",
                 ),
             )
@@ -663,7 +663,7 @@ pub fn pair_summary(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-constructor-selected-witness",
                     "witness::pair_summary",
                 ),
             )
@@ -681,7 +681,7 @@ pub fn printable_text(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-constructor-selected-witness",
                     "witness::printable_text",
                 ),
             )
@@ -699,7 +699,7 @@ pub fn text_length(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-constructor-selected-witness",
                     "witness::text_length",
                 ),
             )

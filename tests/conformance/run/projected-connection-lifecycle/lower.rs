@@ -32,7 +32,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_lifecycle_witness",
+                                        "terrane-lifecycle-witness",
                                         "terrane_lifecycle_witness::ConnectionOptions::filename",
                                     ),
                                 );
@@ -65,7 +65,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_lifecycle_witness",
+                                        "terrane-lifecycle-witness",
                                         "terrane_lifecycle_witness::ConnectionOptions::create_if_missing",
                                     ),
                                 );
@@ -87,7 +87,7 @@ fn main() {
                             crate ::__terrane_dependency_await_unwind(__terrane_call).
                             await .map_err(| payload | crate
                             ::__terrane_dependency_panic(payload,
-                            "terrane_lifecycle_witness",
+                            "terrane-lifecycle-witness",
                             "terrane_lifecycle_witness::ConnectionOptions::connect")) ? {
                             Ok(value) => Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
@@ -105,7 +105,7 @@ fn main() {
                     Box::pin(async move { match crate
                     ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(|
                     payload | crate ::__terrane_dependency_panic(payload,
-                    "terrane_lifecycle_witness",
+                    "terrane-lifecycle-witness",
                     "terrane_lifecycle_witness::Connection::close")) ? { Ok(value) =>
                     Ok(value), Err(error) => Err(crate ::TerraneForeignError(crate
                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
@@ -169,7 +169,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_lifecycle_witness",
+                                        "terrane-lifecycle-witness",
                                         "terrane_lifecycle_witness::ConnectionOptions::filename",
                                     ),
                                 );
@@ -202,7 +202,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_lifecycle_witness",
+                                        "terrane-lifecycle-witness",
                                         "terrane_lifecycle_witness::ConnectionOptions::create_if_missing",
                                     ),
                                 );
@@ -225,7 +225,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_lifecycle_witness",
+                                    "terrane-lifecycle-witness",
                                     "terrane_lifecycle_witness::ConnectionOptions::connect",
                                 ))?
                             {
@@ -265,7 +265,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_lifecycle_witness",
+                                    "terrane-lifecycle-witness",
                                     "terrane_lifecycle_witness::Connection::close",
                                 ))?
                             {

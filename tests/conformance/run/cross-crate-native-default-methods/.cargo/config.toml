@@ -1,3 +1,4 @@
 [patch.crates-io]
 native-default-witness = { path = "fixture-registry/native-default-witness-0.1.0" }
 native-default-provider = { path = "fixture-registry/native-default-provider-0.1.0" }
+custom-lib-panic-witness = { path = "fixture-registry/custom-lib-panic-witness-0.1.0" }

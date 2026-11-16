@@ -10,3 +10,6 @@ version = "=0.1.0"
 [rust-dependencies.provider]
 package = "native-default-provider"
 version = "=0.1.0"
+
+[rust-dependencies.custom-lib-panic-witness]
+version = "=0.1.0"

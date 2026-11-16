@@ -571,7 +571,7 @@ pub fn terrane_static_trn_4e756d626572_from_u128(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "serde-json",
+                    "serde_json",
                     "serde_json::Number",
                 ),
             )

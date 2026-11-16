@@ -26,8 +26,9 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&token).contains(&* borrowed_other)) })) {
         Ok(result) => result ?, Err(payload) => return Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::Token::contains")) };
-        Ok:: < _, crate ::TerraneForeignError > (value) } } (), 2 /* terrane-site: src/main.trn:9:13-9:43 */))
+        ::__terrane_dependency_panic(payload, "terrane-concrete-selection-witness",
+        "witness::Token::contains")) }; Ok:: < _, crate ::TerraneForeignError > (value) }
+        } (), 2 /* terrane-site: src/main.trn:9:13-9:43 */))
     );
     owned = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -43,7 +44,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-concrete-selection-witness",
                                 "witness::OwnedToken::Good",
                             ),
                         );
@@ -60,9 +61,9 @@ fn main() {
         value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result
         < _, crate ::TerraneForeignError > { Ok((&token)
         .contains(__terrane_conversion_input_0)) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Token::contains")) }; Ok:: < _, crate ::TerraneForeignError > (value) }
-        } (), 4 /* terrane-site: src/main.trn:11:13-11:34 */) })
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-concrete-selection-witness", "witness::Token::contains")) }; Ok:: < _,
+        crate ::TerraneForeignError > (value) } } (), 4 /* terrane-site: src/main.trn:11:13-11:34 */) })
     );
     response = __terrane_raised(
         terrane_static_trn_546f6b656e_create(),
@@ -73,9 +74,10 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&response).value()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Response::value")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (), 6 /* terrane-site: src/main.trn:14:13-14:28 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-concrete-selection-witness", "witness::Response::value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 6 /* terrane-site: src/main.trn:14:13-14:28 */))
     );
     token = __terrane_raised(
         terrane_static_trn_546f6b656e_from_str("good"),
@@ -101,7 +103,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-concrete-selection-witness",
                                 "witness::Token::into_response",
                             ),
                         );
@@ -117,9 +119,10 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&response).value()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Response::value")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (), 9 /* terrane-site: src/main.trn:18:13-18:28 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-concrete-selection-witness", "witness::Response::value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 9 /* terrane-site: src/main.trn:18:13-18:28 */))
     );
     token = __terrane_raised(
         terrane_static_trn_546f6b656e_from_str("good"),
@@ -145,7 +148,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-concrete-selection-witness",
                                 "witness::Token::into",
                             ),
                         );
@@ -161,10 +164,10 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&element).value()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Element::value")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        12 /* terrane-site: src/main.trn:22:13-22:27 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-concrete-selection-witness", "witness::Element::value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 12 /* terrane-site: src/main.trn:22:13-22:27 */))
     );
     basket = __terrane_raised(
         terrane_static_trn_4261736b6574_new(),
@@ -175,10 +178,10 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&basket).len()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Basket::len")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        14 /* terrane-site: src/main.trn:25:13-25:24 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-concrete-selection-witness", "witness::Basket::len")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 14 /* terrane-site: src/main.trn:25:13-25:24 */))
     );
     selected = __terrane_raised(
         || -> Result<_, crate::TerraneForeignError> {
@@ -194,7 +197,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
+                                "terrane-concrete-selection-witness",
                                 "witness::destination",
                             ),
                         );
@@ -210,9 +213,9 @@ fn main() {
         crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&selected).value()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Selected::value")) }; Ok:: < _, crate ::TerraneForeignError >
-        (terrane_int_support::Int::from(i128::from(value))) } } (),
-        16 /* terrane-site: src/main.trn:28:13-28:28 */))
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-concrete-selection-witness", "witness::Selected::value")) }; Ok:: < _,
+        crate ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value)))
+        } } (), 16 /* terrane-site: src/main.trn:28:13-28:28 */))
     );
 }

@@ -1114,7 +1114,13 @@ pub fn terrane_static_trn_5265636f7264_inspect(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Record"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-read-witness",
+                    "witness::Record",
+                ),
+            )
         }
     }
 }
@@ -1127,7 +1133,13 @@ pub fn terrane_static_trn_5265636f7264_new() -> Result<
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Record"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-read-witness",
+                    "witness::Record",
+                ),
+            )
         }
     }
 }
@@ -1139,7 +1151,7 @@ pub async fn echo_after_yield(text: &str) -> Result<String, crate::TerraneForeig
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::echo_after_yield",
                 ),
             )
@@ -1160,7 +1172,7 @@ pub fn join_four(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::join_four",
                 ),
             )
@@ -1176,7 +1188,7 @@ pub fn join_text(left: &str, right: &str) -> Result<String, crate::TerraneForeig
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::join_text",
                 ),
             )
@@ -1193,7 +1205,7 @@ pub fn owned_text(text: String) -> Result<String, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::owned_text",
                 ),
             )
@@ -1213,7 +1225,7 @@ pub async fn read_sequence_after_yield(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::read_sequence_after_yield",
                 ),
             )
@@ -1234,7 +1246,7 @@ pub async fn same_after_yield(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::same_after_yield",
                 ),
             )
@@ -1253,7 +1265,7 @@ pub fn same_bytes(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::same_bytes",
                 ),
             )
@@ -1272,7 +1284,7 @@ pub fn same_sequence(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::same_sequence",
                 ),
             )
@@ -1291,7 +1303,7 @@ pub fn same_string(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::same_string",
                 ),
             )
@@ -1307,7 +1319,7 @@ pub fn same_text(left: &str, right: &str) -> Result<bool, crate::TerraneForeignE
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::same_text",
                 ),
             )
@@ -1325,7 +1337,7 @@ pub fn sequence_address(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::sequence_address",
                 ),
             )
@@ -1341,7 +1353,7 @@ pub fn take_text(record: &mut Record) -> Result<String, crate::TerraneForeignErr
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::take_text",
                 ),
             )
@@ -1357,7 +1369,7 @@ pub fn update_record(record: &mut Record) -> Result<(), crate::TerraneForeignErr
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-read-witness",
                     "witness::update_record",
                 ),
             )

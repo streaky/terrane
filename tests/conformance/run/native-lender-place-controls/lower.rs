@@ -54,7 +54,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&q).size()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_query_witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
+        "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 1 /* terrane-site: src/main.trn:14:13-14:20 */)), String::from(" "),
         terrane_scalar_support::scalar_text(&cfg.other)

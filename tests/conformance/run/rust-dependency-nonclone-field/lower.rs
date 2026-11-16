@@ -34,7 +34,7 @@ impl Holder {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_nonclone_witness",
+                                    "terrane-nonclone-witness",
                                     "terrane_nonclone_witness::NonClone::value",
                                 ),
                             );

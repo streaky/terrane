@@ -31,7 +31,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok((&left).value()) })) { Ok(result) => result ?,
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane_member_graph_witness",
+        "terrane-member-graph-witness",
         "terrane_member_graph_witness::left::Left::value")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
         (), 2 /* terrane-site: src/main.trn:15:11-15:22 */))

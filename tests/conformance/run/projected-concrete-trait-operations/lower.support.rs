@@ -574,7 +574,13 @@ pub fn terrane_static_trn_4261736b6574_new() -> Result<
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Basket"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-concrete-selection-witness",
+                    "witness::Basket",
+                ),
+            )
         }
     }
 }
@@ -587,7 +593,13 @@ pub fn terrane_static_trn_546f6b656e_create() -> Result<
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Token"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-concrete-selection-witness",
+                    "witness::Token",
+                ),
+            )
         }
     }
 }
@@ -607,7 +619,7 @@ pub fn terrane_static_trn_546f6b656e_from_str(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
                             "Rust dependency `{}` member `{}` failed: {error}",
-                            "witness", "witness::Token"
+                            "terrane-concrete-selection-witness", "witness::Token"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),
@@ -615,7 +627,13 @@ pub fn terrane_static_trn_546f6b656e_from_str(
             )
         }
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::Token"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-concrete-selection-witness",
+                    "witness::Token",
+                ),
+            )
         }
     }
 }
@@ -631,7 +649,7 @@ pub fn destination<T: core::default::Default>() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-concrete-selection-witness",
                     "witness::destination",
                 ),
             )

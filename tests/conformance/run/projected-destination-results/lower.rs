@@ -31,7 +31,7 @@ impl Record {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_generic_row_witness",
+                                        "terrane-generic-row-witness",
                                         "terrane_generic_row_witness::Row::decoded",
                                     ),
                                 );
@@ -63,7 +63,7 @@ fn decoded_value() -> String {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_generic_row_witness",
+                                "terrane-generic-row-witness",
                                 "terrane_generic_row_witness::Row::decoded",
                             ),
                         );
@@ -90,7 +90,7 @@ fn make_number() -> i64 {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::default_value",
                             ),
                         );
@@ -133,7 +133,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::sample_value",
                             ),
                         );
@@ -158,7 +158,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::sample_value",
                             ),
                         );
@@ -183,7 +183,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::sample_value",
                             ),
                         );
@@ -217,7 +217,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::sample_value",
                             ),
                         );
@@ -257,7 +257,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::sample_value",
                             ),
                         );
@@ -289,7 +289,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::sample_rows",
                             ),
                         );
@@ -327,7 +327,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::sample_numeric_rows",
                             ),
                         );
@@ -365,7 +365,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "factory",
+                                "terrane-generic-factory-witness",
                                 "factory::renamed_bound_value",
                             ),
                         );
@@ -392,7 +392,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_generic_row_witness",
+                                    "terrane-generic-row-witness",
                                     "terrane_generic_row_witness::Row::decoded",
                                 ),
                             );

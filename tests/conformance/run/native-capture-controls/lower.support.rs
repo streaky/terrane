@@ -850,7 +850,11 @@ pub fn terrane_static_trn_436f756e746572_new(
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::Counter"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "native-mutable-witness",
+                    "witness::Counter",
+                ),
             )
         }
     }
@@ -870,7 +874,7 @@ pub fn terrane_static_trn_4f706171756556616c7565_new(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-mutable-witness",
                     "witness::OpaqueValue",
                 ),
             )
@@ -886,7 +890,7 @@ pub async fn checksum(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "native-mutable-witness",
                     "witness::checksum",
                 ),
             )

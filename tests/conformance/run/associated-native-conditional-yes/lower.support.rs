@@ -535,7 +535,11 @@ pub fn allowed() -> Result<Allowed, crate::TerraneForeignError> {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "witness", "witness::allowed"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-conditional-response",
+                    "witness::allowed",
+                ),
             )
         }
     }

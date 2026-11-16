@@ -17,6 +17,7 @@ pub trait NativeValue {
 
 pub type NativeFailure = Box<dyn std::error::Error + Send + Sync>;
 
+
 pub trait MutableValue {
     fn update(&mut self, amount: u8) -> Result<u8, NativeFailure>;
 }

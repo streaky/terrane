@@ -1,6 +1,8 @@
 namespace app
 
 from /deps/terrane-callable-recipe-witness import accept, accepts_handler as accepts-handler, blank, compose, install, invoke, mutate, render, run_correlated as run-correlated, transform
+from /deps/terrane-callable-recipe-witness import MethodRouter
+from /deps/terrane-callable-recipe-witness import registered, registration_value as registration-value, registration_value_with_state as registration-value-with-state
 
 function produce int;
     return 42
@@ -10,6 +12,12 @@ function length int; value string
 
 async function produce-async int;
     return 42
+
+async function produce-async-one-argument int; value int
+    return value + 1
+
+async function produce-async-output int;
+    return 300
 
 function initial string;
     return 'value'
@@ -29,7 +37,7 @@ function one-argument int; value int
 function view-value int; state ref int
     return state + 0
 
-function main;
+async function main;
     print; (invoke; produce)
     print; (transform; 'one', length)
     print; (mutate; 'two', length)
@@ -40,3 +48,11 @@ function main;
     print; (accepts-handler; one-argument)
     print; (render; 4, view-value)
     print; (accept; (blank;))
+    router MethodRouter = MethodRouter::new;
+    print; (await router.dispatch; produce-async)
+    router MethodRouter = MethodRouter::new;
+    print; (await router.dispatch; produce-async-output)
+    router MethodRouter = MethodRouter::new;
+    print; (await router.dispatch; produce-async-one-argument)
+    print; (registration-value; (await registered; produce-async-one-argument))
+    print; (registration-value-with-state; (await registered; produce-async-one-argument))

@@ -1,0 +1,9 @@
+namespace app
+from /deps/witness import Choice, score
+
+class SourcePayload
+    value int
+
+function main;
+    chosen Choice of SourcePayload = instance Choice::Empty;
+    print; (score; chosen)

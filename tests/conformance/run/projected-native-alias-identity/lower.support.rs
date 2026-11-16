@@ -599,7 +599,11 @@ pub fn terrane_static_trn_5075626c696356616c7565_new(
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
-                crate::__terrane_dependency_panic(payload, "owner", "owner::PublicValue"),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-alias-owner",
+                    "owner::PublicValue",
+                ),
             )
         }
     }
@@ -610,7 +614,13 @@ pub fn make_owner() -> Result<owner::Holder<u8>, crate::TerraneForeignError> {
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "owner", "owner::make_owner"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-alias-owner",
+                    "owner::make_owner",
+                ),
+            )
         }
     }
 }
@@ -623,7 +633,13 @@ pub fn owner_byte(
     ) {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "owner", "owner::owner_byte"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-alias-owner",
+                    "owner::owner_byte",
+                ),
+            )
         }
     }
 }
@@ -642,7 +658,13 @@ pub fn make_default() -> Result<owner::Holder<u8>, crate::TerraneForeignError> {
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "api", "api::make_default"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-alias-facade",
+                    "api::make_default",
+                ),
+            )
         }
     }
 }
@@ -650,7 +672,13 @@ pub fn make_string() -> Result<owner::Holder<String>, crate::TerraneForeignError
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| api::make_string())) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "api", "api::make_string"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-alias-facade",
+                    "api::make_string",
+                ),
+            )
         }
     }
 }
@@ -666,7 +694,7 @@ pub fn make_string_default() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "api",
+                    "terrane-native-alias-facade",
                     "api::make_string_default",
                 ),
             )
@@ -682,7 +710,13 @@ pub fn take_byte(
     ) {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "api", "api::take_byte"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-alias-facade",
+                    "api::take_byte",
+                ),
+            )
         }
     }
 }
@@ -695,7 +729,13 @@ pub fn take_text(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "api", "api::take_text"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-native-alias-facade",
+                    "api::take_text",
+                ),
+            )
         }
     }
 }

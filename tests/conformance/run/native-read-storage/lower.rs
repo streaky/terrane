@@ -426,9 +426,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(witness::same_generic(&text, &text)) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::same_generic")) };
-            Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            32 /* terrane-site: src/main.trn:51:13-51:37 */))
+            ::__terrane_dependency_panic(payload, "native-read-witness",
+            "witness::same_generic")) }; Ok:: < _, crate ::TerraneForeignError > (value)
+            } } (), 32 /* terrane-site: src/main.trn:51:13-51:37 */))
         );
         native = __terrane_raised(
             terrane_static_trn_5265636f7264_new(),
@@ -444,9 +444,9 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok((&native).same(&native.text)) })) {
             Ok(result) => result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Record::same")) };
-            Ok:: < _, crate ::TerraneForeignError > (value) } } (),
-            35 /* terrane-site: src/main.trn:54:13-54:37 */))
+            ::__terrane_dependency_panic(payload, "native-read-witness",
+            "witness::Record::same")) }; Ok:: < _, crate ::TerraneForeignError > (value)
+            } } (), 35 /* terrane-site: src/main.trn:54:13-54:37 */))
         );
         println!(
             "{}",
@@ -477,7 +477,7 @@ fn main() {
                             return Err(
                                 crate::__terrane_dependency_panic(
                                     payload,
-                                    "witness",
+                                    "native-read-witness",
                                     "witness::Record::update",
                                 ),
                             );
@@ -731,7 +731,7 @@ fn main() {
             let __terrane_future = { let __terrane_call = (&native)
             .echo_after_yield(&method_input); Box::pin(async move { { let value = crate
             ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(| payload
-            | crate ::__terrane_dependency_panic(payload, "witness",
+            | crate ::__terrane_dependency_panic(payload, "native-read-witness",
             "witness::Record::echo_after_yield")) ?; Ok:: < _, crate
             ::TerraneForeignError > (value) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 60 /* terrane-site: src/main.trn:111:18-111:55 */) } }). await, 60 /* terrane-site: src/main.trn:111:18-111:55 */))
@@ -747,11 +747,10 @@ fn main() {
             __terrane_future = { let __terrane_call = __terrane_native_future_receiver
             .echo_after_yield(&__terrane_native_value_0); Box::pin(async move { { let
             value = crate ::__terrane_dependency_await_unwind(__terrane_call). await
-            .map_err(| payload | crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::Record::echo_after_yield")) ?; Ok:: < _, crate
-            ::TerraneForeignError > (value) } }) }; __terrane_raised_err(__terrane_future
-            . await, 61 /* terrane-site: src/main.trn:115:18-115:54 */) } }). await,
-            61 /* terrane-site: src/main.trn:115:18-115:54 */))
+            .map_err(| payload | crate ::__terrane_dependency_panic(payload,
+            "native-read-witness", "witness::Record::echo_after_yield")) ?; Ok:: < _,
+            crate ::TerraneForeignError > (value) } }) };
+            __terrane_raised_err(__terrane_future. await, 61 /* terrane-site: src/main.trn:115:18-115:54 */) } }). await, 61 /* terrane-site: src/main.trn:115:18-115:54 */))
         );
         println!("{}", terrane_scalar_support::scalar_text(&native.text));
         println!(

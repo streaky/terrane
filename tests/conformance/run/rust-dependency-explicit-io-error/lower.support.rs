@@ -565,7 +565,7 @@ pub fn fail() -> Result<(), crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "io-witness",
+                    "terrane-explicit-io-witness",
                     "io_witness::fail",
                 ),
             )
@@ -582,7 +582,7 @@ pub fn is_occupied(kind: ErrorKind) -> Result<bool, crate::TerraneForeignError> 
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "io-witness",
+                    "terrane-explicit-io-witness",
                     "io_witness::is_occupied",
                 ),
             )
@@ -598,7 +598,7 @@ pub fn make_error() -> Result<Error, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "io-witness",
+                    "terrane-explicit-io-witness",
                     "io_witness::make_error",
                 ),
             )

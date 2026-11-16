@@ -91,7 +91,7 @@ fn main() {
                                                 return Err(
                                                     crate::__terrane_dependency_panic(
                                                         payload,
-                                                        "terrane_chain_witness",
+                                                        "terrane-chain-witness",
                                                         "terrane_chain_witness::ScalarLookup::bind",
                                                     ),
                                                 );
@@ -111,7 +111,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_chain_witness",
+                                    "terrane-chain-witness",
                                     "terrane_chain_witness::ScalarLookup::fetch_one",
                                 ))?
                             {
@@ -197,7 +197,7 @@ fn main() {
                                     return Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "terrane_chain_witness",
+                                            "terrane-chain-witness",
                                             "terrane_chain_witness::LineBuilder::number",
                                         ),
                                     );
@@ -223,7 +223,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_chain_witness",
+                                        "terrane-chain-witness",
                                         "terrane_chain_witness::LineBuilder::finish",
                                     ),
                                 );
@@ -291,7 +291,7 @@ fn main() {
                                 return Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_chain_witness",
+                                        "terrane-chain-witness",
                                         "terrane_chain_witness::LineBuilder::number",
                                     ),
                                 );
@@ -315,7 +315,7 @@ fn main() {
                                     .await
                                     .map_err(|payload| crate::__terrane_dependency_panic(
                                         payload,
-                                        "terrane_chain_witness",
+                                        "terrane-chain-witness",
                                         "terrane_chain_witness::LineBuilder::pause",
                                     ))?;
                                 Ok::<_, crate::TerraneForeignError>(value)
@@ -338,7 +338,7 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
             crate ::TerraneForeignError > { Ok(resumed.finish()) })) { Ok(result) =>
             result ?, Err(payload) => return Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_chain_witness",
+            ::__terrane_dependency_panic(payload, "terrane-chain-witness",
             "terrane_chain_witness::LineBuilder::finish")) }; Ok:: < _, crate
             ::TerraneForeignError > (value) } } (), 10 /* terrane-site: src/main.trn:14:11-14:26 */))
         );

@@ -2086,7 +2086,7 @@ pub async fn checked_echo(value: String) -> Result<String, crate::TerraneForeign
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::checked_echo",
                 ),
             )
@@ -2107,7 +2107,7 @@ pub async fn echo_after_yield(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::echo_after_yield",
                 ),
             )
@@ -2126,7 +2126,7 @@ pub fn operation_drop_count() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::operation_drop_count",
                 ),
             )
@@ -2142,7 +2142,7 @@ pub fn reset_operation_state() -> Result<(), crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::reset_operation_state",
                 ),
             )
@@ -2157,7 +2157,7 @@ pub async fn signal_sibling() -> Result<String, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::signal_sibling",
                 ),
             )
@@ -2173,7 +2173,7 @@ pub async fn socket_round_trip() -> Result<String, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::socket_round_trip",
                 ),
             )
@@ -2192,7 +2192,7 @@ pub async fn timer_poll_count() -> Result<
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::timer_poll_count",
                 ),
             )
@@ -2208,7 +2208,7 @@ pub async fn wait_for_sibling() -> Result<String, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::wait_for_sibling",
                 ),
             )
@@ -2222,7 +2222,7 @@ pub async fn wait_forever() -> Result<String, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::wait_forever",
                 ),
             )
@@ -2240,7 +2240,7 @@ pub async fn wait_until_operation_started() -> Result<bool, crate::TerraneForeig
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "async-witness",
+                    "terrane-async-witness",
                     "async_witness::wait_until_operation_started",
                 ),
             )

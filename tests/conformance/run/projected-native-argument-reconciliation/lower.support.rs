@@ -543,7 +543,7 @@ pub fn make_i128() -> Result<witness::Boxed<i128>, crate::TerraneForeignError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-native-identity-witness",
                     "witness::make_i128",
                 ),
             )

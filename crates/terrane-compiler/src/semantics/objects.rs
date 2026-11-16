@@ -4811,7 +4811,7 @@ fn specialize_projected_result_batch(
             package,
             unit,
             &unit.tree.root,
-            None,
+            ProjectedDestinationContext::default(),
             None,
             unit_index,
             &mut pending,
@@ -5272,6 +5272,7 @@ fn merge_projected_callback_shape(
             native_result,
             native_substitutions,
             parameters: template_parameters,
+            admitted_shapes: template_admitted_shapes,
             result: template_result,
             parameters_destination_selected,
             parameter_rust_types,
@@ -5334,6 +5335,7 @@ fn merge_projected_callback_shape(
             crate::rust_ir::instantiate_rust_generics(result, &parameter_replacements)
         }),
         native_substitutions: native_substitutions.clone(),
+        admitted_shapes: template_admitted_shapes.clone(),
         parameters_destination_selected: *parameters_destination_selected,
         parameters: parameters.clone(),
         parameter_borrows: parameter_borrows.clone(),
@@ -5403,6 +5405,80 @@ fn merge_projected_callback_value_shape(
         ),
         _ => actual.clone(),
     }
+}
+
+fn validate_projected_callback_source_shape(
+    package: &SemanticPackage,
+    projected: &crate::rust_interop::projection::ProjectedType,
+    actual: &ValueType,
+) -> Result<(), String> {
+    use crate::rust_interop::projection::ProjectedType;
+    let ProjectedType::Callback {
+        parameters,
+        admitted_shapes,
+        is_async,
+        ..
+    } = projected
+    else {
+        return Ok(());
+    };
+    let (actual_parameters, actual_async) = match actual {
+        ValueType::Function(parameters, ..) => (parameters, false),
+        ValueType::AsyncFunction(parameters, ..) => (parameters, true),
+        _ => return Err(format!("expected a callback, actual `{actual}`")),
+    };
+    let shapes = if admitted_shapes.is_empty() {
+        std::slice::from_ref(parameters)
+    } else {
+        admitted_shapes.as_slice()
+    };
+    let accepted = actual_async == *is_async
+        && shapes.iter().any(|shape| {
+            if shape.len() != actual_parameters.len() {
+                return false;
+            }
+            let mut bindings = BTreeMap::new();
+            shape
+                .iter()
+                .zip(actual_parameters)
+                .all(|(expected, actual)| {
+                    let Some(expected) = closed_projected_value_type(package, expected) else {
+                        return false;
+                    };
+                    let expected = &expected;
+                    let actual = actual.value_type_ref();
+                    // Borrow authority and exact native producer types are checked
+                    // by the selected callback ABI; match payload shapes here.
+                    let actual = match actual {
+                        ValueType::Reference(inner)
+                        | ValueType::MutableReference(inner)
+                        | ValueType::SharedReference(inner) => inner.value_type_ref(),
+                        _ => actual,
+                    };
+                    value_types_compatible(&[], expected, actual)
+                        && super::calls::bind_projected_generics(expected, actual, &mut bindings)
+                            .is_ok()
+                })
+        });
+    if accepted {
+        return Ok(());
+    }
+    let shapes = shapes
+        .iter()
+        .map(|shape| {
+            let parameters = shape
+                .iter()
+                .map(ProjectedType::terrane_name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({parameters})")
+        })
+        .collect::<Vec<_>>()
+        .join(" or ");
+    let expected_async = if *is_async { "async " } else { "" };
+    Err(format!(
+        "expected {expected_async}callback with parameters {shapes}, actual `{actual}`"
+    ))
 }
 
 fn bind_projected_callback_generics(
@@ -6074,11 +6150,58 @@ fn rust_type_text_equal(left: &str, right: &str) -> bool {
         .eq(right.chars().filter(|character| !character.is_whitespace()))
 }
 
+fn projected_destination_parameter_index(
+    unit: &SemanticUnit,
+    parameters: &[crate::rust_interop::projection::ProjectedParameter],
+    arguments: &SyntaxNode,
+    value: &SyntaxNode,
+) -> Option<usize> {
+    (0..parameters.len()).find(|&index| {
+        super::bindings::projected_argument_for_parameter(unit, parameters, arguments, index)
+            .is_some_and(|argument| argument.span == value.span)
+    })
+}
+
+#[derive(Clone, Copy, Default)]
+struct ProjectedDestinationContext<'a> {
+    value_type: Option<&'a ValueType>,
+    projected_type: Option<&'a crate::rust_interop::projection::ProjectedType>,
+}
+
+impl<'a> ProjectedDestinationContext<'a> {
+    fn source(value_type: Option<&'a ValueType>) -> Self {
+        Self {
+            value_type,
+            projected_type: None,
+        }
+    }
+
+    fn project(
+        self,
+        package: &SemanticPackage,
+    ) -> Result<
+        Option<std::borrow::Cow<'a, crate::rust_interop::projection::ProjectedType>>,
+        DestinationProjectionError,
+    > {
+        if let Some(projected) = self.projected_type
+            && !projected.contains_open_generic()
+        {
+            Ok(Some(std::borrow::Cow::Borrowed(projected)))
+        } else {
+            self.value_type
+                .map(|value_type| {
+                    destination_projected_type(package, value_type).map(std::borrow::Cow::Owned)
+                })
+                .transpose()
+        }
+    }
+}
+
 fn collect_projected_destinations(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    expected: Option<&ValueType>,
+    expected: ProjectedDestinationContext<'_>,
     function_return: Option<&ValueType>,
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
@@ -6104,7 +6227,11 @@ fn collect_projected_destinations(
             package,
             unit,
             child,
-            transparent_destination.then_some(expected).flatten(),
+            if transparent_destination {
+                expected
+            } else {
+                ProjectedDestinationContext::default()
+            },
             function_return,
             unit_index,
             pending,
@@ -6122,7 +6249,7 @@ fn collect_projected_destination_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    expected: Option<&ValueType>,
+    expected: ProjectedDestinationContext<'_>,
     function_return: Option<&ValueType>,
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
@@ -6166,7 +6293,7 @@ fn collect_projected_destination_node(
             package,
             unit,
             value,
-            None,
+            ProjectedDestinationContext::default(),
             function_result,
             unit_index,
             pending,
@@ -6191,15 +6318,26 @@ fn collect_projected_destination_node(
                     )?;
                 }
             } else {
-                for (index, argument) in arguments.children.iter().enumerate() {
+                for argument in &arguments.children {
+                    let value = argument.children.last().unwrap_or(argument);
+                    let parameter_index = projected_destination_parameter_index(
+                        unit,
+                        &specialization.projected_parameters,
+                        arguments,
+                        value,
+                    );
                     collect_projected_destinations(
                         package,
                         unit,
-                        argument.children.last().unwrap_or(argument),
-                        specialization
-                            .value_parameters
-                            .get(index)
-                            .and_then(Option::as_ref),
+                        value,
+                        ProjectedDestinationContext {
+                            value_type: parameter_index
+                                .and_then(|index| specialization.value_parameters.get(index))
+                                .and_then(Option::as_ref),
+                            projected_type: parameter_index
+                                .and_then(|index| specialization.projected_parameters.get(index))
+                                .map(|parameter| &parameter.ty),
+                        },
                         function_return,
                         unit_index,
                         pending,
@@ -6213,7 +6351,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                None,
+                ProjectedDestinationContext::default(),
                 function_return,
                 unit_index,
                 pending,
@@ -6225,7 +6363,7 @@ fn collect_projected_destination_node(
         && let [callee, arguments] = node.children.as_slice()
         && let Some(item) = projected_macro_for_call(package, unit, callee)
     {
-        let destination = expected.ok_or_else(|| {
+        let destination = expected.value_type.ok_or_else(|| {
             failure(
                 &unit.source,
                 "T0119",
@@ -6330,7 +6468,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                None,
+                ProjectedDestinationContext::default(),
                 return_type.as_ref(),
                 unit_index,
                 pending,
@@ -6354,7 +6492,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                function_return,
+                ProjectedDestinationContext::source(function_return),
                 function_return,
                 unit_index,
                 pending,
@@ -6403,11 +6541,11 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 child,
-                if Some(child) == initializer {
+                ProjectedDestinationContext::source(if Some(child) == initializer {
                     written_destination.as_ref()
                 } else {
                     None
-                },
+                }),
                 function_return,
                 unit_index,
                 pending,
@@ -6430,7 +6568,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 receiver,
-                Some(&destination),
+                ProjectedDestinationContext::source(Some(&destination)),
                 function_return,
                 unit_index,
                 pending,
@@ -6440,7 +6578,7 @@ fn collect_projected_destination_node(
                 package,
                 unit,
                 callee,
-                None,
+                ProjectedDestinationContext::default(),
                 function_return,
                 unit_index,
                 pending,
@@ -6453,20 +6591,52 @@ fn collect_projected_destination_node(
             )) => parameters,
             Ok(_) | Err(_) => Vec::new(),
         };
+        let projected_function = if arguments.children.is_empty() {
+            None
+        } else {
+            projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
+        };
+        let owner_substitutions = projected_function
+            .as_ref()
+            .map(|_| projected_call_owner_substitutions(package, unit, callee))
+            .transpose()
+            .map_err(|reason| failure(&unit.source, "T0129", reason, callee.span))?
+            .unwrap_or_default();
         for (index, argument) in arguments.children.iter().enumerate() {
             let value = argument.children.last().unwrap_or(argument);
+            let parameter_index = projected_function.as_ref().and_then(|function| {
+                projected_destination_parameter_index(unit, &function.parameters, arguments, value)
+            });
+            let projected_destination = projected_function
+                .as_ref()
+                .and_then(|function| {
+                    parameter_index.and_then(|index| function.parameters.get(index))
+                })
+                .map(|parameter| {
+                    owner_substitutions.iter().fold(
+                        std::borrow::Cow::Borrowed(&parameter.ty),
+                        |ty, (name, selected)| {
+                            std::borrow::Cow::Owned(substitute_projected_generic(
+                                &ty, name, selected,
+                            ))
+                        },
+                    )
+                });
             collect_projected_destinations(
                 package,
                 unit,
                 value,
-                parameter_types
-                    .get(index)
-                    .or_else(|| {
-                        parameter_types
-                            .last()
-                            .filter(|parameter| parameter.is_variadic())
-                    })
-                    .map(CallableParameterType::value_type_ref),
+                ProjectedDestinationContext {
+                    value_type: parameter_types
+                        .get(parameter_index.unwrap_or(index))
+                        .or_else(|| {
+                            parameter_types
+                                .last()
+                                .filter(|parameter| parameter.is_variadic())
+                        })
+                        .map(CallableParameterType::value_type_ref),
+                    projected_type: projected_destination.as_deref(),
+                },
                 function_return,
                 unit_index,
                 pending,
@@ -6489,7 +6659,7 @@ fn specialize_projected_destination(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    expected: Option<&ValueType>,
+    expected: ProjectedDestinationContext<'_>,
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
@@ -6756,6 +6926,16 @@ fn specialize_projected_destination(
                 }
                 _ => false,
             };
+            if matches!(
+                actual,
+                ValueType::Function(..) | ValueType::AsyncFunction(..)
+            ) && matches!(
+                &projected_parameter.ty,
+                crate::rust_interop::projection::ProjectedType::Callback { .. }
+            ) {
+                validate_projected_callback_source_shape(package, &projected_parameter.ty, &actual)
+                    .map_err(|reason| failure(&unit.source, "T0129", reason, value.span))?;
+            }
             if let (
                 crate::rust_interop::projection::ProjectedType::Callback {
                     parameters_destination_selected,
@@ -6925,11 +7105,26 @@ fn specialize_projected_destination(
                 );
                 continue;
             }
-            super::calls::bind_projected_generics(
-                &expected,
-                &actual,
-                &mut value_bindings,
-            )
+            let destination_selected_parameters = matches!(
+                &projected_parameter.ty,
+                crate::rust_interop::projection::ProjectedType::Callback {
+                    parameters_destination_selected: true,
+                    ..
+                }
+            );
+            if destination_selected_parameters {
+                bind_projected_callback_generics(
+                    package,
+                    &expected,
+                    &actual,
+                    None,
+                    &mut value_bindings,
+                    &mut native_bindings,
+                    true,
+                )
+            } else {
+                super::calls::bind_projected_generics(&expected, &actual, &mut value_bindings)
+            }
             .map_err(|generic| {
                 failure(
                     &unit.source,
@@ -6940,6 +7135,35 @@ fn specialize_projected_destination(
                     value.span,
                 )
             })?;
+            if destination_selected_parameters {
+                let callback = actual_projected
+                    .filter(|projected| {
+                        matches!(
+                            projected,
+                            crate::rust_interop::projection::ProjectedType::Callback { .. }
+                        ) && !projected.contains_open_generic()
+                    })
+                    .map_or_else(|| destination_projected_type(package, &actual), Ok)
+                    .map_err(|reason| {
+                        failure(
+                            &unit.source,
+                            "T0129",
+                            format!("projected callback cannot use `{actual}`: {reason}"),
+                            value.span,
+                        )
+                    })?;
+                callback_bindings.insert(parameter_index, callback);
+                callback_value_bindings.insert(
+                    parameter_index,
+                    merge_projected_callback_value_shape(
+                        &expected,
+                        &actual,
+                        None,
+                        &unit.namespace,
+                        None,
+                    ),
+                );
+            }
         }
         let explicit_projected = explicit_projected_callable_arguments(callee)
             .map(|types| {
@@ -7362,9 +7586,8 @@ fn specialize_projected_destination(
             .map(|(name, projected)| (name.clone(), projected.rust_type()))
             .collect::<BTreeMap<_, _>>();
         let mut specialization_substitutions = projected_bindings.clone();
-        if let (Some(destination_result), Some(destination)) =
-            (&function.destination_result, expected)
-            && let Ok(expected_projected) = destination_projected_type(package, destination)
+        if let Some(destination_result) = &function.destination_result
+            && let Ok(Some(expected_projected)) = expected.project(package)
         {
             let all_parameters = destination_result
                 .parameters
@@ -7415,7 +7638,9 @@ fn specialize_projected_destination(
                     &expected_projected,
                 );
                 specialization_substitutions.extend(substitutions);
-                value_type = destination.clone();
+                if let Some(destination) = expected.value_type {
+                    value_type = destination.clone();
+                }
             }
         }
         let callable_lifetimes = function
@@ -7688,20 +7913,19 @@ fn specialize_projected_destination(
             .iter()
             .any(|generic| generic.input_selected)
     {
-        let destination = expected.cloned();
-        let expected_projected = destination
-            .as_ref()
-            .map(|destination| {
-                destination_projected_type(package, destination).map_err(|reason| {
-                    failure(
-                        &unit.source,
-                        "T0118",
-                        format!("projected result destination `{destination}` is not supported: {reason}"),
-                        node.span,
-                    )
-                })
-            })
-            .transpose()?;
+        let expected_projected = expected.project(package).map_err(|reason| {
+            let message = if let Some(destination) = expected.value_type {
+                format!("projected result destination `{destination}` is not supported: {reason}")
+            } else if let Some(destination) = expected.projected_type {
+                format!(
+                    "projected result destination `{}` is not supported: {reason}",
+                    destination.terrane_name()
+                )
+            } else {
+                format!("projected result destination is not supported: {reason}")
+            };
+            failure(&unit.source, "T0118", message, node.span)
+        })?;
         let explicit = explicit_projected_callable_arguments(callee)
             .map(|types| {
                 let selected_names = destination_result
@@ -7784,7 +8008,7 @@ fn specialize_projected_destination(
                     expected_projected,
                 )
                 .map_err(|parameter| failure(&unit.source, "T0117", format!("projected result template repeats its generic parameter with incompatible destination types (`{parameter}`)"), node.span))?
-                .ok_or_else(|| failure(&unit.source, "T0117", format!("projected result template `{}` cannot produce the required destination `{}`", result_template.terrane_name(), destination.as_ref().expect("expected destination")), node.span))
+                .ok_or_else(|| failure(&unit.source, "T0117", format!("projected result template `{}` cannot produce the required destination `{}`", result_template.terrane_name(), expected_projected.terrane_name()), node.span))
             })
             .transpose()?;
         if let (Some(explicit), Some(destination_selection)) =
@@ -7931,7 +8155,7 @@ fn specialize_projected_destination(
                     region: None,
                 }
             }
-            _ => destination.clone().or_else(|| closed_projected_value_type(package, &projected_result)).ok_or_else(|| {
+            _ => expected.value_type.cloned().or_else(|| closed_projected_value_type(package, &projected_result)).ok_or_else(|| {
                 failure(
                     &unit.source,
                     "T0129",
@@ -8375,35 +8599,79 @@ fn closed_written_projected_type(
     }
 }
 
-fn close_written_native_arguments(
+fn supplied_native_arguments(identity: &ObjectIdentity) -> &[ValueType] {
+    if identity.type_arguments.is_empty() {
+        identity
+            .application
+            .as_deref()
+            .map_or(&[], std::slice::from_ref)
+    } else {
+        &identity.type_arguments
+    }
+}
+
+#[derive(Clone, Copy)]
+enum NativeDefaultProjection {
+    SourceCanonical,
+    SignatureOnly(NativeAliasUse),
+}
+
+fn close_native_arguments(
     package: &SemanticPackage,
     generic_parameters: &[crate::rust_interop::projection::ProjectedGenericParameter],
-    supplied_arguments: &[ValueType],
-) -> Option<(
-    BTreeMap<String, ValueType>,
-    BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
-)> {
-    let mut selections = BTreeMap::new();
-    let mut substitutions =
-        BTreeMap::<String, crate::rust_interop::projection::ProjectedType>::new();
-    for (index, parameter) in generic_parameters.iter().enumerate() {
-        let projected_argument = if let Some(argument) = supplied_arguments.get(index) {
-            closed_written_projected_type(package, argument)?
-        } else {
-            let default = parameter.default.as_ref()?;
-            substitutions
-                .iter()
-                .fold(default.clone(), |ty, (name, value)| {
-                    substitute_projected_generic(&ty, name, value)
-                })
-        };
-        let selected = closed_projected_native_argument(package, &projected_argument)?;
-        let canonical_projected_argument = destination_projected_type(package, &selected).ok()?;
-        substitutions.insert(parameter.name.clone(), canonical_projected_argument);
-        selections.insert(parameter.name.clone(), selected);
+    identity: &ObjectIdentity,
+    default_projection: NativeDefaultProjection,
+) -> Result<
+    (
+        BTreeMap<String, ValueType>,
+        Vec<crate::rust_interop::projection::ProjectedType>,
+    ),
+    DestinationProjectionError,
+> {
+    let supplied_arguments = supplied_native_arguments(identity);
+    if supplied_arguments.len() > generic_parameters.len() {
+        return Err("too many native generic selections".into());
     }
-    Some((selections, substitutions))
+    let mut selections = BTreeMap::new();
+    let mut arguments = Vec::with_capacity(generic_parameters.len());
+    for (index, parameter) in generic_parameters.iter().enumerate() {
+        let supplied = identity
+            .native_arguments
+            .get(&parameter.name)
+            .or_else(|| supplied_arguments.get(index));
+        let mut argument = if let Some(value) = supplied {
+            match default_projection {
+                NativeDefaultProjection::SourceCanonical => {
+                    closed_written_projected_type(package, value)
+                        .ok_or("native generic selection has no closed source representation")?
+                }
+                NativeDefaultProjection::SignatureOnly(alias_use) => {
+                    projected_type_with_alias_use(package, value, alias_use)?
+                }
+            }
+        } else {
+            let default = parameter
+                .default
+                .as_ref()
+                .ok_or("missing native generic selection")?;
+            generic_parameters.iter().zip(&arguments).fold(
+                default.clone(),
+                |ty, (parameter, argument)| {
+                    substitute_projected_generic(&ty, &parameter.name, argument)
+                },
+            )
+        };
+        if matches!(default_projection, NativeDefaultProjection::SourceCanonical) {
+            let selected = closed_projected_native_argument(package, &argument)
+                .ok_or("native generic selection has no closed source representation")?;
+            argument = destination_projected_type(package, &selected)?;
+            selections.insert(parameter.name.clone(), selected);
+        }
+        arguments.push(argument);
+    }
+    Ok((selections, arguments))
 }
+
 fn close_nongeneric_native_nominal(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
@@ -8451,47 +8719,35 @@ pub(super) fn close_written_native_nominal(
     else {
         return None;
     };
-    let supplied_arguments = if !identity.type_arguments.is_empty() {
-        identity.type_arguments.as_slice()
-    } else if let Some(application) = identity.application.as_deref() {
-        std::slice::from_ref(application)
-    } else {
-        &[]
-    };
+    let supplied_arguments = supplied_native_arguments(identity);
     if supplied_arguments.len() > generic_parameters.len() {
         return None;
     }
     if generic_parameters.is_empty() {
         return close_nongeneric_native_nominal(package, identity, &item.rust_path);
     }
-    let (selections, substitutions) =
-        close_written_native_arguments(package, generic_parameters, supplied_arguments)?;
-    let alias_native = if package.projection.dependencies.iter().any(|dependency| {
+    let (selections, substitutions) = close_native_arguments(
+        package,
+        generic_parameters,
+        identity,
+        NativeDefaultProjection::SourceCanonical,
+    )
+    .ok()?;
+    let rust_path = if package.projection.dependencies.iter().any(|dependency| {
         dependency
             .native_alias_identities
             .contains_key(&item.rust_path)
     }) {
-        let arguments = generic_parameters
-            .iter()
-            .map(|parameter| substitutions[&parameter.name].clone())
-            .collect::<Vec<_>>();
         let alias = crate::rust_interop::projection::ProjectedType::Foreign {
             rust_path: item.rust_path.clone(),
             base_rust_path: item.rust_path.clone(),
             name: item.name.clone(),
-            arguments,
+            arguments: substitutions,
         };
-        Some(
-            package
-                .projection
-                .canonical_native_alias(&alias)?
-                .rust_type(),
-        )
-    } else {
-        None
-    };
-    let rust_path = if let Some(native) = alias_native {
-        native
+        package
+            .projection
+            .canonical_native_alias(&alias)?
+            .rust_type()
     } else {
         let base_rust_path = crate::rust_ir::rust_type_constructor(
             &package.projection.canonical_native_type(&item.rust_path),
@@ -8499,9 +8755,9 @@ pub(super) fn close_written_native_nominal(
         format!(
             "{}<{}>",
             base_rust_path,
-            generic_parameters
+            substitutions
                 .iter()
-                .map(|parameter| substitutions[&parameter.name].rust_type())
+                .map(crate::rust_interop::projection::ProjectedType::rust_type)
                 .collect::<Vec<_>>()
                 .join(", ")
         )
@@ -8741,16 +8997,12 @@ fn destination_projected_native_nominal(
     generic_parameters: &[crate::rust_interop::projection::ProjectedGenericParameter],
     alias_use: NativeAliasUse,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
-    let arguments = generic_parameters
-        .iter()
-        .map(|parameter| {
-            identity
-                .native_arguments
-                .get(&parameter.name)
-                .ok_or_else(|| DestinationProjectionError::from("missing native generic selection"))
-                .and_then(|value| projected_type_with_alias_use(package, value, alias_use))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let (_, arguments) = close_native_arguments(
+        package,
+        generic_parameters,
+        identity,
+        NativeDefaultProjection::SignatureOnly(alias_use),
+    )?;
     if package.projection.dependencies.iter().any(|dependency| {
         dependency
             .native_alias_identities
@@ -8821,8 +9073,8 @@ fn projected_object_with_alias_use(
     {
         return projected_object_with_alias_use(package, &selected, alias_use);
     }
-    if !identity.native_arguments.is_empty()
-        && let Some(item) = package.projection.item(&identity.namespace, &identity.name)
+    let supplied_arguments = supplied_native_arguments(identity);
+    if let Some(item) = package.projection.item(&identity.namespace, &identity.name)
         && let crate::rust_interop::projection::ProjectedKind::ForeignType {
             generic_parameters,
             ..
@@ -8830,6 +9082,14 @@ fn projected_object_with_alias_use(
         | crate::rust_interop::projection::ProjectedKind::Enum {
             generic_parameters, ..
         } = &item.kind
+        && (!identity.native_arguments.is_empty()
+            || (!generic_parameters.is_empty()
+                && generic_parameters
+                    .iter()
+                    .enumerate()
+                    .all(|(index, parameter)| {
+                        index < supplied_arguments.len() || parameter.default.is_some()
+                    })))
     {
         return destination_projected_native_nominal(
             package,
@@ -8995,6 +9255,7 @@ fn projected_callback_with_alias_use(
         native_substitutions: BTreeMap::new(),
         parameters,
         parameter_rust_types,
+        admitted_shapes: Vec::new(),
         parameters_destination_selected: false,
         result: Box::new(result),
         invocation_mode: InvocationMode::Shared,
@@ -9401,6 +9662,7 @@ pub(super) fn substitute_projected_generic(
             native_result,
             native_substitutions,
             parameters,
+            admitted_shapes,
             parameter_rust_types,
             parameter_borrows,
             parameters_destination_selected,
@@ -9433,6 +9695,15 @@ pub(super) fn substitute_projected_generic(
                         name.clone(),
                         substitute_projected_generic(ty, parameter, destination),
                     )
+                })
+                .collect(),
+            admitted_shapes: admitted_shapes
+                .iter()
+                .map(|shape| {
+                    shape
+                        .iter()
+                        .map(|ty| substitute_projected_generic(ty, parameter, destination))
+                        .collect()
                 })
                 .collect(),
             parameters_destination_selected: *parameters_destination_selected,

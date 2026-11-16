@@ -26,7 +26,7 @@ fn main() {
                     return Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "witness",
+                            "terrane-document-witness",
                             "witness::api::Document::save_to_bytes",
                         ),
                     );

@@ -692,7 +692,7 @@ pub(super) fn projected_bound_dependencies(
     projected: &[ProjectedDependency],
     declared: &[RustDependency],
     private_dependencies: &[ProjectedBoundDependency],
-    workspace: &Path,
+    metadata: &serde_json::Value,
 ) -> Result<Vec<ProjectedBoundDependency>, ProjectionError> {
     let mut declared = declared
         .iter()
@@ -755,47 +755,28 @@ pub(super) fn projected_bound_dependencies(
                 )
         })
         .collect::<BTreeSet<_>>();
-    resolved_projected_dependencies(required, workspace, false)
+    resolved_projected_dependencies(required, metadata, false)
 }
 
 fn resolved_projected_dependencies(
     required: BTreeSet<String>,
-    workspace: &Path,
+    metadata: &serde_json::Value,
     strict: bool,
 ) -> Result<Vec<ProjectedBoundDependency>, ProjectionError> {
     if required.is_empty() {
         return Ok(Vec::new());
     }
-    let text = fs::read_to_string(workspace.join("Cargo.lock"))
-        .map_err(io_error("read dependency projection lockfile"))?;
-    let lock = text
-        .parse::<toml::Value>()
-        .map_err(|error| ProjectionError {
-            message: format!("invalid dependency projection lockfile: {error}"),
-        })?;
-    let packages = lock
-        .get("package")
-        .and_then(toml::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|package| {
-            Some((
-                package.get("name")?.as_str()?.to_owned(),
-                package.get("version")?.as_str()?.to_owned(),
-                package
-                    .get("source")
-                    .and_then(toml::Value::as_str)
-                    .map(str::to_owned),
-            ))
-        })
-        .collect::<Vec<_>>();
     let mut dependencies = Vec::new();
     for root in required {
-        let matches = packages
-            .iter()
-            .filter(|(package, _, _)| package.replace('-', "_") == root)
-            .collect::<Vec<_>>();
-        let [(package, version, source)] = matches.as_slice() else {
+        let mut matches = metadata["packages"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|package| {
+                super::package_identities::library_name(package) == Some(root.as_str())
+            });
+        let selected = matches.next().filter(|_| matches.next().is_none());
+        let Some(selected) = selected else {
             if strict {
                 return Err(ProjectionError {
                     message: format!(
@@ -805,7 +786,10 @@ fn resolved_projected_dependencies(
             }
             continue;
         };
-        if !source.as_deref().is_some_and(is_crates_io_lock_source) {
+        if !selected["source"]
+            .as_str()
+            .is_some_and(is_crates_io_lock_source)
+        {
             if strict {
                 return Err(ProjectionError {
                     message: format!(
@@ -817,18 +801,61 @@ fn resolved_projected_dependencies(
         }
         dependencies.push(ProjectedBoundDependency {
             name: root,
-            package: package.clone(),
-            version: format!("={version}"),
+            package: selected["name"]
+                .as_str()
+                .ok_or_else(|| ProjectionError {
+                    message: "resolved Cargo library has no package name".to_owned(),
+                })?
+                .to_owned(),
+            version: format!(
+                "={}",
+                selected["version"]
+                    .as_str()
+                    .ok_or_else(|| ProjectionError {
+                        message: "resolved Cargo library has no package version".to_owned(),
+                    })?
+            ),
             features: Vec::new(),
         });
     }
     Ok(dependencies)
 }
 
+pub(super) fn bound_library_root<'a>(
+    metadata: &'a serde_json::Value,
+    dependency: &ProjectedBoundDependency,
+) -> Result<&'a str, ProjectionError> {
+    let version = dependency
+        .version
+        .strip_prefix('=')
+        .unwrap_or(&dependency.version);
+    let mut matches = metadata["packages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|package| {
+            package["name"].as_str() == Some(dependency.package.as_str())
+                && package["version"].as_str() == Some(version)
+                && package["source"]
+                    .as_str()
+                    .is_some_and(is_crates_io_lock_source)
+        });
+    let root = matches
+        .next()
+        .filter(|_| matches.next().is_none())
+        .and_then(super::package_identities::library_name);
+    root.ok_or_else(|| ProjectionError {
+        message: format!(
+            "bound dependency `{}@{}` has no unique resolved Cargo library target",
+            dependency.package, version
+        ),
+    })
+}
+
 pub(super) fn recursive_owner_dependencies(
     projected: &[ProjectedDependency],
     declared: &[RustDependency],
-    workspace: &Path,
+    metadata: &serde_json::Value,
     _error_owners_only: bool,
 ) -> Result<Vec<ProjectedBoundDependency>, ProjectionError> {
     let reachable = declared
@@ -842,7 +869,7 @@ pub(super) fn recursive_owner_dependencies(
         .flat_map(item_foreign_owners)
         .filter(|owner| !owner_is_reachable(owner, &reachable))
         .collect::<BTreeSet<_>>();
-    let mut dependencies = resolved_projected_dependencies(required, workspace, false)?;
+    let mut dependencies = resolved_projected_dependencies(required, metadata, false)?;
     for dependency in &mut dependencies {
         dependency.name = format!("__terrane_recursive_{}", dependency.name);
     }
@@ -1250,6 +1277,7 @@ pub(super) fn rewrite_projected_rust_root(
         }
         ProjectedType::Callback {
             parameters,
+            admitted_shapes,
             result,
             native_bound,
             native_result,
@@ -1258,6 +1286,11 @@ pub(super) fn rewrite_projected_rust_root(
         } => {
             for parameter in parameters {
                 rewrite_projected_rust_root(parameter, package_root, dependency_root);
+            }
+            for shape in admitted_shapes {
+                for parameter in shape {
+                    rewrite_projected_rust_root(parameter, package_root, dependency_root);
+                }
             }
             rewrite_projected_rust_root(result, package_root, dependency_root);
             for substitution in native_substitutions.values_mut() {
@@ -1293,6 +1326,19 @@ pub(super) fn rewrite_projected_rust_root(
     }
 }
 
+fn rewrite_projected_generic_root(
+    generic: &mut super::ProjectedGenericParameter,
+    package_root: &str,
+    dependency_root: &str,
+) {
+    for bound in &mut generic.rust_bounds {
+        *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+    }
+    if let Some(default) = &mut generic.default {
+        rewrite_projected_rust_root(default, package_root, dependency_root);
+    }
+}
+
 pub(super) fn rewrite_projected_function_root(
     function: &mut ProjectedFunction,
     package_root: &str,
@@ -1321,9 +1367,7 @@ pub(super) fn rewrite_projected_function_root(
         .iter_mut()
         .chain(&mut function.operation_owner_generics)
     {
-        for bound in &mut generic.rust_bounds {
-            *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
-        }
+        rewrite_projected_generic_root(generic, package_root, dependency_root);
     }
     for bound in &mut function.receiver_bounds {
         *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
@@ -1379,14 +1423,19 @@ pub(super) fn rewrite_projected_owner_root(
                 methods,
                 static_methods,
                 constants,
+                generic_parameters,
                 ..
             }
             | ProjectedKind::Enum {
                 methods,
                 static_methods,
                 constants,
+                generic_parameters,
                 ..
             } => {
+                for generic in generic_parameters {
+                    rewrite_projected_generic_root(generic, package_root, dependency_root);
+                }
                 for function in methods.iter_mut().chain(static_methods) {
                     rewrite_projected_function_root(function, package_root, dependency_root);
                 }

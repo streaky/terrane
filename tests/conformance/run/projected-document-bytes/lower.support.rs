@@ -573,7 +573,7 @@ pub fn terrane_static_trn_446f63756d656e74_from_text(
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "witness",
+                    "terrane-document-witness",
                     "witness::api::Document",
                 ),
             )

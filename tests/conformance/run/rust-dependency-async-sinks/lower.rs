@@ -32,7 +32,7 @@ async fn send_blocked(
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::Outgoing::send",
                                 ))?
                             {
@@ -116,7 +116,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_sink_witness",
+                                "terrane-sink-witness",
                                 "terrane_sink_witness::Duplex::split",
                             ),
                         );
@@ -151,7 +151,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_sink_witness",
+                                "terrane-sink-witness",
                                 "terrane_sink_witness::SplitEndpoints::take_incoming",
                             ),
                         );
@@ -186,7 +186,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_sink_witness",
+                                "terrane-sink-witness",
                                 "terrane_sink_witness::SplitEndpoints::take_outgoing",
                             ),
                         );
@@ -238,7 +238,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::Outgoing::send",
                                 ))?
                             {
@@ -284,7 +284,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::Outgoing::send",
                                 ))?
                             {
@@ -335,7 +335,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::Outgoing::flush",
                                 ))?
                             {
@@ -375,7 +375,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::Outgoing::close",
                                 ))?
                             {
@@ -432,7 +432,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::Outgoing::send",
                                 ))?
                             {
@@ -482,7 +482,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::Outgoing::close",
                                 ))?
                             {
@@ -555,7 +555,7 @@ fn main() {
                                 .await
                                 .map_err(|payload| crate::__terrane_dependency_panic(
                                     payload,
-                                    "terrane_sink_witness",
+                                    "terrane-sink-witness",
                                     "terrane_sink_witness::QueueSink::send",
                                 ))?
                             {
@@ -607,7 +607,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_sink_witness",
+                                "terrane-sink-witness",
                                 "terrane_sink_witness::QueueSink::flush",
                             ),
                         );
@@ -643,7 +643,7 @@ fn main() {
                         return Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "terrane_sink_witness",
+                                "terrane-sink-witness",
                                 "terrane_sink_witness::QueueSink::close",
                             ),
                         );

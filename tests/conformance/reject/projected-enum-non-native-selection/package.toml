@@ -1,0 +1,6 @@
+package = "projected-enum-non-native-selection"
+[namespaces]
+app = "src"
+[rust-dependencies.witness]
+package = "terrane-generic-enum-witness"
+version = "0.1.0"

@@ -562,7 +562,13 @@ pub fn score(
     ) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "witness", "witness::score"))
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-generic-enum-witness",
+                    "witness::score",
+                ),
+            )
         }
     }
 }
