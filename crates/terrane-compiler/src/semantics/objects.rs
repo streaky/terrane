@@ -7913,14 +7913,18 @@ fn specialize_projected_destination(
             .iter()
             .any(|generic| generic.input_selected)
     {
-        let destination = expected.value_type.cloned();
         let expected_projected = expected.project(package).map_err(|reason| {
-            failure(
-                &unit.source,
-                "T0118",
-                format!("projected result destination is not supported: {reason}"),
-                node.span,
-            )
+            let message = if let Some(destination) = expected.value_type {
+                format!("projected result destination `{destination}` is not supported: {reason}")
+            } else if let Some(destination) = expected.projected_type {
+                format!(
+                    "projected result destination `{}` is not supported: {reason}",
+                    destination.terrane_name()
+                )
+            } else {
+                format!("projected result destination is not supported: {reason}")
+            };
+            failure(&unit.source, "T0118", message, node.span)
         })?;
         let explicit = explicit_projected_callable_arguments(callee)
             .map(|types| {
@@ -8151,7 +8155,7 @@ fn specialize_projected_destination(
                     region: None,
                 }
             }
-            _ => destination.clone().or_else(|| closed_projected_value_type(package, &projected_result)).ok_or_else(|| {
+            _ => expected.value_type.cloned().or_else(|| closed_projected_value_type(package, &projected_result)).ok_or_else(|| {
                 failure(
                     &unit.source,
                     "T0129",
