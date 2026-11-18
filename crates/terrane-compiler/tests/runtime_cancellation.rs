@@ -25,7 +25,7 @@ fn terrane_time_deadline_expired(_deadline: &terrane_int_support::Int) -> bool {
 
 #[expect(
     dead_code,
-    reason = "this fixture embeds the complete native task ABI but exercises defensive group drop only"
+    reason = "this fixture embeds the complete native task ABI but exercises cancellation and group cleanup"
 )]
 mod native_group_drop {
     use super::TerraneError;
@@ -34,6 +34,132 @@ mod native_group_drop {
     include!("../src/runtime/async_destructor.rs");
     include!("../src/runtime/tasks_native_parallel.rs");
     include!("../src/runtime/task_groups_native.rs");
+
+    #[derive(Default)]
+    struct WakeCounter(std::sync::atomic::AtomicUsize);
+
+    impl std::task::Wake for WakeCounter {
+        fn wake(self: std::sync::Arc<Self>) {
+            self.wake_by_ref();
+        }
+
+        fn wake_by_ref(self: &std::sync::Arc<Self>) {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
+    #[test]
+    fn cancellation_updates_and_releases_waiters() {
+        use std::{sync::Arc, task::Context};
+
+        let cancellation = TerraneCancellation::new();
+        let previous = Arc::new(WakeCounter::default());
+        let current = Arc::new(WakeCounter::default());
+        let previous_waker = std::task::Waker::from(previous.clone());
+        let current_waker = std::task::Waker::from(current.clone());
+        let mut waiter = Box::pin(cancellation.cancelled());
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&previous_waker))
+                .is_pending()
+        );
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&current_waker))
+                .is_pending()
+        );
+        assert_eq!(
+            Arc::strong_count(&previous),
+            2,
+            "replaced waker is released"
+        );
+        drop(waiter);
+        assert_eq!(
+            Arc::strong_count(&current),
+            2,
+            "abandoned waiter is unlinked"
+        );
+        cancellation.cancel();
+        assert_eq!(previous.0.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert_eq!(current.0.load(std::sync::atomic::Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn cancellation_broadcasts_and_stays_requested() {
+        use std::{sync::Arc, task::Context};
+
+        let cancellation = TerraneCancellation::new();
+        let counters: Vec<_> = (0..32).map(|_| Arc::new(WakeCounter::default())).collect();
+        let wakers: Vec<_> = counters
+            .iter()
+            .cloned()
+            .map(std::task::Waker::from)
+            .collect();
+        let mut waiters: Vec<_> = (0..32)
+            .map(|_| Box::pin(cancellation.cancelled()))
+            .collect();
+        for (waiter, waker) in waiters.iter_mut().zip(&wakers) {
+            assert!(
+                waiter
+                    .as_mut()
+                    .poll(&mut Context::from_waker(waker))
+                    .is_pending()
+            );
+        }
+        cancellation.cancel();
+        cancellation.cancel();
+        for ((waiter, waker), counter) in waiters.iter_mut().zip(&wakers).zip(&counters) {
+            assert_eq!(counter.0.load(std::sync::atomic::Ordering::Relaxed), 1);
+            assert!(
+                waiter
+                    .as_mut()
+                    .poll(&mut Context::from_waker(waker))
+                    .is_ready()
+            );
+        }
+        let mut late = Box::pin(cancellation.cancelled());
+        assert!(
+            late.as_mut()
+                .poll(&mut Context::from_waker(&wakers[0]))
+                .is_ready()
+        );
+    }
+
+    #[test]
+    fn cancellation_racing_registration_wakes_waiter() {
+        use std::{sync::Arc, task::Context};
+
+        for _ in 0..64 {
+            let cancellation = TerraneCancellation::new();
+            let counter = Arc::new(WakeCounter::default());
+            let waker = std::task::Waker::from(counter.clone());
+            let mut waiter = Box::pin(cancellation.cancelled());
+            let barrier = std::sync::Barrier::new(2);
+            std::thread::scope(|scope| {
+                let cancel = scope.spawn(|| {
+                    barrier.wait();
+                    cancellation.cancel();
+                });
+                barrier.wait();
+                let pending = waiter
+                    .as_mut()
+                    .poll(&mut Context::from_waker(&waker))
+                    .is_pending();
+                cancel.join().expect("cancelling thread completes");
+                if pending {
+                    assert_ne!(counter.0.load(std::sync::atomic::Ordering::Relaxed), 0);
+                    assert!(
+                        waiter
+                            .as_mut()
+                            .poll(&mut Context::from_waker(&waker))
+                            .is_ready()
+                    );
+                }
+            });
+        }
+    }
 
     #[tokio::test(flavor = "current_thread")]
     async fn drop_group_cancels_before_cleanup() {
