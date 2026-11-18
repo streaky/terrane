@@ -185,7 +185,7 @@ mod tests {
         assert!(
             diagnostics
                 .iter()
-                .any(|diagnostic| diagnostic.code == "S1133")
+                .any(|diagnostic| diagnostic.code == "L0015")
         );
     }
     #[test]
