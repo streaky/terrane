@@ -98,8 +98,8 @@ fn base_classification(token: &Token, next: Option<&Token>) -> Option<(Highlight
         | TokenKind::StringEnd
         | TokenKind::TailString
         | TokenKind::BlockString => Some((HighlightKind::String, false)),
-        TokenKind::RenderingSelector => Some((HighlightKind::Operator, false)),
-        TokenKind::Assign
+        TokenKind::RenderingSelector
+        | TokenKind::Assign
         | TokenKind::Operator
         | TokenKind::Increment
         | TokenKind::Decrement

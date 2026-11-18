@@ -745,112 +745,104 @@ fn lex_line(
                             ),
                         ));
                     }
-                } else {
+                    continue;
+                }
+                push_token(
+                    source,
+                    tokens,
+                    TokenKind::StringStart,
+                    base + start,
+                    base + start + 1,
+                    Attachment::Right,
+                );
+                let content_end = end - 1;
+                let mut part = start + 1;
+                let mut scan = part;
+                while scan < content_end {
+                    if bytes[scan] == b'\\' {
+                        scan = skip_double_escape(bytes, scan);
+                        continue;
+                    }
+                    if matches!(bytes[scan], b'{' | b'}')
+                        && bytes.get(scan + 1) == Some(&bytes[scan])
+                    {
+                        scan += 2;
+                        continue;
+                    }
+                    if bytes[scan] != b'{' {
+                        scan += 1;
+                        continue;
+                    }
+                    if part < scan {
+                        push_double_fragment(source, line, base, part, scan, tokens, diagnostics);
+                    }
                     push_token(
                         source,
                         tokens,
-                        TokenKind::StringStart,
-                        base + start,
-                        base + start + 1,
+                        TokenKind::InterpolationOpen,
+                        base + scan,
+                        base + scan + 1,
                         Attachment::Right,
                     );
-                    let content_end = end - 1;
-                    let mut part = start + 1;
-                    let mut scan = part;
-                    while scan < content_end {
-                        if bytes[scan] == b'\\' {
-                            scan = skip_double_escape(bytes, scan);
-                            continue;
-                        }
-                        if matches!(bytes[scan], b'{' | b'}')
-                            && bytes.get(scan + 1) == Some(&bytes[scan])
+                    let expr_start = scan + 1;
+                    let close =
+                        scan_interpolation_close(bytes, expr_start, interpolation_depth + 1)
+                            .expect("the quote boundary scan validated this interpolation");
+                    let before = tokens.len();
+                    let mut nested_comment = None;
+                    lex_line(
+                        source,
+                        LineContext {
+                            text: &line[expr_start..close],
+                            base: base + expr_start,
+                            argument: false,
+                            argument_boundary: false,
+                            interpolation_depth: interpolation_depth + 1,
+                        },
+                        tokens,
+                        trivia,
+                        diagnostics,
+                        &mut nested_comment,
+                    );
+                    for selector_index in before..tokens.len().saturating_sub(1) {
+                        if tokens[selector_index].text == "!"
+                            && tokens[selector_index + 1].text == ":"
+                            && tokens[selector_index].span.end
+                                == tokens[selector_index + 1].span.start
                         {
-                            scan += 2;
-                            continue;
+                            tokens[selector_index].kind = TokenKind::RenderingSelector;
                         }
-                        if bytes[scan] != b'{' {
-                            scan += 1;
-                            continue;
-                        }
-                        if part < scan {
-                            push_double_fragment(
-                                source,
-                                line,
-                                base,
-                                part,
-                                scan,
-                                tokens,
-                                diagnostics,
-                            );
-                        }
-                        push_token(
-                            source,
-                            tokens,
-                            TokenKind::InterpolationOpen,
-                            base + scan,
-                            base + scan + 1,
-                            Attachment::Right,
-                        );
-                        let expr_start = scan + 1;
-                        let close =
-                            scan_interpolation_close(bytes, expr_start, interpolation_depth + 1)
-                                .expect("the quote boundary scan validated this interpolation");
-                        let before = tokens.len();
-                        let mut nested_comment = None;
-                        lex_line(
-                            source,
-                            LineContext {
-                                text: &line[expr_start..close],
-                                base: base + expr_start,
-                                argument: false,
-                                argument_boundary: false,
-                                interpolation_depth: interpolation_depth + 1,
-                            },
-                            tokens,
-                            trivia,
-                            diagnostics,
-                            &mut nested_comment,
-                        );
-                        for selector_index in before..tokens.len().saturating_sub(1) {
-                            if tokens[selector_index].text == "!"
-                                && tokens[selector_index + 1].text == ":"
-                                && tokens[selector_index].span.end
-                                    == tokens[selector_index + 1].span.start
-                            {
-                                tokens[selector_index].kind = TokenKind::RenderingSelector;
-                            }
-                        }
-                        push_token(
-                            source,
-                            tokens,
-                            TokenKind::InterpolationClose,
-                            base + close,
-                            base + close + 1,
-                            Attachment::Left,
-                        );
-                        scan = close + 1;
-                        part = scan;
-                    }
-                    if part < content_end {
-                        push_double_fragment(
-                            source,
-                            line,
-                            base,
-                            part,
-                            content_end,
-                            tokens,
-                            diagnostics,
-                        );
                     }
                     push_token(
                         source,
                         tokens,
-                        TokenKind::StringEnd,
-                        base + content_end,
-                        base + end,
+                        TokenKind::InterpolationClose,
+                        base + close,
+                        base + close + 1,
                         Attachment::Left,
                     );
+                    scan = close + 1;
+                    part = scan;
                 }
+                if part < content_end {
+                    push_double_fragment(
+                        source,
+                        line,
+                        base,
+                        part,
+                        content_end,
+                        tokens,
+                        diagnostics,
+                    );
+                }
+                push_token(
+                    source,
+                    tokens,
+                    TokenKind::StringEnd,
+                    base + content_end,
+                    base + end,
+                    Attachment::Left,
+                );
             }
             b' ' | b'\t' => {
                 index += 1;
@@ -1350,13 +1342,12 @@ pub fn string_literal_value(text: &str) -> String {
         while let Some(ch) = chars.next() {
             if ch == '\\' {
                 match chars.next() {
-                    Some('\\') => output.push('\\'),
+                    Some('\\') | None => output.push('\\'),
                     Some('\'') => output.push('\''),
                     Some(other) => {
                         output.push('\\');
                         output.push(other);
                     }
-                    None => output.push('\\'),
                 }
             } else {
                 output.push(ch);
@@ -1382,7 +1373,7 @@ pub fn interpreted_text(text: &str) -> String {
             output.push('}');
         } else if ch == '\\' {
             match chars.next() {
-                Some('\\') => output.push('\\'),
+                Some('\\') | None => output.push('\\'),
                 Some('\'') => output.push('\''),
                 Some('"') => output.push('"'),
                 Some('n') => output.push('\n'),
@@ -1390,27 +1381,25 @@ pub fn interpreted_text(text: &str) -> String {
                 Some('t') => output.push('\t'),
                 Some('0') => output.push('\0'),
                 Some('u') if chars.next() == Some('{') => {
-                    let mut digits = String::new();
-                    while chars.peek().is_some_and(|next| *next != '}') {
-                        digits.push(chars.next().expect("peeked character"));
+                    let mut digits = 0usize;
+                    let mut value = Some(0u32);
+                    while let Some(next) = chars.next_if(|next| *next != '}') {
+                        digits += 1;
+                        value = value.and_then(|value| {
+                            value.checked_mul(16)?.checked_add(next.to_digit(16)?)
+                        });
                     }
                     if chars.next() == Some('}')
-                        && !digits.is_empty()
-                        && digits.len() <= 6
-                        && digits.chars().all(|d| d.is_ascii_hexdigit())
+                        && (1..=6).contains(&digits)
+                        && let Some(decoded) = value.and_then(char::from_u32)
                     {
-                        if let Ok(value) = u32::from_str_radix(&digits, 16) {
-                            if let Some(decoded) = char::from_u32(value) {
-                                output.push(decoded);
-                            }
-                        }
+                        output.push(decoded);
                     }
                 }
                 Some(other) => {
                     output.push('\\');
                     output.push(other);
                 }
-                None => output.push('\\'),
             }
         } else {
             output.push(ch);

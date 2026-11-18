@@ -109,7 +109,7 @@ mod tests {
     }
 
     #[test]
-    fn interpolation_keeps_expression_tokens_and_raw_text_spans() {
+    fn keeps_code_tokens_and_text_spans() {
         let (root, diagnostics) =
             parse_text("function main;\n    return \"pre {{ {call; \"inner\"} tail\"\n");
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -139,7 +139,7 @@ mod tests {
         );
     }
     #[test]
-    fn literal_decoder_collapses_braces_and_unicode_escapes() {
+    fn decodes_braces_and_unicode_escapes() {
         assert_eq!(
             lexer::string_literal_value("\"{{name}} \\u{41}\""),
             "{name} A"
