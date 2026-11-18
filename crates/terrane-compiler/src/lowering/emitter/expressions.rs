@@ -570,6 +570,11 @@ impl Emitter<'_> {
         node: &SyntaxNode,
         value_type: ValueType,
     ) -> String {
+        if value_type == ValueType::Scalar(ScalarType::String)
+            && let Some(name) = self.borrowed_key_name(node)
+        {
+            return format!("{name}.to_owned()");
+        }
         if let ValueType::Object(expected) = &value_type
             && crate::semantics::interpolatable::is_protocol(expected)
             && let Some(actual) = self.value_type(node)

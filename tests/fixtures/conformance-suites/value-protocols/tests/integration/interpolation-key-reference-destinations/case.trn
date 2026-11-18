@@ -30,6 +30,22 @@ class shared-key implements interpolatable
         observer = ref key
         return "shared:{shared}:{observer}:{key}"
 
+class borrowed-key implements interpolatable
+    function interpolate string; key string
+        if (key) == 'snapshot'
+            owned = key
+            owned = owned + '!'
+            return "{owned}|{key}"
+        if key == 'return'
+            return key
+        if key == 'single'
+            return "{key}"
+        if key == 'capture'
+            callback = function string;
+                return key
+            return (callback;) + (callback;)
+        return "[{key}]" + (key + '!') + (key.concat; '?') + "[{((key))}]" + ((key).join; 'x', 'y')
+
 function test-scenario;
     value = instance reference-key;
     assert-equal-string; "{value !: overview}", 'refs:8:8:8:8:8:8'
@@ -40,3 +56,11 @@ function test-scenario;
     shared = instance shared-key;
     assert-equal-string; "{shared !: overview}", 'shared:overview:overview:overview'
     assert-equal-string; "{shared}", 'shared:::'
+    borrowed = instance borrowed-key;
+    assert-equal-string; "{borrowed !: overview}", '[overview]overview!overview?[overview]xoverviewy'
+    assert-equal-string; "{borrowed}", '[]!?[]xy'
+    assert-equal-string; (borrowed.interpolate; 'é{a}\z'), '[é{a}\z]é{a}\z!é{a}\z?[é{a}\z]xé{a}\zy'
+    assert-equal-string; (borrowed.interpolate; 'snapshot'), 'snapshot!|snapshot'
+    assert-equal-string; (borrowed.interpolate; 'return'), 'return'
+    assert-equal-string; (borrowed.interpolate; 'single'), 'single'
+    assert-equal-string; (borrowed.interpolate; 'capture'), 'capturecapture'

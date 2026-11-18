@@ -3,11 +3,16 @@ use crate::{
     ScalarType,
     lowering::helpers::{function_name, rust_object_type_name, rust_value_type, union_type_name},
     semantics::{FunctionContract, ValueType, interpolatable},
-    syntax::SyntaxNode,
+    syntax::{SyntaxKind, SyntaxNode},
 };
 
 impl Emitter<'_> {
-    pub(super) fn borrowed_key_name(&self, node: &SyntaxNode) -> Option<&str> {
+    pub(super) fn borrowed_key_name(&self, mut node: &SyntaxNode) -> Option<&str> {
+        while node.kind == SyntaxKind::GroupExpression
+            && let [inner] = node.children.as_slice()
+        {
+            node = inner;
+        }
         let binding = self.local_typed_binding(node)?;
         (Some(binding.span) == self.borrowed_interpolation_key)
             .then(|| self.binding_storage_name(binding))

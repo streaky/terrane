@@ -10,6 +10,9 @@ use crate::{
 
 impl Emitter<'_> {
     pub(super) fn display_receiver(&mut self, node: &SyntaxNode) -> String {
+        if let Some(name) = self.borrowed_key_name(node) {
+            return name.to_owned();
+        }
         if let Some(value) = self.narrowed_storage_name(node, false, false) {
             return value;
         }
@@ -257,6 +260,8 @@ impl Emitter<'_> {
                     literal = inner;
                 }
                 crate::lowering::helpers::native_macro_literal(self.text(literal))
+            } else if let Some(name) = self.borrowed_key_name(node) {
+                name.to_owned()
             } else {
                 self.receiver_expression(node)
             }
