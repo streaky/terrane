@@ -113,8 +113,10 @@
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
       "patterns": [
         { "include": "#double-escapes" },
+        { "name": "invalid.illegal.escape.terrane", "match": "\\\\(?:.|$)" },
         { "name": "constant.character.escape.terrane", "match": "\\{\\{" },
         { "name": "constant.character.escape.terrane", "match": "\\}\\}" },
+        { "name": "invalid.illegal.brace.terrane", "match": "\\}" },
         {
           "name": "meta.interpolation.terrane",
           "begin": "\\{(?!\\{)",
