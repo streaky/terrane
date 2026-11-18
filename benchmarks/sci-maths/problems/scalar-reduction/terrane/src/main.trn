@@ -1,18 +1,18 @@
 namespace benchmark-scalar-reduction
 
-from /core/process import native-string, arguments, exit, make-exit-status
+from /core/process import arguments, exit, make-exit-status
 
 function benchmark-size int64;
-  supplied = (arguments;)
+  supplied = arguments;
   if supplied.length != 1
     exit; (make-exit-status; 2)
-  count int64 = (supplied[0].text.radix; 10)
+  count int64 = supplied[0].text.radix; 10
   if count <= 0
     exit; (make-exit-status; 2)
   return count
 
 function main;
-  count int64 = (benchmark-size;)
+  count int64 = benchmark-size;
 
   total int64 = 0
   index int64 = 0

@@ -1,0 +1,336 @@
+{
+  "format": 3,
+  "suite": "Terrane practical workloads",
+  "groups": [
+    {
+      "id": "http1",
+      "name": "HTTP/1 workloads"
+    }
+  ],
+  "created_at": "2026-11-18T17:50:55.982111+00:00",
+  "environment": {
+    "platform": "Linux-7.3.0-4-cachyos-x86_64-with-glibc2.44",
+    "kernel": "7.3.0-4-cachyos",
+    "machine": "x86_64",
+    "cpu_model": "AMD Ryzen 9 3900XT 12-Core Processor",
+    "logical_cpus": 24,
+    "physical_cores": 12,
+    "memory_bytes": 101152743424,
+    "runner_python": "3.14.9",
+    "cpu_frequency_governor": "powersave",
+    "load_average": [
+      2.2734375,
+      1.6162109375,
+      1.14990234375
+    ],
+    "inherited_performance_environment": {}
+  },
+  "measurement": {
+    "clock": "time.perf_counter",
+    "runs": 7,
+    "warmups": 2,
+    "cold_builds": false,
+    "setup_timeout_seconds": 600.0,
+    "runtime_timeout_seconds": 60.0,
+    "execution_timing": "process spawn to exit, as observed by the parent; setup and preparation complete before spawning",
+    "run_order": "problem-major and lane-minor within each warm-up or measured run index",
+    "build_cache": "existing adapter-declared caches preserved",
+    "memory": "peak cgroup-v2 memory charged to a fresh cgroup containing the launched process and all descendants",
+    "memory_available": true,
+    "memory_unavailable_reason": null,
+    "memory_recommendation": null,
+    "memory_limitations": "memory.peak includes anonymous memory, charged page cache, and kernel memory. Shared pages are charged once, potentially to a cgroup outside the measured execution, so small-footprint results depend on page-cache state and are not directly comparable across machines or reboots. It is not an RSS measurement."
+  },
+  "lane_setup": {
+    "terrane": {
+      "name": "Pure Terrane HTTP/1.1",
+      "metadata": {
+        "implementation": "Standalone Terrane source using core TCP and JSON; no authored Rust dependencies or escape hatches",
+        "protocol": "HTTP/1.1 over cleartext loopback TCP, one exchange per connection",
+        "native-build-profile": "Cargo release: opt-level 3, fat LTO, one codegen unit"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/target/release/terrane",
+            "--version"
+          ],
+          "stdout": "terrane 0.1.0 (build rust 1.100.0, projection rustdoc nightly-2026-10-02)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.100.0 (0ef1bc386 2026-11-09)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.100.0 (3acc79c0c 2026-11-05)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.09648662991821766,
+        "peak_memory_bytes": 35880960,
+        "stderr": "",
+        "warning_lines": []
+      }
+    },
+    "go": {
+      "name": "Go protocol reference",
+      "metadata": {
+        "implementation": "Upstream protocol-specific Go HTTP server/client reference",
+        "native-build-profile": "default optimized Go build with trimmed paths"
+      },
+      "environment": [
+        {
+          "command": [
+            "go",
+            "version"
+          ],
+          "stdout": "go version go1.27.3-X:nodwarf5 linux/amd64\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "rust": {
+      "name": "Rust protocol reference",
+      "metadata": {
+        "implementation": "Upstream Rust HTTP server/client reference with pinned dependencies",
+        "native-build-profile": "Cargo release: opt-level 3, fat LTO, one codegen unit"
+      },
+      "environment": [
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.100.0 (0ef1bc386 2026-11-09)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.100.0 (3acc79c0c 2026-11-05)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    }
+  },
+  "results": [
+    {
+      "problem": "http1-server",
+      "group": "http1",
+      "title": "Concurrent HTTP/1 JSON request-response workload",
+      "dataset": "For size N, concurrently POST N JSON requests to /api, with request {\"value\":i} for i from 1 through N; each handler returns i as decimal text and the process prints the sum N*(N+1)/2.",
+      "correctness_profile": {
+        "size": 10,
+        "expected": 55
+      },
+      "performance_profile": {
+        "size": 1000,
+        "expected": 500500
+      },
+      "lane": "terrane",
+      "correctness_result": 55,
+      "performance_result": 500500,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 7.038907026872039,
+        "peak_memory_bytes": 85889024,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: loading package...\nCompleted [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-http1-server]: preparing declaration consumers...\n  Compiled [benchmark-http1-server]: preparing declaration consumers (0.000s)\n  Compiling [benchmark-http1-server]: semantic analysis...\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/src/main.trn]: parsing authored source...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/src/main.trn]: parsing authored source (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: resolving dependency projection...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: resolving dependency projection (0.005s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: projecting dependency declarations and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: projecting dependency declarations and imports (0.005s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: resolving namespaces, declarations, and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: resolving namespaces, declarations, and imports (0.015s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: type inference...\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native selection gathering (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native contract propagation (0.014s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native capability proofs (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: preparing type declarations...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: preparing type declarations (0.047s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: inferring source types...\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: inferring initial bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: inferring initial bindings (0.021s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: inferring projected call results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: inferring projected call results (0.003s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: refreshing inferred bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: refreshing inferred bindings (0.021s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: normalizing native type contracts...\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native selection gathering (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native contract propagation (0.025s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: native capability proofs (0.000s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: normalizing native type contracts (0.026s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: specializing projected results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: specializing projected results (0.005s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: validating source type contracts...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: validating source type contracts (0.025s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: inferring source types (0.101s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: type inference (0.294s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: validating references and enum matches...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: validating references and enum matches (0.004s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: ownership, provenance, and effects...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: ownership, provenance, and effects (0.080s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: final semantic validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane]: final semantic validation (2.278s)\n  Compiled [benchmark-http1-server]: semantic analysis (5.361s)\n  Compiling [benchmark-http1-server]: lowering to Rust...\n  Compiled [benchmark-http1-server]: lowering to Rust (1.581s)\n  Compiling [benchmark-http1-server]: rendering Rust...\n  Compiled [benchmark-http1-server]: rendering Rust (0.012s)\nCompleted [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: compiling Terrane sources (6.982s)\nBuilding [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: preparing native build...\nCompleted [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: preparing native build (0.016s)\nBuilding [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml]: compiling native artifact (0.012s)\nBuild finished [benchmark-http1-server at /home/streaky/projects/terrane/benchmarks/practical/problems/http1-server/terrane/package.toml] (7.010s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.09992269682697952,
+          "peak_memory_bytes": 55664640,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09987147781066597,
+          "peak_memory_bytes": 52264960,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.08781399205327034,
+          "peak_memory_bytes": 52035584,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0721118098590523,
+          "peak_memory_bytes": 53817344,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09037958807311952,
+          "peak_memory_bytes": 51183616,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.08570528100244701,
+          "peak_memory_bytes": 53309440,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10053895204328,
+          "peak_memory_bytes": 53198848,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "http1-server",
+      "group": "http1",
+      "title": "Concurrent HTTP/1 JSON request-response workload",
+      "dataset": "For size N, concurrently POST N JSON requests to /api, with request {\"value\":i} for i from 1 through N; each handler returns i as decimal text and the process prints the sum N*(N+1)/2.",
+      "correctness_profile": {
+        "size": 10,
+        "expected": 55
+      },
+      "performance_profile": {
+        "size": 1000,
+        "expected": 500500
+      },
+      "lane": "go",
+      "correctness_result": 55,
+      "performance_result": 500500,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.11731481412425637,
+        "peak_memory_bytes": 46379008,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.06376789789646864,
+          "peak_memory_bytes": 48869376,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06026069191284478,
+          "peak_memory_bytes": 43446272,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.08745313482359052,
+          "peak_memory_bytes": 56680448,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0975796109996736,
+          "peak_memory_bytes": 72671232,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.07254576589912176,
+          "peak_memory_bytes": 48373760,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.07873494690284133,
+          "peak_memory_bytes": 68964352,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09921069396659732,
+          "peak_memory_bytes": 68653056,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "http1-server",
+      "group": "http1",
+      "title": "Concurrent HTTP/1 JSON request-response workload",
+      "dataset": "For size N, concurrently POST N JSON requests to /api, with request {\"value\":i} for i from 1 through N; each handler returns i as decimal text and the process prints the sum N*(N+1)/2.",
+      "correctness_profile": {
+        "size": 10,
+        "expected": 55
+      },
+      "performance_profile": {
+        "size": 1000,
+        "expected": 500500
+      },
+      "lane": "rust",
+      "correctness_result": 55,
+      "performance_result": 500500,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.07783212582580745,
+        "peak_memory_bytes": 24219648,
+        "stderr": "    Finished `release` profile [optimized] target(s) in 0.04s\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.09738538204692304,
+          "peak_memory_bytes": 51089408,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09147236682474613,
+          "peak_memory_bytes": 51499008,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09648456005379558,
+          "peak_memory_bytes": 51990528,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.08060188009403646,
+          "peak_memory_bytes": 51642368,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09782118699513376,
+          "peak_memory_bytes": 50802688,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.11057907692156732,
+          "peak_memory_bytes": 51093504,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0985940711107105,
+          "peak_memory_bytes": 50614272,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    }
+  ]
+}

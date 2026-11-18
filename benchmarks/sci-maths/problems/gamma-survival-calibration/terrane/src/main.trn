@@ -1,12 +1,12 @@
 namespace benchmark-gamma-survival-calibration
 
-from /core/process import native-string, arguments, exit, make-exit-status
+from /core/process import arguments, exit, make-exit-status
 
 function benchmark-size int64;
-  supplied = (arguments;)
+  supplied = arguments;
   if supplied.length != 1
     exit; (make-exit-status; 2)
-  count int64 = (supplied[0].text.radix; 10)
+  count int64 = supplied[0].text.radix; 10
   if count <= 0
     exit; (make-exit-status; 2)
   return count
@@ -45,7 +45,7 @@ function lower-gamma-ratio float64; shape float64, observation float64, gamma-lo
     if (term.absolute;) < (total.absolute;) * 0.00000000000003
       break
     iteration++
-  exponent float64 = (shape.multiply-add; (observation.natural-log;), 0.0 - observation - gamma-log)
+  exponent float64 = shape * (observation.natural-log;) + (0.0 - observation - gamma-log)
   scale float64 = exponent.exponential;
   return total * scale
 
@@ -60,7 +60,7 @@ function upper-gamma-ratio float64; shape float64, observation float64, gamma-lo
   while iteration <= 100
     numerator float64 = (0.0 - iteration) * (iteration - shape)
     offset = offset + 2
-    denominator = (numerator.multiply-add; denominator, offset)
+    denominator = numerator * denominator + offset
     if (denominator.absolute;) < floor
       denominator = floor
     reciprocal-floor = offset + numerator / reciprocal-floor
@@ -73,18 +73,18 @@ function upper-gamma-ratio float64; shape float64, observation float64, gamma-lo
       break
     iteration = iteration + 1
 
-  exponent float64 = (shape.multiply-add; (observation.natural-log;), 0.0 - observation - gamma-log)
+  exponent float64 = shape * (observation.natural-log;) + (0.0 - observation - gamma-log)
   scale float64 = exponent.exponential;
   return scale * product
 
 function gamma-survival float64; shape float64, observation float64
-  gamma-log float64 = (log-gamma; shape)
+  gamma-log float64 = log-gamma; shape
   if observation < shape + 1
     return 1 - (lower-gamma-ratio; shape, observation, gamma-log)
-  return (upper-gamma-ratio; shape, observation, gamma-log)
+  return upper-gamma-ratio; shape, observation, gamma-log
 
 function main;
-  count int64 = (benchmark-size;)
+  count int64 = benchmark-size;
   total float64 = 0
   index int64 = 0
   while index < count
@@ -94,9 +94,9 @@ function main;
     shape float64 = 1.25 + shape-part * 0.125
     observation float64 = 0.5 + observation-part * 0.05
     target float64 = 0.2 + target-part * 0.1
-    survival float64 = (gamma-survival; shape, observation)
+    survival float64 = gamma-survival; shape, observation
     residual float64 = survival - target
-    total = (residual.multiply-add; residual, total)
+    total = residual * residual + total
     index++
   divisor float64 = count
   print; total / divisor

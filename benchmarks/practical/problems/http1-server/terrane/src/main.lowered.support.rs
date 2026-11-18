@@ -518,66 +518,66 @@ mod __terrane_trace {
         "/core/time::interval",
     ];
     pub static SITES: [Site; 52] = [
-        /* terrane-site-row: site 0: /benchmark-http1-server::read-message (src/main.trn:29:13-29:46) */
-        { Site { function: 0, file: 0, line: 29, column: 13, end_line: 29, end_column: 46 } },
-        /* terrane-site-row: site 1: /benchmark-http1-server::read-message (src/main.trn:38:17-38:50) */
-        { Site { function: 0, file: 0, line: 38, column: 17, end_line: 38, end_column: 50 } },
-        /* terrane-site-row: site 2: /benchmark-http1-server::read-message (src/main.trn:41:17-41:50) */
-        { Site { function: 0, file: 0, line: 41, column: 17, end_line: 41, end_column: 50 } },
-        /* terrane-site-row: site 3: /benchmark-http1-server::read-message (src/main.trn:46:31-46:39) */
-        { Site { function: 0, file: 0, line: 46, column: 31, end_line: 46, end_column: 39 } },
-        /* terrane-site-row: site 4: /benchmark-http1-server::read-message (src/main.trn:47:24-47:34) */
-        { Site { function: 0, file: 0, line: 47, column: 24, end_line: 47, end_column: 34 } },
-        /* terrane-site-row: site 5: /benchmark-http1-server::read-message (src/main.trn:48:25-48:58) */
-        { Site { function: 0, file: 0, line: 48, column: 25, end_line: 48, end_column: 58 } },
-        /* terrane-site-row: site 6: /benchmark-http1-server::read-message (src/main.trn:52:43-52:72) */
-        { Site { function: 0, file: 0, line: 52, column: 43, end_line: 52, end_column: 72 } },
-        /* terrane-site-row: site 7: /benchmark-http1-server::read-message (src/main.trn:55:37-55:45) */
-        { Site { function: 0, file: 0, line: 55, column: 37, end_line: 55, end_column: 45 } },
-        /* terrane-site-row: site 8: /benchmark-http1-server::read-message (src/main.trn:57:28-57:36) */
-        { Site { function: 0, file: 0, line: 57, column: 28, end_line: 57, end_column: 36 } },
-        /* terrane-site-row: site 9: /benchmark-http1-server::read-message (src/main.trn:58:9-58:42) */
-        { Site { function: 0, file: 0, line: 58, column: 9, end_line: 58, end_column: 42 } },
-        /* terrane-site-row: site 10: /benchmark-http1-server::handle-request (src/main.trn:66:18-66:63) */
-        { Site { function: 1, file: 0, line: 66, column: 18, end_line: 66, end_column: 63 } },
-        /* terrane-site-row: site 11: /benchmark-http1-server::handle-request (src/main.trn:74:9-74:42) */
-        { Site { function: 1, file: 0, line: 74, column: 9, end_line: 74, end_column: 42 } },
-        /* terrane-site-row: site 12: /benchmark-http1-server::serve (src/main.trn:85:26-85:61) */
-        { Site { function: 2, file: 0, line: 85, column: 26, end_line: 85, end_column: 61 } },
-        /* terrane-site-row: site 13: /benchmark-http1-server::send-one (src/main.trn:103:9-103:42) */
-        { Site { function: 3, file: 0, line: 103, column: 9, end_line: 103, end_column: 42 } },
-        /* terrane-site-row: site 14: /benchmark-http1-server::send-one (src/main.trn:104:22-104:64) */
-        { Site { function: 3, file: 0, line: 104, column: 22, end_line: 104, end_column: 64 } },
-        /* terrane-site-row: site 15: /benchmark-http1-server::send-one (src/main.trn:106:19-106:37) */
-        { Site { function: 3, file: 0, line: 106, column: 19, end_line: 106, end_column: 37 } },
-        /* terrane-site-row: site 16: /benchmark-http1-server::send-one (src/main.trn:108:9-108:42) */
-        { Site { function: 3, file: 0, line: 108, column: 9, end_line: 108, end_column: 42 } },
-        /* terrane-site-row: site 17: /benchmark-http1-server::main (src/main.trn:116:17-116:28) */
-        { Site { function: 4, file: 0, line: 116, column: 17, end_line: 116, end_column: 28 } },
-        /* terrane-site-row: site 18: /benchmark-http1-server::main (src/main.trn:116:17-116:43) */
-        { Site { function: 4, file: 0, line: 116, column: 17, end_line: 116, end_column: 43 } },
-        /* terrane-site-row: site 19: /benchmark-http1-server::main (src/main.trn:126:28-126:55) */
-        { Site { function: 4, file: 0, line: 126, column: 28, end_line: 126, end_column: 55 } },
-        /* terrane-site-row: site 20: /benchmark-http1-server::main (src/main.trn:130:26-130:60) */
-        { Site { function: 4, file: 0, line: 130, column: 26, end_line: 130, end_column: 60 } },
-        /* terrane-site-row: site 21: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
-        { Site { function: 5, file: 1, line: 140, column: 47, end_line: 140, end_column: 60 } },
-        /* terrane-site-row: site 22: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
-        { Site { function: 6, file: 1, line: 153, column: 17, end_line: 153, end_column: 30 } },
-        /* terrane-site-row: site 23: /core/documents::mapping-required-fields (core/documents.trn:157:16-157:47) */
-        { Site { function: 6, file: 1, line: 157, column: 16, end_line: 157, end_column: 47 } },
-        /* terrane-site-row: site 24: /core/documents::mapping-required-fields (core/documents.trn:163:16-163:45) */
-        { Site { function: 6, file: 1, line: 163, column: 16, end_line: 163, end_column: 45 } },
-        /* terrane-site-row: site 25: /core/documents::decode-document (core/documents.trn:176:12-176:44) */
-        { Site { function: 7, file: 1, line: 176, column: 12, end_line: 176, end_column: 44 } },
-        /* terrane-site-row: site 26: /core/documents::decode-document (core/documents.trn:177:37-177:69) */
-        { Site { function: 7, file: 1, line: 177, column: 37, end_line: 177, end_column: 69 } },
-        /* terrane-site-row: site 27: /core/documents::decode-document (core/documents.trn:183:12-183:49) */
-        { Site { function: 7, file: 1, line: 183, column: 12, end_line: 183, end_column: 49 } },
-        /* terrane-site-row: site 28: /core/documents::decode-document (core/documents.trn:184:36-184:73) */
-        { Site { function: 7, file: 1, line: 184, column: 36, end_line: 184, end_column: 73 } },
-        /* terrane-site-row: site 29: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
+        /* terrane-site-row: site 0: /benchmark-http1-server::read-message (src/main.trn:25:9-25:42) */
+        { Site { function: 0, file: 0, line: 25, column: 9, end_line: 25, end_column: 42 } },
+        /* terrane-site-row: site 1: /benchmark-http1-server::read-message (src/main.trn:34:13-34:46) */
+        { Site { function: 0, file: 0, line: 34, column: 13, end_line: 34, end_column: 46 } },
+        /* terrane-site-row: site 2: /benchmark-http1-server::read-message (src/main.trn:37:13-37:46) */
+        { Site { function: 0, file: 0, line: 37, column: 13, end_line: 37, end_column: 46 } },
+        /* terrane-site-row: site 3: /benchmark-http1-server::read-message (src/main.trn:42:27-42:35) */
+        { Site { function: 0, file: 0, line: 42, column: 27, end_line: 42, end_column: 35 } },
+        /* terrane-site-row: site 4: /benchmark-http1-server::read-message (src/main.trn:43:20-43:30) */
+        { Site { function: 0, file: 0, line: 43, column: 20, end_line: 43, end_column: 30 } },
+        /* terrane-site-row: site 5: /benchmark-http1-server::read-message (src/main.trn:44:21-44:54) */
+        { Site { function: 0, file: 0, line: 44, column: 21, end_line: 44, end_column: 54 } },
+        /* terrane-site-row: site 6: /benchmark-http1-server::read-message (src/main.trn:47:39-50:39) */
+        { Site { function: 0, file: 0, line: 47, column: 39, end_line: 50, end_column: 39 } },
+        /* terrane-site-row: site 7: /benchmark-http1-server::read-message (src/main.trn:53:33-53:41) */
+        { Site { function: 0, file: 0, line: 53, column: 33, end_line: 53, end_column: 41 } },
+        /* terrane-site-row: site 8: /benchmark-http1-server::read-message (src/main.trn:55:24-55:32) */
+        { Site { function: 0, file: 0, line: 55, column: 24, end_line: 55, end_column: 32 } },
+        /* terrane-site-row: site 9: /benchmark-http1-server::read-message (src/main.trn:56:5-56:38) */
+        { Site { function: 0, file: 0, line: 56, column: 5, end_line: 56, end_column: 38 } },
+        /* terrane-site-row: site 10: /benchmark-http1-server::handle-request (src/main.trn:59:18-59:60) */
+        { Site { function: 1, file: 0, line: 59, column: 18, end_line: 59, end_column: 60 } },
+        /* terrane-site-row: site 11: /benchmark-http1-server::handle-request (src/main.trn:68:9-68:42) */
+        { Site { function: 1, file: 0, line: 68, column: 9, end_line: 68, end_column: 42 } },
+        /* terrane-site-row: site 12: /benchmark-http1-server::serve (src/main.trn:79:26-79:61) */
+        { Site { function: 2, file: 0, line: 79, column: 26, end_line: 79, end_column: 61 } },
+        /* terrane-site-row: site 13: /benchmark-http1-server::send-one (src/main.trn:97:9-97:42) */
+        { Site { function: 3, file: 0, line: 97, column: 9, end_line: 97, end_column: 42 } },
+        /* terrane-site-row: site 14: /benchmark-http1-server::send-one (src/main.trn:98:22-98:61) */
+        { Site { function: 3, file: 0, line: 98, column: 22, end_line: 98, end_column: 61 } },
+        /* terrane-site-row: site 15: /benchmark-http1-server::send-one (src/main.trn:100:19-100:37) */
+        { Site { function: 3, file: 0, line: 100, column: 19, end_line: 100, end_column: 37 } },
+        /* terrane-site-row: site 16: /benchmark-http1-server::send-one (src/main.trn:102:9-102:42) */
+        { Site { function: 3, file: 0, line: 102, column: 9, end_line: 102, end_column: 42 } },
+        /* terrane-site-row: site 17: /benchmark-http1-server::main (src/main.trn:110:17-110:28) */
+        { Site { function: 4, file: 0, line: 110, column: 17, end_line: 110, end_column: 28 } },
+        /* terrane-site-row: site 18: /benchmark-http1-server::main (src/main.trn:110:17-110:43) */
+        { Site { function: 4, file: 0, line: 110, column: 17, end_line: 110, end_column: 43 } },
+        /* terrane-site-row: site 19: /benchmark-http1-server::main (src/main.trn:120:28-120:55) */
+        { Site { function: 4, file: 0, line: 120, column: 28, end_line: 120, end_column: 55 } },
+        /* terrane-site-row: site 20: /benchmark-http1-server::main (src/main.trn:124:26-124:60) */
+        { Site { function: 4, file: 0, line: 124, column: 26, end_line: 124, end_column: 60 } },
+        /* terrane-site-row: site 21: /core/documents::make-document-list (core/documents.trn:141:47-141:60) */
+        { Site { function: 5, file: 1, line: 141, column: 47, end_line: 141, end_column: 60 } },
+        /* terrane-site-row: site 22: /core/documents::mapping-required-fields (core/documents.trn:154:17-154:30) */
+        { Site { function: 6, file: 1, line: 154, column: 17, end_line: 154, end_column: 30 } },
+        /* terrane-site-row: site 23: /core/documents::mapping-required-fields (core/documents.trn:158:16-158:47) */
+        { Site { function: 6, file: 1, line: 158, column: 16, end_line: 158, end_column: 47 } },
+        /* terrane-site-row: site 24: /core/documents::mapping-required-fields (core/documents.trn:164:16-164:45) */
+        { Site { function: 6, file: 1, line: 164, column: 16, end_line: 164, end_column: 45 } },
+        /* terrane-site-row: site 25: /core/documents::decode-document (core/documents.trn:177:12-177:44) */
+        { Site { function: 7, file: 1, line: 177, column: 12, end_line: 177, end_column: 44 } },
+        /* terrane-site-row: site 26: /core/documents::decode-document (core/documents.trn:178:37-178:69) */
+        { Site { function: 7, file: 1, line: 178, column: 37, end_line: 178, end_column: 69 } },
+        /* terrane-site-row: site 27: /core/documents::decode-document (core/documents.trn:184:12-184:49) */
+        { Site { function: 7, file: 1, line: 184, column: 12, end_line: 184, end_column: 49 } },
+        /* terrane-site-row: site 28: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
         { Site { function: 7, file: 1, line: 185, column: 36, end_line: 185, end_column: 73 } },
+        /* terrane-site-row: site 29: /core/documents::decode-document (core/documents.trn:186:36-186:73) */
+        { Site { function: 7, file: 1, line: 186, column: 36, end_line: 186, end_column: 73 } },
         /* terrane-site-row: site 30: /core/networking::into-native (core/networking.trn:126:13-126:76) */
         { Site { function: 8, file: 2, line: 126, column: 13, end_line: 126, end_column: 76 } },
         /* terrane-site-row: site 31: /core/networking::into-native (core/networking.trn:236:13-236:76) */
@@ -635,6 +635,167 @@ mod __terrane_trace {
         )
     }
 }
+static TERRANE_SHARED_NEXT_THREAD_TOKEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(
+    1,
+);
+std::thread_local! {
+    static TERRANE_SHARED_THREAD_TOKEN : u64 = TERRANE_SHARED_NEXT_THREAD_TOKEN
+    .try_update(std::sync::atomic::Ordering::Relaxed,
+    std::sync::atomic::Ordering::Relaxed, | next | next.checked_add(1),)
+    .expect("shared storage thread token space exhausted");
+}
+#[derive(Debug)]
+pub struct TerraneSharedCell<T> {
+    owner: std::sync::atomic::AtomicU64,
+    value: std::sync::Mutex<T>,
+}
+impl<T> TerraneSharedCell<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            owner: std::sync::atomic::AtomicU64::new(0),
+            value: std::sync::Mutex::new(value),
+        }
+    }
+    /// Acquires exclusive shared-storage access, waiting for other threads.
+    ///
+    /// # Panics
+    /// Panics on same-thread reentry, before attempting to wait on itself.
+    ///
+    /// # Errors
+    /// Returns a poisoned guard if a previous holder unwound while borrowing.
+    pub fn lock(&self) -> std::sync::LockResult<TerraneSharedGuard<'_, T>> {
+        let token = TERRANE_SHARED_THREAD_TOKEN.with(|token| *token);
+        assert!(
+            self.owner.load(std::sync::atomic::Ordering::Acquire) != token,
+            "shared reference borrow conflict: storage is already borrowed by this thread"
+        );
+        let (guard, poisoned) = match self.value.lock() {
+            Ok(guard) => (guard, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        self.owner.store(token, std::sync::atomic::Ordering::Release);
+        let wrapped = TerraneSharedGuard {
+            owner: &self.owner,
+            guard,
+        };
+        if poisoned { Err(std::sync::PoisonError::new(wrapped)) } else { Ok(wrapped) }
+    }
+}
+#[derive(Debug)]
+pub struct TerraneSharedGuard<'a, T> {
+    owner: &'a std::sync::atomic::AtomicU64,
+    guard: std::sync::MutexGuard<'a, T>,
+}
+impl<T> std::ops::Deref for TerraneSharedGuard<'_, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.guard
+    }
+}
+impl<T> std::ops::DerefMut for TerraneSharedGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.guard
+    }
+}
+impl<T> Drop for TerraneSharedGuard<'_, T> {
+    fn drop(&mut self) {
+        self.owner.store(0, std::sync::atomic::Ordering::Release);
+    }
+}
+pub struct TerraneStaticObject<T> {
+    current: TerraneSharedCell<std::sync::Arc<TerraneSharedCell<T>>>,
+}
+impl<T> TerraneStaticObject<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            current: TerraneSharedCell::new(
+                std::sync::Arc::new(TerraneSharedCell::new(value)),
+            ),
+        }
+    }
+    /// Captures the current object without retaining the replaceable slot guard.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned or is recursively borrowed by this thread.
+    pub fn handle(&self) -> std::sync::Arc<TerraneSharedCell<T>> {
+        self.current.lock().expect("static object slot lock poisoned").clone()
+    }
+    /// Installs a new object, releasing the slot before dropping its predecessor.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned, recursively borrowed, or its old object panics on drop.
+    pub fn replace(&self, value: T) {
+        let replacement = std::sync::Arc::new(TerraneSharedCell::new(value));
+        let previous = {
+            let mut current = self
+                .current
+                .lock()
+                .expect("static object slot lock poisoned");
+            std::mem::replace(&mut *current, replacement)
+        };
+        drop(previous);
+    }
+}
+pub trait TerraneSharedHandle<T> {
+    /// Acquires a bounded exclusive borrow of the receiver's live storage.
+    ///
+    /// # Errors
+    /// Returns the original cell's poison state with a guard to the selected value.
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>>;
+}
+impl<T> TerraneSharedHandle<T> for std::sync::Arc<TerraneSharedCell<T>> {
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
+        (**self).lock()
+    }
+}
+pub struct TerraneSharedProjection<H, U, T> {
+    handle: H,
+    read: fn(&U) -> &T,
+    write: fn(&mut U) -> &mut T,
+}
+impl<H, U, T> TerraneSharedProjection<H, U, T> {
+    pub fn new(handle: H, read: fn(&U) -> &T, write: fn(&mut U) -> &mut T) -> Self {
+        Self { handle, read, write }
+    }
+}
+impl<H: Clone, U, T> Clone for TerraneSharedProjection<H, U, T> {
+    fn clone(&self) -> Self {
+        Self::new(self.handle.clone(), self.read, self.write)
+    }
+}
+struct TerraneSharedProjectedGuard<G, U, T> {
+    guard: G,
+    read: fn(&U) -> &T,
+    write: fn(&mut U) -> &mut T,
+}
+impl<G: std::ops::Deref<Target = U>, U, T> std::ops::Deref
+for TerraneSharedProjectedGuard<G, U, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        (self.read)(&self.guard)
+    }
+}
+impl<G: std::ops::DerefMut<Target = U>, U, T> std::ops::DerefMut
+for TerraneSharedProjectedGuard<G, U, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        (self.write)(&mut self.guard)
+    }
+}
+impl<H: TerraneSharedHandle<U>, U, T> TerraneSharedHandle<T>
+for TerraneSharedProjection<H, U, T> {
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
+        let (guard, poisoned) = match self.handle.lock() {
+            Ok(guard) => (guard, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        let guard = TerraneSharedProjectedGuard {
+            guard,
+            read: self.read,
+            write: self.write,
+        };
+        if poisoned { Err(std::sync::PoisonError::new(guard)) } else { Ok(guard) }
+    }
+}
 use std::future::Future;
 #[derive(Clone)]
 struct TerraneCancellation {
@@ -642,52 +803,30 @@ struct TerraneCancellation {
 }
 struct TerraneCancellationState {
     cancelled: std::sync::atomic::AtomicBool,
-    wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+    notification: tokio::sync::Notify,
 }
 impl TerraneCancellation {
     fn new() -> Self {
         Self {
             state: std::sync::Arc::new(TerraneCancellationState {
                 cancelled: std::sync::atomic::AtomicBool::new(false),
-                wakers: std::sync::Mutex::new(Vec::new()),
+                notification: tokio::sync::Notify::new(),
             }),
-        }
-    }
-    fn wake_waiters(&self) {
-        let wakers = std::mem::take(
-            &mut *self.state.wakers.lock().expect("cancellation waker lock poisoned"),
-        );
-        for waker in wakers {
-            waker.wake();
         }
     }
     fn cancel(&self) {
         if !self.state.cancelled.swap(true, std::sync::atomic::Ordering::AcqRel) {
-            self.wake_waiters();
+            self.state.notification.notify_waiters();
         }
     }
     fn is_cancelled(&self) -> bool {
         self.state.cancelled.load(std::sync::atomic::Ordering::Acquire)
     }
     async fn cancelled(&self) {
-        std::future::poll_fn(|context| {
-                if self.is_cancelled() {
-                    return std::task::Poll::Ready(());
-                }
-                let mut wakers = self
-                    .state
-                    .wakers
-                    .lock()
-                    .expect("cancellation waker lock poisoned");
-                if self.is_cancelled() {
-                    return std::task::Poll::Ready(());
-                }
-                if !wakers.iter().any(|waker| waker.will_wake(context.waker())) {
-                    wakers.push(context.waker().clone());
-                }
-                std::task::Poll::Pending
-            })
-            .await;
+        let notified = self.state.notification.notified();
+        if !self.is_cancelled() {
+            notified.await;
+        }
     }
 }
 trait TerraneTaskCleanup: Send + Sync {
@@ -822,13 +961,13 @@ static TERRANE_PROJECTED_CLEANUPS_CHANGED: tokio::sync::Notify = tokio::sync::No
     dead_code,
     reason = "projected asynchronous entry support is shared by asynchronous packages"
 )]
-struct TerraneProjectedEntryGuard {
+struct TerraneProjectedEntryGuard<T: Send + 'static> {
     cancellation: TerraneCancellation,
     finalizers: std::sync::Arc<TerraneFinalizerState>,
-    abort: Option<tokio::task::AbortHandle>,
+    task: Option<tokio::task::JoinHandle<T>>,
     armed: bool,
 }
-impl Drop for TerraneProjectedEntryGuard {
+impl<T: Send + 'static> Drop for TerraneProjectedEntryGuard<T> {
     fn drop(&mut self) {
         if !self.armed {
             return;
@@ -836,13 +975,14 @@ impl Drop for TerraneProjectedEntryGuard {
         TERRANE_PROJECTED_CLEANUPS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.cancellation.cancel();
         let finalizers = self.finalizers.clone();
-        let abort = self
-            .abort
+        let task = self
+            .task
             .take()
-            .expect("armed projected entry guard must own its abort handle");
+            .expect("armed projected entry guard must own its task");
         tokio::spawn(async move {
             finalizers.reaches(0).await;
-            abort.abort();
+            task.abort();
+            let _ = task.await;
             if TERRANE_PROJECTED_CLEANUPS
                 .fetch_sub(1, std::sync::atomic::Ordering::SeqCst) == 1
             {
@@ -879,10 +1019,13 @@ where
     let mut guard = TerraneProjectedEntryGuard {
         cancellation,
         finalizers,
-        abort: Some(task.abort_handle()),
+        task: Some(task),
         armed: true,
     };
-    let output = task
+    let output = guard
+        .task
+        .as_mut()
+        .expect("projected entry guard owns its task")
         .await
         .expect("projected asynchronous dependency entry task failed");
     guard.armed = false;
@@ -900,23 +1043,6 @@ async fn __terrane_wait_projected_cleanups() {
         }
         changed.await;
     }
-}
-fn __terrane_await_destructor<F>(future: F)
-where
-    F: Future<Output = ()> + Send,
-{
-    std::thread::scope(|scope| {
-        scope
-            .spawn(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Terrane destructor runtime must initialize")
-                    .block_on(future);
-            })
-            .join()
-            .expect("Terrane awaited destructor must not panic");
-    });
 }
 #[allow(
     dead_code,
@@ -1084,39 +1210,41 @@ fn __terrane_cancellation_is_requested() -> bool {
     dead_code,
     reason = "native scope support is shared by packages without asynchronous finally"
 )]
-async fn __terrane_cancel_operation<F: Future>(
-    guard: &TerraneFinallyGuard,
+fn __terrane_cancel_operation<'a, F: Future + 'a>(
+    guard: &'a TerraneFinallyGuard,
     future: F,
-) -> Option<F::Output> {
-    let cancellation = TERRANE_CANCELLATION_CONTEXT
-        .try_with(|context| {
-            guard
-                .state
-                .as_ref()
-                .map(|state| {
-                    (
-                        context.cancellation.clone(),
-                        context.deadline.clone(),
-                        state.clone(),
-                    )
-                })
-        })
-        .ok()
-        .flatten();
-    if let Some((cancellation, deadline, finalizers)) = cancellation {
-        let mut future = std::pin::pin!(future);
-        tokio::select! {
-            biased; output = future.as_mut() => Some(output), () =
-            __terrane_cancellation_requested(cancellation, deadline) => { let output =
-            std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx) {
-            std::task::Poll::Ready(output) => std::task::Poll::Ready(Some(output)),
-            std::task::Poll::Pending if finalizers.depth() == guard.depth => {
-            std::task::Poll::Ready(None) } std::task::Poll::Pending =>
-            std::task::Poll::Pending, } }). await; if output.is_none() { finalizers
-            .drain_task_groups(). await; } output },
+) -> impl Future<Output = Option<F::Output>> + 'a {
+    let mut future = Box::pin(future);
+    async move {
+        let cancellation = TERRANE_CANCELLATION_CONTEXT
+            .try_with(|context| {
+                guard
+                    .state
+                    .as_ref()
+                    .map(|state| {
+                        (
+                            context.cancellation.clone(),
+                            context.deadline.clone(),
+                            state.clone(),
+                        )
+                    })
+            })
+            .ok()
+            .flatten();
+        if let Some((cancellation, deadline, finalizers)) = cancellation {
+            tokio::select! {
+                biased; output = future.as_mut() => Some(output), () =
+                __terrane_cancellation_requested(cancellation, deadline) => { let output
+                = std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx) {
+                std::task::Poll::Ready(output) => std::task::Poll::Ready(Some(output)),
+                std::task::Poll::Pending if finalizers.depth() == guard.depth => {
+                std::task::Poll::Ready(None) } std::task::Poll::Pending =>
+                std::task::Poll::Pending, } }). await; if output.is_none() { finalizers
+                .drain_task_groups(). await; } output },
+            }
+        } else {
+            Some(future.await)
         }
-    } else {
-        Some(future.await)
     }
 }
 #[allow(
@@ -1157,37 +1285,40 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-async fn __terrane_cancellable<F: Future>(
+fn __terrane_cancellable<F: Future>(
     future: F,
     cancellation: TerraneCancellation,
     deadline: Option<terrane_int_support::Int>,
-) -> Option<F::Output> {
-    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
-    let context = TerraneCancellationContext {
-        cancellation: cancellation.clone(),
-        deadline: deadline.clone(),
-        finalizers: finalizers.clone(),
-    };
-    TERRANE_CANCELLATION_CONTEXT
-        .scope(
-            context,
-            async {
-                let mut future = std::pin::pin!(future);
-                let output = tokio::select! {
-                    biased; output = future.as_mut() => Some(output), () =
-                    __terrane_cancellation_requested(cancellation, deadline.clone()) => {
-                    finalizers.drain_task_groups(). await; std::future::poll_fn(| cx | {
-                    match Future::poll(future.as_mut(), cx) {
-                    std::task::Poll::Ready(output) =>
-                    std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
-                    finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
-                    std::task::Poll::Pending => std::task::Poll::Pending, } }). await },
-                };
-                finalizers.drain_task_groups().await;
-                output
-            },
-        )
-        .await
+) -> impl Future<Output = Option<F::Output>> {
+    let mut future = Box::pin(future);
+    async move {
+        let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+        let context = TerraneCancellationContext {
+            cancellation: cancellation.clone(),
+            deadline: deadline.clone(),
+            finalizers: finalizers.clone(),
+        };
+        TERRANE_CANCELLATION_CONTEXT
+            .scope(
+                context,
+                async move {
+                    let output = tokio::select! {
+                        biased; output = future.as_mut() => Some(output), () =
+                        __terrane_cancellation_requested(cancellation, deadline.clone())
+                        => { finalizers.drain_task_groups(). await;
+                        std::future::poll_fn(| cx | { match Future::poll(future.as_mut(),
+                        cx) { std::task::Poll::Ready(output) =>
+                        std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
+                        finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
+                        std::task::Poll::Pending => std::task::Poll::Pending, } }). await
+                        },
+                    };
+                    finalizers.drain_task_groups().await;
+                    output
+                },
+            )
+            .await
+    }
 }
 #[allow(
     dead_code,
@@ -1211,11 +1342,161 @@ async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
         )
         .await
 }
+#[allow(
+    dead_code,
+    reason = "shared async support also serves packages without awaited destructors"
+)]
+const TERRANE_RUNTIME_CLOSING: usize = 1 << usize::BITS - 1;
+#[allow(
+    dead_code,
+    reason = "libraries can use async support without owning an executor"
+)]
+struct TerraneRuntimeLiveness {
+    active: std::sync::atomic::AtomicUsize,
+    drain: std::sync::Mutex<()>,
+    changed: std::sync::Condvar,
+}
+thread_local! {
+    static TERRANE_RUNTIME_LIVE : std::cell::RefCell < Option < (tokio::runtime::Id,
+    std::sync::Arc < TerraneRuntimeLiveness >) >> = const { std::cell::RefCell::new(None)
+    };
+}
+#[allow(
+    dead_code,
+    reason = "libraries can use awaited destruction without owning an executor"
+)]
+struct TerraneRuntimeLivenessGuard {
+    live: std::sync::Arc<TerraneRuntimeLiveness>,
+    previous: Option<(tokio::runtime::Id, std::sync::Arc<TerraneRuntimeLiveness>)>,
+}
+impl Drop for TerraneRuntimeLivenessGuard {
+    fn drop(&mut self) {
+        if self
+            .live
+            .active
+            .fetch_or(TERRANE_RUNTIME_CLOSING, std::sync::atomic::Ordering::AcqRel) != 0
+        {
+            let drained = self
+                .live
+                .drain
+                .lock()
+                .expect("destructor drain lock poisoned");
+            let _drained = self
+                .live
+                .changed
+                .wait_while(
+                    drained,
+                    |()| {
+                        self.live.active.load(std::sync::atomic::Ordering::Acquire)
+                            != TERRANE_RUNTIME_CLOSING
+                    },
+                )
+                .expect("destructor drain lock poisoned");
+        }
+        TERRANE_RUNTIME_LIVE.with(|live| *live.borrow_mut() = self.previous.take());
+    }
+}
+#[allow(
+    dead_code,
+    reason = "libraries can use awaited destruction without owning an executor"
+)]
+fn __terrane_runtime_liveness_enter(
+    runtime: &tokio::runtime::Runtime,
+    live: std::sync::Arc<TerraneRuntimeLiveness>,
+) -> TerraneRuntimeLivenessGuard {
+    let previous = TERRANE_RUNTIME_LIVE
+        .with(|current| {
+            current.borrow_mut().replace((runtime.handle().id(), live.clone()))
+        });
+    TerraneRuntimeLivenessGuard {
+        live,
+        previous,
+    }
+}
+#[allow(
+    dead_code,
+    reason = "shared async support also serves packages without awaited destructors"
+)]
+struct TerraneDestructorPermit(std::sync::Arc<TerraneRuntimeLiveness>);
+impl Drop for TerraneDestructorPermit {
+    fn drop(&mut self) {
+        if self.0.active.fetch_sub(1, std::sync::atomic::Ordering::AcqRel)
+            == TERRANE_RUNTIME_CLOSING + 1
+        {
+            let _drained = self.0.drain.lock().expect("destructor drain lock poisoned");
+            self.0.changed.notify_one();
+        }
+    }
+}
+fn __terrane_await_destructor<F>(future: F)
+where
+    F: Future<Output = ()> + Send,
+{
+    let permit = tokio::runtime::Handle::try_current()
+        .ok()
+        .and_then(|handle| {
+            if handle.runtime_flavor() != tokio::runtime::RuntimeFlavor::MultiThread {
+                return None;
+            }
+            TERRANE_RUNTIME_LIVE
+                .with(|current| {
+                    let current = current.borrow();
+                    let (id, live) = current.as_ref()?;
+                    if *id != handle.id() {
+                        return None;
+                    }
+                    live.active
+                        .try_update(
+                            std::sync::atomic::Ordering::AcqRel,
+                            std::sync::atomic::Ordering::Acquire,
+                            |active| {
+                                (active < TERRANE_RUNTIME_CLOSING - 1).then(|| active + 1)
+                            },
+                        )
+                        .ok()?;
+                    Some((handle, TerraneDestructorPermit(live.clone())))
+                })
+        });
+    if let Some((handle, _permit)) = permit {
+        tokio::task::block_in_place(|| handle.block_on(future));
+        return;
+    }
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Terrane destructor runtime must initialize")
+                    .block_on(future);
+            })
+            .join()
+            .expect("Terrane awaited destructor must not panic");
+    });
+}
 fn __terrane_run<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_multi_thread()
+    let live = std::sync::Arc::new(TerraneRuntimeLiveness {
+        active: std::sync::atomic::AtomicUsize::new(0),
+        drain: std::sync::Mutex::new(()),
+        changed: std::sync::Condvar::new(),
+    });
+    let worker_live = live.clone();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .on_thread_start(move || {
+            TERRANE_RUNTIME_LIVE
+                .with(|current| {
+                    *current.borrow_mut() = Some((
+                        tokio::runtime::Handle::current().id(),
+                        worker_live.clone(),
+                    ));
+                });
+        })
         .enable_all()
         .build()
-        .expect("Terrane async runtime must initialize")
+        .expect("Terrane async runtime must initialize");
+    let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
+    let future = Box::pin(future);
+    runtime
         .block_on(async move {
             let output = __terrane_async_entry(future).await;
             __terrane_wait_projected_cleanups().await;
@@ -2069,24 +2350,50 @@ pub fn terrane_json_canonical(
 ) -> terrane_document_support::DataResult {
     terrane_document_support::canonical_json(value)
 }
-#[allow(
-    dead_code,
-    reason = "each diagnostic member is materialized only when Terrane source observes it"
-)]
-#[derive(Clone)]
-struct TerraneDocumentDiagnostic {
-    path: String,
-    expected: String,
-    actual_kind: String,
-    reason: &'static str,
-    message: String,
-    source: String,
-    field_source: String,
+pub fn terrane_json_stringify(
+    value: &terrane_document_support::DataResult,
+    max_depth: terrane_int_support::Int,
+    max_bytes: terrane_int_support::Int,
+) -> terrane_document_support::DataResult {
+    terrane_document_support::stringify_json_bounded(
+        value,
+        terrane_limit(&max_depth),
+        terrane_limit(&max_bytes),
+    )
 }
 #[derive(Clone)]
-struct TerraneDocumentDecodeOutcome<T: Clone> {
-    value: T,
-    diagnostics: terrane_collection_support::List<TerraneDocumentDiagnostic>,
+pub struct TerraneDocumentDiagnostic {
+    pub path: String,
+    pub expected: String,
+    pub actual_kind: String,
+    pub reason: &'static str,
+    pub message: String,
+    pub source: String,
+    pub field_source: String,
+}
+#[derive(Clone)]
+pub struct TerraneDocumentDecodeOutcome<T: Clone> {
+    pub value: T,
+    pub diagnostics: terrane_collection_support::List<TerraneDocumentDiagnostic>,
+}
+fn __terrane_document_diagnostic(
+    path: &impl std::fmt::Display,
+    expected: impl Into<String>,
+    actual_kind: impl Into<String>,
+    reason: &'static str,
+    message: impl Into<String>,
+    source: &str,
+    field_source: &str,
+) -> TerraneDocumentDiagnostic {
+    TerraneDocumentDiagnostic {
+        path: path.to_string(),
+        expected: expected.into(),
+        actual_kind: actual_kind.into(),
+        reason,
+        message: message.into(),
+        source: source.to_owned(),
+        field_source: field_source.to_owned(),
+    }
 }
 enum TerraneDocumentPath<'a> {
     Root(&'a str),
@@ -2117,6 +2424,15 @@ impl std::fmt::Display for TerraneDocumentPath<'_> {
         }
     }
 }
+struct TerraneDocumentShape {
+    tuple_length: Option<usize>,
+    inner: Option<&'static TerraneDocumentShape>,
+}
+impl TerraneDocumentShape {
+    fn inner(&self) -> &Self {
+        self.inner.unwrap_or(self)
+    }
+}
 trait TerraneDocumentDecode: Sized {
     fn terrane_decode_document(
         input: &mut terrane_document_support::Document,
@@ -2124,25 +2440,54 @@ trait TerraneDocumentDecode: Sized {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>>;
 }
-fn __terrane_document_diagnostic(
-    path: &TerraneDocumentPath<'_>,
-    expected: impl Into<String>,
-    actual_kind: impl Into<String>,
-    reason: &'static str,
-    message: impl Into<String>,
+fn __terrane_decode_document<T: Clone + TerraneDocumentDecode>(
+    parsed: Result<
+        terrane_document_support::Document,
+        terrane_document_support::DataResult,
+    >,
+    fallback: impl FnOnce() -> T,
+    allow_unknown: bool,
     source: &str,
-    field_source: &str,
-) -> TerraneDocumentDiagnostic {
-    TerraneDocumentDiagnostic {
-        path: path.to_string(),
-        expected: expected.into(),
-        actual_kind: actual_kind.into(),
-        reason,
-        message: message.into(),
-        source: source.to_owned(),
-        field_source: field_source.to_owned(),
+    expected: &str,
+    shape: &TerraneDocumentShape,
+) -> TerraneDocumentDecodeOutcome<T> {
+    let path = TerraneDocumentPath::Root("$");
+    let decoded = match parsed {
+        Ok(mut input) => {
+            T::terrane_decode_document(
+                &mut input,
+                &path,
+                allow_unknown,
+                source,
+                source,
+                shape,
+            )
+        }
+        Err(error) => {
+            Err(
+                vec![
+                    __terrane_document_diagnostic(&path, expected, "invalid", "parse",
+                    error.message, source, source)
+                ],
+            )
+        }
+    };
+    match decoded {
+        Ok(value) => {
+            TerraneDocumentDecodeOutcome {
+                value,
+                diagnostics: terrane_collection_support::List::new(Vec::new()),
+            }
+        }
+        Err(diagnostics) => {
+            TerraneDocumentDecodeOutcome {
+                value: fallback(),
+                diagnostics: terrane_collection_support::List::new(diagnostics),
+            }
+        }
     }
 }
 fn __terrane_document_kind(input: &terrane_document_support::Document) -> &'static str {
@@ -2161,7 +2506,18 @@ fn __terrane_document_child_path<'a>(
     path: &'a TerraneDocumentPath<'a>,
     key: &'a str,
 ) -> TerraneDocumentPath<'a> {
-    TerraneDocumentPath::Field(path, key)
+    __terrane_document_entry_path(path, key, true)
+}
+fn __terrane_document_entry_path<'a>(
+    path: &'a TerraneDocumentPath<'a>,
+    key: &'a str,
+    class_field: bool,
+) -> TerraneDocumentPath<'a> {
+    if class_field {
+        TerraneDocumentPath::Field(path, key)
+    } else {
+        TerraneDocumentPath::MapKey(path, key)
+    }
 }
 fn __terrane_document_type_error<T>(
     input: &terrane_document_support::Document,
@@ -2184,11 +2540,28 @@ impl TerraneDocumentDecode for String {
         _: bool,
         source: &str,
         field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         if let terrane_document_support::Document::String(value) = input {
             Ok(std::mem::take(value))
         } else {
             __terrane_document_type_error(input, path, "string", source, field_source)
+        }
+    }
+}
+impl TerraneDocumentDecode for () {
+    fn terrane_decode_document(
+        input: &mut terrane_document_support::Document,
+        path: &TerraneDocumentPath<'_>,
+        _: bool,
+        source: &str,
+        field_source: &str,
+        _shape: &TerraneDocumentShape,
+    ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
+        if matches!(input, terrane_document_support::Document::None) {
+            Ok(())
+        } else {
+            __terrane_document_type_error(input, path, "none", source, field_source)
         }
     }
 }
@@ -2199,6 +2572,7 @@ impl TerraneDocumentDecode for bool {
         _: bool,
         source: &str,
         field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         if let terrane_document_support::Document::Bool(value) = input {
             Ok(*value)
@@ -2211,10 +2585,11 @@ macro_rules! __terrane_document_float {
     ($type:ty) => {
         impl TerraneDocumentDecode for $type { fn terrane_decode_document(input : & mut
         terrane_document_support::Document, path : & TerraneDocumentPath <'_ >, _ : bool,
-        source : & str, field_source : & str,) -> Result < Self, Vec <
-        TerraneDocumentDiagnostic >> { use terrane_document_support::Document; let text =
-        match input { Document::Integer(text) | Document::Decimal(text) => text, _ => {
-        return __terrane_document_type_error(input, path, stringify!($type), source,
+        source : & str, field_source : & str, _shape : & TerraneDocumentShape,) -> Result
+        < Self, Vec < TerraneDocumentDiagnostic >> { use
+        terrane_document_support::Document; let text = match input {
+        Document::Integer(text) | Document::Decimal(text) => text, _ => { return
+        __terrane_document_type_error(input, path, stringify!($type), source,
         field_source,); } }; text.parse::<$type > ().ok().filter(| value | value
         .is_finite()).ok_or_else(|| { vec![__terrane_document_diagnostic(path,
         stringify!($type), __terrane_document_kind(input), "numeric-conversion",
@@ -2240,7 +2615,16 @@ fn __terrane_document_integer_parts(
     } else {
         std::borrow::Cow::Owned(coefficient.replace('.', ""))
     };
-    Some((coefficient, u32::try_from(zeros).ok()?))
+    let zeros = u32::try_from(zeros).ok()?;
+    if coefficient
+        .trim_start_matches('-')
+        .len()
+        .checked_add(usize::try_from(zeros).ok()?)?
+        > terrane_document_support::MAXIMUM_NUMBER_DIGITS
+    {
+        return None;
+    }
+    Some((coefficient, zeros))
 }
 impl TerraneDocumentDecode for terrane_int_support::Int {
     fn terrane_decode_document(
@@ -2249,6 +2633,7 @@ impl TerraneDocumentDecode for terrane_int_support::Int {
         _: bool,
         source: &str,
         field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Integer(text) = input else {
             return __terrane_document_type_error(
@@ -2302,8 +2687,8 @@ macro_rules! __terrane_fixed_document_integer {
     ($($type:ty),+ $(,)?) => {
         $(impl TerraneDocumentDecode for $type { fn terrane_decode_document(input : & mut
         terrane_document_support::Document, path : & TerraneDocumentPath <'_ >, _ : bool,
-        source : & str, field_source : & str,) -> Result < Self, Vec <
-        TerraneDocumentDiagnostic >> { let
+        source : & str, field_source : & str, _shape : & TerraneDocumentShape,) -> Result
+        < Self, Vec < TerraneDocumentDiagnostic >> { let
         terrane_document_support::Document::Integer(text) = input else { return
         __terrane_document_type_error(input, path, stringify!($type), source,
         field_source); }; let decoded = text.parse::<$type > ().ok().or_else(|| { let
@@ -2323,11 +2708,19 @@ impl<T: TerraneDocumentDecode> TerraneDocumentDecode for Option<T> {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         if matches!(input, terrane_document_support::Document::None) {
             Ok(None)
         } else {
-            T::terrane_decode_document(input, path, allow_unknown, source, field_source)
+            T::terrane_decode_document(
+                    input,
+                    path,
+                    allow_unknown,
+                    source,
+                    field_source,
+                    shape.inner(),
+                )
                 .map(Some)
         }
     }
@@ -2340,6 +2733,7 @@ for terrane_collection_support::List<T> {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::List(items) = input else {
             return __terrane_document_type_error(
@@ -2360,6 +2754,7 @@ for terrane_collection_support::List<T> {
                 allow_unknown,
                 source,
                 field_source,
+                shape.inner(),
             ) {
                 Ok(value) => values.push(value),
                 Err(mut errors) => diagnostics.append(&mut errors),
@@ -2380,55 +2775,57 @@ for terrane_collection_support::Tuple<T> {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
+        if let Some(length) = shape.tuple_length
+            && matches!(
+                & input, terrane_document_support::Document::List(items) if items.len()
+                != length
+            )
+        {
+            return Err(
+                vec![
+                    __terrane_document_diagnostic(path, "tuple", "list", "tuple-length",
+                    format!("expected exactly {length} tuple items"), source,
+                    field_source,)
+                ],
+            );
+        }
         let values = terrane_collection_support::List::<
             T,
-        >::terrane_decode_document(input, path, allow_unknown, source, field_source)?;
+        >::terrane_decode_document(
+            input,
+            path,
+            allow_unknown,
+            source,
+            field_source,
+            shape,
+        )?;
         Ok(terrane_collection_support::Tuple::new(values.into_vec()))
     }
 }
-impl<T: Clone + TerraneDocumentDecode> TerraneDocumentDecode
-for terrane_collection_support::Map<String, T> {
-    fn terrane_decode_document(
-        input: &mut terrane_document_support::Document,
-        path: &TerraneDocumentPath<'_>,
-        allow_unknown: bool,
-        source: &str,
-        field_source: &str,
-    ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
-        let terrane_document_support::Document::Map(items) = input else {
-            return __terrane_document_type_error(
-                input,
-                path,
-                "map",
-                source,
-                field_source,
-            );
-        };
-        let mut entries = Vec::with_capacity(items.len());
-        let mut diagnostics = Vec::new();
-        for (key, mut item) in std::mem::take(items) {
-            let item_path = TerraneDocumentPath::MapKey(path, &key);
-            match T::terrane_decode_document(
-                &mut item,
-                &item_path,
-                allow_unknown,
-                source,
-                field_source,
-            ) {
-                Ok(value) => {
-                    entries.push(terrane_collection_support::Entry::new(key, value))
-                }
-                Err(mut errors) => diagnostics.append(&mut errors),
-            }
+macro_rules! __terrane_document_decode_map {
+    ($map:ident) => {
+        impl < T : Clone + TerraneDocumentDecode > TerraneDocumentDecode for
+        terrane_collection_support::$map < String, T > { fn terrane_decode_document(input
+        : & mut terrane_document_support::Document, path : & TerraneDocumentPath <'_ >,
+        allow_unknown : bool, source : & str, field_source : & str, shape : &
+        TerraneDocumentShape,) -> Result < Self, Vec < TerraneDocumentDiagnostic >> { let
+        terrane_document_support::Document::Map(items) = input else { return
+        __terrane_document_type_error(input, path, "map", source, field_source); }; let
+        mut entries = Vec::with_capacity(items.len()); let mut diagnostics = Vec::new();
+        for (key, mut item) in std::mem::take(items) { let item_path =
+        __terrane_document_entry_path(path, & key, false); match
+        T::terrane_decode_document(& mut item, & item_path, allow_unknown, source,
+        field_source, shape.inner(),) { Ok(value) => entries
+        .push(terrane_collection_support::Entry::new(key, value)), Err(mut errors) =>
+        diagnostics.append(& mut errors), } } if diagnostics.is_empty() {
+        Ok(terrane_collection_support::$map ::new(entries)) } else { Err(diagnostics) } }
         }
-        if diagnostics.is_empty() {
-            Ok(terrane_collection_support::Map::new(entries))
-        } else {
-            Err(diagnostics)
-        }
-    }
+    };
 }
+__terrane_document_decode_map!(Map);
+__terrane_document_decode_map!(UnorderedMap);
 pub type TerranePlatformCapability = terrane_platform_support::Capability;
 pub type TerranePlatformResult = terrane_platform_support::ResultValue;
 pub fn terrane_platform_i128(
@@ -2927,7 +3324,10 @@ impl DocumentInteger {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value: String = text;
+            self.text = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -2956,9 +3356,18 @@ impl DocumentDecimal {
         exponent: terrane_int_support::Int,
         text: String,
     ) {
-        self.coefficient = coefficient;
-        self.exponent = exponent.clone();
-        self.text = text;
+        {
+            let __terrane_value: String = coefficient;
+            self.coefficient = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = exponent.clone();
+            self.exponent = __terrane_value;
+        }
+        {
+            let __terrane_value: String = text;
+            self.text = __terrane_value;
+        }
     }
 }
 pub trait SerializableProtocol: Send + Sync {
@@ -2968,7 +3377,7 @@ pub trait SerializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn SerializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        SerializableProtocol::clone_box(&**self)
     }
 }
 pub struct Serializable(Box<dyn SerializableProtocol>);
@@ -2989,7 +3398,7 @@ pub trait DeserializableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DeserializableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DeserializableProtocol::clone_box(&**self)
     }
 }
 pub struct Deserializable(Box<dyn DeserializableProtocol>);
@@ -3009,7 +3418,7 @@ pub trait DocumentDecodableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentDecodableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentDecodableProtocol::clone_box(&**self)
     }
 }
 #[allow(
@@ -3023,6 +3432,26 @@ impl Clone for DocumentDecodable {
     }
 }
 impl DocumentDecodable {}
+pub trait DocumentEncodableProtocol: Send + Sync {
+    fn clone_box(&self) -> Box<dyn DocumentEncodableProtocol>;
+    fn separate_box(&self) -> Box<dyn DocumentEncodableProtocol>;
+}
+impl Clone for Box<dyn DocumentEncodableProtocol> {
+    fn clone(&self) -> Self {
+        DocumentEncodableProtocol::clone_box(&**self)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "marker interface storage is materialized only when a value is erased to that marker"
+)]
+pub struct DocumentEncodable(Box<dyn DocumentEncodableProtocol>);
+impl Clone for DocumentEncodable {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl DocumentEncodable {}
 pub trait DocumentValidatableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn DocumentValidatableProtocol>;
     fn separate_box(&self) -> Box<dyn DocumentValidatableProtocol>;
@@ -3030,7 +3459,7 @@ pub trait DocumentValidatableProtocol: Send + Sync {
 }
 impl Clone for Box<dyn DocumentValidatableProtocol> {
     fn clone(&self) -> Self {
-        self.clone_box()
+        DocumentValidatableProtocol::clone_box(&**self)
     }
 }
 pub struct DocumentValidatable(Box<dyn DocumentValidatableProtocol>);
@@ -3071,20 +3500,40 @@ impl DocumentValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, raw: terrane_document_support::DataResult) {
-        self.kind = terrane_document_kind(&raw);
-        self.scalar = terrane_document_text(&raw);
-        self.encoded = terrane_data_encoded(&raw);
+        {
+            let __terrane_value: String = terrane_document_kind(&raw);
+            self.kind = __terrane_value;
+        }
+        {
+            let __terrane_value: String = terrane_document_text(&raw);
+            self.scalar = __terrane_value;
+        }
+        {
+            let __terrane_value: String = terrane_data_encoded(&raw);
+            self.encoded = __terrane_value;
+        }
         if self.kind.as_str() == "integer" {
-            self.integer = DocumentInteger::terrane_construct(self.scalar.clone());
+            {
+                let __terrane_value: DocumentInteger = DocumentInteger::terrane_construct(
+                    self.scalar.clone(),
+                );
+                self.integer = __terrane_value;
+            }
         }
         if self.kind.as_str() == "decimal" {
-            self.decimal = DocumentDecimal::terrane_construct(
-                terrane_document_coefficient(&raw),
-                terrane_document_exponent(&raw),
-                self.scalar.clone(),
-            );
+            {
+                let __terrane_value: DocumentDecimal = DocumentDecimal::terrane_construct(
+                    terrane_document_coefficient(&raw),
+                    terrane_document_exponent(&raw),
+                    self.scalar.clone(),
+                );
+                self.decimal = __terrane_value;
+            }
         }
-        self.raw = raw;
+        {
+            let __terrane_value: terrane_document_support::DataResult = raw;
+            self.raw = __terrane_value;
+        }
     }
     pub fn length(&self) -> terrane_int_support::Int {
         return terrane_document_length(&self.raw);
@@ -3156,11 +3605,26 @@ impl DocumentResult {
         expected: String,
         raw: terrane_document_support::DataResult,
     ) {
-        self.failed = failed;
-        self.message = message;
-        self.path = path;
-        self.expected = expected;
-        self.value = DocumentValue::terrane_construct(raw);
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: String = path;
+            self.path = __terrane_value;
+        }
+        {
+            let __terrane_value: String = expected;
+            self.expected = __terrane_value;
+        }
+        {
+            let __terrane_value: DocumentValue = DocumentValue::terrane_construct(raw);
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -3206,9 +3670,18 @@ impl DocumentMapping {
         expected_kind: String,
         allow_unknown: bool,
     ) {
-        self.descriptor_name = descriptor_name;
-        self.expected_kind = expected_kind;
-        self.allow_unknown = allow_unknown;
+        {
+            let __terrane_value: String = descriptor_name;
+            self.descriptor_name = __terrane_value;
+        }
+        {
+            let __terrane_value: String = expected_kind;
+            self.expected_kind = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = allow_unknown;
+            self.allow_unknown = __terrane_value;
+        }
     }
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
         return decode_document(value, self.clone());
@@ -3278,10 +3751,20 @@ impl DocumentMapEntries {
         __terrane_constructed_value
     }
     pub fn construct(&mut self) {
-        self.raw = terrane_make_document_map();
+        {
+            let __terrane_value: terrane_document_support::DataResult = terrane_make_document_map();
+            self.raw = __terrane_value;
+        }
     }
     pub fn append(&mut self, key: String, value: DocumentValue) {
-        self.raw = terrane_document_map_insert(&self.raw, key, &value.raw);
+        {
+            let __terrane_value: terrane_document_support::DataResult = terrane_document_map_insert(
+                &self.raw,
+                key,
+                &value.raw,
+            );
+            self.raw = __terrane_value;
+        }
     }
 }
 pub fn append_document_map_entry(
@@ -3299,9 +3782,7 @@ pub fn make_document_list(
     let mut index: terrane_int_support::Int;
     raw = terrane_make_document_list();
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(terrane_int_support::Int::from(values.length()))
-    {
+    while index < terrane_int_support::Int::from(values.length()) {
         raw = terrane_document_list_append(
             &raw,
             &__terrane_raised(
@@ -3309,10 +3790,10 @@ pub fn make_document_list(
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                21 /* terrane-site: core/documents.trn:140:47-140:60 */,
+                                21 /* terrane-site: core/documents.trn:141:47-141:60 */,
                             ),
                         ),
-                    21 /* terrane-site: core/documents.trn:140:47-140:60 */,
+                    21 /* terrane-site: core/documents.trn:141:47-141:60 */,
                 )
                 .raw,
         );
@@ -3343,27 +3824,21 @@ pub fn mapping_required_fields(
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = required.make_unique();
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(fields.length()),
-            )
-        {
+        while index < terrane_int_support::Int::from(fields.length()) {
             field = __terrane_raised(
                 fields
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            22 /* terrane-site: core/documents.trn:153:17-153:30 */,
+                            22 /* terrane-site: core/documents.trn:154:17-154:30 */,
                         ),
                     ),
-                22 /* terrane-site: core/documents.trn:153:17-153:30 */,
+                22 /* terrane-site: core/documents.trn:154:17-154:30 */,
             );
             optional = false;
             optional_index = terrane_int_support::Int::from(0_i128);
-            while optional_index.clone()
-                < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(optional_fields.length()),
-                )
+            while optional_index
+                < terrane_int_support::Int::from(optional_fields.length())
             {
                 if __terrane_raised(
                         optional_fields
@@ -3372,10 +3847,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &optional_index.clone(),
                                     ),
-                                    23 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                                    23 /* terrane-site: core/documents.trn:158:16-158:47 */,
                                 ),
                             ),
-                        23 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                        23 /* terrane-site: core/documents.trn:158:16-158:47 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -3386,10 +3861,7 @@ pub fn mapping_required_fields(
             }
             defaulted = false;
             default_index = terrane_int_support::Int::from(0_i128);
-            while default_index.clone()
-                < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(default_fields.length()),
-                )
+            while default_index < terrane_int_support::Int::from(default_fields.length())
             {
                 if __terrane_raised(
                         default_fields
@@ -3398,10 +3870,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    24 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                                    24 /* terrane-site: core/documents.trn:164:16-164:45 */,
                                 ),
                             ),
-                        24 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                        24 /* terrane-site: core/documents.trn:164:16-164:45 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -3411,7 +3883,10 @@ pub fn mapping_required_fields(
                     + terrane_int_support::Int::from(1_i128);
             }
             if field.as_str() != "" && !optional && !defaulted {
-                __terrane_list_append_0.push(field);
+                {
+                    let __terrane_collection_argument_0 = field;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -3435,10 +3910,7 @@ pub fn decode_document(
     field_index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_1 = declared_fields.make_unique();
-        while field_index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(mapping.field_names.length()),
-            )
+        while field_index < terrane_int_support::Int::from(mapping.field_names.length())
         {
             if __terrane_raised(
                     mapping
@@ -3448,29 +3920,29 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &field_index.clone(),
                                 ),
-                                25 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                                25 /* terrane-site: core/documents.trn:177:12-177:44 */,
                             ),
                         ),
-                    25 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                    25 /* terrane-site: core/documents.trn:177:12-177:44 */,
                 )
                 .as_str() != ""
             {
-                __terrane_list_append_1
-                    .push(
-                        __terrane_raised(
-                            mapping
-                                .field_names
-                                .get_or_error(
-                                    __terrane_raised(
-                                        terrane_collection_support::index_from_int(
-                                            &field_index.clone(),
-                                        ),
-                                        26 /* terrane-site: core/documents.trn:177:37-177:69 */,
+                {
+                    let __terrane_collection_argument_0 = __terrane_raised(
+                        mapping
+                            .field_names
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &field_index.clone(),
                                     ),
+                                    26 /* terrane-site: core/documents.trn:178:37-178:69 */,
                                 ),
-                            26 /* terrane-site: core/documents.trn:177:37-177:69 */,
-                        ),
+                            ),
+                        26 /* terrane-site: core/documents.trn:178:37-178:69 */,
                     );
+                    __terrane_list_append_1.push(__terrane_collection_argument_0);
+                };
             }
             field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -3478,14 +3950,9 @@ pub fn decode_document(
     default_fields = terrane_collection_support::List::<String>::new(vec![]);
     default_values = terrane_collection_support::List::<String>::new(vec![]);
     default_index = terrane_int_support::Int::from(0_i128);
-    while default_index.clone()
-        < terrane_int_support::Int::from(
-            terrane_int_support::Int::from(mapping.default_fields.length()),
-        )
-        && default_index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(mapping.default_values.length()),
-            )
+    while default_index < terrane_int_support::Int::from(mapping.default_fields.length())
+        && default_index
+            < terrane_int_support::Int::from(mapping.default_values.length())
     {
         if __terrane_raised(
                 mapping
@@ -3495,45 +3962,45 @@ pub fn decode_document(
                             terrane_collection_support::index_from_int(
                                 &default_index.clone(),
                             ),
-                            27 /* terrane-site: core/documents.trn:183:12-183:49 */,
+                            27 /* terrane-site: core/documents.trn:184:12-184:49 */,
                         ),
                     ),
-                27 /* terrane-site: core/documents.trn:183:12-183:49 */,
+                27 /* terrane-site: core/documents.trn:184:12-184:49 */,
             )
             .as_str() != ""
         {
-            default_fields
-                .append(
-                    __terrane_raised(
-                        mapping
-                            .default_fields
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
-                                    ),
-                                    28 /* terrane-site: core/documents.trn:184:36-184:73 */,
+            {
+                let __terrane_collection_argument_0 = __terrane_raised(
+                    mapping
+                        .default_fields
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &default_index.clone(),
                                 ),
+                                28 /* terrane-site: core/documents.trn:185:36-185:73 */,
                             ),
-                        28 /* terrane-site: core/documents.trn:184:36-184:73 */,
-                    ),
+                        ),
+                    28 /* terrane-site: core/documents.trn:185:36-185:73 */,
                 );
-            default_values
-                .append(
-                    __terrane_raised(
-                        mapping
-                            .default_values
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
-                                    ),
-                                    29 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                default_fields.append(__terrane_collection_argument_0);
+            };
+            {
+                let __terrane_collection_argument_0 = __terrane_raised(
+                    mapping
+                        .default_values
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &default_index.clone(),
                                 ),
+                                29 /* terrane-site: core/documents.trn:186:36-186:73 */,
                             ),
-                        29 /* terrane-site: core/documents.trn:185:36-185:73 */,
-                    ),
+                        ),
+                    29 /* terrane-site: core/documents.trn:186:36-186:73 */,
                 );
+                default_values.append(__terrane_collection_argument_0);
+            };
         }
         default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -3548,7 +4015,10 @@ pub fn decode_document(
     );
     result = make_document_result(raw);
     if result.failed {
-        result.expected = mapping.descriptor_name.clone();
+        {
+            let __terrane_value: String = mapping.descriptor_name.clone();
+            result.expected = __terrane_value;
+        }
     }
     return result;
 }
@@ -3576,8 +4046,14 @@ impl JsonOptions {
         max_depth: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
     ) {
-        self.max_depth = max_depth.clone();
-        self.max_bytes = max_bytes.clone();
+        {
+            let __terrane_value: terrane_int_support::Int = max_depth.clone();
+            self.max_depth = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = max_bytes.clone();
+            self.max_bytes = __terrane_value;
+        }
     }
 }
 pub fn default_json_options() -> JsonOptions {
@@ -3597,8 +4073,11 @@ pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
 }
 pub fn stringify_json(value: DocumentValue, options: JsonOptions) -> DocumentResult {
     let raw: terrane_document_support::DataResult;
-    let _ = &options;
-    raw = terrane_json_canonical(&value.raw);
+    raw = terrane_json_stringify(
+        &value.raw,
+        options.max_depth.clone(),
+        options.max_bytes.clone(),
+    );
     return make_document_result(raw);
 }
 pub fn canonical_json(value: DocumentValue) -> DocumentResult {
@@ -3614,7 +4093,7 @@ pub fn decode_json(
     let parsed: DocumentResult;
     parsed = parse_json(input, options);
     if parsed.failed {
-        return parsed.clone();
+        return parsed;
     }
     return deserialize_document(parsed.value.clone(), mapping);
 }
@@ -3634,7 +4113,10 @@ impl NetworkError {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
-        self.message = message;
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();
@@ -3655,8 +4137,14 @@ impl TcpOptions {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, no_delay: bool, ttl: terrane_int_support::Int) {
-        self.no_delay = no_delay;
-        self.ttl = ttl.clone();
+        {
+            let __terrane_value: bool = no_delay;
+            self.no_delay = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = ttl.clone();
+            self.ttl = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -3690,10 +4178,22 @@ impl TcpListenerOptions {
         accepted_no_delay: bool,
         accepted_ttl: terrane_int_support::Int,
     ) {
-        self.backlog = backlog.clone();
-        self.reuse_address = reuse_address;
-        self.accepted_no_delay = accepted_no_delay;
-        self.accepted_ttl = accepted_ttl.clone();
+        {
+            let __terrane_value: terrane_int_support::Int = backlog.clone();
+            self.backlog = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = reuse_address;
+            self.reuse_address = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = accepted_no_delay;
+            self.accepted_no_delay = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = accepted_ttl.clone();
+            self.accepted_ttl = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -3711,8 +4211,14 @@ impl UdpOptions {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, broadcast: bool, ttl: terrane_int_support::Int) {
-        self.broadcast = broadcast;
-        self.ttl = ttl.clone();
+        {
+            let __terrane_value: bool = broadcast;
+            self.broadcast = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = ttl.clone();
+            self.ttl = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -3732,9 +4238,18 @@ impl IpAddress {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, raw: TerranePlatformResult) {
-        self.value = terrane_platform_result_text(&raw);
-        self.version = terrane_platform_result_detail(&raw);
-        self.is_loopback = terrane_platform_result_bool(&raw);
+        {
+            let __terrane_value: String = terrane_platform_result_text(&raw);
+            self.value = __terrane_value;
+        }
+        {
+            let __terrane_value: String = terrane_platform_result_detail(&raw);
+            self.version = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = terrane_platform_result_bool(&raw);
+            self.is_loopback = __terrane_value;
+        }
     }
     pub fn string(&self) -> String {
         return self.value.clone();
@@ -3757,9 +4272,18 @@ impl IpResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, address: IpAddress) {
-        self.failed = failed;
-        self.message = message;
-        self.value = address;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: IpAddress = address;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn ip_address_from_string(text: String) -> IpResult {
@@ -3801,9 +4325,18 @@ impl SocketAddress {
         address_ip: IpAddress,
         address_port: terrane_int_support::Int,
     ) {
-        self.value = terrane_platform_result_text(&raw);
-        self.ip = address_ip;
-        self.port = address_port.clone();
+        {
+            let __terrane_value: String = terrane_platform_result_text(&raw);
+            self.value = __terrane_value;
+        }
+        {
+            let __terrane_value: IpAddress = address_ip;
+            self.ip = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = address_port.clone();
+            self.port = __terrane_value;
+        }
     }
     pub fn string(&self) -> String {
         return self.value.clone();
@@ -3834,9 +4367,18 @@ impl SocketResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, address: SocketAddress) {
-        self.failed = failed;
-        self.message = message;
-        self.value = address;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: SocketAddress = address;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn socket_address_from_ip(
@@ -3885,10 +4427,13 @@ impl TcpStream {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = Some(resource);
+        {
+            let __terrane_value: TerranePlatformCapability = resource;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn into_native(self) -> Result<NativeTcpStream, TerraneError> {
-        let raw: HostStreamTransfer;
+        let raw: std::io::Result<tokio::net::TcpStream>;
         raw = terrane_platform_tcp_stream_into_native(
             &self.handle.as_ref().expect("required field initialized"),
         );
@@ -3942,6 +4487,43 @@ impl TcpStream {
             terrane_platform_result_deadline_exceeded(&raw),
         );
     }
+    pub async fn __terrane_shared_async_read_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_tcp_read_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    count,
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return ReadResult::terrane_construct(
+            terrane_platform_result_bytes(&raw),
+            terrane_platform_result_int(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+        );
+    }
     pub async fn write_async(
         &self,
         data: Vec<u8>,
@@ -3955,6 +4537,43 @@ impl TcpStream {
         raw = __terrane_await(
                 terrane_platform_tcp_write_async(
                     &self.handle.as_ref().expect("required field initialized"),
+                    &data,
+                    terrane_int_support::Int::from(0_i128),
+                    operation_timeout.clone(),
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return WriteResult::terrane_construct(
+            data,
+            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+        );
+    }
+    pub async fn __terrane_shared_async_write_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_tcp_write_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
                     &data,
                     terrane_int_support::Int::from(0_i128),
                     operation_timeout.clone(),
@@ -4003,6 +4622,48 @@ impl TcpStream {
         }
         return progress.result(data);
     }
+    pub async fn __terrane_shared_async_write_all_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let mut progress: WriteProgress;
+        let mut operation_timeout: terrane_int_support::Int;
+        let mut operation_token: Option<TerranePlatformCapability>;
+        let mut part: TerranePlatformResult;
+        progress = WriteProgress::terrane_construct();
+        while progress.pending(terrane_int_support::Int::from(data.len() as i128)) {
+            operation_timeout = operation_deadline(options.clone());
+            operation_token = operation_cancellation(options.clone());
+            part = __terrane_await(
+                    terrane_platform_tcp_write_async(
+                        &{
+                            let __terrane_snapshot = __terrane_shared_handle
+                                .lock()
+                                .expect("shared async receiver lock poisoned")
+                                .handle
+                                .as_ref()
+                                .expect("required field initialized")
+                                .clone();
+                            __terrane_snapshot
+                        },
+                        &data,
+                        progress.completed.clone(),
+                        operation_timeout.clone(),
+                        operation_token.as_ref(),
+                    ),
+                )
+                .await;
+            progress
+                .advance(
+                    terrane_platform_result_int(&part),
+                    terrane_platform_result_failed(&part),
+                    terrane_platform_result_deadline_exceeded(&part),
+                    terrane_platform_result_message(&part),
+                );
+        }
+        return progress.result(data);
+    }
     pub async fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
@@ -4011,16 +4672,81 @@ impl TcpStream {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
         let mut part: ReadResult;
-        if count.clone() < terrane_int_support::Int::from(0_i128) {
-            return __terrane_await((&self).read_async(count.clone(), options.clone()))
-                .await;
+        if count < terrane_int_support::Int::from(0_i128) {
+            return __terrane_await(self.read_async(count.clone(), options)).await;
         }
         progress = ExactReadProgress::terrane_construct(count.clone());
         data = Vec::<u8>::from([]);
         while progress.pending() {
             part = __terrane_await(
-                    (&self).read_async(progress.remaining(), options.clone()),
+                    self.read_async(progress.remaining(), options.clone()),
                 )
+                .await;
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data;
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            progress
+                .advance(
+                    part.completed.clone(),
+                    part.end,
+                    part.failed,
+                    part.deadline_exceeded,
+                    part.message.clone(),
+                );
+        }
+        return progress.result(data);
+    }
+    pub async fn __terrane_shared_async_read_exact_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let mut progress: ExactReadProgress;
+        let mut data: Vec<u8>;
+        let mut part: ReadResult;
+        if count < terrane_int_support::Int::from(0_i128) {
+            return __terrane_await({
+                    let __terrane_shared_call_handle = __terrane_shared_handle.clone();
+                    let __terrane_shared_argument_0 = count.clone();
+                    let __terrane_shared_argument_1 = options;
+                    let __terrane_shared_argument_2 = __terrane_shared_argument_0;
+                    let __terrane_shared_argument_3 = __terrane_shared_argument_1;
+                    TcpStream::__terrane_shared_async_read_async(
+                        __terrane_shared_call_handle,
+                        __terrane_shared_argument_2,
+                        __terrane_shared_argument_3,
+                    )
+                })
+                .await;
+        }
+        progress = ExactReadProgress::terrane_construct(count.clone());
+        data = Vec::<u8>::from([]);
+        while progress.pending() {
+            part = __terrane_await({
+                    let __terrane_shared_call_handle = __terrane_shared_handle.clone();
+                    let __terrane_shared_argument_0 = progress.remaining();
+                    let __terrane_shared_argument_1 = options.clone();
+                    let __terrane_shared_argument_2 = __terrane_shared_argument_0;
+                    let __terrane_shared_argument_3 = __terrane_shared_argument_1;
+                    TcpStream::__terrane_shared_async_read_async(
+                        __terrane_shared_call_handle,
+                        __terrane_shared_argument_2,
+                        __terrane_shared_argument_3,
+                    )
+                })
                 .await;
             data = {
                 let mut bytes = data;
@@ -4068,6 +4794,55 @@ impl TcpStream {
         raw = __terrane_await(
                 terrane_platform_tcp_read_into_async(
                     &self.handle.as_ref().expect("required field initialized"),
+                    &buffer.handle.as_ref().expect("required field initialized"),
+                    count.clone(),
+                    operation_timeout.clone(),
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        completed = terrane_platform_result_int(&raw);
+        end = terrane_platform_result_bool(&raw);
+        failed = terrane_platform_result_failed(&raw);
+        message = terrane_platform_result_message(&raw);
+        deadline_exceeded = terrane_platform_result_deadline_exceeded(&raw);
+        return BufferedReadResult::terrane_construct(
+            buffer,
+            completed.clone(),
+            end,
+            failed,
+            message,
+            deadline_exceeded,
+        );
+    }
+    pub async fn __terrane_shared_async_read_into_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        buffer: OwnedReadBuffer,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> BufferedReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        let completed: terrane_int_support::Int;
+        let end: bool;
+        let failed: bool;
+        let message: String;
+        let deadline_exceeded: bool;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_tcp_read_into_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
                     &buffer.handle.as_ref().expect("required field initialized"),
                     count.clone(),
                     operation_timeout.clone(),
@@ -4235,11 +5010,26 @@ impl StreamResult {
         peer: String,
         stream: TcpStream,
     ) {
-        self.failed = failed;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message;
-        self.peer = peer;
-        self.value = stream;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: String = peer;
+            self.peer = __terrane_value;
+        }
+        {
+            let __terrane_value: TcpStream = stream;
+            self.value = __terrane_value;
+        }
     }
 }
 pub async fn connect_tcp(
@@ -4252,7 +5042,7 @@ pub async fn connect_tcp(
     let operation_token: Option<TerranePlatformCapability>;
     let raw: TerranePlatformResult;
     let stream: TcpStream;
-    if tcp.is_some() {
+    if (&tcp).is_some() {
         settings = match tcp {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
@@ -4295,7 +5085,7 @@ pub async fn connect_host(
     let operation_token: Option<TerranePlatformCapability>;
     let raw: TerranePlatformResult;
     let stream: TcpStream;
-    if tcp.is_some() {
+    if (&tcp).is_some() {
         settings = match tcp {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
@@ -4345,10 +5135,13 @@ impl TcpListener {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = Some(resource);
+        {
+            let __terrane_value: TerranePlatformCapability = resource;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn into_native(self) -> Result<NativeTcpListener, TerraneError> {
-        let raw: HostListenerTransfer;
+        let raw: std::io::Result<tokio::net::TcpListener>;
         raw = terrane_platform_tcp_listener_into_native(
             &self.handle.as_ref().expect("required field initialized"),
         );
@@ -4384,6 +5177,42 @@ impl TcpListener {
         raw = __terrane_await(
                 terrane_platform_tcp_accept_async(
                     &self.handle.as_ref().expect("required field initialized"),
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        stream = TcpStream::terrane_construct(terrane_platform_result_capability(&raw));
+        return StreamResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_text(&raw),
+            stream,
+        );
+    }
+    pub async fn __terrane_shared_async_accept(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        options: Option<IoOperationOptions>,
+    ) -> StreamResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        let stream: TcpStream;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_tcp_accept_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
                     operation_timeout,
                     operation_token.as_ref(),
                 ),
@@ -4453,10 +5282,22 @@ impl ListenerResult {
         message: String,
         listener: TcpListener,
     ) {
-        self.failed = failed;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message;
-        self.value = listener;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: TcpListener = listener;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn bind_tcp(
@@ -4466,7 +5307,7 @@ pub fn bind_tcp(
     let settings: TcpListenerOptions;
     let raw: TerranePlatformResult;
     let mut listener: TcpListener;
-    if options.is_some() {
+    if (&options).is_some() {
         settings = match options {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
@@ -4488,7 +5329,10 @@ pub fn bind_tcp(
     );
     listener = TcpListener::terrane_construct(terrane_platform_result_capability(&raw));
     if !terrane_platform_result_failed(&raw) {
-        listener.local_address = terrane_platform_result_text(&raw);
+        {
+            let __terrane_value: String = terrane_platform_result_text(&raw);
+            listener.local_address = __terrane_value;
+        }
     }
     return ListenerResult::terrane_construct(
         terrane_platform_result_failed(&raw),
@@ -4504,7 +5348,7 @@ pub async fn listen_tcp(
     let settings: TcpListenerOptions;
     let raw: TerranePlatformResult;
     let mut listener: TcpListener;
-    if options.is_some() {
+    if (&options).is_some() {
         settings = match options {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
@@ -4548,7 +5392,10 @@ pub async fn listen_tcp(
         });
     }
     listener = TcpListener::terrane_construct(terrane_platform_result_capability(&raw));
-    listener.local_address = terrane_platform_result_text(&raw);
+    {
+        let __terrane_value: String = terrane_platform_result_text(&raw);
+        listener.local_address = __terrane_value;
+    }
     return Ok(listener);
 }
 #[derive(Clone)]
@@ -4602,13 +5449,34 @@ impl DatagramIoResult {
         completed: terrane_int_support::Int,
         peer: String,
     ) {
-        self.failed = failed;
-        self.truncated = truncated;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message;
-        self.data = data;
-        self.completed = completed.clone();
-        self.peer = peer;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = truncated;
+            self.truncated = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: Vec<u8> = data;
+            self.data = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = peer;
+            self.peer = __terrane_value;
+        }
     }
 }
 pub struct UdpSocket {
@@ -4628,7 +5496,10 @@ impl UdpSocket {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = Some(resource);
+        {
+            let __terrane_value: TerranePlatformCapability = resource;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub async fn send_to(
         &self,
@@ -4661,6 +5532,46 @@ impl UdpSocket {
             String::from(""),
         );
     }
+    pub async fn __terrane_shared_async_send_to(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        data: Vec<u8>,
+        address: SocketAddress,
+        options: Option<IoOperationOptions>,
+    ) -> DatagramIoResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_udp_send_to_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    data,
+                    address.value,
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return DatagramIoResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            false,
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
+            Vec::<u8>::from([]),
+            terrane_platform_result_int(&raw),
+            String::from(""),
+        );
+    }
     pub async fn receive_from(
         &self,
         limit: terrane_int_support::Int,
@@ -4674,6 +5585,44 @@ impl UdpSocket {
         raw = __terrane_await(
                 terrane_platform_udp_receive_from_async(
                     &self.handle.as_ref().expect("required field initialized"),
+                    limit,
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return DatagramIoResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_truncated(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_bytes(&raw),
+            terrane_platform_result_int(&raw),
+            terrane_platform_result_text(&raw),
+        );
+    }
+    pub async fn __terrane_shared_async_receive_from(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        limit: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> DatagramIoResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_udp_receive_from_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
                     limit,
                     operation_timeout,
                     operation_token.as_ref(),
@@ -4758,10 +5707,22 @@ impl UdpResult {
         message: String,
         socket: UdpSocket,
     ) {
-        self.failed = failed;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message;
-        self.value = socket;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: UdpSocket = socket;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn bind_udp(address: SocketAddress) -> UdpResult {
@@ -4770,7 +5731,10 @@ pub fn bind_udp(address: SocketAddress) -> UdpResult {
     raw = terrane_platform_udp_bind(address.value);
     socket = UdpSocket::terrane_construct(terrane_platform_result_capability(&raw));
     if !terrane_platform_result_failed(&raw) {
-        socket.local_address = terrane_platform_result_text(&raw);
+        {
+            let __terrane_value: String = terrane_platform_result_text(&raw);
+            socket.local_address = __terrane_value;
+        }
     }
     return UdpResult::terrane_construct(
         terrane_platform_result_failed(&raw),
@@ -4820,12 +5784,30 @@ impl DnsResult {
         ttl_known: bool,
         candidates: terrane_collection_support::List<String>,
     ) {
-        self.failed = failed;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message;
-        self.ttl = ttl.clone();
-        self.ttl_known = ttl_known;
-        self.candidates = candidates;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = ttl.clone();
+            self.ttl = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = ttl_known;
+            self.ttl_known = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_collection_support::List<String> = candidates;
+            self.candidates = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -4839,7 +5821,10 @@ impl NetworkHostName {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, raw: TerranePlatformResult) {
-        self.value = terrane_platform_result_text(&raw);
+        {
+            let __terrane_value: String = terrane_platform_result_text(&raw);
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -4863,9 +5848,18 @@ impl NetworkHostNameResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, host: NetworkHostName) {
-        self.failed = failed;
-        self.message = message;
-        self.value = host;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: NetworkHostName = host;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn parse_host_name(text: String) -> NetworkHostNameResult {
@@ -4906,28 +5900,26 @@ pub async fn lookup_dns(
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = candidates.make_unique();
-        while index.clone()
-            < terrane_int_support::Int::from(raw_candidates.len() as i128)
-        {
-            __terrane_list_append_0
-                .push(
-                    __terrane_raised(
-                        {
-                            let __terrane_receiver = &raw_candidates;
-                            let __terrane_index = __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
-                                33 /* terrane-site: core/networking.trn:404:28-404:49 */,
-                            );
-                            __terrane_receiver
-                                .get(__terrane_index)
-                                .cloned()
-                                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                                    __terrane_index,
-                                ))
-                        },
-                        33 /* terrane-site: core/networking.trn:404:28-404:49 */,
-                    ),
+        while index < terrane_int_support::Int::from(raw_candidates.len() as i128) {
+            {
+                let __terrane_collection_argument_0 = __terrane_raised(
+                    {
+                        let __terrane_receiver = &raw_candidates;
+                        let __terrane_index = __terrane_raised(
+                            terrane_collection_support::index_from_int(&index.clone()),
+                            33 /* terrane-site: core/networking.trn:404:28-404:49 */,
+                        );
+                        __terrane_receiver
+                            .get(__terrane_index)
+                            .cloned()
+                            .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                                __terrane_index,
+                            ))
+                    },
+                    33 /* terrane-site: core/networking.trn:404:28-404:49 */,
                 );
+                __terrane_list_append_0.push(__terrane_collection_argument_0);
+            };
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
@@ -4959,9 +5951,18 @@ impl NativeString {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, encoded: String) {
-        self.is_text = terrane_platform_value_is_text(&encoded);
-        self.text = terrane_platform_value_text(&encoded);
-        self.raw = terrane_platform_value_bytes(&encoded);
+        {
+            let __terrane_value: bool = terrane_platform_value_is_text(&encoded);
+            self.is_text = __terrane_value;
+        }
+        {
+            let __terrane_value: String = terrane_platform_value_text(&encoded);
+            self.text = __terrane_value;
+        }
+        {
+            let __terrane_value: Vec<u8> = terrane_platform_value_bytes(&encoded);
+            self.raw = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -4979,8 +5980,14 @@ impl EnvironmentEntry {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, name: NativeString, entry_value: NativeString) {
-        self.name = name;
-        self.value = entry_value;
+        {
+            let __terrane_value: NativeString = name;
+            self.name = __terrane_value;
+        }
+        {
+            let __terrane_value: NativeString = entry_value;
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -5014,10 +6021,22 @@ impl ProcessHostNameResult {
         detail: String,
         result_value: NativeString,
     ) {
-        self.failed = did_fail;
-        self.available = is_available;
-        self.message = detail;
-        self.value = result_value;
+        {
+            let __terrane_value: bool = did_fail;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = is_available;
+            self.available = __terrane_value;
+        }
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: NativeString = result_value;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn process_host_name() -> ProcessHostNameResult {
@@ -5039,28 +6058,28 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = values.make_unique();
-        while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
-            __terrane_list_append_0
-                .push(
-                    NativeString::terrane_construct(
-                        __terrane_raised(
-                            {
-                                let __terrane_receiver = &encoded;
-                                let __terrane_index = __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
-                                    34 /* terrane-site: core/process.trn:45:49-45:63 */,
-                                );
-                                __terrane_receiver
-                                    .get(__terrane_index)
-                                    .cloned()
-                                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                                        __terrane_index,
-                                    ))
-                            },
-                            34 /* terrane-site: core/process.trn:45:49-45:63 */,
-                        ),
+        while index < terrane_int_support::Int::from(encoded.len() as i128) {
+            {
+                let __terrane_collection_argument_0 = NativeString::terrane_construct(
+                    __terrane_raised(
+                        {
+                            let __terrane_receiver = &encoded;
+                            let __terrane_index = __terrane_raised(
+                                terrane_collection_support::index_from_int(&index.clone()),
+                                34 /* terrane-site: core/process.trn:45:49-45:63 */,
+                            );
+                            __terrane_receiver
+                                .get(__terrane_index)
+                                .cloned()
+                                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                                    __terrane_index,
+                                ))
+                        },
+                        34 /* terrane-site: core/process.trn:45:49-45:63 */,
                     ),
                 );
+                __terrane_list_append_0.push(__terrane_collection_argument_0);
+            };
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
@@ -5118,8 +6137,13 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     36 /* terrane-site: core/process.trn:55:41-55:59 */,
                 ),
             );
-            __terrane_list_append_1
-                .push(EnvironmentEntry::terrane_construct(name, value));
+            {
+                let __terrane_collection_argument_0 = EnvironmentEntry::terrane_construct(
+                    name,
+                    value,
+                );
+                __terrane_list_append_1.push(__terrane_collection_argument_0);
+            };
             index = index.clone() + terrane_int_support::Int::from(2_i128);
         }
     }
@@ -5140,7 +6164,10 @@ impl CliSchema {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, declared: terrane_collection_support::List<String>) {
-        self.entries = declared;
+        {
+            let __terrane_value: terrane_collection_support::List<String> = declared;
+            self.entries = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -5175,8 +6202,8 @@ impl CommandLine {
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
     let mut entry: String;
     let __terrane_iterable_0 = schema.entries.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &__terrane_iterable_0,
+    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_0.as_slice(),
     );
     loop {
         entry = match __terrane_iterator_0.next() {
@@ -5222,11 +6249,7 @@ pub fn parse_command_line(
         let __terrane_list_append_5 = option_names.make_unique();
         let __terrane_list_append_6 = option_values.make_unique();
         let __terrane_list_append_7 = positionals.make_unique();
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(supplied.length()),
-            )
-        {
+        while index < terrane_int_support::Int::from(supplied.length()) {
             argument = __terrane_raised(
                 supplied
                     .get_or_error(
@@ -5238,9 +6261,16 @@ pub fn parse_command_line(
                 37 /* terrane-site: core/process.trn:90:20-90:35 */,
             );
             if !argument.is_text {
-                __terrane_list_append_2.push(index.clone());
-                __terrane_list_append_3
-                    .push(String::from("command-line option is not Unicode text"));
+                {
+                    let __terrane_collection_argument_0 = index.clone();
+                    __terrane_list_append_2.push(__terrane_collection_argument_0);
+                };
+                {
+                    let __terrane_collection_argument_0 = String::from(
+                        "command-line option is not Unicode text",
+                    );
+                    __terrane_list_append_3.push(__terrane_collection_argument_0);
+                };
             } else {
                 flag_entry = {
                     let mut __terrane_text = String::with_capacity(5);
@@ -5261,52 +6291,107 @@ pub fn parse_command_line(
                     __terrane_text
                 };
                 if schema_has(schema.clone(), flag_entry) {
-                    __terrane_list_append_4.push(argument.text.clone());
+                    {
+                        let __terrane_collection_argument_0 = argument.text.clone();
+                        __terrane_list_append_4.push(__terrane_collection_argument_0);
+                    };
                 } else if schema_has(schema.clone(), value_entry) {
                     if index.clone() + terrane_int_support::Int::from(1_i128)
-                        >= terrane_int_support::Int::from(
-                            terrane_int_support::Int::from(supplied.length()),
-                        )
+                        >= terrane_int_support::Int::from(supplied.length())
                     {
-                        __terrane_list_append_2.push(index.clone());
-                        __terrane_list_append_3
-                            .push(String::from("option requires a value"));
-                    } else {
-                        __terrane_list_append_5.push(argument.text.clone());
-                        __terrane_list_append_6
-                            .push(
-                                __terrane_raised(
-                                    supplied
-                                        .get_or_error(
-                                            __terrane_raised(
-                                                terrane_collection_support::index_from_int(
-                                                    &(index.clone() + terrane_int_support::Int::from(1_i128)),
-                                                ),
-                                                38 /* terrane-site: core/process.trn:105:43-105:62 */,
-                                            ),
-                                        ),
-                                    38 /* terrane-site: core/process.trn:105:43-105:62 */,
-                                ),
+                        {
+                            let __terrane_collection_argument_0 = index.clone();
+                            __terrane_list_append_2
+                                .push(__terrane_collection_argument_0);
+                        };
+                        {
+                            let __terrane_collection_argument_0 = String::from(
+                                "option requires a value",
                             );
+                            __terrane_list_append_3
+                                .push(__terrane_collection_argument_0);
+                        };
+                    } else {
+                        {
+                            let __terrane_collection_argument_0 = argument.text.clone();
+                            __terrane_list_append_5
+                                .push(__terrane_collection_argument_0);
+                        };
+                        {
+                            let __terrane_collection_argument_0 = __terrane_raised(
+                                supplied
+                                    .get_or_error(
+                                        __terrane_raised(
+                                            terrane_collection_support::index_from_int(
+                                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                            ),
+                                            38 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                        ),
+                                    ),
+                                38 /* terrane-site: core/process.trn:105:43-105:62 */,
+                            );
+                            __terrane_list_append_6
+                                .push(__terrane_collection_argument_0);
+                        };
                         index = index.clone() + terrane_int_support::Int::from(1_i128);
                     }
-                } else if argument.text.starts_with(&String::from("--")) {
-                    __terrane_list_append_2.push(index.clone());
-                    __terrane_list_append_3.push(String::from("unknown option"));
+                } else if {
+                    let __terrane_string_argument_0 = "--";
+                    argument
+                        .text
+                        .starts_with(
+                            std::convert::AsRef::<
+                                str,
+                            >::as_ref(&__terrane_string_argument_0),
+                        )
+                } {
+                    {
+                        let __terrane_collection_argument_0 = index.clone();
+                        __terrane_list_append_2.push(__terrane_collection_argument_0);
+                    };
+                    {
+                        let __terrane_collection_argument_0 = String::from(
+                            "unknown option",
+                        );
+                        __terrane_list_append_3.push(__terrane_collection_argument_0);
+                    };
                 } else {
-                    __terrane_list_append_7.push(argument);
+                    {
+                        let __terrane_collection_argument_0 = argument;
+                        __terrane_list_append_7.push(__terrane_collection_argument_0);
+                    };
                 }
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
     result = CommandLine::terrane_construct();
-    result.flags = flags;
-    result.option_names = option_names;
-    result.option_values = option_values;
-    result.positionals = positionals;
-    result.diagnostic_arguments = diagnostic_arguments;
-    result.diagnostic_messages = diagnostic_messages;
+    {
+        let __terrane_value: terrane_collection_support::List<String> = flags;
+        result.flags = __terrane_value;
+    }
+    {
+        let __terrane_value: terrane_collection_support::List<String> = option_names;
+        result.option_names = __terrane_value;
+    }
+    {
+        let __terrane_value: terrane_collection_support::List<NativeString> = option_values;
+        result.option_values = __terrane_value;
+    }
+    {
+        let __terrane_value: terrane_collection_support::List<NativeString> = positionals;
+        result.positionals = __terrane_value;
+    }
+    {
+        let __terrane_value: terrane_collection_support::List<
+            terrane_int_support::Int,
+        > = diagnostic_arguments;
+        result.diagnostic_arguments = __terrane_value;
+    }
+    {
+        let __terrane_value: terrane_collection_support::List<String> = diagnostic_messages;
+        result.diagnostic_messages = __terrane_value;
+    }
     return result;
 }
 #[derive(Clone)]
@@ -5325,13 +6410,24 @@ impl ExitStatus {
 pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
     let mut result: ExitStatus;
     result = ExitStatus::terrane_construct();
-    if requested.clone() < terrane_int_support::Int::from(0_i128)
-        || requested.clone() > terrane_int_support::Int::from(255_i128)
+    if requested < terrane_int_support::Int::from(0_i128)
+        || requested > terrane_int_support::Int::from(255_i128)
     {
-        result.code = terrane_int_support::Int::from(255_i128);
-        result.valid = false;
+        {
+            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
+                255_i128,
+            );
+            result.code = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = false;
+            result.valid = __terrane_value;
+        }
     } else {
-        result.code = requested.clone();
+        {
+            let __terrane_value: terrane_int_support::Int = requested.clone();
+            result.code = __terrane_value;
+        }
     }
     return result;
 }
@@ -5389,9 +6485,18 @@ impl StreamOperationResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, deadline_exceeded: bool) {
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -5411,9 +6516,18 @@ impl BufferBytesResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
-        self.failed = failed;
-        self.message = message;
-        self.value = data;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: Vec<u8> = data;
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -5433,9 +6547,18 @@ impl BufferTextResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, text: String) {
-        self.failed = failed;
-        self.message = message;
-        self.value = text;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: String = text;
+            self.value = __terrane_value;
+        }
     }
 }
 pub struct ReadBufferResult {
@@ -5458,9 +6581,18 @@ impl ReadBufferResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, buffer: OwnedReadBuffer) {
-        self.failed = failed;
-        self.message = message;
-        self.value = buffer;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: OwnedReadBuffer = buffer;
+            self.value = __terrane_value;
+        }
     }
 }
 pub struct OwnedReadBuffer {
@@ -5478,7 +6610,10 @@ impl OwnedReadBuffer {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformCapability) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value: TerranePlatformCapability = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn capacity(&self) -> terrane_int_support::Int {
         return terrane_platform_buffer_capacity(
@@ -5575,12 +6710,30 @@ impl BufferedReadResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        self.buffer = Some(buffer);
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value: OwnedReadBuffer = buffer;
+            self.buffer = Some(__terrane_value);
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 pub fn make_read_buffer(capacity: terrane_int_support::Int) -> ReadBufferResult {
@@ -5635,12 +6788,30 @@ impl ReadResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        self.data = data;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value: Vec<u8> = data;
+            self.data = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -5677,11 +6848,26 @@ impl TextReadResult {
         failed: bool,
         message: String,
     ) {
-        self.text = text;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
+        {
+            let __terrane_value: String = text;
+            self.text = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -5719,17 +6905,33 @@ impl WriteResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
-            self.data = Vec::<u8>::from([]);
+        if completed == terrane_int_support::Int::from(data.len() as i128) && !failed {
+            {
+                let __terrane_value: Vec<u8> = Vec::<u8>::from([]);
+                self.data = __terrane_value;
+            }
         } else {
-            self.data = data;
+            {
+                let __terrane_value: Vec<u8> = data;
+                self.data = __terrane_value;
+            }
         }
-        self.completed = completed.clone();
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -5755,7 +6957,10 @@ impl ExactReadProgress {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, count: terrane_int_support::Int) {
-        self.target = count.clone();
+        {
+            let __terrane_value: terrane_int_support::Int = count.clone();
+            self.target = __terrane_value;
+        }
     }
     pub fn pending(&self) -> bool {
         return self.completed.clone() < self.target.clone() && !self.end && !self.failed
@@ -5772,16 +6977,40 @@ impl ExactReadProgress {
         deadline_exceeded: bool,
         message: String,
     ) {
-        self.completed = self.completed.clone() + completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message.clone();
-        if completed.clone() == terrane_int_support::Int::from(0_i128) && !end && !failed
+        {
+            let __terrane_value: terrane_int_support::Int = self.completed.clone()
+                + completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        if completed == terrane_int_support::Int::from(0_i128) && !end && !failed
             && !deadline_exceeded
         {
-            self.failed = true;
-            self.message = String::from("stream read made no progress");
+            {
+                let __terrane_value: bool = true;
+                self.failed = __terrane_value;
+            }
+            {
+                let __terrane_value: String = String::from(
+                    "stream read made no progress",
+                );
+                self.message = __terrane_value;
+            }
         }
         return ();
     }
@@ -5823,8 +7052,7 @@ impl WriteProgress {
         }
     }
     pub fn pending(&self, count: terrane_int_support::Int) -> bool {
-        return self.completed.clone() < count.clone() && !self.failed
-            && !self.deadline_exceeded;
+        return self.completed.clone() < count && !self.failed && !self.deadline_exceeded;
     }
     pub fn advance(
         &mut self,
@@ -5833,15 +7061,36 @@ impl WriteProgress {
         deadline_exceeded: bool,
         message: String,
     ) {
-        self.completed = self.completed.clone() + completed.clone();
-        self.failed = failed;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message.clone();
-        if completed.clone() == terrane_int_support::Int::from(0_i128) && !failed
+        {
+            let __terrane_value: terrane_int_support::Int = self.completed.clone()
+                + completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        if completed == terrane_int_support::Int::from(0_i128) && !failed
             && !deadline_exceeded
         {
-            self.failed = true;
-            self.message = String::from("stream write made no progress");
+            {
+                let __terrane_value: bool = true;
+                self.failed = __terrane_value;
+            }
+            {
+                let __terrane_value: String = String::from(
+                    "stream write made no progress",
+                );
+                self.message = __terrane_value;
+            }
         }
         return ();
     }
@@ -5952,7 +7201,10 @@ impl ByteReader {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
         let raw: TerranePlatformReadResult;
@@ -5981,7 +7233,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -6013,7 +7265,7 @@ impl ByteReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
@@ -6038,7 +7290,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -6107,6 +7359,43 @@ impl ByteReader {
             raw.deadline_exceeded,
         );
     }
+    pub async fn __terrane_shared_async_read_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformReadResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_read_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    count,
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return ReadResult::terrane_construct(
+            raw.data.clone(),
+            raw.completed.clone(),
+            raw.end,
+            raw.failed,
+            raw.message.clone(),
+            raw.deadline_exceeded,
+        );
+    }
     pub async fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
@@ -6115,16 +7404,81 @@ impl ByteReader {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
         let mut part: ReadResult;
-        if count.clone() < terrane_int_support::Int::from(0_i128) {
-            return __terrane_await((&self).read_async(count.clone(), options.clone()))
-                .await;
+        if count < terrane_int_support::Int::from(0_i128) {
+            return __terrane_await(self.read_async(count.clone(), options)).await;
         }
         progress = ExactReadProgress::terrane_construct(count.clone());
         data = Vec::<u8>::from([]);
         while progress.pending() {
             part = __terrane_await(
-                    (&self).read_async(progress.remaining(), options.clone()),
+                    self.read_async(progress.remaining(), options.clone()),
                 )
+                .await;
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data;
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            progress
+                .advance(
+                    part.completed.clone(),
+                    part.end,
+                    part.failed,
+                    part.deadline_exceeded,
+                    part.message.clone(),
+                );
+        }
+        return progress.result(data);
+    }
+    pub async fn __terrane_shared_async_read_exact_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let mut progress: ExactReadProgress;
+        let mut data: Vec<u8>;
+        let mut part: ReadResult;
+        if count < terrane_int_support::Int::from(0_i128) {
+            return __terrane_await({
+                    let __terrane_shared_call_handle = __terrane_shared_handle.clone();
+                    let __terrane_shared_argument_0 = count.clone();
+                    let __terrane_shared_argument_1 = options;
+                    let __terrane_shared_argument_2 = __terrane_shared_argument_0;
+                    let __terrane_shared_argument_3 = __terrane_shared_argument_1;
+                    ByteReader::__terrane_shared_async_read_async(
+                        __terrane_shared_call_handle,
+                        __terrane_shared_argument_2,
+                        __terrane_shared_argument_3,
+                    )
+                })
+                .await;
+        }
+        progress = ExactReadProgress::terrane_construct(count.clone());
+        data = Vec::<u8>::from([]);
+        while progress.pending() {
+            part = __terrane_await({
+                    let __terrane_shared_call_handle = __terrane_shared_handle.clone();
+                    let __terrane_shared_argument_0 = progress.remaining();
+                    let __terrane_shared_argument_1 = options.clone();
+                    let __terrane_shared_argument_2 = __terrane_shared_argument_0;
+                    let __terrane_shared_argument_3 = __terrane_shared_argument_1;
+                    ByteReader::__terrane_shared_async_read_async(
+                        __terrane_shared_call_handle,
+                        __terrane_shared_argument_2,
+                        __terrane_shared_argument_3,
+                    )
+                })
                 .await;
             data = {
                 let mut bytes = data;
@@ -6172,6 +7526,55 @@ impl ByteReader {
         raw = __terrane_await(
                 terrane_platform_stream_read_into_async(
                     &self.handle.as_ref().expect("required field initialized"),
+                    &buffer.handle.as_ref().expect("required field initialized"),
+                    count.clone(),
+                    operation_timeout.clone(),
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        completed = terrane_platform_result_int(&raw);
+        end = terrane_platform_result_bool(&raw);
+        failed = terrane_platform_result_failed(&raw);
+        message = terrane_platform_result_message(&raw);
+        deadline_exceeded = terrane_platform_result_deadline_exceeded(&raw);
+        return BufferedReadResult::terrane_construct(
+            buffer,
+            completed.clone(),
+            end,
+            failed,
+            message,
+            deadline_exceeded,
+        );
+    }
+    pub async fn __terrane_shared_async_read_into_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        buffer: OwnedReadBuffer,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> BufferedReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        let completed: terrane_int_support::Int;
+        let end: bool;
+        let failed: bool;
+        let message: String;
+        let deadline_exceeded: bool;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_stream_read_into_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
                     &buffer.handle.as_ref().expect("required field initialized"),
                     count.clone(),
                     operation_timeout.clone(),
@@ -6277,7 +7680,10 @@ impl ByteWriter {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn write(&self, data: Vec<u8>) -> WriteResult {
         let offset: i64;
@@ -6304,9 +7710,7 @@ impl ByteWriter {
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
@@ -6335,7 +7739,7 @@ impl ByteWriter {
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
-            return prior.clone();
+            return prior;
         }
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
@@ -6378,6 +7782,43 @@ impl ByteWriter {
             raw.deadline_exceeded,
         );
     }
+    pub async fn __terrane_shared_async_write_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformWriteResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_write_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    data,
+                    terrane_int_support::Int::from(0_i128),
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return WriteResult::terrane_construct(
+            raw.data.clone(),
+            raw.completed.clone(),
+            raw.failed,
+            raw.message.clone(),
+            raw.deadline_exceeded,
+        );
+    }
     pub async fn write_all_async(
         &self,
         mut data: Vec<u8>,
@@ -6394,6 +7835,49 @@ impl ByteWriter {
             part = __terrane_await(
                     terrane_platform_write_async(
                         &self.handle.as_ref().expect("required field initialized"),
+                        data,
+                        progress.completed.clone(),
+                        operation_timeout,
+                        operation_token.as_ref(),
+                    ),
+                )
+                .await;
+            progress
+                .advance(
+                    part.completed.clone(),
+                    part.failed,
+                    part.deadline_exceeded,
+                    part.message.clone(),
+                );
+            data = part.data.clone();
+        }
+        return progress.result(data);
+    }
+    pub async fn __terrane_shared_async_write_all_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        mut data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let mut progress: WriteProgress;
+        let mut operation_timeout: terrane_int_support::Int;
+        let mut operation_token: Option<TerranePlatformCapability>;
+        let mut part: TerranePlatformWriteResult;
+        progress = WriteProgress::terrane_construct();
+        while progress.pending(terrane_int_support::Int::from(data.len() as i128)) {
+            operation_timeout = operation_deadline(options.clone());
+            operation_token = operation_cancellation(options.clone());
+            part = __terrane_await(
+                    terrane_platform_write_async(
+                        &{
+                            let __terrane_snapshot = __terrane_shared_handle
+                                .lock()
+                                .expect("shared async receiver lock poisoned")
+                                .handle
+                                .as_ref()
+                                .expect("required field initialized")
+                                .clone();
+                            __terrane_snapshot
+                        },
                         data,
                         progress.completed.clone(),
                         operation_timeout,
@@ -6524,8 +8008,14 @@ impl TextReader {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value: terrane_string_support::Encoding = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn read(
         &self,
@@ -6537,10 +8027,13 @@ impl TextReader {
             &self.handle.as_ref().expect("required field initialized"),
             count,
         );
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&raw.data.clone(), self.codec),
-            39 /* terrane-site: core/streams.trn:381:23-381:50 */,
-        )?;
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
+                39 /* terrane-site: core/streams.trn:381:23-381:50 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -6567,7 +8060,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -6599,14 +8092,17 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&data, self.codec),
-            40 /* terrane-site: core/streams.trn:403:23-403:46 */,
-        )?;
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&data, __terrane_string_argument_0),
+                40 /* terrane-site: core/streams.trn:403:23-403:46 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -6633,7 +8129,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < limit.clone() && !end && !failed {
+        while completed < limit && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
@@ -6665,10 +8161,13 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&data, self.codec),
-            41 /* terrane-site: core/streams.trn:422:23-422:46 */,
-        )?;
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&data, __terrane_string_argument_0),
+                41 /* terrane-site: core/streams.trn:422:23-422:46 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -6694,10 +8193,61 @@ impl TextReader {
                 ),
             )
             .await;
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&raw.data.clone(), self.codec),
-            42 /* terrane-site: core/streams.trn:427:23-427:50 */,
-        )?;
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
+                42 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            )?
+        };
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                raw.completed.clone(),
+                raw.end,
+                raw.failed,
+                raw.message.clone(),
+            ),
+        );
+    }
+    pub async fn __terrane_shared_async_read_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let raw: TerranePlatformReadResult;
+        let text: String;
+        raw = __terrane_await(
+                terrane_platform_read_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    count,
+                    -terrane_int_support::Int::from(1_i128),
+                    None.as_ref(),
+                ),
+            )
+            .await;
+        text = {
+            let __terrane_string_argument_0 = {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .codec
+                    .clone();
+                __terrane_snapshot
+            };
+            __terrane_raised_err(
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
+                42 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -6757,14 +8307,23 @@ impl TextWriter {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value: terrane_string_support::Encoding = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn write(&self, text: String) -> WriteResult {
         let data: Vec<u8>;
         let offset: i64;
         let raw: TerranePlatformWriteResult;
-        data = terrane_string_support::encode(&text, self.codec);
+        data = {
+            let __terrane_string_argument_0 = self.codec;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
         offset = 0;
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
@@ -6785,13 +8344,14 @@ impl TextWriter {
         let mut failed: bool;
         let mut message: String;
         let mut part: TerranePlatformWriteResult;
-        data = terrane_string_support::encode(&text, self.codec);
+        data = {
+            let __terrane_string_argument_0 = self.codec;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
@@ -6820,7 +8380,7 @@ impl TextWriter {
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
-            return prior.clone();
+            return prior;
         }
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
@@ -6849,6 +8409,20 @@ impl TextWriter {
     }
     pub async fn write_async(&self, text: String) -> WriteResult {
         return self.write(text);
+    }
+    pub async fn __terrane_shared_async_write_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        text: String,
+    ) -> WriteResult {
+        return {
+            let __terrane_shared_argument_0 = text;
+            let __terrane_shared_argument_1 = __terrane_shared_argument_0;
+            let __terrane_call_result = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .write(__terrane_shared_argument_1);
+            __terrane_call_result
+        };
     }
     pub fn flush(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult;
@@ -6951,9 +8525,18 @@ impl IoOperationResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, deadline_exceeded: bool, message: String) {
-        self.failed = failed;
-        self.deadline_exceeded = deadline_exceeded;
-        self.message = message;
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
     }
 }
 pub fn cancel_operation(cancellation: CancellationToken) -> IoOperationResult {
@@ -6987,22 +8570,28 @@ impl IoOperationOptions {
         requested: Option<Deadline>,
         cancellation: Option<CancellationToken>,
     ) {
-        self.deadline = requested;
-        self.cancellation = cancellation;
+        {
+            let __terrane_value: Option<Deadline> = requested;
+            self.deadline = __terrane_value;
+        }
+        {
+            let __terrane_value: Option<CancellationToken> = cancellation;
+            self.cancellation = __terrane_value;
+        }
     }
 }
 pub fn operation_cancellation(
     options: Option<IoOperationOptions>,
 ) -> Option<TerranePlatformCapability> {
     let selected: Option<CancellationToken>;
-    if options.is_some() {
+    if (&options).is_some() {
         selected = match &options {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
         }
             .cancellation
             .clone();
-        if selected.is_some() {
+        if (&selected).is_some() {
             return Some(
                 match &selected {
                     Some(value) => value,
@@ -7020,20 +8609,20 @@ pub fn operation_deadline(
 ) -> terrane_int_support::Int {
     let selected: Option<Deadline>;
     let remaining: Option<Duration>;
-    if options.is_some() {
+    if (&options).is_some() {
         selected = match &options {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
         }
             .deadline
             .clone();
-        if selected.is_some() {
+        if (&selected).is_some() {
             remaining = match &selected {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             }
                 .remaining();
-            if remaining.is_some() {
+            if (&remaining).is_some() {
                 return match &remaining {
                     Some(value) => value,
                     _ => unreachable!("flow-proven storage refinement"),
@@ -7082,7 +8671,10 @@ impl DurationSubtraction {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, total: terrane_int_support::Int) {
-        self.total_nanoseconds = total.clone();
+        {
+            let __terrane_value: terrane_int_support::Int = total.clone();
+            self.total_nanoseconds = __terrane_value;
+        }
     }
     pub fn checked(&self, other: Duration) -> Option<Duration> {
         let difference: terrane_int_support::Int;
@@ -7126,14 +8718,27 @@ impl Duration {
         whole_seconds: terrane_int_support::Int,
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
-        self.seconds = whole_seconds.clone();
-        self.nanoseconds = fractional_nanoseconds.clone();
-        self.total_nanoseconds = whole_seconds.clone()
-            * terrane_int_support::Int::from(1000000000_i128)
-            + fractional_nanoseconds.clone();
-        self.subtract = DurationSubtraction::terrane_construct(
-            self.total_nanoseconds.clone(),
-        );
+        {
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone();
+            self.seconds = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
+            self.nanoseconds = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = whole_seconds.clone()
+                * terrane_int_support::Int::from(1000000000_i128)
+                + fractional_nanoseconds.clone();
+            self.total_nanoseconds = __terrane_value;
+        }
+        {
+            let __terrane_value: DurationSubtraction = DurationSubtraction::terrane_construct(
+                self.total_nanoseconds.clone(),
+            );
+            self.subtract = __terrane_value;
+        }
     }
     pub fn add(&self, other: Duration) -> Duration {
         let fractional: terrane_int_support::Int;
@@ -7149,7 +8754,7 @@ impl Duration {
         multiplier: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
         let total: terrane_int_support::Int;
-        if multiplier.clone() < terrane_int_support::Int::from(0_i128) {
+        if multiplier < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -7178,7 +8783,7 @@ impl Duration {
     pub fn terrane_static_seconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -7206,7 +8811,7 @@ impl Duration {
     pub fn terrane_static_milliseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -7235,7 +8840,7 @@ impl Duration {
     pub fn terrane_static_microseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -7264,7 +8869,7 @@ impl Duration {
     pub fn terrane_static_nanoseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -7312,16 +8917,29 @@ impl MonotonicInstant {
         runtime_domain: terrane_int_support::Int,
         elapsed: terrane_int_support::Int,
     ) {
-        self.domain = runtime_domain.clone();
-        self.elapsed_nanoseconds = elapsed.clone();
+        {
+            let __terrane_value: terrane_int_support::Int = runtime_domain.clone();
+            self.domain = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = elapsed.clone();
+            self.elapsed_nanoseconds = __terrane_value;
+        }
     }
     pub fn duration_until(
         &self,
         later: &MonotonicInstant,
     ) -> Result<Duration, TerraneError> {
         let elapsed: terrane_int_support::Int;
-        if self.domain.clone() != later.domain.clone()
-            || later.elapsed_nanoseconds.clone() < self.elapsed_nanoseconds.clone()
+        if self.domain.clone()
+            != {
+                let __terrane_snapshot = later.domain.clone();
+                __terrane_snapshot
+            }
+            || {
+                let __terrane_snapshot = later.elapsed_nanoseconds.clone();
+                __terrane_snapshot
+            } < self.elapsed_nanoseconds.clone()
         {
             return Err({
                 let value = InvalidDuration::terrane_construct();
@@ -7340,7 +8958,10 @@ impl MonotonicInstant {
                 )
             });
         }
-        elapsed = later.elapsed_nanoseconds.clone() - self.elapsed_nanoseconds.clone();
+        elapsed = {
+            let __terrane_snapshot = later.elapsed_nanoseconds.clone();
+            __terrane_snapshot
+        } - self.elapsed_nanoseconds.clone();
         return Ok(
             Duration::terrane_construct(
                 terrane_platform_time_div(&elapsed, 1000000000.clone()),
@@ -7371,8 +8992,15 @@ impl Instant {
         seconds: terrane_int_support::Int,
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
-        self.unix_seconds = seconds.clone();
-        self.nanoseconds = fractional_nanoseconds.clone();
+        {
+            let __terrane_value: terrane_int_support::Int = seconds.clone();
+            self.unix_seconds = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = fractional_nanoseconds
+                .clone();
+            self.nanoseconds = __terrane_value;
+        }
     }
 }
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -7391,7 +9019,10 @@ impl Deadline {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
-        self.expires_at = target;
+        {
+            let __terrane_value: MonotonicInstant = target;
+            self.expires_at = __terrane_value;
+        }
     }
     pub fn remaining(&self) -> Option<Duration> {
         let now: MonotonicInstant;
@@ -7473,9 +9104,18 @@ impl Tick {
         observed_at: MonotonicInstant,
         expirations: terrane_int_support::Int,
     ) {
-        self.scheduled = scheduled_at;
-        self.observed = observed_at;
-        self.count = expirations.clone();
+        {
+            let __terrane_value: MonotonicInstant = scheduled_at;
+            self.scheduled = __terrane_value;
+        }
+        {
+            let __terrane_value: MonotonicInstant = observed_at;
+            self.observed = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = expirations.clone();
+            self.count = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -7508,8 +9148,14 @@ impl Ticker {
         value
     }
     pub fn construct(&mut self, interval: Duration) {
-        self.anchor = Clock::terrane_static_monotonic();
-        self.period = interval;
+        {
+            let __terrane_value: MonotonicInstant = Clock::terrane_static_monotonic();
+            self.anchor = __terrane_value;
+        }
+        {
+            let __terrane_value: Duration = interval;
+            self.period = __terrane_value;
+        }
     }
     pub async fn next(&mut self) -> Tick {
         let period_total: terrane_int_support::Int;
@@ -7530,7 +9176,7 @@ impl Ticker {
         elapsed = observed.elapsed_nanoseconds.clone()
             - self.anchor.elapsed_nanoseconds.clone();
         observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
-        if observed_index.clone() < self.next_index.clone() {
+        if observed_index < self.next_index.clone() {
             observed_index = self.next_index.clone();
         }
         count = observed_index.clone() - self.next_index.clone()
@@ -7540,8 +9186,127 @@ impl Ticker {
             self.anchor.elapsed_nanoseconds.clone()
                 + period_total.clone() * observed_index.clone(),
         );
-        self.next_index = observed_index.clone()
-            + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.next_index = __terrane_value;
+        }
+        return Tick::terrane_construct(delivered, observed, count.clone());
+    }
+    pub async fn __terrane_shared_async_next(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+    ) -> Tick {
+        let period_total: terrane_int_support::Int;
+        let scheduled_nanoseconds: terrane_int_support::Int;
+        let observed: MonotonicInstant;
+        let elapsed: terrane_int_support::Int;
+        let mut observed_index: terrane_int_support::Int;
+        let count: terrane_int_support::Int;
+        let delivered: MonotonicInstant;
+        period_total = {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .period
+                .clone();
+            __terrane_snapshot
+        }
+            .total_nanoseconds
+            .clone();
+        scheduled_nanoseconds = {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .anchor
+                .clone();
+            __terrane_snapshot
+        }
+            .elapsed_nanoseconds
+            .clone()
+            + period_total.clone()
+                * {
+                    let __terrane_snapshot = __terrane_shared_handle
+                        .lock()
+                        .expect("shared async receiver lock poisoned")
+                        .next_index
+                        .clone();
+                    __terrane_snapshot
+                };
+        discard_none(
+            __terrane_await(terrane_platform_time_sleep_until(scheduled_nanoseconds))
+                .await,
+        );
+        observed = Clock::terrane_static_monotonic();
+        elapsed = observed.elapsed_nanoseconds.clone()
+            - {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .anchor
+                    .clone();
+                __terrane_snapshot
+            }
+                .elapsed_nanoseconds
+                .clone();
+        observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
+        if observed_index
+            < {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .next_index
+                    .clone();
+                __terrane_snapshot
+            }
+        {
+            observed_index = {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .next_index
+                    .clone();
+                __terrane_snapshot
+            };
+        }
+        count = observed_index.clone()
+            - {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .next_index
+                    .clone();
+                __terrane_snapshot
+            } + terrane_int_support::Int::from(1_i128);
+        delivered = MonotonicInstant::terrane_construct(
+            {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .anchor
+                    .clone();
+                __terrane_snapshot
+            }
+                .domain
+                .clone(),
+            {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .anchor
+                    .clone();
+                __terrane_snapshot
+            }
+                .elapsed_nanoseconds
+                .clone() + period_total.clone() * observed_index.clone(),
+        );
+        {
+            let __terrane_value: terrane_int_support::Int = observed_index.clone()
+                + terrane_int_support::Int::from(1_i128);
+            __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .next_index = __terrane_value;
+        }
         return Tick::terrane_construct(delivered, observed, count.clone());
     }
     pub fn destruct(&mut self) {

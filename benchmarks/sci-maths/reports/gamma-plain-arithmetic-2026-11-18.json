@@ -1,0 +1,2009 @@
+{
+  "format": 3,
+  "suite": "Terrane scientific mathematics and data workloads",
+  "groups": [
+    {
+      "id": "language-baseline",
+      "name": "Language baseline"
+    },
+    {
+      "id": "scientific-stack",
+      "name": "Scientific stack"
+    }
+  ],
+  "created_at": "2026-11-18T16:52:41.327568+00:00",
+  "environment": {
+    "platform": "Linux-7.3.0-4-cachyos-x86_64-with-glibc2.44",
+    "kernel": "7.3.0-4-cachyos",
+    "machine": "x86_64",
+    "cpu_model": "AMD Ryzen 9 3900XT 12-Core Processor",
+    "logical_cpus": 24,
+    "physical_cores": 12,
+    "memory_bytes": 101152743424,
+    "runner_python": "3.14.9",
+    "cpu_frequency_governor": "powersave",
+    "load_average": [
+      0.212890625,
+      0.251953125,
+      0.623046875
+    ],
+    "inherited_performance_environment": {}
+  },
+  "measurement": {
+    "clock": "time.perf_counter",
+    "runs": 7,
+    "warmups": 2,
+    "cold_builds": false,
+    "setup_timeout_seconds": 300.0,
+    "runtime_timeout_seconds": 60.0,
+    "execution_timing": "process spawn to exit, as observed by the parent; setup and preparation complete before spawning",
+    "run_order": "problem-major and lane-minor within each warm-up or measured run index",
+    "build_cache": "existing adapter-declared caches preserved",
+    "memory": "unavailable: memory measurement requires Linux cgroup v2 with a writable delegated subtree and the memory controller enabled; could not initialize a measurement subtree at /sys/fs/cgroup/user.slice/user-1000.slice/session-277.scope: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1000.slice/session-277.scope/terrane-benchmark-runner-2468298'",
+    "memory_available": false,
+    "memory_unavailable_reason": "memory measurement requires Linux cgroup v2 with a writable delegated subtree and the memory controller enabled; could not initialize a measurement subtree at /sys/fs/cgroup/user.slice/user-1000.slice/session-277.scope: [Errno 13] Permission denied: '/sys/fs/cgroup/user.slice/user-1000.slice/session-277.scope/terrane-benchmark-runner-2468298'",
+    "memory_recommendation": "systemd-run --user --scope --quiet --property=Delegate=yes --same-dir python3 benchmarks/sci-maths/run.py report --output benchmarks/sci-maths/reports/gamma-plain-arithmetic-2026-11-18.md",
+    "memory_limitations": null
+  },
+  "lane_setup": {
+    "terrane": {
+      "name": "Clean, idiomatic Terrane",
+      "metadata": {
+        "implementation": "Terrane compiler-generated Rust",
+        "native-build-profile": "Cargo release: opt-level 3, fat LTO, one codegen unit"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/target/release/terrane",
+            "--version"
+          ],
+          "stdout": "terrane 0.1.0 (build rust 1.100.0, projection rustdoc nightly-2026-10-02)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.100.0 (0ef1bc386 2026-11-09)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.100.0 (3acc79c0c 2026-11-05)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.1296192838344723,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      }
+    },
+    "python": {
+      "name": "Clean, idiomatic Python",
+      "metadata": {
+        "implementation": "system CPython using only the standard language and library",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "python3",
+            "--version"
+          ],
+          "stdout": "Python 3.14.9\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "rust": {
+      "name": "Clean, idiomatic Rust control",
+      "metadata": {
+        "implementation": "standalone Rust compiled directly with rustc",
+        "native-build-profile": "opt-level=3, fat LTO, one codegen unit",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.100.0 (0ef1bc386 2026-11-09)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "go": {
+      "name": "Clean, idiomatic Go control",
+      "metadata": {
+        "implementation": "standalone Go compiled directly with go build",
+        "native-build-profile": "default optimized Go build with trimmed paths",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "go",
+            "version"
+          ],
+          "stdout": "go version go1.27.3-X:nodwarf5 linux/amd64\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "python-scipy": {
+      "name": "Python scientific stack",
+      "metadata": {
+        "implementation": "CPython with vectorized NumPy and SciPy special functions",
+        "scientific-packages": true,
+        "native-build-profile": "official binary wheels from the locked uv environment"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/benchmarks/sci-maths/scientific-python/.venv/bin/python",
+            "--version"
+          ],
+          "stdout": "Python 3.14.9\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "$repo/benchmarks/sci-maths/scientific-python/.venv/bin/python",
+            "-c",
+            "import numpy, scipy; print(f'numpy {numpy.__version__}; scipy {scipy.__version__}')"
+          ],
+          "stdout": "numpy 2.5.2; scipy 1.18.1\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.009096503024920821,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      }
+    },
+    "terrane-numr": {
+      "name": "Terrane with numr",
+      "metadata": {
+        "implementation": "Terrane using numr 0.7.0 through /deps",
+        "scientific-packages": true,
+        "native-build-profile": "Cargo release: opt-level 3, fat LTO, one codegen unit"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/target/release/terrane",
+            "--version"
+          ],
+          "stdout": "terrane 0.1.0 (build rust 1.100.0, projection rustdoc nightly-2026-10-02)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.100.0 (0ef1bc386 2026-11-09)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.100.0 (3acc79c0c 2026-11-05)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.09576235502026975,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      }
+    }
+  },
+  "results": [
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "terrane",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.032524931943044066,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: loading package...\nCompleted [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-scalar-reduction]: preparing declaration consumers...\n  Compiled [benchmark-scalar-reduction]: preparing declaration consumers (0.000s)\n  Compilation [benchmark-scalar-reduction]: reusing unchanged compilation\nCompleted [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: compiling Terrane sources (0.001s)\nBuilding [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: preparing native build...\nCompleted [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-scalar-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/scalar-reduction/terrane/package.toml] (0.020s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.035301347030326724,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.033154455944895744,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03513726801611483,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03402995807118714,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03507358790375292,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.035338355926796794,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03551507415249944,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "python",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 5.318694717017934,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 5.023487478028983,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 5.053457234054804,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 5.01512896688655,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 5.255463165929541,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 5.097653037169948,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 5.395581260789186,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "rust",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 1.8416924979537725,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.029746048152446747,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.027813507011160254,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.031973176868632436,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0295740501023829,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02957175998017192,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02999241603538394,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02974477899260819,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "go",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.028092954074963927,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04961793078109622,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.047888676868751645,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.051260154927149415,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04556766897439957,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05002793692983687,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.050066075986251235,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05022113583981991,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "terrane",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.03340322384610772,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: loading package...\nCompleted [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-elementwise-materialized]: preparing declaration consumers...\n  Compiled [benchmark-elementwise-materialized]: preparing declaration consumers (0.000s)\n  Compilation [benchmark-elementwise-materialized]: reusing unchanged compilation\nCompleted [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: compiling Terrane sources (0.001s)\nBuilding [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: preparing native build...\nCompleted [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-elementwise-materialized at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/elementwise-materialized/terrane/package.toml] (0.020s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.030953526962548494,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.030150095000863075,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03096302691847086,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.029490280896425247,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.031127335969358683,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02968298993073404,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03126674401573837,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "python",
+      "correctness_result": 41268.35,
+      "performance_result": 412683500.0,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 1.8577952559571713,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.7936757921706885,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8631711949128658,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8280528280884027,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.833591884933412,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8237584989983588,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8051773151382804,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "rust",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 1.9779615600127727,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.02085512294434011,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.021292587975040078,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.02094818209297955,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020433336962014437,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.022272870177403092,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020453107077628374,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.020747574046254158,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "go",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.027983214939013124,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.029357233084738255,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.028999644797295332,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.027026824885979295,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.029023135779425502,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.032260065199807286,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.029035096056759357,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.028902797028422356,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "terrane",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.03284687013365328,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: loading package...\nCompleted [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-fused-transform-reduction]: preparing declaration consumers...\n  Compiled [benchmark-fused-transform-reduction]: preparing declaration consumers (0.000s)\n  Compilation [benchmark-fused-transform-reduction]: reusing unchanged compilation\nCompleted [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: compiling Terrane sources (0.001s)\nBuilding [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: preparing native build...\nCompleted [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-fused-transform-reduction at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/fused-transform-reduction/terrane/package.toml] (0.020s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04949806188233197,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04958974104374647,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05028852401301265,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04913153499364853,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05056012305431068,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04935966315679252,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05090602906420827,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "python",
+      "correctness_result": 511.25451597539745,
+      "performance_result": 10225090.319507949,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 3.665861983085051,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.857350072823465,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.9194260558579117,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.825731410877779,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.865873532136902,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.754635024117306,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.651717137079686,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "rust",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 1.9698319570161402,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.049917557975277305,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04765208996832371,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.051835599821060896,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04951432207599282,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05115359602496028,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05230857594870031,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05138039402663708,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "go",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.029271122999489307,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04683131794445217,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05296333902515471,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04993152804672718,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04960155091248453,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05232914490625262,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.047351371962577105,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0471673640422523,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "terrane",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.03314792597666383,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: loading package...\nCompleted [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-collatz-branching]: preparing declaration consumers...\n  Compiled [benchmark-collatz-branching]: preparing declaration consumers (0.000s)\n  Compilation [benchmark-collatz-branching]: reusing unchanged compilation\nCompleted [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: compiling Terrane sources (0.001s)\nBuilding [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: preparing native build...\nCompleted [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-collatz-branching at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/collatz-branching/terrane/package.toml] (0.020s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.10176209802739322,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10676666093058884,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10837417491711676,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10475354990921915,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09994764602743089,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10856107389554381,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.11102686007507145,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "python",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 9.087651365902275,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 9.174941641045734,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.801992627093568,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 9.724115928867832,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.892894466873258,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.678083537146449,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.735701703000814,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "rust",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 1.8652432761155069,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.12179835885763168,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.14305837801657617,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1378941759467125,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.13288784283213317,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.12255734112113714,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.13987141707912087,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1217973290476948,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "go",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.02942531183362007,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.21010120399296284,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.2100665238685906,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1905753379687667,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21036907192319632,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.19066268694587052,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1918835260439664,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.22282466292381287,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "terrane",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.13294516410678625,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: loading package...\nCompleted [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-standard-score-outliers]: preparing declaration consumers...\n  Compiled [benchmark-standard-score-outliers]: preparing declaration consumers (0.000s)\n  Compiling [benchmark-standard-score-outliers]: semantic analysis...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/src/main.trn]: parsing authored source...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/src/main.trn]: parsing authored source (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: resolving dependency projection...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: resolving dependency projection (0.005s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: projecting dependency declarations and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: projecting dependency declarations and imports (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: resolving namespaces, declarations, and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: resolving namespaces, declarations, and imports (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: type inference...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native selection gathering (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native contract propagation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native capability proofs (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: preparing type declarations...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: preparing type declarations (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: inferring source types...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: inferring initial bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: inferring initial bindings (0.003s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: inferring projected call results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: inferring projected call results (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: refreshing inferred bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: refreshing inferred bindings (0.002s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: normalizing native type contracts...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native selection gathering (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native contract propagation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: native capability proofs (0.000s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: normalizing native type contracts (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: specializing projected results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: specializing projected results (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: validating source type contracts...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: validating source type contracts (0.000s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: inferring source types (0.006s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: type inference (0.007s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: validating references and enum matches...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: validating references and enum matches (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: ownership, provenance, and effects...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: ownership, provenance, and effects (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: final semantic validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane]: final semantic validation (0.028s)\n  Compiled [benchmark-standard-score-outliers]: semantic analysis (0.064s)\n  Compiling [benchmark-standard-score-outliers]: lowering to Rust...\n  Compiled [benchmark-standard-score-outliers]: lowering to Rust (0.030s)\n  Compiling [benchmark-standard-score-outliers]: rendering Rust...\n  Compiled [benchmark-standard-score-outliers]: rendering Rust (0.001s)\nCompleted [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: compiling Terrane sources (0.100s)\nBuilding [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: preparing native build...\nCompleted [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-standard-score-outliers at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/standard-score-outliers/terrane/package.toml] (0.119s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.045133393025025725,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.046710537979379296,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04715825407765806,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.046056275023147464,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.046003375900909305,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04581620707176626,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04539323109202087,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "python",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 3.7652349839918315,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.784164074109867,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.805955638177693,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.898472393862903,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.8894639289937913,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.80303545598872,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.7846063401084393,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "rust",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 1.8762847720645368,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04256497696042061,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.043859754921868443,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.041005932027474046,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.041768464958295226,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0402087802067399,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04276021593250334,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.044331721030175686,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "go",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.027916246093809605,
+        "peak_memory_bytes": null,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.03470707219094038,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03777755284681916,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03492331993766129,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.037251807982102036,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0375866440590471,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03473092196509242,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.039610105101019144,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "terrane",
+      "correctness_result": 0.12246207375340833,
+      "performance_result": 0.11273859033211667,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.03374577104113996,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: loading package...\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-bessel-kernel-energy]: preparing declaration consumers...\n  Compiled [benchmark-bessel-kernel-energy]: preparing declaration consumers (0.000s)\n  Compilation [benchmark-bessel-kernel-energy]: reusing unchanged compilation\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: compiling Terrane sources (0.001s)\nBuilding [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: preparing native build...\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: preparing native build (0.009s)\nBuilding [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane/package.toml] (0.021s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.5444335120264441,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.49019740591757,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5425615811254829,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5332258890848607,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.4897997989319265,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.4926527419593185,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.4898952981457114,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "python-scipy",
+      "correctness_result": 0.12246207359176442,
+      "performance_result": 0.11273859023654974,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 1.2957520198542625,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.3094746300484985,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2927203390281647,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.29275678913109,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.306551057845354,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2466303938999772,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.3101516438182443,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "terrane-numr",
+      "correctness_result": 0.12246207374772747,
+      "performance_result": 0.11273859032554075,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.6140710350591689,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: loading package...\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: loading package (0.000s)\nBuilding [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-bessel-kernel-energy]: preparing declaration consumers...\n  Compiled [benchmark-bessel-kernel-energy]: preparing declaration consumers (0.085s)\n  Compiling [benchmark-bessel-kernel-energy]: semantic analysis...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/src/main.trn]: parsing authored source...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/src/main.trn]: parsing authored source (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: resolving dependency projection...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: preparing dependency workspace...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: preparing dependency workspace (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: resolving and fetching Rust dependencies...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: resolving and fetching Rust dependencies (0.044s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: validating projection cache...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: validating projection cache (0.163s)\n  Compilation [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: using exact projection cache\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: resolving dependency projection (0.213s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: projecting dependency declarations and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: projecting dependency declarations and imports (0.054s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: resolving namespaces, declarations, and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: resolving namespaces, declarations, and imports (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: type inference...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native selection gathering (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native contract propagation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native capability proofs (0.000s)\n  Compilation [2 cache hits]: reused native semantic queries\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: preparing type declarations...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: preparing type declarations (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: inferring source types...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: inferring initial bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: inferring initial bindings (0.011s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: inferring projected call results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: inferring projected call results (0.020s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: refreshing inferred bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: refreshing inferred bindings (0.011s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: normalizing native type contracts...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native selection gathering (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native contract propagation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: native capability proofs (0.000s)\n  Compilation [2 cache hits]: reused native semantic queries\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: normalizing native type contracts (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: specializing projected results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: specializing projected results (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: validating source type contracts...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: validating source type contracts (0.000s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: inferring source types (0.043s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: type inference (0.044s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: validating references and enum matches...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: validating references and enum matches (0.009s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: ownership, provenance, and effects...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: ownership, provenance, and effects (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: final semantic validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr]: final semantic validation (0.039s)\n  Compiled [benchmark-bessel-kernel-energy]: semantic analysis (0.391s)\n  Compiling [benchmark-bessel-kernel-energy]: lowering to Rust...\n  Compiled [benchmark-bessel-kernel-energy]: lowering to Rust (0.032s)\n  Compiling [benchmark-bessel-kernel-energy]: rendering Rust...\n  Compiled [benchmark-bessel-kernel-energy]: rendering Rust (0.002s)\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: compiling Terrane sources (0.580s)\nBuilding [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: preparing native build...\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: compiling native artifact...\nCompleted [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-bessel-kernel-energy at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/bessel-kernel-energy/terrane-numr/package.toml] (0.599s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.5646956609562039,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5673321369104087,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5644249140750617,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5466862909961492,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5498247409705073,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5398553169798106,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5646834920626134,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "terrane",
+      "correctness_result": 0.11423642603119359,
+      "performance_result": 0.14715086979582306,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.03215854614973068,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: loading package...\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: loading package (0.000s)\nBuilding [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-gamma-survival-calibration]: preparing declaration consumers...\n  Compiled [benchmark-gamma-survival-calibration]: preparing declaration consumers (0.000s)\n  Compilation [benchmark-gamma-survival-calibration]: reusing unchanged compilation\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: compiling Terrane sources (0.001s)\nBuilding [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: preparing native build...\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: compiling native artifact...\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml]: compiling native artifact (0.010s)\nBuild finished [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane/package.toml] (0.019s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 1.9802893688902259,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.0028927251696587,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9572969949804246,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.000902014086023,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8941237528342754,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8638539689127356,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.0402713411021978,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "python-scipy",
+      "correctness_result": 0.11423642603119355,
+      "performance_result": 0.14715086979516895,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 2.7139521918725222,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.6745063250418752,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.8201591479592025,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.650467141997069,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.8721487170550972,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.785510075977072,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.652374214027077,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "terrane-numr",
+      "correctness_result": 0.1142364260311935,
+      "performance_result": 0.14715086979581601,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.5917236660607159,
+        "peak_memory_bytes": null,
+        "stderr": "Building [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: loading package...\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: loading package (0.000s)\nBuilding [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: compiling Terrane sources...\n  Compiling [benchmark-gamma-survival-calibration]: preparing declaration consumers...\n  Compiled [benchmark-gamma-survival-calibration]: preparing declaration consumers (0.067s)\n  Compiling [benchmark-gamma-survival-calibration]: semantic analysis...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/src/main.trn]: parsing authored source...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/src/main.trn]: parsing authored source (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: resolving dependency projection...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: preparing dependency workspace...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: preparing dependency workspace (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: resolving and fetching Rust dependencies...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: resolving and fetching Rust dependencies (0.043s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: validating projection cache...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: validating projection cache (0.159s)\n  Compilation [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: using exact projection cache\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: resolving dependency projection (0.207s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: projecting dependency declarations and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: projecting dependency declarations and imports (0.055s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: resolving namespaces, declarations, and imports...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: resolving namespaces, declarations, and imports (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: type inference...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native selection gathering (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native contract propagation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native capability proofs (0.000s)\n  Compilation [3 cache hits]: reused native semantic queries\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: preparing type declarations...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: preparing type declarations (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: inferring source types...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: inferring initial bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: inferring initial bindings (0.011s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: inferring projected call results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: inferring projected call results (0.020s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: refreshing inferred bindings...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: refreshing inferred bindings (0.011s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: normalizing native type contracts...\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native selection gathering...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native selection gathering (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native bound validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native bound validation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: projected signature reconciliation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: projected signature reconciliation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native contract propagation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native contract propagation (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: applied native signatures...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: applied native signatures (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native capability proofs...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: native capability proofs (0.000s)\n  Compilation [3 cache hits]: reused native semantic queries\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: normalizing native type contracts (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: specializing projected results...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: specializing projected results (0.000s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: validating source type contracts...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: validating source type contracts (0.000s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: inferring source types (0.044s)\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: type inference (0.045s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: validating references and enum matches...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: validating references and enum matches (0.009s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: ownership, provenance, and effects...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: ownership, provenance, and effects (0.001s)\n  Compiling [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: final semantic validation...\n  Compiled [/home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr]: final semantic validation (0.039s)\n  Compiled [benchmark-gamma-survival-calibration]: semantic analysis (0.387s)\n  Compiling [benchmark-gamma-survival-calibration]: lowering to Rust...\n  Compiled [benchmark-gamma-survival-calibration]: lowering to Rust (0.032s)\n  Compiling [benchmark-gamma-survival-calibration]: rendering Rust...\n  Compiled [benchmark-gamma-survival-calibration]: rendering Rust (0.002s)\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: compiling Terrane sources (0.557s)\nBuilding [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: preparing native build...\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: preparing native build (0.008s)\nBuilding [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: compiling native artifact...\nCompleted [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml]: compiling native artifact (0.011s)\nBuild finished [benchmark-gamma-survival-calibration at /home/streaky/projects/terrane/benchmarks/sci-maths/problems/gamma-survival-calibration/terrane-numr/package.toml] (0.577s total)\n",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 1.8789665568619967,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.7631606210488826,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8401118239853531,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.809510343009606,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9226063929963857,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9224775950424373,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.762405257904902,
+          "peak_memory_bytes": null,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    }
+  ]
+}

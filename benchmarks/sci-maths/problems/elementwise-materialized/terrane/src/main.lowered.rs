@@ -3,13 +3,15 @@ include!("main.lowered.support.rs");
 // Source: src/main.trn
 // Namespace: benchmark-elementwise-materialized
 fn benchmark_size() -> i64 {
-    let supplied: terrane_collection_support::List<NativeString> = arguments();
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(supplied.length()))
+    let supplied: terrane_collection_support::List<NativeString>;
+    let count: i64;
+    supplied = arguments();
+    if terrane_int_support::Int::from(supplied.length())
         != terrane_int_support::Int::from(1_i128)
     {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
     }
-    let count: i64 = __terrane_raised(
+    count = __terrane_raised(
         terrane_int_support::coerce::<
             i64,
         >(
@@ -22,18 +24,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                                        0 /* terrane-site: src/main.trn:10:17-10:28 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                            0 /* terrane-site: src/main.trn:10:17-10:28 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:10:18-10:44 */,
+                1 /* terrane-site: src/main.trn:10:17-10:43 */,
             ),
         ),
-        2 /* terrane-site: src/main.trn:10:17-10:45 */,
+        1 /* terrane-site: src/main.trn:10:17-10:43 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -41,45 +43,64 @@ fn benchmark_size() -> i64 {
     return count;
 }
 fn main() {
-    let count: i64 = benchmark_size();
-    let mut transformed: terrane_collection_support::List<f64> = terrane_collection_support::List::<
-        f64,
-    >::new(Vec::new());
-    let mut index: i64 = 0;
+    let count: i64;
+    let mut transformed: terrane_collection_support::List<f64>;
+    let mut index: i64;
+    let mut raw: f64;
+    let mut x: f64;
+    let mut total: f64;
+    let mut value: f64;
+    count = benchmark_size();
+    transformed = terrane_collection_support::List::<f64>::new(Vec::new());
+    index = 0;
     {
         let __terrane_list_append_0 = transformed.make_unique();
-        if let (Ok(__terrane_start), Ok(__terrane_end)) = (
-            usize::try_from(index),
-            usize::try_from(count),
-        ) {
-            let __terrane_capacity_limit = 268435456usize
-                / std::mem::size_of::<f64>().max(1);
-            __terrane_list_append_0
-                .reserve(
-                    __terrane_end
-                        .saturating_sub(__terrane_start)
-                        .min(__terrane_capacity_limit),
+        let __terrane_list_start_0 = index;
+        let __terrane_list_end_0 = count;
+        let __terrane_list_length_0 = (__terrane_list_start_0..__terrane_list_end_0)
+            .size_hint()
+            .0;
+        let __terrane_list_capacity_limit_0 = 268435456usize
+            / std::mem::size_of::<f64>().max(1);
+        if __terrane_list_length_0 <= __terrane_list_capacity_limit_0 {
+            __terrane_list_append_0.reserve(__terrane_list_length_0);
+            for __terrane_list_index_0 in __terrane_list_start_0..__terrane_list_end_0 {
+                index = __terrane_list_index_0;
+                raw = __terrane_raised(
+                    terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
+                    2 /* terrane-site: src/main.trn:21:19-21:31 */,
                 );
+                x = raw / 100.0_f64;
+                __terrane_list_append_0.push(x * x + 3.0_f64 * x - 7.0_f64);
+            }
+            index = std::cmp::max(__terrane_list_start_0, __terrane_list_end_0);
+        } else {
+            __terrane_list_append_0.reserve(__terrane_list_capacity_limit_0);
+            while index < count {
+                raw = __terrane_raised(
+                    terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
+                    2 /* terrane-site: src/main.trn:21:19-21:31 */,
+                );
+                x = raw / 100.0_f64;
+                {
+                    let __terrane_collection_argument_0 = x * x + 3.0_f64 * x - 7.0_f64;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
+                index = __terrane_raised(
+                    terrane_int_support::fixed_addition(index, 1),
+                    3 /* terrane-site: src/main.trn:24:5-24:12 */,
+                );
+            }
         }
-        while index < count {
-            let raw: f64 = __terrane_raised(
-                terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
-                3 /* terrane-site: src/main.trn:21:19-21:31 */,
-            );
-            let x: f64 = raw / 100.0_f64;
-            __terrane_list_append_0.push(x * x + 3.0_f64 * x - 7.0_f64);
-            index = __terrane_raised(
-                terrane_int_support::fixed_addition(index, 1),
-                4 /* terrane-site: src/main.trn:24:5-24:12 */,
-            );
-        }
+        let _ = &index;
     }
-    let mut total: f64 = 0.0_f64;
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &transformed,
+    total = 0.0_f64;
+    let __terrane_iterable_1 = transformed;
+    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_1.as_slice(),
     );
     loop {
-        let value = match __terrane_iterator_0.next() {
+        value = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

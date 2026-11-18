@@ -7,7 +7,7 @@ struct TerraneCancellation {
 
 struct TerraneCancellationState {
     cancelled: std::sync::atomic::AtomicBool,
-    wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+    notification: tokio::sync::Notify,
 }
 
 impl TerraneCancellation {
@@ -15,21 +15,8 @@ impl TerraneCancellation {
         Self {
             state: std::sync::Arc::new(TerraneCancellationState {
                 cancelled: std::sync::atomic::AtomicBool::new(false),
-                wakers: std::sync::Mutex::new(Vec::new()),
+                notification: tokio::sync::Notify::new(),
             }),
-        }
-    }
-
-    fn wake_waiters(&self) {
-        let wakers = std::mem::take(
-            &mut *self
-                .state
-                .wakers
-                .lock()
-                .expect("cancellation waker lock poisoned"),
-        );
-        for waker in wakers {
-            waker.wake();
         }
     }
 
@@ -39,7 +26,7 @@ impl TerraneCancellation {
             .cancelled
             .swap(true, std::sync::atomic::Ordering::AcqRel)
         {
-            self.wake_waiters();
+            self.state.notification.notify_waiters();
         }
     }
 
@@ -50,24 +37,12 @@ impl TerraneCancellation {
     }
 
     async fn cancelled(&self) {
-        std::future::poll_fn(|context| {
-            if self.is_cancelled() {
-                return std::task::Poll::Ready(());
-            }
-            let mut wakers = self
-                .state
-                .wakers
-                .lock()
-                .expect("cancellation waker lock poisoned");
-            if self.is_cancelled() {
-                return std::task::Poll::Ready(());
-            }
-            if !wakers.iter().any(|waker| waker.will_wake(context.waker())) {
-                wakers.push(context.waker().clone());
-            }
-            std::task::Poll::Pending
-        })
-        .await;
+        // Capture the broadcast generation before checking the sticky flag.
+        // notify_waiters reaches this future even before its first poll.
+        let notified = self.state.notification.notified();
+        if !self.is_cancelled() {
+            notified.await;
+        }
     }
 }
 
