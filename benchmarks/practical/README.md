@@ -14,6 +14,16 @@ The Terrane implementation is authored entirely in Terrane: no `packages/http-se
 
 Reusable buffer metadata is queried through the core `capacity;` and `completed;` accessors after ownership transfers; it is not cached in source-visible fields.
 
+The Terrane source uses grouped imports, indented call/chain layout, and double-quoted
+interpolation for JSON and HTTP messages. Doubled braces delimit literal JSON braces;
+double quotes retain the required CRLF escapes. Refresh both lowered Rust receipts with
+`lower` after compiler changes, and run `check` before interpreting new measurements.
+Previously published results are historical, not measurements of the refreshed lowering.
+
+The reader takes a declaration-directed `ref tcp-stream` from a local owner, rather
+than borrowing an inline field of an async receiver across suspension. Callers retain
+the stream for writing and explicit close; no shared connection wrapper is needed.
+
 ## Run it
 
 Requires Python 3.11+, Go 1.22+, and the repository-selected Rust toolchain. The Terrane adapter builds the repository compiler automatically. First builds need network access for the pinned reference dependencies; Go sums and Cargo locks are checked in.
@@ -50,6 +60,33 @@ Before backlog alignment, Go inherited a backlog of 4096 from the measurement ho
 Use the default repetitions and a controlled host for performance conclusions. A one-run report is a smoke check, not evidence that one language is inherently faster.
 
 Shared runner regression checks: `python3 -m unittest discover -s benchmarks/tests -v`.
+
+## Cancellation waiter investigation
+
+The 2026-11-18 runtime change replaces a shared cancellation-waker vector with
+future-owned Tokio notification registrations and retains the sticky request flag.
+Pending waiters update or unlink their own registration; repeated polling no longer
+linearly searches every registered task. Ready-result precedence, finalizer
+shielding, deadlines, and the yields around source `await` remain unchanged.
+
+A paired release comparison at 1,000 requests measured medians of 75.07 ms before
+and 72.45 ms after the change (two warm-ups and seven measured runs per executable,
+alternating order, normalized `argv[0]`). All checksums were 500500. The 3.5%
+elapsed-time reduction is small relative to the observed run-to-run spread, so it
+is not evidence of a stable speedup on other hosts or workloads.
+
+Six CPU captures per version found 47 of 245 pre-change samples in cancellation
+polling, including 16 in `will_wake`. The post-change captures contained 200 samples
+and no `will_wake` path; one sample had a named Tokio notification frame. Changed
+inlining/attribution prevents treating those counts as a precise before/after
+cancellation-cost percentage. Profiles use ThinLTO, unlike release's fat LTO.
+
+The complete three-lane run is
+[`cancellation-waiters-2026-11-18.md`](reports/cancellation-waiters-2026-11-18.md),
+with adjacent raw JSON. It passed correctness with zero warnings and recorded
+cgroup peak memory. The paired comparison is retained locally under the repository
+root's `.trn/http-cancellation-comparison/measurements.json`; CPU captures are under
+`.trn/benchmark-profiles/http1-notify-cpu-*`.
 
 ## Upstream attribution
 

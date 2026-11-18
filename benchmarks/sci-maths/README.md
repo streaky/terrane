@@ -44,6 +44,12 @@ and Terrane+numr lanes write clean application lowering to `main.lowered.rs` and
 infrastructure to `main.lowered.support.rs` beside every `main.trn`, keeping both generated Rust
 receipts with the solution.
 
+The Terrane sources use current call/chain layout and grouped imports where useful.
+Syntax refreshes preserve scalar types, numerical evaluation order, and each problem's
+materialization/fusion boundary; sequential pipelines are not substituted for a different
+workload. After refreshing lowering, run `check` for both `terrane` and `terrane-numr`.
+Published reports below remain historical evidence, not measurements of refreshed code.
+
 On Linux systems with delegated cgroup-v2 memory accounting, every launched program and its descendants run in a fresh cgroup. Reports record that cgroup's `memory.peak`: total peak memory charged to the group, including anonymous memory, charged page cache, and kernel memory. Shared pages are charged once, potentially to a cgroup outside the measured execution, so small-footprint results depend on page-cache state and are not directly comparable across machines or reboots. Reports summarize the median and range across measured runs and deliberately label the metric peak memory rather than RSS. When this accounting is unavailable, memory results remain unavailable rather than falling back to a misleading process estimate.
 
 If delegation is unavailable, the runner prints the exact current command wrapped in a delegated
@@ -66,6 +72,27 @@ The Terrane adapters build both the compiler and every generated benchmark execu
 The `language-baseline` group retains the five original deterministic workloads. Its Python lane uses only the standard library, its Terrane lane uses only Terrane's standard surface, and its Rust and Go lanes are direct, standalone controls. The implementations preserve each problem's intended materialization or fusion boundary rather than optimizing the benchmark into a different algorithm.
 
 The `scientific-stack` group currently contains pairwise oscillatory Bessel-kernel energy and gamma survival-model calibration. Python uses vectorized NumPy arrays and SciPy special functions. Terrane+numr imports `numr` 0.7.0 through `/deps/numr/algorithm/special` and calls its public scalar special-function entry points. Pure Terrane implements the same special-function algorithms from scalar arithmetic and the compiler's foundational floating-point methods: a rational Bessel approximation invokes `square-root`, `sine`, and `cosine`, while incomplete-gamma series and continued fractions invoke `natural-log` and `exponential` around a source-authored log-gamma approximation. All three lanes receive the same size, generate the same data in-process, evaluate every ordered Bessel pair or gamma sample, and emit one scalar mean. Correctness is checked against the independent SciPy lane before timing.
+
+The pure Terrane gamma implementation uses ordinary multiply/add expressions in
+its exponent, continued-fraction update, and loss accumulation rather than explicit
+`multiply-add` calls. This avoids requesting fused-rounding semantics that the
+workload's tolerance-based contract does not require, and matches numr's use of
+ordinary arithmetic at those operations. The log-gamma approximation, convergence
+threshold, iteration limits, input sizes, and correctness tolerances are unchanged.
+Separate operations may round differently from fused operations; this is a source
+implementation choice, not a weakening of Terrane's `multiply-add` contract.
+
+A local release comparison on 2026-11-18 at 20,000,000 observations measured
+2.410 s before this arithmetic change and 2.028 s afterward (median of seven
+executions per version, two warm-ups, alternating order, normalized `argv[0]`).
+Every output was `0.14715086979582306` and passed the unchanged performance
+tolerance. A separate standard three-lane report measured Terrane at 2.019 s,
+Terrane+numr at 1.900 s, and NumPy/SciPy at 2.789 s, with zero warnings.
+These are host-local observations, not an isolated instruction-cost attribution
+or a guarantee for other CPUs/toolchains. Local evidence is in
+`results/gamma-plain-arithmetic-2026-11-18.{md,json}` and the repository-local
+`.trn/gamma-benchmark-comparison/measurements.json`; historical published reports
+remain unchanged.
 
 Python dependencies are resolved by the checked-in `scientific-python/uv.lock`; each Terrane+numr package pins `numr = "=0.7.0"` and checks in its Terrane dependency projection lock. Pure Terrane uses only the standard process and output surfaces. Setup and dependency compilation remain outside execution measurements.
 
