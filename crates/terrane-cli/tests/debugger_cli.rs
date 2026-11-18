@@ -111,7 +111,10 @@ fn build_only_returns_debug_artifacts_without_running_program() {
     let provenance: Value = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
     assert_eq!(provenance["artifact_profile"], "terrane-debug-v1");
     assert_eq!(Command::new(executable).output().unwrap().stdout, b"42\n");
-    assert_eq!(launch_fidelity(executable, sidecar)["body"]["mode"], "source");
+    assert_eq!(
+        launch_fidelity(executable, sidecar)["body"]["mode"],
+        "source"
+    );
 }
 
 #[test]
