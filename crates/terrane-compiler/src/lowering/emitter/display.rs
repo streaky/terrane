@@ -9,7 +9,7 @@ use crate::{
 };
 
 impl Emitter<'_> {
-    fn display_receiver(&mut self, node: &SyntaxNode) -> String {
+    pub(super) fn display_receiver(&mut self, node: &SyntaxNode) -> String {
         if let Some(value) = self.narrowed_storage_name(node, false, false) {
             return value;
         }
@@ -205,7 +205,7 @@ impl Emitter<'_> {
         self.compose_text(&parts, None)
     }
 
-    fn display_call_error(&self, call: &str, node: &SyntaxNode) -> String {
+    pub(super) fn display_call_error(&self, call: &str, node: &SyntaxNode) -> String {
         let site = self.error_site(node);
         if self.try_completion {
             format!("__terrane_traced_completion!({call}, {site})")

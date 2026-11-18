@@ -1,0 +1,11 @@
+namespace interpolation-renderer-maybe-unassigned
+from /core/modifiers import interpolation-renderer
+function text string; value int
+    return value.to-string;
+function describe string; selected bool
+    with (interpolation-renderer; key = 'k') renderer function from int to string
+    if selected
+        renderer = text
+    return "{1 !: k}"
+function main;
+    print; (describe; true)

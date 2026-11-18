@@ -3,23 +3,45 @@ namespace quoted-interpolation
 from /core/modifiers import interpolation-renderer
 from /core/testing import assert, assert-equal-string
 from /core/errors import throwable
+from /core/display import interpolatable
 
-class server
+class server implements interpolatable
     name string = 'primary'
-    function render string; flag string = ''
-        if flag == 'overview'
+    function interpolate string; key string
+        if key == 'overview'
             return 'object overview:' + this.name
+        if key == 'closure'
+            callback = function string;
+                return key
+            return callback;
+        if key == 'identity'
+            return key
+        if key == 'copy'
+            copied = key
+            copied = copied + '!'
+            return copied
         return 'object default:' + this.name
     function to-string string;
         return 'ordinary display'
 
-class render-failure implements throwable
+class default-key-server implements interpolatable
+    function interpolate string; key string = 'default'
+        return key
+
+class key-mutator implements interpolatable
+    function interpolate string; key string
+        key = key + '!'
+        return key
+
+class render-failure implements throwable, interpolatable
     message string = 'render failed'
     function render string;
         return this.message
+    function interpolate string; key string
+        return 'error:' + key + ':' + this.message
 
-class failing-server
-    function render string;
+class failing-server implements interpolatable
+    function interpolate string; key string
         throw instance render-failure;
 
 function decorate string; value string
@@ -41,6 +63,28 @@ function switch-number int; renderer mutable ref (function from int to string)
     renderer = second
     return 9
 
+function generic-text of (T implements interpolatable) string; value T
+    return "generic:{value}"
+
+function generic-key of (T implements interpolatable) string; value T
+    return "keyed:{value !: overview}"
+
+function union-text string; selected bool
+    if selected
+        value server = instance server;
+    else
+        value int = 1
+    return "union:{value}"
+
+function optional-text string; value server|none
+    return "optional:{value}"
+
+function borrowed-text of (T implements interpolatable) string; value ref T
+    return "borrowed:{value}"
+
+function erased-text string; value interpolatable
+    return "erased:{value}"
+
 function test-scenario;
     name = 'Ada'
     assert-equal-string; 'literal {name}\n', 'literal {name}' + '\\n'
@@ -60,6 +104,42 @@ function test-scenario;
     item = instance server;
     assert-equal-string; "Server: {item}", 'Server: object default:primary'
     assert-equal-string; "Server: {item !: overview}", 'Server: object overview:primary'
+    assert-equal-string; (item.interpolate; 'overview'), 'object overview:primary'
+    key = 'overview'
+    assert-equal-string; (item.interpolate; key), 'object overview:primary'
+    bound = item.interpolate
+    assert-equal-string; (bound; key), 'object overview:primary'
+    assert-equal-string; "{item !: closure}", 'closure'
+    assert-equal-string; "{item !: identity}", 'identity'
+    assert-equal-string; "{item !: copy}", 'copy!'
+    defaulted = instance default-key-server;
+    assert-equal-string; (defaulted.interpolate;), 'default'
+    assert-equal-string; "{defaulted}", ''
+    assert-equal-string; "{defaulted !: other}", 'other'
+    assert-equal-string; (generic-text; 7), 'generic:7'
+    assert-equal-string; (generic-text; item), 'generic:object default:primary'
+    assert-equal-string; (generic-key; 7), 'keyed:7'
+    assert-equal-string; (generic-key; item), 'keyed:object overview:primary'
+    assert-equal-string; (borrowed-text; item), 'borrowed:object default:primary'
+    maybe server|none = item
+    assert-equal-string; (generic-text; maybe), 'generic:object default:primary'
+    maybe = none
+    assert-equal-string; (generic-text; maybe), 'generic:none'
+    assert-equal-string; (erased-text; 7), 'erased:7'
+    assert-equal-string; (erased-text; item), 'erased:object default:primary'
+    assert-equal-string; (erased-text; maybe), 'erased:none'
+    erased interpolatable = 8
+    assert-equal-string; (generic-text; erased), 'generic:8'
+    mutator = instance key-mutator;
+    original = 'before'
+    assert-equal-string; "{mutator !: custom}", 'custom!'
+    assert-equal-string; (mutator.interpolate; original), 'before!'
+    assert-equal-string; original, 'before'
+    assert-equal-string; (union-text; true), 'union:object default:primary'
+    assert-equal-string; (union-text; false), 'union:1'
+    assert-equal-string; (optional-text; item), 'optional:object default:primary'
+    assert-equal-string; (optional-text; none), 'optional:none'
+    assert-equal-string; "{instance render-failure; !: overview}", 'error:overview:render failed'
     try
         _ = "{instance failing-server;}"
         assert; false

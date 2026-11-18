@@ -431,7 +431,7 @@ impl Emitter<'_> {
             && self.value_type(&part.children[0]) == Some(ValueType::Scalar(ScalarType::String))
         {
             let value = &part.children[0];
-            return if part.children.len() > 1 && value.children[0].kind == SyntaxKind::Name {
+            return if part.interpolation_renderer {
                 self.interpolation_renderer_call(value)
             } else {
                 self.expression_as(value, ValueType::Scalar(ScalarType::String))
@@ -449,14 +449,16 @@ impl Emitter<'_> {
                 }
                 SyntaxKind::Interpolation => {
                     let value = &part.children[0];
-                    let callback = part.children.len() > 1
-                        && value.kind == SyntaxKind::CallExpression
-                        && value.children[0].kind == SyntaxKind::Name;
+                    let callback = part.interpolation_renderer;
                     if callback {
                         let call = self.interpolation_renderer_call(value);
                         write!(body, "{{ let __terrane_rendered = {call}; {output}.push_str(&__terrane_rendered); }}").unwrap();
                     } else {
-                        body.push_str(&self.write_display(value, &output));
+                        body.push_str(&self.write_interpolation(
+                            value,
+                            part.children.get(1),
+                            &output,
+                        ));
                     }
                 }
                 _ => unreachable!("interpolated strings contain text and interpolation parts"),
@@ -568,6 +570,21 @@ impl Emitter<'_> {
         node: &SyntaxNode,
         value_type: ValueType,
     ) -> String {
+        if let ValueType::Object(expected) = &value_type
+            && crate::semantics::interpolatable::is_protocol(expected)
+            && let Some(actual) = self.value_type(node)
+            && actual != value_type
+            && !matches!(actual, ValueType::Union(_) | ValueType::Object(_))
+        {
+            let value = match actual {
+                ValueType::Reference(inner)
+                | ValueType::MutableReference(inner)
+                | ValueType::SharedReference(inner) => self.expression_as(node, inner.value_type()),
+                _ => self.expression_as(node, actual),
+            };
+            let facade = rust_object_type_name(self.package, expected);
+            return format!("{facade}(Box::new({value}))");
+        }
         if node.kind == SyntaxKind::Name
             && self.value_type(node).is_some_and(|actual| {
                 actual == value_type
@@ -1559,6 +1576,7 @@ impl Emitter<'_> {
                     .filter(|contract| {
                         parameters.iter().enumerate().any(|(index, _)| {
                             self.interface_read_parameter(contract, index).is_some()
+                                || crate::semantics::interpolatable::borrows_key(self.unit, contract)
                         })
                     })
                     .map(|contract| {
@@ -1567,6 +1585,9 @@ impl Emitter<'_> {
                             .enumerate()
                             .map(|(index, parameter)| {
                                 let name = format!("argument_{index}");
+                                if crate::semantics::interpolatable::borrows_key(self.unit, contract) {
+                                    return format!("&{name}");
+                                }
                                 if self.interface_read_parameter(contract, index).is_some_and(
                                     |projected| matches!(projected.ty,
                                         crate::rust_interop::projection::ProjectedType::Sequence { .. })
@@ -2192,6 +2213,9 @@ impl Emitter<'_> {
         refined.map(|operand| self.optional_presence_check(operand, operator))
     }
     pub(super) fn string_comparison_operand(&mut self, node: &SyntaxNode) -> String {
+        if let Some(name) = self.borrowed_key_name(node) {
+            return name.to_owned();
+        }
         if node.kind == SyntaxKind::Literal {
             crate::lowering::helpers::native_macro_literal(self.text(node))
         } else {
@@ -2204,6 +2228,9 @@ impl Emitter<'_> {
         node: &SyntaxNode,
         snapshot: bool,
     ) -> (String, String) {
+        if let Some(name) = self.borrowed_key_name(node) {
+            return (String::new(), name.to_owned());
+        }
         if let Some(parts) = self.throwable_text_parts(node, snapshot) {
             return parts;
         }

@@ -27,11 +27,12 @@ impl Parser<'_> {
                         if marker == 0
                             || self.tokens[marker - 1].span.end == self.tokens[marker].span.start
                             || self.tokens[colon].span.end == self.current().span.start
+                            || self.tokens[marker].span.end != self.tokens[colon].span.start
                         {
                             self.error_at(
                                 marker,
                                 "S1131",
-                                "rendering selector `!:` requires whitespace on both sides",
+                                "rendering selector `!:` requires adjacent characters and whitespace on both sides",
                             );
                         }
                         if self.at(TokenKind::Identifier) {
@@ -132,6 +133,16 @@ mod tests {
     #[test]
     fn selector_requires_spaces_around_marker() {
         let (_, diagnostics) = parse_text("function main;\n    return \"{value! :key}\"\n");
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "S1131")
+        );
+    }
+
+    #[test]
+    fn selector_marker_characters_must_be_adjacent() {
+        let (_, diagnostics) = parse_text("function main;\n    return \"{value ! : key}\"\n");
         assert!(
             diagnostics
                 .iter()

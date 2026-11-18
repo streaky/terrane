@@ -1,0 +1,9 @@
+namespace interpolation-renderer-anonymous-shadow
+from /core/modifiers import interpolation-renderer
+function text string; value int
+    return value.to-string;
+function main;
+    with (interpolation-renderer; key = 'k') renderer function from int to string = text
+    inner = function string; renderer function from int to string
+        return "{2 !: k}"
+    print; (inner; text)

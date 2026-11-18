@@ -545,12 +545,18 @@ impl<'a> Emitter<'a> {
                     }
                     self.output.push_str(";\n");
                 }
+                if crate::semantics::interpolatable::is_protocol(&object.identity) {
+                    self.emit_interpolation_writer_default(&methods);
+                }
                 self.indent -= 1;
                 self.line("}");
                 if !object.resource_owning {
                     self.line(&format!(
                     "impl{generic_declaration} Clone for Box<dyn {protocol_use}> {{ fn clone(&self) -> Self {{ {protocol}::clone_box(&**self) }} }}"
                 ));
+                }
+                if crate::semantics::interpolatable::is_protocol(&object.identity) {
+                    self.emit_scalar_interpolation_implementations(&protocol, &methods);
                 }
                 if methods.is_empty() {
                     self.line(
@@ -1709,7 +1715,7 @@ impl<'a> Emitter<'a> {
                         }
                         self.output.push_str(" {\n");
                         self.indent += 1;
-                        let arguments = method
+                        let mut arguments = method
                             .parameters
                             .iter()
                             .map(|parameter| {
@@ -1722,6 +1728,14 @@ impl<'a> Emitter<'a> {
                             self.output.push_str("Box::pin(async move { ");
                         }
                         if let Some(implementation) = implementation {
+                            if crate::semantics::interpolatable::borrows_key(self.unit, method)
+                                && !crate::semantics::interpolatable::borrows_key(
+                                    self.unit,
+                                    implementation,
+                                )
+                            {
+                                arguments.push_str(".to_owned()");
+                            }
                             let receiver = match implementation.written_invocation_mode {
                                 InvocationMode::Shared => "&*self",
                                 InvocationMode::Mutable => "&mut *self",

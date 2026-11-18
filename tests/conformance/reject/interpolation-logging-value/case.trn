@@ -1,0 +1,9 @@
+namespace interpolation-logging-value
+from /core/logging import log-value
+from /core/documents import document-value, make-document-string
+class entry implements log-value
+    function render document-value;
+        return make-document-string; 'entry'
+function main;
+    value = instance entry;
+    print; "{value}"

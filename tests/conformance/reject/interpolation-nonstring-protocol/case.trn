@@ -1,0 +1,8 @@
+namespace interpolation-nonstring-protocol
+from /core/display import interpolatable
+class item implements interpolatable
+    function interpolate int; key string
+        return 1
+function main;
+    value = instance item;
+    print; "{value}"

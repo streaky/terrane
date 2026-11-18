@@ -1,0 +1,9 @@
+namespace interpolation-missing-protocol
+class item
+    function render string;
+        return 'not opted in'
+    function to-string string;
+        return 'ordinary display'
+function main;
+    value = instance item;
+    print; "{value}"

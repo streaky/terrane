@@ -574,6 +574,89 @@ fn escaped_quote_does_not_terminate_a_quoted_string() {
 }
 
 #[test]
+fn quoted_string_errors_recover_at_the_closing_quote() {
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "value = \"bad }\" + kept\nnext = 2\n".to_owned(),
+    );
+    let output = terrane_compiler::lexer::lex_recovering(&source);
+    assert_eq!(output.diagnostics[0].code, "L0014");
+    let text = output
+        .lexed
+        .tokens
+        .iter()
+        .map(|token| token.text.as_str())
+        .collect::<Vec<_>>();
+    assert!(text.contains(&"kept"));
+    assert!(text.contains(&"next"));
+    assert!(!text.contains(&"bad"));
+}
+
+#[test]
+fn unterminated_interpolation_reports_opening_brace_and_recovers() {
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "value = \"abc {1 + \" + kept\nnext = 2\n".to_owned(),
+    );
+    let output = terrane_compiler::lexer::lex_recovering(&source);
+    let error = output
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "L0014")
+        .unwrap();
+    assert_eq!(
+        error.primary.unwrap().start,
+        source.text().find('{').unwrap()
+    );
+    let text = output
+        .lexed
+        .tokens
+        .iter()
+        .map(|token| token.text.as_str())
+        .collect::<Vec<_>>();
+    assert!(text.contains(&"kept"));
+}
+
+#[test]
+fn interpolation_depth_error_recovers_after_its_string() {
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "value = \"{ \"{ \"{1}\" }\" }\" + kept\nnext = 2\n".to_owned(),
+    );
+    let output = terrane_compiler::lexer::lex_recovering(&source);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "L0015")
+    );
+    assert!(output.lexed.tokens.iter().any(|token| token.text == "kept"));
+    assert!(output.lexed.tokens.iter().any(|token| token.text == "next"));
+    assert!(!output.lexed.tokens.iter().any(|token| token.text == "1"));
+}
+
+#[test]
+fn unterminated_interpolation_at_line_end_keeps_following_lines() {
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "value = \"abc {1 +\nnext = 2\n".to_owned(),
+    );
+    let output = terrane_compiler::lexer::lex_recovering(&source);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "L0014"
+                && diagnostic.primary.unwrap().start == source.text().find('{').unwrap())
+    );
+    assert!(output.lexed.tokens.iter().any(|token| token.text == "next"));
+}
+
+#[test]
 fn call_wrapping_keeps_incomplete_expression_lines_nonstructural() {
     for source in [
         "x = (combine; 'a' +\n    'b', 'c')\n",

@@ -202,15 +202,15 @@ fn classify_node(
             }
         }
         SyntaxKind::Interpolation => {
-            if node
+            if let Some(key) = node
                 .children
                 .iter()
-                .any(|child| child.kind == SyntaxKind::RenderingKey)
+                .find(|child| child.kind == SyntaxKind::RenderingKey)
             {
-                for index in node.token_range.clone() {
-                    if tokens[index].text == "!" || tokens[index].kind == TokenKind::Colon {
-                        classified[index] = Some((HighlightKind::Operator, false));
-                    }
+                let key_start = key.token_range.start;
+                if key_start >= 2 {
+                    classified[key_start - 2] = Some((HighlightKind::Operator, false));
+                    classified[key_start - 1] = Some((HighlightKind::Operator, false));
                 }
             }
         }

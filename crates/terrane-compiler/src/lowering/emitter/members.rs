@@ -291,6 +291,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if let Some(name) = self.borrowed_key_name(receiver) {
+            return name.to_owned();
+        }
         if self.assignment_target
             && receiver.kind == SyntaxKind::Name
             && let Some(binding) = self.local_typed_binding(receiver)

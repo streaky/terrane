@@ -31,6 +31,7 @@ mod descriptors;
 mod display;
 pub(crate) mod documents;
 mod expressions;
+pub(crate) mod interpolatable;
 mod interpolation;
 mod logging;
 mod macros;

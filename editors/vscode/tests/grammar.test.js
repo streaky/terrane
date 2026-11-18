@@ -154,10 +154,21 @@ test('double strings tokenize code interpolation, nested quotes, calls, selector
   has(row, 'inner', 'string.quoted.double.terrane');
   has(row, 'count', 'meta.interpolation.terrane');
 });
-test('interpolation key marker receives a distinct scope only as a separated marker', () => {
-  const row = tokenize('value = "x {render(user !: plain)}"')[0];
-  has(row, '!: ', 'variable.other.interpolation-key.terrane');
-  lacks(tokenize('value = "x {!: plain}"')[0], '!: ', 'variable.other.interpolation-key.terrane');
+test('interpolation selector marker and key have separate scopes', () => {
+  const row = tokenize('value = "x {(render; user) !: plain}"')[0];
+  has(row, '!: ', 'keyword.operator.terrane');
+  has(row, 'plain', 'variable.other.interpolation-key.terrane');
+  lacks(tokenize('value = "x {!: plain}"')[0], 'plain', 'variable.other.interpolation-key.terrane');
+});
+
+test('byte escapes and unicode escapes stay inside string scopes', () => {
+  const row = tokenize(String.raw`value = b'\n\r\t\0\xAF'`)[0];
+  for (const escape of [String.raw`\n`, String.raw`\r`, String.raw`\t`, String.raw`\0`, String.raw`\xAF`]) {
+    has(row, escape, 'constant.character.escape.terrane');
+  }
+  const unicode = tokenize(String.raw`value = "\u{1F600}"`)[0];
+  has(unicode, String.raw`\u{1F600}`, 'constant.character.escape.terrane');
+  lacks(unicode, '{1F600}', 'meta.interpolation.terrane');
 });
 test('interpolation key marker is not scoped in ordinary code', () => {
   lacks(tokenize('value = user !: plain')[0], '!: ', 'variable.other.interpolation-key.terrane');

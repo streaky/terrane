@@ -53,6 +53,13 @@ fn highlights_interpolated_string_fragments_expressions_and_rendering_keys() {
 }
 
 #[test]
+fn selector_scope_preserves_nested_string_text() {
+    let actual = classified("value = \"{decorate; \"Hello {name}:\" !: outer}\"\n");
+    assert!(actual.contains(&(":".to_owned(), HighlightKind::String, false)));
+    assert!(actual.contains(&(":".to_owned(), HighlightKind::Operator, false)));
+}
+
+#[test]
 fn classifies_real_lexical_and_syntax_constructs() {
     let source = concat!(
         "namespace sample/app\n",

@@ -810,7 +810,15 @@ impl Emitter<'_> {
         {
             let receiver_node = find_node_by_span(&self.unit.tree.root, method.receiver)
                 .expect("validated bound method receiver");
-            let receiver = self.expression(receiver_node);
+            let receiver = if method.family == MemberFamily::Parse {
+                self.expression_as(
+                    receiver_node,
+                    self.receiver_value_type(receiver_node)
+                        .expect("validated scalar parser input"),
+                )
+            } else {
+                self.expression(receiver_node)
+            };
             if method.family == MemberFamily::Coerce {
                 return self.numeric_coercion(&method, receiver_node, callee, arguments);
             }
@@ -2174,6 +2182,23 @@ impl Emitter<'_> {
                 );
                 let value = argument.children.last().unwrap_or(argument);
                 let parameter = &contract.parameters[index];
+                if crate::semantics::interpolatable::borrows_key(self.unit, contract) {
+                    let expression = if let Some(literal) = self.borrowed_string_literal(value) {
+                        literal
+                    } else if self.read_borrow_is_stable_in(value, node) {
+                        let (setup, reference) = self.operand_reference_parts(value, false);
+                        shared_argument_setup.push_str(&setup);
+                        format!("AsRef::<str>::as_ref({reference})")
+                    } else {
+                        let expression =
+                            self.expression_as(value, ValueType::Scalar(ScalarType::String));
+                        let name = self.fresh_read_binding_name("interpolation_key");
+                        write!(shared_argument_setup, "let {name} = {expression}; ").unwrap();
+                        format!("AsRef::<str>::as_ref(&{name})")
+                    };
+                    ordered[index] = Some(expression);
+                    continue;
+                }
                 let projected_parameter = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index));

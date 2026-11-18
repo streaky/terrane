@@ -183,10 +183,36 @@
           "manual/reference/records/language/lexical-structure/literals.yaml"
         ]
       },
-      "notes": "Comments, strings, bytes, booleans, none, and numeric literal forms pass through the lossless syntax pipeline.",
+      "notes": "Comments and literals, including quoted-string escapes, interpolation, selectors, and literal-brace rules, pass through the lossless syntax pipeline.",
       "sources": [
         "docs/language-spec-concise.md#LEX",
-        "docs/compiler-plan.md#Milestone 2"
+        "docs/language-spec-concise.md#COLLECTION TEXT",
+        "docs/compiler-plan.md#Milestone 2",
+        "tests/fixtures/conformance-suites/value-protocols/tests/integration/quoted-interpolation/case.trn",
+        "tests/conformance/reject/interpolation-missing-protocol/case.trn"
+      ]
+    },
+    {
+      "id": "quoted-string-interpolation",
+      "name": "Quoted strings and registered interpolation renderers",
+      "category": "text-data",
+      "status": "done",
+      "completion": 100,
+      "milestone": null,
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/language/lexical-structure/literals.yaml",
+          "manual/reference/records/language/declarations/modifiers.yaml",
+          "manual/reference/records/standard-library/core-display.yaml"
+        ]
+      },
+      "notes": "Single quotes retain literal backslashes except delimiter/backslash escapes. Double quotes interpret escapes and support two interpolation levels. Explicit interpolatable implementations and registered callable slots select rendering; no implicit render or to-string fallback is used. Registered-slot shadowing is rejected.",
+      "sources": [
+        "crates/terrane-compiler/tests/interpolation.rs",
+        "tests/fixtures/conformance-suites/value-protocols/tests/integration/quoted-interpolation/case.trn",
+        "tests/conformance/reject/interpolation-missing-protocol/case.trn",
+        "tests/conformance/reject/interpolation-renderer-shadow/case.trn"
       ]
     },
     {
@@ -1107,14 +1133,14 @@
       "reference": {
         "state": "documented",
         "paths": [
-          "manual/reference/records/language/text/display.yaml"
+          "manual/reference/records/language/text/display.yaml",
+          "manual/reference/records/standard-library/core-display.yaml"
         ]
       },
-      "notes": "Non-bytes scalars expose to-string; source classes supply safe synchronous shared parameterless string-returning methods. String +, concat, join, and print share rendering and throwable inference.",
+      "notes": "Non-bytes scalars expose canonical to-string; source classes supply safe synchronous shared parameterless string-returning methods. Print, concatenation, concat and join retain ordinary display. Quoted interpolation uses the separate explicit core/display interpolatable protocol.",
       "sources": [
         "docs/language-spec-concise.md#TEXT DISPLAY",
-        "docs/compiler-plan.md#Milestone 4.6",
-        "tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-composition/case.trn",
+        "tests/fixtures/conformance-suites/value-protocols/tests/integration/quoted-interpolation/case.trn",
         "tests/fixtures/conformance-suites/unsafe-protocols/tests/integration/string-display-boundaries/case.trn",
         "tests/fixtures/conformance-suites/value-protocols/tests/integration/string-display-generic/case.trn",
         "tests/conformance/run/string-display-imported/src/main.trn",

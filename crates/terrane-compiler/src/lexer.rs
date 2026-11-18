@@ -713,13 +713,22 @@ fn lex_line(
                 let (end, has_interpolation) =
                     match scan_double_quoted(bytes, start, interpolation_depth) {
                         Ok(boundary) => boundary,
-                        Err((code, at, message)) => {
+                        Err(error) => {
                             diagnostics.push(Diagnostic::error(
-                                code,
-                                message,
-                                Span::new(source.id(), base + at, base + (at + 1).min(bytes.len())),
+                                error.code,
+                                error.message,
+                                Span::new(
+                                    source.id(),
+                                    base + error.at,
+                                    base + (error.at + 1).min(bytes.len()),
+                                ),
                             ));
-                            break;
+                            if let Some(end) = error.recovery {
+                                index = end;
+                                continue;
+                            }
+                            index = bytes.len();
+                            continue;
                         }
                     };
                 index = end;
@@ -1412,7 +1421,99 @@ fn validate_double_string(text: &str) -> Result<(), (usize, usize)> {
     validate_double_fragment(&text[1..text.len() - 1]).map_err(|(start, end)| (start + 1, end + 1))
 }
 
-type QuotedScanError = (&'static str, usize, &'static str);
+#[derive(Clone, Copy, Debug)]
+struct QuotedScanFailure {
+    code: &'static str,
+    at: usize,
+    message: &'static str,
+    recovery: Option<usize>,
+}
+
+type QuotedScanError = QuotedScanFailure;
+
+impl QuotedScanFailure {
+    fn new(code: &'static str, at: usize, message: &'static str) -> Self {
+        Self {
+            code,
+            at,
+            message,
+            recovery: None,
+        }
+    }
+
+    fn at_interpolation(mut self, open: usize) -> Self {
+        if self.code == "L0007" {
+            self.recovery = Some(self.at + 1);
+            self.code = "L0014";
+            self.at = open;
+            self.message = "unterminated string interpolation";
+        }
+        self
+    }
+}
+
+fn recover_double_quote(bytes: &[u8], start: usize) -> Option<usize> {
+    // Recovery ignores the semantic depth limit, but remains iterative. Do not
+    // mistake an inner literal's delimiter for the outer string's boundary.
+    let mut modes = vec![None::<usize>];
+    let mut cursor = start + 1;
+    while cursor < bytes.len() {
+        let string = modes.last().is_some_and(Option::is_none);
+        match bytes[cursor] {
+            b'\\' if string => cursor = skip_double_escape(bytes, cursor),
+            b'"' if string => {
+                modes.pop();
+                cursor += 1;
+                if modes.is_empty() {
+                    return Some(cursor);
+                }
+            }
+            b'{' | b'}' if string && bytes.get(cursor + 1) == Some(&bytes[cursor]) => cursor += 2,
+            b'{' if string => {
+                modes.push(Some(0));
+                cursor += 1;
+            }
+            b'/' if !string && bytes.get(cursor + 1) == Some(&b'*') => {
+                cursor += 2;
+                while cursor + 1 < bytes.len() && &bytes[cursor..cursor + 2] != b"*/" {
+                    cursor += 1;
+                }
+                if cursor + 1 >= bytes.len() {
+                    return None;
+                }
+                cursor += 2;
+            }
+            b'#' if !string => return None,
+            b'/' if !string && bytes.get(cursor + 1) == Some(&b'/') => return None,
+            b'"' => {
+                modes.push(None);
+                cursor += 1;
+            }
+            b'\'' if !string => {
+                cursor += 1;
+                while cursor < bytes.len() && bytes[cursor] != b'\'' {
+                    cursor += if bytes[cursor] == b'\\' { 2 } else { 1 };
+                }
+                cursor = (cursor + 1).min(bytes.len());
+            }
+            b'{' if !string => {
+                *modes.last_mut()?.as_mut()? += 1;
+                cursor += 1;
+            }
+            b'}' if !string => {
+                let braces = modes.last_mut()?.as_mut()?;
+                if *braces == 0 {
+                    modes.pop();
+                } else {
+                    *braces -= 1;
+                }
+                cursor += 1;
+            }
+            _ => cursor += 1,
+        }
+    }
+    None
+}
 
 fn skip_double_escape(bytes: &[u8], start: usize) -> usize {
     if bytes.get(start + 1) == Some(&b'u') && bytes.get(start + 2) == Some(&b'{') {
@@ -1442,26 +1543,40 @@ fn scan_double_quoted(
             b'{' | b'}' if bytes.get(cursor + 1) == Some(&bytes[cursor]) => cursor += 2,
             b'{' => {
                 if depth >= 2 {
-                    return Err((
-                        "S1133",
+                    let mut error = QuotedScanFailure::new(
+                        "L0015",
                         cursor,
                         "string interpolation may nest at most two levels",
-                    ));
+                    );
+                    error.recovery = recover_double_quote(bytes, start);
+                    return Err(error);
                 }
                 interpolated = true;
-                cursor = scan_interpolation_close(bytes, cursor + 1, depth + 1)? + 1;
+                cursor = match scan_interpolation_close(bytes, cursor + 1, depth + 1) {
+                    Ok(close) => close + 1,
+                    Err(mut error) => {
+                        error.recovery = recover_double_quote(bytes, start).or(error.recovery);
+                        return Err(error);
+                    }
+                };
             }
             b'}' => {
-                return Err((
-                    "S1130",
+                let mut error = QuotedScanFailure::new(
+                    "L0014",
                     cursor,
                     "literal `}` in a double-quoted string must be doubled",
-                ));
+                );
+                error.recovery = recover_double_quote(bytes, start);
+                return Err(error);
             }
             _ => cursor += 1,
         }
     }
-    Err(("L0007", start, "unterminated string literal"))
+    Err(QuotedScanFailure::new(
+        "L0007",
+        start,
+        "unterminated string literal",
+    ))
 }
 
 fn scan_interpolation_close(
@@ -1469,22 +1584,27 @@ fn scan_interpolation_close(
     start: usize,
     depth: usize,
 ) -> Result<usize, QuotedScanError> {
+    let open = start.saturating_sub(1);
     let mut cursor = start;
     let mut braces = 0usize;
     let mut grouping = 0usize;
     while cursor < bytes.len() {
         match bytes[cursor] {
-            b'"' => cursor = scan_double_quoted(bytes, cursor, depth)?.0,
+            b'"' => {
+                cursor = scan_double_quoted(bytes, cursor, depth)
+                    .map_err(|error| error.at_interpolation(open))?
+                    .0;
+            }
             b'\'' => {
                 cursor += 1;
                 while cursor < bytes.len() && bytes[cursor] != b'\'' {
                     cursor += if bytes[cursor] == b'\\' { 2 } else { 1 };
                 }
                 if cursor >= bytes.len() {
-                    return Err((
-                        "L0007",
-                        start,
-                        "unterminated string literal in interpolation",
+                    return Err(QuotedScanFailure::new(
+                        "L0014",
+                        open,
+                        "unterminated string interpolation",
                     ));
                 }
                 cursor += 1;
@@ -1526,9 +1646,9 @@ fn scan_interpolation_close(
             _ => cursor += 1,
         }
     }
-    Err((
-        "S1130",
-        start.saturating_sub(1),
+    Err(QuotedScanFailure::new(
+        "L0014",
+        open,
         "unterminated string interpolation",
     ))
 }

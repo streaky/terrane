@@ -1,0 +1,7 @@
+namespace interpolation-renderer-invalid-key
+from /core/modifiers import interpolation-renderer
+function text string; value int
+    return value.to-string;
+function main;
+    with (interpolation-renderer; key = 'not an identifier') renderer function from int to string = text
+    print; 'unreachable key'

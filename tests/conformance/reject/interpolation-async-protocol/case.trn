@@ -1,0 +1,8 @@
+namespace interpolation-async-protocol
+from /core/display import interpolatable
+class item implements interpolatable
+    async function interpolate string; key string
+        return 'wrong async contract'
+async function main;
+    value = instance item;
+    print; "{value}"

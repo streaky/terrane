@@ -82,7 +82,11 @@ fn resolve_operation(
             ));
         }
         "interpolation-renderer" if structural => {
-            return Err(error(unit, application.span, "interpolation-renderer does not use the structural contract"));
+            return Err(error(
+                unit,
+                application.span,
+                "interpolation-renderer does not use the structural contract",
+            ));
         }
         _ => {
             return Err(error(
@@ -94,6 +98,16 @@ fn resolve_operation(
             ));
         }
     };
+    validate_operation(unit, declaration, application, payload, operation)
+}
+
+fn validate_operation(
+    unit: &SemanticUnit,
+    declaration: &SyntaxNode,
+    application: &SyntaxNode,
+    payload: &CompileTimeValue,
+    operation: ModifierOperation,
+) -> Result<ModifierOperation, SemanticFailure> {
     match operation {
         ModifierOperation::ScopedAccess => {
             if declaration.kind != SyntaxKind::WithRegion {
@@ -133,11 +147,23 @@ fn resolve_operation(
             }
         }
         ModifierOperation::InterpolationRenderer => {
-            if !matches!(declaration.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
-                return Err(error(unit, declaration.span, "interpolation-renderer applies to a callable binding"));
+            if !matches!(
+                declaration.kind,
+                SyntaxKind::Binding | SyntaxKind::Assignment
+            ) {
+                return Err(error(
+                    unit,
+                    declaration.span,
+                    "interpolation-renderer applies to a callable binding",
+                ));
             }
-            if !matches!(field(payload, "key"), Some(CompileTimeValue::String(key)) if !key.is_empty()) {
-                return Err(error(unit, application.span, "interpolation-renderer requires a non-empty string key"));
+            if !matches!(field(payload, "key"), Some(CompileTimeValue::String(key)) if !key.is_empty())
+            {
+                return Err(error(
+                    unit,
+                    application.span,
+                    "interpolation-renderer requires a non-empty string key",
+                ));
             }
         }
     }

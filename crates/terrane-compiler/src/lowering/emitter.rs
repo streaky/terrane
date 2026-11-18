@@ -6,6 +6,7 @@ mod context;
 mod display;
 mod expressions;
 mod guarded_arithmetic;
+mod interpolation;
 mod items;
 mod members;
 mod native_arguments;
@@ -209,6 +210,7 @@ pub(super) struct Emitter<'a> {
     list_append_counter: usize,
     return_type: Option<ValueType>,
     parameter_types: Vec<(String, ValueType)>,
+    borrowed_interpolation_key: Option<crate::Span>,
     namespace_initializer: Option<(String, String)>,
     propagate_errors: bool,
     discarded_call: Option<crate::Span>,
@@ -255,6 +257,7 @@ impl<'a> Emitter<'a> {
             list_append_counter: 0,
             return_type: None,
             parameter_types: Vec::new(),
+            borrowed_interpolation_key: None,
             namespace_initializer: None,
             propagate_errors: false,
             discarded_call: None,

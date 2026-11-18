@@ -76,17 +76,34 @@
     },
     "quoted-text": {
       "patterns": [
+        { "include": "#byte-string" },
         { "include": "#single-string" },
         { "include": "#double-string" }
       ]
     },
     "single-string": {
       "name": "string.quoted.single.terrane",
-      "begin": "b?'",
+      "begin": "'",
       "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.terrane" } },
       "end": "'|$",
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
-      "patterns": [{ "name": "constant.character.escape.terrane", "match": "\\\\[\\\\']" }]
+      "patterns": [{ "include": "#single-escapes" }]
+    },
+    "byte-string": {
+      "name": "string.quoted.single.terrane",
+      "begin": "b'",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.terrane" } },
+      "end": "'|$",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
+      "patterns": [{ "include": "#byte-escapes" }]
+    },
+    "single-escapes": {
+      "name": "constant.character.escape.terrane",
+      "match": "\\\\[\\\\']"
+    },
+    "byte-escapes": {
+      "name": "constant.character.escape.terrane",
+      "match": "\\\\(?:[\\\\'nrt0]|x[0-9A-Fa-f]{2})"
     },
     "double-string": {
       "name": "string.quoted.double.terrane",
@@ -95,7 +112,7 @@
       "end": "\"|$",
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
       "patterns": [
-        { "name": "constant.character.escape.terrane", "match": "\\\\(?:[\\\\'\"nrt0]|u\\{[0-9A-Fa-f]+\\})" },
+        { "name": "constant.character.escape.terrane", "match": "\\\\u\\{[0-9A-Fa-f]+\\}" },
         { "name": "constant.character.escape.terrane", "match": "\\{\\{" },
         { "name": "constant.character.escape.terrane", "match": "\\}\\}" },
         {
@@ -147,8 +164,15 @@
       ]
     },
     "interpolation-key": {
-      "name": "variable.other.interpolation-key.terrane",
-      "match": "(?<=\\s)!:(?=\\s)"
+      "patterns": [
+        {
+          "match": "(?<=\\s)(!:)(\\s+)([A-Za-z_][A-Za-z0-9_]*(?:[+*%<>-]+[A-Za-z0-9_]+)*)",
+          "captures": {
+            "1": { "name": "keyword.operator.terrane" },
+            "3": { "name": "variable.other.interpolation-key.terrane" }
+          }
+        }
+      ]
     },
     "lexical-tokens": {
       "comment": "Consume unscoped lexemes so later regex searches cannot begin inside joined names or split an increment/decrement token.",
