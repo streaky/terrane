@@ -706,6 +706,33 @@ fn lex_line(
         }
         let start = index;
         match bytes[index] {
+            b'"' => {
+                index += 1;
+                let mut escaped = false;
+                let mut terminated = false;
+                while index < bytes.len() {
+                    if bytes[index] == b'"' && !escaped {
+                        index += 1;
+                        terminated = true;
+                        break;
+                    }
+                    escaped = bytes[index] == b'\\' && !escaped;
+                    if bytes[index] != b'\\' { escaped = false; }
+                    index += 1;
+                }
+                if terminated {
+                    let text = &line[start..index];
+                    push_token(source, tokens, TokenKind::String, base + start, base + index,
+                        attachment(line, start, index));
+                    if let Err((relative_start, relative_end)) = validate_double_string(text) {
+                        diagnostics.push(Diagnostic::error("L0013", "invalid escape in double-quoted string",
+                            Span::new(source.id(), base + start + relative_start, base + start + relative_end)));
+                    }
+                } else {
+                    diagnostics.push(Diagnostic::error("L0007", "unterminated string literal",
+                        Span::new(source.id(), base + start, base + index)));
+                }
+            }
             b' ' | b'\t' => {
                 index += 1;
                 while index < bytes.len() && matches!(bytes[index], b' ' | b'\t') {
@@ -1187,6 +1214,111 @@ pub(crate) fn block_string(text: &str) -> String {
     output
 }
 
+/// Decodes a complete valid single- or double-quoted string literal.
+#[must_use]
+pub fn string_literal_value(text: &str) -> String {
+    if text.len() < 2 {
+        return text.to_owned();
+    }
+    let quote = text.as_bytes()[0];
+    if !matches!(quote, b'\'' | b'"') || text.as_bytes().last() != Some(&quote) {
+        return text.to_owned();
+    }
+    let body = &text[1..text.len() - 1];
+    if quote == b'\'' {
+        let mut output = String::with_capacity(body.len());
+        let mut chars = body.chars();
+        while let Some(ch) = chars.next() {
+            if ch == '\\' {
+                match chars.next() {
+                    Some('\\') => output.push('\\'),
+                    Some('\'') => output.push('\''),
+                    Some(other) => { output.push('\\'); output.push(other); }
+                    None => output.push('\\'),
+                }
+            } else {
+                output.push(ch);
+            }
+        }
+        output
+    } else {
+        interpreted_text(body)
+    }
+}
+
+/// Decodes double-string fragment escapes and doubled braces.
+#[must_use]
+pub fn interpreted_text(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '{' && chars.peek() == Some(&'{') {
+            chars.next();
+            output.push('{');
+        } else if ch == '}' && chars.peek() == Some(&'}') {
+            chars.next();
+            output.push('}');
+        } else if ch == '\\' {
+            match chars.next() {
+                Some('\\') => output.push('\\'),
+                Some('\'') => output.push('\''),
+                Some('"') => output.push('"'),
+                Some('n') => output.push('\n'),
+                Some('r') => output.push('\r'),
+                Some('t') => output.push('\t'),
+                Some('0') => output.push('\0'),
+                Some('u') if chars.next() == Some('{') => {
+                    let mut digits = String::new();
+                    while chars.peek().is_some_and(|next| *next != '}') {
+                        digits.push(chars.next().expect("peeked character"));
+                    }
+                    if chars.next() == Some('}') && !digits.is_empty()
+                        && digits.len() <= 6 && digits.chars().all(|d| d.is_ascii_hexdigit())
+                    {
+                        if let Ok(value) = u32::from_str_radix(&digits, 16) {
+                            if let Some(decoded) = char::from_u32(value) { output.push(decoded); }
+                        }
+                    }
+                }
+                Some(other) => { output.push('\\'); output.push(other); }
+                None => output.push('\\'),
+            }
+        } else {
+            output.push(ch);
+        }
+    }
+    output
+}
+
+fn validate_double_string(text: &str) -> Result<(), (usize, usize)> {
+    let bytes = text.as_bytes();
+    let mut index = 1;
+    while index + 1 < bytes.len() {
+        if bytes[index] != b'\\' {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        index += 1;
+        match bytes.get(index).copied() {
+            Some(b'\\' | b'\'' | b'"' | b'n' | b'r' | b't' | b'0') => index += 1,
+            Some(b'u') if bytes.get(index + 1) == Some(&b'{') => {
+                index += 2;
+                let digits = index;
+                while bytes.get(index).is_some_and(u8::is_ascii_hexdigit) { index += 1; }
+                let valid = index > digits && index - digits <= 6
+                    && bytes.get(index) == Some(&b'}')
+                    && std::str::from_utf8(&bytes[digits..index]).ok()
+                        .and_then(|hex| u32::from_str_radix(hex, 16).ok())
+                        .and_then(char::from_u32).is_some();
+                if !valid { return Err((start, (index + 1).min(bytes.len() - 1))); }
+                index += 1;
+            }
+            _ => return Err((start, (index + 1).min(bytes.len() - 1))),
+        }
+    }
+    Ok(())
+}
 pub(crate) fn unescape_string(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     let mut chars = value.chars();
