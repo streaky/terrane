@@ -516,22 +516,22 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 13] = [
-        /* terrane-site-row: site 0: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:11:17-11:28) */
-        { Site { function: 0, file: 0, line: 11, column: 17, end_line: 11, end_column: 28 } },
-        /* terrane-site-row: site 1: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:11:17-11:43) */
-        { Site { function: 0, file: 0, line: 11, column: 17, end_line: 11, end_column: 43 } },
-        /* terrane-site-row: site 2: /benchmark-gamma-survival-calibration::main (src/main.trn:21:26-21:36) */
-        { Site { function: 1, file: 0, line: 21, column: 26, end_line: 21, end_column: 36 } },
-        /* terrane-site-row: site 3: /benchmark-gamma-survival-calibration::main (src/main.trn:22:32-22:43) */
-        { Site { function: 1, file: 0, line: 22, column: 32, end_line: 22, end_column: 43 } },
-        /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::main (src/main.trn:23:27-23:36) */
-        { Site { function: 1, file: 0, line: 23, column: 27, end_line: 23, end_column: 36 } },
-        /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::main (src/main.trn:27:24-27:60) */
-        { Site { function: 1, file: 0, line: 27, column: 24, end_line: 27, end_column: 60 } },
-        /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:30:5-30:12) */
-        { Site { function: 1, file: 0, line: 30, column: 5, end_line: 30, end_column: 12 } },
-        /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:31:21-31:26) */
-        { Site { function: 1, file: 0, line: 31, column: 21, end_line: 31, end_column: 26 } },
+        /* terrane-site-row: site 0: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:17-10:28) */
+        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 28 } },
+        /* terrane-site-row: site 1: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:17-10:43) */
+        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 43 } },
+        /* terrane-site-row: site 2: /benchmark-gamma-survival-calibration::main (src/main.trn:20:26-20:36) */
+        { Site { function: 1, file: 0, line: 20, column: 26, end_line: 20, end_column: 36 } },
+        /* terrane-site-row: site 3: /benchmark-gamma-survival-calibration::main (src/main.trn:21:32-21:43) */
+        { Site { function: 1, file: 0, line: 21, column: 32, end_line: 21, end_column: 43 } },
+        /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::main (src/main.trn:22:27-22:36) */
+        { Site { function: 1, file: 0, line: 22, column: 27, end_line: 22, end_column: 36 } },
+        /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::main (src/main.trn:26:24-26:60) */
+        { Site { function: 1, file: 0, line: 26, column: 24, end_line: 26, end_column: 60 } },
+        /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:29:5-29:12) */
+        { Site { function: 1, file: 0, line: 29, column: 5, end_line: 29, end_column: 12 } },
+        /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:30:21-30:26) */
+        { Site { function: 1, file: 0, line: 30, column: 21, end_line: 30, end_column: 26 } },
         /* terrane-site-row: site 8: /core/process::arguments (core/process.trn:45:49-45:63) */
         { Site { function: 2, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
         /* terrane-site-row: site 9: /core/process::environment (core/process.trn:54:40-54:54) */

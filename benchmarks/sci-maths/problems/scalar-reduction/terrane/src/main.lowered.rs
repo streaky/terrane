@@ -24,18 +24,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:10:17-10:28 */,
+                                        0 /* terrane-site: src/main.trn:9:17-9:28 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:10:17-10:28 */,
+                            0 /* terrane-site: src/main.trn:9:17-9:28 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:10:17-10:43 */,
+                1 /* terrane-site: src/main.trn:9:17-9:43 */,
             ),
         ),
-        1 /* terrane-site: src/main.trn:10:17-10:43 */,
+        1 /* terrane-site: src/main.trn:9:17-9:43 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -53,21 +53,21 @@ fn main() {
     while index < count {
         value = __terrane_raised(
             terrane_int_support::fixed_subtraction(index.rem_euclid(1000), 500),
-            2 /* terrane-site: src/main.trn:22:19-22:39 */,
+            2 /* terrane-site: src/main.trn:20:19-20:39 */,
         );
         total = __terrane_raised(
             terrane_int_support::fixed_addition(
                 total,
                 __terrane_raised(
                     terrane_int_support::fixed_multiplication(value, value),
-                    3 /* terrane-site: src/main.trn:23:21-23:34 */,
+                    3 /* terrane-site: src/main.trn:21:21-21:34 */,
                 ),
             ),
-            4 /* terrane-site: src/main.trn:23:13-23:34 */,
+            4 /* terrane-site: src/main.trn:21:13-21:34 */,
         );
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            5 /* terrane-site: src/main.trn:24:5-24:12 */,
+            5 /* terrane-site: src/main.trn:22:5-22:12 */,
         );
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));

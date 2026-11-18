@@ -24,18 +24,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:11:17-11:28 */,
+                                        0 /* terrane-site: src/main.trn:10:17-10:28 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:11:17-11:28 */,
+                            0 /* terrane-site: src/main.trn:10:17-10:28 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:11:17-11:43 */,
+                1 /* terrane-site: src/main.trn:10:17-10:43 */,
             ),
         ),
-        1 /* terrane-site: src/main.trn:11:17-11:43 */,
+        1 /* terrane-site: src/main.trn:10:17-10:43 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -83,14 +83,14 @@ fn main() {
                             index.rem_euclid(200),
                             100,
                         ),
-                        2 /* terrane-site: src/main.trn:24:19-24:38 */,
+                        2 /* terrane-site: src/main.trn:22:19-22:38 */,
                     ),
                 ),
-                2 /* terrane-site: src/main.trn:24:19-24:38 */,
+                2 /* terrane-site: src/main.trn:22:19-22:38 */,
             );
             periodic = __terrane_raised(
                 terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
-                3 /* terrane-site: src/main.trn:25:24-25:33 */,
+                3 /* terrane-site: src/main.trn:23:24-23:33 */,
             );
             value = 0.01 * raw * raw + periodic - 3.0_f64;
             {
@@ -100,13 +100,13 @@ fn main() {
             total = total + value;
             index = __terrane_raised(
                 terrane_int_support::fixed_addition(index, 1),
-                4 /* terrane-site: src/main.trn:29:5-29:12 */,
+                4 /* terrane-site: src/main.trn:27:5-27:12 */,
             );
         }
     }
     divisor = __terrane_raised(
         terrane_int_support::exact_fixed_f64(count),
-        5 /* terrane-site: src/main.trn:31:21-31:26 */,
+        5 /* terrane-site: src/main.trn:29:21-29:26 */,
     );
     mean = total / divisor;
     squared_total = 0.0_f64;
@@ -137,7 +137,7 @@ fn main() {
         if deviation * deviation > 2.5 * variance {
             outliers = __terrane_raised(
                 terrane_int_support::fixed_addition(outliers, 1),
-                6 /* terrane-site: src/main.trn:43:7-43:17 */,
+                6 /* terrane-site: src/main.trn:41:7-41:17 */,
             );
         }
     }

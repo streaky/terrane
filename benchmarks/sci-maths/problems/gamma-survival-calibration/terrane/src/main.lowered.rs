@@ -24,18 +24,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:10:17-10:28 */,
+                                        0 /* terrane-site: src/main.trn:9:17-9:28 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:10:17-10:28 */,
+                            0 /* terrane-site: src/main.trn:9:17-9:28 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:10:17-10:43 */,
+                1 /* terrane-site: src/main.trn:9:17-9:43 */,
             ),
         ),
-        1 /* terrane-site: src/main.trn:10:17-10:43 */,
+        1 /* terrane-site: src/main.trn:9:17-9:43 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -102,7 +102,7 @@ fn lower_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
         }
         iteration = __terrane_raised(
             terrane_int_support::fixed_addition(iteration, 1),
-            2 /* terrane-site: src/main.trn:48:5-48:16 */,
+            2 /* terrane-site: src/main.trn:47:5-47:16 */,
         );
     }
     exponent = shape
@@ -202,15 +202,15 @@ fn main() {
     while index < count {
         shape_part = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(17)),
-            3 /* terrane-site: src/main.trn:92:26-92:36 */,
+            3 /* terrane-site: src/main.trn:91:26-91:36 */,
         );
         observation_part = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(101)),
-            4 /* terrane-site: src/main.trn:93:32-93:43 */,
+            4 /* terrane-site: src/main.trn:92:32-92:43 */,
         );
         target_part = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
-            5 /* terrane-site: src/main.trn:94:27-94:36 */,
+            5 /* terrane-site: src/main.trn:93:27-93:36 */,
         );
         shape = 1.25 + shape_part * 0.125;
         observation = 0.5 + observation_part * 0.05;
@@ -220,12 +220,12 @@ fn main() {
         total = residual * residual + total;
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            6 /* terrane-site: src/main.trn:101:5-101:12 */,
+            6 /* terrane-site: src/main.trn:100:5-100:12 */,
         );
     }
     divisor = __terrane_raised(
         terrane_int_support::exact_fixed_f64(count),
-        7 /* terrane-site: src/main.trn:102:21-102:26 */,
+        7 /* terrane-site: src/main.trn:101:21-101:26 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(total / divisor)));
 }

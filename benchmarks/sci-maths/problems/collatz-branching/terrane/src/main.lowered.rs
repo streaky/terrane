@@ -24,18 +24,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:10:17-10:28 */,
+                                        0 /* terrane-site: src/main.trn:9:17-9:28 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:10:17-10:28 */,
+                            0 /* terrane-site: src/main.trn:9:17-9:28 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:10:17-10:43 */,
+                1 /* terrane-site: src/main.trn:9:17-9:43 */,
             ),
         ),
-        1 /* terrane-site: src/main.trn:10:17-10:43 */,
+        1 /* terrane-site: src/main.trn:9:17-9:43 */,
     );
     if limit <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -64,28 +64,28 @@ fn main() {
             } else if value.rem_euclid(2) == 0 {
                 __terrane_raised(
                     terrane_int_support::fixed_division(value, 2),
-                    2 /* terrane-site: src/main.trn:25:17-25:26 */,
+                    2 /* terrane-site: src/main.trn:23:17-23:26 */,
                 )
             } else {
                 __terrane_raised(
                     terrane_int_support::fixed_addition(
                         __terrane_raised(
                             terrane_int_support::fixed_multiplication(3, value),
-                            3 /* terrane-site: src/main.trn:27:17-27:26 */,
+                            3 /* terrane-site: src/main.trn:25:17-25:26 */,
                         ),
                         1,
                     ),
-                    4 /* terrane-site: src/main.trn:27:17-27:30 */,
+                    4 /* terrane-site: src/main.trn:25:17-25:30 */,
                 )
             };
             total = __terrane_raised(
                 terrane_int_support::fixed_addition(total, 1),
-                5 /* terrane-site: src/main.trn:28:7-28:14 */,
+                5 /* terrane-site: src/main.trn:26:7-26:14 */,
             );
         }
         start = __terrane_raised(
             terrane_int_support::fixed_addition(start, 1),
-            6 /* terrane-site: src/main.trn:29:5-29:12 */,
+            6 /* terrane-site: src/main.trn:27:5-27:12 */,
         );
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));

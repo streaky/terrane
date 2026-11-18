@@ -471,14 +471,14 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 9] = [
-        /* terrane-site-row: site 0: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:11:17-11:28) */
-        { Site { function: 0, file: 0, line: 11, column: 17, end_line: 11, end_column: 28 } },
-        /* terrane-site-row: site 1: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:11:17-11:43) */
-        { Site { function: 0, file: 0, line: 11, column: 17, end_line: 11, end_column: 43 } },
-        /* terrane-site-row: site 2: /benchmark-elementwise-materialized::main (src/main.trn:23:19-23:31) */
-        { Site { function: 1, file: 0, line: 23, column: 19, end_line: 23, end_column: 31 } },
-        /* terrane-site-row: site 3: /benchmark-elementwise-materialized::main (src/main.trn:26:5-26:12) */
-        { Site { function: 1, file: 0, line: 26, column: 5, end_line: 26, end_column: 12 } },
+        /* terrane-site-row: site 0: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:10:17-10:28) */
+        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 28 } },
+        /* terrane-site-row: site 1: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:10:17-10:43) */
+        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 43 } },
+        /* terrane-site-row: site 2: /benchmark-elementwise-materialized::main (src/main.trn:21:19-21:31) */
+        { Site { function: 1, file: 0, line: 21, column: 19, end_line: 21, end_column: 31 } },
+        /* terrane-site-row: site 3: /benchmark-elementwise-materialized::main (src/main.trn:24:5-24:12) */
+        { Site { function: 1, file: 0, line: 24, column: 5, end_line: 24, end_column: 12 } },
         /* terrane-site-row: site 4: /core/process::arguments (core/process.trn:45:49-45:63) */
         { Site { function: 2, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
         /* terrane-site-row: site 5: /core/process::environment (core/process.trn:54:40-54:54) */

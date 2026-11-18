@@ -471,20 +471,20 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 12] = [
-        /* terrane-site-row: site 0: /benchmark-standard-score-outliers::benchmark-size (src/main.trn:11:17-11:28) */
-        { Site { function: 0, file: 0, line: 11, column: 17, end_line: 11, end_column: 28 } },
-        /* terrane-site-row: site 1: /benchmark-standard-score-outliers::benchmark-size (src/main.trn:11:17-11:43) */
-        { Site { function: 0, file: 0, line: 11, column: 17, end_line: 11, end_column: 43 } },
-        /* terrane-site-row: site 2: /benchmark-standard-score-outliers::main (src/main.trn:24:19-24:38) */
-        { Site { function: 1, file: 0, line: 24, column: 19, end_line: 24, end_column: 38 } },
-        /* terrane-site-row: site 3: /benchmark-standard-score-outliers::main (src/main.trn:25:24-25:33) */
-        { Site { function: 1, file: 0, line: 25, column: 24, end_line: 25, end_column: 33 } },
-        /* terrane-site-row: site 4: /benchmark-standard-score-outliers::main (src/main.trn:29:5-29:12) */
-        { Site { function: 1, file: 0, line: 29, column: 5, end_line: 29, end_column: 12 } },
-        /* terrane-site-row: site 5: /benchmark-standard-score-outliers::main (src/main.trn:31:21-31:26) */
-        { Site { function: 1, file: 0, line: 31, column: 21, end_line: 31, end_column: 26 } },
-        /* terrane-site-row: site 6: /benchmark-standard-score-outliers::main (src/main.trn:43:7-43:17) */
-        { Site { function: 1, file: 0, line: 43, column: 7, end_line: 43, end_column: 17 } },
+        /* terrane-site-row: site 0: /benchmark-standard-score-outliers::benchmark-size (src/main.trn:10:17-10:28) */
+        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 28 } },
+        /* terrane-site-row: site 1: /benchmark-standard-score-outliers::benchmark-size (src/main.trn:10:17-10:43) */
+        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 43 } },
+        /* terrane-site-row: site 2: /benchmark-standard-score-outliers::main (src/main.trn:22:19-22:38) */
+        { Site { function: 1, file: 0, line: 22, column: 19, end_line: 22, end_column: 38 } },
+        /* terrane-site-row: site 3: /benchmark-standard-score-outliers::main (src/main.trn:23:24-23:33) */
+        { Site { function: 1, file: 0, line: 23, column: 24, end_line: 23, end_column: 33 } },
+        /* terrane-site-row: site 4: /benchmark-standard-score-outliers::main (src/main.trn:27:5-27:12) */
+        { Site { function: 1, file: 0, line: 27, column: 5, end_line: 27, end_column: 12 } },
+        /* terrane-site-row: site 5: /benchmark-standard-score-outliers::main (src/main.trn:29:21-29:26) */
+        { Site { function: 1, file: 0, line: 29, column: 21, end_line: 29, end_column: 26 } },
+        /* terrane-site-row: site 6: /benchmark-standard-score-outliers::main (src/main.trn:41:7-41:17) */
+        { Site { function: 1, file: 0, line: 41, column: 7, end_line: 41, end_column: 17 } },
         /* terrane-site-row: site 7: /core/process::arguments (core/process.trn:45:49-45:63) */
         { Site { function: 2, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
         /* terrane-site-row: site 8: /core/process::environment (core/process.trn:54:40-54:54) */

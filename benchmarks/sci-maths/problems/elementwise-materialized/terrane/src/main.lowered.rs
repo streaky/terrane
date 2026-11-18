@@ -24,18 +24,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:11:17-11:28 */,
+                                        0 /* terrane-site: src/main.trn:10:17-10:28 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:11:17-11:28 */,
+                            0 /* terrane-site: src/main.trn:10:17-10:28 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:11:17-11:43 */,
+                1 /* terrane-site: src/main.trn:10:17-10:43 */,
             ),
         ),
-        1 /* terrane-site: src/main.trn:11:17-11:43 */,
+        1 /* terrane-site: src/main.trn:10:17-10:43 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -68,7 +68,7 @@ fn main() {
                 index = __terrane_list_index_0;
                 raw = __terrane_raised(
                     terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
-                    2 /* terrane-site: src/main.trn:23:19-23:31 */,
+                    2 /* terrane-site: src/main.trn:21:19-21:31 */,
                 );
                 x = raw / 100.0_f64;
                 __terrane_list_append_0.push(x * x + 3.0_f64 * x - 7.0_f64);
@@ -79,7 +79,7 @@ fn main() {
             while index < count {
                 raw = __terrane_raised(
                     terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
-                    2 /* terrane-site: src/main.trn:23:19-23:31 */,
+                    2 /* terrane-site: src/main.trn:21:19-21:31 */,
                 );
                 x = raw / 100.0_f64;
                 {
@@ -88,7 +88,7 @@ fn main() {
                 };
                 index = __terrane_raised(
                     terrane_int_support::fixed_addition(index, 1),
-                    3 /* terrane-site: src/main.trn:26:5-26:12 */,
+                    3 /* terrane-site: src/main.trn:24:5-24:12 */,
                 );
             }
         }

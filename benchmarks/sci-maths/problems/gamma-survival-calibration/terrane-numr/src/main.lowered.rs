@@ -24,18 +24,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:11:17-11:28 */,
+                                        0 /* terrane-site: src/main.trn:10:17-10:28 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:11:17-11:28 */,
+                            0 /* terrane-site: src/main.trn:10:17-10:28 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:11:17-11:43 */,
+                1 /* terrane-site: src/main.trn:10:17-10:43 */,
             ),
         ),
-        1 /* terrane-site: src/main.trn:11:17-11:43 */,
+        1 /* terrane-site: src/main.trn:10:17-10:43 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -61,15 +61,15 @@ fn main() {
     while index < count {
         shape_part = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(17)),
-            2 /* terrane-site: src/main.trn:21:26-21:36 */,
+            2 /* terrane-site: src/main.trn:20:26-20:36 */,
         );
         observation_part = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(101)),
-            3 /* terrane-site: src/main.trn:22:32-22:43 */,
+            3 /* terrane-site: src/main.trn:21:32-21:43 */,
         );
         target_part = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
-            4 /* terrane-site: src/main.trn:23:27-23:36 */,
+            4 /* terrane-site: src/main.trn:22:27-22:36 */,
         );
         shape = 1.25 + shape_part * 0.125;
         observation = 0.5 + observation_part * 0.05;
@@ -82,19 +82,19 @@ fn main() {
                     __terrane_conversion_input_0,
                     __terrane_conversion_input_1,
                 ),
-                5 /* terrane-site: src/main.trn:27:24-27:60 */,
+                5 /* terrane-site: src/main.trn:26:24-26:60 */,
             )
         };
         residual = survival - target;
         total = total + residual * residual;
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            6 /* terrane-site: src/main.trn:30:5-30:12 */,
+            6 /* terrane-site: src/main.trn:29:5-29:12 */,
         );
     }
     divisor = __terrane_raised(
         terrane_int_support::exact_fixed_f64(count),
-        7 /* terrane-site: src/main.trn:31:21-31:26 */,
+        7 /* terrane-site: src/main.trn:30:21-30:26 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(total / divisor)));
 }

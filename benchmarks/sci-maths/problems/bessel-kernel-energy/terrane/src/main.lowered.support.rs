@@ -472,20 +472,20 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 12] = [
-        /* terrane-site-row: site 0: /benchmark-bessel-kernel-energy::benchmark-size (src/main.trn:10:17-10:28) */
-        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 28 } },
-        /* terrane-site-row: site 1: /benchmark-bessel-kernel-energy::benchmark-size (src/main.trn:10:17-10:43) */
-        { Site { function: 0, file: 0, line: 10, column: 17, end_line: 10, end_column: 43 } },
-        /* terrane-site-row: site 2: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:33:18-33:28) */
-        { Site { function: 1, file: 0, line: 33, column: 18, end_line: 33, end_column: 28 } },
-        /* terrane-site-row: site 3: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:33:17-33:36) */
-        { Site { function: 1, file: 0, line: 33, column: 17, end_line: 33, end_column: 36 } },
-        /* terrane-site-row: site 4: /benchmark-bessel-kernel-energy::main (src/main.trn:49:7-49:20) */
-        { Site { function: 2, file: 0, line: 49, column: 7, end_line: 49, end_column: 20 } },
-        /* terrane-site-row: site 5: /benchmark-bessel-kernel-energy::main (src/main.trn:50:5-50:17) */
-        { Site { function: 2, file: 0, line: 50, column: 5, end_line: 50, end_column: 17 } },
-        /* terrane-site-row: site 6: /benchmark-bessel-kernel-energy::main (src/main.trn:51:24-51:37) */
-        { Site { function: 2, file: 0, line: 51, column: 24, end_line: 51, end_column: 37 } },
+        /* terrane-site-row: site 0: /benchmark-bessel-kernel-energy::benchmark-size (src/main.trn:9:17-9:28) */
+        { Site { function: 0, file: 0, line: 9, column: 17, end_line: 9, end_column: 28 } },
+        /* terrane-site-row: site 1: /benchmark-bessel-kernel-energy::benchmark-size (src/main.trn:9:17-9:43) */
+        { Site { function: 0, file: 0, line: 9, column: 17, end_line: 9, end_column: 43 } },
+        /* terrane-site-row: site 2: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:32:18-32:28) */
+        { Site { function: 1, file: 0, line: 32, column: 18, end_line: 32, end_column: 28 } },
+        /* terrane-site-row: site 3: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:32:17-32:36) */
+        { Site { function: 1, file: 0, line: 32, column: 17, end_line: 32, end_column: 36 } },
+        /* terrane-site-row: site 4: /benchmark-bessel-kernel-energy::main (src/main.trn:48:7-48:20) */
+        { Site { function: 2, file: 0, line: 48, column: 7, end_line: 48, end_column: 20 } },
+        /* terrane-site-row: site 5: /benchmark-bessel-kernel-energy::main (src/main.trn:49:5-49:17) */
+        { Site { function: 2, file: 0, line: 49, column: 5, end_line: 49, end_column: 17 } },
+        /* terrane-site-row: site 6: /benchmark-bessel-kernel-energy::main (src/main.trn:50:24-50:37) */
+        { Site { function: 2, file: 0, line: 50, column: 24, end_line: 50, end_column: 37 } },
         /* terrane-site-row: site 7: /core/process::arguments (core/process.trn:45:49-45:63) */
         { Site { function: 3, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
         /* terrane-site-row: site 8: /core/process::environment (core/process.trn:54:40-54:54) */
