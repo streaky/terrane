@@ -1254,8 +1254,9 @@ tests remain distinct. `/core/testing` is the first-party framework for code aut
 ## DEBUGGING
 
 ```yaml
-commands: terrane debug [--embed-sources] [--embed-generated-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio; debug --release is rejected
+commands: terrane debug [--build-only] [--embed-sources] [--embed-generated-sources] FILE-OR-MANIFEST [-- ARGUMENTS] | terrane debug-adapter --stdio; debug --release is rejected; --build-only forbids program arguments and writes JSON {program, terraneProvenance} with absolute artifact paths without launching LLDB or the program
 backend: one selected lldb-dap/LLDB implementation owns process control, unwind, registers, memory, and machine breakpoints; Terrane owns source translation
+vscode: Terrane extension supplies F5 launch and .trn gutter breakpoints; program selects a source file or manifest, args is a string array, stopOnEntry defaults false; trusted workspaces save and rebuild before launch; terrane.debugger.path selects the compiler and adapter executable (default terrane on PATH)
 build: named terrane-debug-v1 profile shared by Cargo emission and provenance; full debug information, optimization 0, no stripping, compiler-default inlining at that optimization; optional --embed-sources and --embed-generated-sources independently record authored and generated build-time snapshots
 provenance: deterministic schema 1.3 sidecar beside generated Rust and executable
 identity: compiler/toolchain/exact rustc release/sysroot/target/toolchain-bound ABI recipe/profile, manifest/projection-cache/source/final-Rust hashes, executable identity, final-file associations, sequence points, functions, lexical scopes, bindings, object fields/privacy, and explicit source/build relocation roots

@@ -119,7 +119,31 @@ See [`tests/native-testing/`](tests/native-testing/) for a tracked package exerc
 
 ### Debugging, profiling, and editor support
 
-The source debugger provides breakpoints, stepping, mapped frames, scope-aware locals, bounded value inspection, secret-field redaction, and explicit generated/native views. It requires the LLDB backend and currently has exact source fidelity for supported Linux x86-64 builds. Optimized source debugging is not supported; `debug --release` is rejected.
+The source debugger provides breakpoints, stepping, mapped frames, scope-aware locals, bounded value inspection, secret-field redaction, and explicit generated/native views. It requires `lldb-dap`; Linux x86-64 with LLDB 22 is the exercised source-fidelity configuration. Other platforms, architectures, LLDB versions, optimized modules, and stripped modules may fall back to native fidelity. Optimized source debugging is not supported; `debug --release` is rejected.
+
+Install the Terrane VS Code extension from `editors/vscode/` and make `terrane` available on `PATH`, or set `terrane.debugger.path` to its executable. Install LLDB 22 with `lldb-dap` available to the selected backend. In VS Code, press F5 or click the gutter to set source breakpoints; launches build the selected source or manifest automatically before starting the adapter. The workspace must be trusted to launch builds.
+
+Add a launch configuration in `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "terrane",
+      "request": "launch",
+      "name": "Debug current Terrane file",
+      "program": "${file}",
+      "args": [],
+      "stopOnEntry": false
+    }
+  ]
+}
+```
+
+Set `program` to a manifest path to debug a package instead. Conditional breakpoints, logpoints, restart, and Terrane expression/watch evaluation are unsupported.
+
+`terrane debug --build-only <file-or-manifest>` builds the normal exact debug profile and provenance without starting LLDB or the program. It writes one JSON object to stdout, `{"program":"<absolute executable path>","terraneProvenance":"<absolute sidecar path>"}`; diagnostics go to stderr.
 
 Profiling uses optimized native artifacts, not debugger builds. CPU sampling requires Linux x86-64 and host `perf` permission; allocation capture requires Heaptrack and zstd; process-memory timelines use Linux procfs. `--memory-timeline` may accompany CPU or allocation capture. Allocation reports support comparisons and allocated/retained byte thresholds. Retained-at-exit allocations are not automatically leaks, and RSS is not allocation-site evidence.
 

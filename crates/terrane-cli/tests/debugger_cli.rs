@@ -91,6 +91,30 @@ impl Drop for DebugFixture {
 }
 
 #[test]
+fn build_only_returns_debug_artifacts_without_running_program() {
+    let fixture = DebugFixture::new();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--build-only", fixture.source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // The program prints 42 if run: stdout must contain only the artifact object.
+    let artifact: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let executable = Path::new(artifact["program"].as_str().unwrap());
+    let sidecar = Path::new(artifact["terraneProvenance"].as_str().unwrap());
+    assert!(executable.is_absolute() && executable.is_file());
+    assert!(sidecar.is_absolute() && sidecar.is_file());
+    let provenance: Value = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
+    assert_eq!(provenance["artifact_profile"], "terrane-debug-v1");
+    assert_eq!(Command::new(executable).output().unwrap().stdout, b"42\n");
+    assert_eq!(launch_fidelity(executable, sidecar)["body"]["mode"], "source");
+}
+
+#[test]
 fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     let fixture = DebugFixture::new();
     let commands = format!(
@@ -368,7 +392,8 @@ impl Drop for DapClient {
 fn launch_fidelity(executable: &Path, provenance: &Path) -> Value {
     let mut dap = DapClient::start();
     let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
-    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    let initialized = dap.response(initialize);
+    assert!(initialized["success"].as_bool().unwrap());
     assert_eq!(dap.read()["event"], "initialized");
     let launch = dap.send(
         "launch",
@@ -385,7 +410,13 @@ fn launch_fidelity(executable: &Path, provenance: &Path) -> Value {
             break message;
         }
     };
-    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    // Follow the client's advertised stop route, as VS Code does.
+    let stop_command = if initialized["body"]["supportsTerminateRequest"] == true {
+        "terminate"
+    } else {
+        "disconnect"
+    };
+    let disconnect = dap.send(stop_command, json!({"terminateDebuggee": true}));
     assert!(dap.response(disconnect)["success"].as_bool().unwrap());
     fidelity
 }

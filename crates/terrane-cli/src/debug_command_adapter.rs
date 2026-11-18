@@ -105,7 +105,7 @@ impl Adapter {
             let mut messages = vec![
                 response(json!({
                     "supportsConfigurationDoneRequest": true,
-                    "supportsTerminateRequest": true,
+                    "supportsTerminateRequest": false,
                     "supportsRestartRequest": false,
                     "supportsConditionalBreakpoints": false,
                     "supportsLogPoints": false,

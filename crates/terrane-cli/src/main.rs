@@ -233,6 +233,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         release,
         embed_debug_sources,
         embed_generated_sources,
+        debug_build_only,
     ) = if let Some(options) = &profile_options {
         (
             options.input.clone(),
@@ -242,6 +243,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             false,
             false,
             options.embed_sources,
+            false,
             false,
         )
     } else {
@@ -465,6 +467,16 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         )
         .map_err(CliFailure::backend)?;
         let sidecar = debug_command::write_provenance(&crate_dir, &executable, &provenance)?;
+        if debug_build_only {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "program": executable,
+                    "terraneProvenance": sidecar,
+                })
+            );
+            return Ok(ExitCode::SUCCESS);
+        }
         let separator = arguments.iter().position(|argument| argument == "--");
         let program_arguments = separator.map_or(&[][..], |index| &arguments[index + 1..]);
         return debug_command::run_cli(&executable, &sidecar, program_arguments);
@@ -579,7 +591,17 @@ fn rust_build_identity(
     })
 }
 
-type ParsedInput = (PathBuf, Option<PathBuf>, bool, bool, bool, bool, bool, bool);
+type ParsedInput = (
+    PathBuf,
+    Option<PathBuf>,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+    bool,
+);
 
 fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInput, CliFailure> {
     let mut input_index = 1;
@@ -590,12 +612,14 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
     let mut release = false;
     let mut embed_debug_sources = false;
     let mut embed_generated_sources = false;
+    let mut debug_build_only = false;
     while let Some(argument) = arguments.get(input_index).and_then(|value| value.to_str()) {
         match argument {
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
             "--lint-unused-functions" => lint_unused_functions = true,
             "--release" => release = true,
+            "--build-only" if command == CliCommand::Debug => debug_build_only = true,
             "--embed-sources" if command == CliCommand::Debug => embed_debug_sources = true,
             "--embed-generated-sources" if command == CliCommand::Debug => {
                 embed_generated_sources = true;
@@ -629,12 +653,11 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
             "program arguments must follow `--` (for example, `terrane run package.toml -- arg`)",
         ));
     }
-    let has_valid_arity = if matches!(command, CliCommand::Run | CliCommand::Debug) {
-        arguments.len() == input_index + 1
-            || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
-    } else {
-        arguments.len() == input_index + 1
-    };
+    let has_valid_arity = arguments.len() == input_index + 1
+        || (!debug_build_only
+            && matches!(command, CliCommand::Run | CliCommand::Debug)
+            && arguments.len() >= input_index + 2
+            && arguments[input_index + 1] == "--");
     if !has_valid_arity {
         return Err(CliFailure::usage());
     }
@@ -651,6 +674,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         release,
         embed_debug_sources,
         embed_generated_sources,
+        debug_build_only,
     ))
 }
 
@@ -1880,7 +1904,7 @@ fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--lint-unused-functions] [--release] <file-or-manifest> [-- program arguments]\n\
-     terrane debug [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
+     terrane debug [--build-only] [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
      terrane profile record ((--cpu|--allocations) [--memory-timeline]|--memory-timeline) \
      [--embed-sources] [--retain-arguments] [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\
@@ -2183,6 +2207,7 @@ mod tests {
                 false,
                 false,
                 true,
+                false,
                 false,
                 false,
             )

@@ -2,16 +2,20 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
+  "activationEvents": [
+    "onDebugResolve:terrane",
+    "onDebugInitialConfigurations:terrane"
+  ],
   "engines": {
     "vscode": "^1.91.0"
   },
   "scripts": {
     "package-server": "node ./scripts/package-server.js",
-    "check": "node --check extension.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check scripts/package-server.js && npm test",
+    "check": "node --check extension.js && node --check debugger.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check scripts/package-server.js && npm test",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
@@ -20,16 +24,71 @@
     "vscode-textmate": "^9.3.2"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Debuggers"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "Compile-time consumer execution is disabled until workspace trust is granted.",
-      "restrictedConfigurations": ["terrane.server.path"]
+      "description": "Compile-time consumer execution and debugging are disabled until workspace trust is granted.",
+      "restrictedConfigurations": ["terrane.server.path", "terrane.debugger.path"]
     }
   },
   "contributes": {
+    "breakpoints": [{ "language": "terrane" }],
+    "debuggers": [
+      {
+        "type": "terrane",
+        "label": "Terrane",
+        "languages": ["terrane"],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["program"],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Terrane source file or package manifest to build and debug.",
+                "default": "${file}"
+              },
+              "args": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Program arguments, preserving spaces and Unicode.",
+                "default": []
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Stop at native program entry before continuing to source breakpoints.",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "terrane",
+            "request": "launch",
+            "name": "Debug Terrane",
+            "program": "${file}",
+            "args": [],
+            "stopOnEntry": false
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Terrane: Debug source or package",
+            "body": {
+              "type": "terrane",
+              "request": "launch",
+              "name": "Debug Terrane",
+              "program": "^\"\\${file}\"",
+              "args": [],
+              "stopOnEntry": false
+            }
+          }
+        ]
+      }
+    ],
     "languages": [
       {
         "id": "terrane",
@@ -89,6 +148,12 @@
     "configuration": {
       "title": "Terrane",
       "properties": {
+        "terrane.debugger.path": {
+          "type": "string",
+          "default": "terrane",
+          "scope": "resource",
+          "description": "Terrane compiler executable used to build debug programs and run the debug adapter. Defaults to terrane on PATH; requires lldb-dap."
+        },
         "terrane.server.path": {
           "type": "string",
           "default": "",
