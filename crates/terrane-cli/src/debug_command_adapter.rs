@@ -163,7 +163,12 @@ impl Adapter {
             });
             let mut backend_arguments = arguments;
             backend_arguments["program"] = executable.to_string_lossy().into_owned().into();
-            for name in ["terraneProvenance", "terraneRelocation", "useBuildSnapshot"] {
+            for name in [
+                "terraneProvenance",
+                "terraneRelocation",
+                "useBuildSnapshot",
+                "__terraneCompiler",
+            ] {
                 backend_arguments
                     .as_object_mut()
                     .expect("DAP arguments are an object")
@@ -196,6 +201,7 @@ impl Adapter {
                     .as_deref(),
             );
             if command == "launch"
+                && backend_arguments.get("cwd").is_none()
                 && let Ok(provenance) = &translation
             {
                 backend_arguments["cwd"] = provenance.relocation.source_root.clone().into();

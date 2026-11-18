@@ -5,18 +5,34 @@ const { spawn } = require('child_process');
 
 function registerDebugger(vscode, context) {
   const output = vscode.window.createOutputChannel('Terrane Debugger');
-  const commandFor = (folder) => vscode.workspace.getConfiguration('terrane', folder?.uri)
-    .get('debugger.path', 'terrane').trim() || 'terrane';
+  const commandFor = (folder, base) => {
+    const configured = vscode.workspace.getConfiguration('terrane', folder?.uri)
+      .get('debugger.path', 'terrane').trim() || 'terrane';
+    return path.isAbsolute(configured) || !configured.includes('/') && !configured.includes('\\')
+      ? configured : path.resolve(base, configured);
+  };
   const initial = () => ({
     type: 'terrane', request: 'launch', name: 'Debug Terrane',
     program: '${file}', args: [], stopOnEntry: false,
   });
+  const activeTerrane = () => vscode.window.activeTextEditor?.document?.languageId === 'terrane';
+  const activeBuilds = new Set();
+  let disposed = false;
+  const disposeBuilds = { dispose() {
+    disposed = true;
+    for (const cancel of activeBuilds) cancel();
+  } };
 
   const provider = {
     provideDebugConfigurations: () => [initial()],
     resolveDebugConfiguration(folder, config) {
-      if (!config.type && !config.request && !config.name) {
-        return initial();
+      const empty = !config.type && !config.request && !config.name;
+      if (empty || config.program === '${file}') {
+        if (!activeTerrane()) {
+          vscode.window.showErrorMessage('Open a Terrane source file, or set program to a Terrane package manifest.');
+          return undefined;
+        }
+        if (empty) return initial();
       }
       return config;
     },
@@ -33,13 +49,15 @@ function registerDebugger(vscode, context) {
         vscode.window.showErrorMessage('Terrane debugger args must be an array of strings.');
         return undefined;
       }
-      // A failed save must not launch an executable built from older on-disk text.
-      if (!await vscode.workspace.saveAll(false) || token?.isCancellationRequested) {
+      if (config.cwd !== undefined && typeof config.cwd !== 'string') {
+        vscode.window.showErrorMessage('Terrane debugger cwd must be a directory path.');
         return undefined;
       }
-      const cwd = folder?.uri.fsPath || path.dirname(config.program);
-      const source = path.resolve(cwd, config.program);
-      const command = commandFor(folder);
+      if (token?.isCancellationRequested || disposed) return undefined;
+      const source = path.resolve(folder?.uri.fsPath || process.cwd(), config.program);
+      const cwd = folder?.uri.fsPath || path.dirname(source);
+      const command = commandFor(folder, cwd);
+      const configuredCwd = config.cwd === undefined ? undefined : path.resolve(cwd, config.cwd);
       output.clear();
       output.appendLine(`Building debug program: ${source}`);
       try {
@@ -47,9 +65,15 @@ function registerDebugger(vscode, context) {
           location: vscode.ProgressLocation.Notification,
           title: 'Building Terrane debug program',
           cancellable: true,
-        }, (_, progressToken) => buildProgram(command, source, cwd, output, [token, progressToken]));
-        if (token?.isCancellationRequested) return undefined;
-        return { ...config, ...artifact, stopOnEntry: config.stopOnEntry ?? false, disableASLR: false };
+        }, (_, progressToken) => buildProgram(command, source, cwd, output, [token, progressToken], activeBuilds, () => disposed));
+        if (token?.isCancellationRequested || disposed) return undefined;
+        return {
+          ...config, ...artifact,
+          ...(configuredCwd === undefined ? {} : { cwd: configuredCwd }),
+          // Retain the resolved compiler when program becomes a native artifact, especially folderless.
+          __terraneCompiler: command,
+          stopOnEntry: config.stopOnEntry ?? false, disableASLR: false,
+        };
       } catch (error) {
         if (error.cancelled) return undefined;
         output.show(true);
@@ -64,51 +88,68 @@ function registerDebugger(vscode, context) {
     vscode.debug.registerDebugAdapterDescriptorFactory('terrane', {
       createDebugAdapterDescriptor(session) {
         if (!vscode.workspace.isTrusted) throw new Error('Terrane debugging requires workspace trust.');
-        return new vscode.DebugAdapterExecutable(commandFor(session.workspaceFolder), ['debug-adapter', '--stdio']);
+        return new vscode.DebugAdapterExecutable(session.configuration.__terraneCompiler, ['debug-adapter', '--stdio']);
       },
     }),
+    disposeBuilds,
   );
 }
 
-function buildProgram(command, source, cwd, output, tokens) {
+function buildProgram(command, source, cwd, output, tokens, activeBuilds, isDisposed) {
   return new Promise((resolve, reject) => {
+    const cancelledError = () => Object.assign(new Error('Build cancelled'), { cancelled: true });
+    if (isDisposed() || tokens.some(token => token?.isCancellationRequested)) {
+      reject(cancelledError());
+      return;
+    }
     const child = spawn(command, ['debug', '--build-only', source], {
       cwd, detached: process.platform !== 'win32',
     });
     let stdout = '';
     let cancelled = false;
+    let settled = false;
+    const subscriptions = [];
+    const finish = (error, value) => {
+      if (settled) return;
+      settled = true;
+      activeBuilds.delete(cancel);
+      for (const subscription of subscriptions) subscription.dispose();
+      if (error) reject(error);
+      else resolve(value);
+    };
     const cancel = () => {
+      if (settled) return;
       cancelled = true;
       if (child.pid && process.platform !== 'win32') {
-        try { process.kill(-child.pid); } catch (error) {
-          if (error.code !== 'ESRCH') child.kill();
+        try { process.kill(-child.pid); } catch {
+          child.kill();
         }
-      } else {
-        child.kill();
-      }
+      } else child.kill();
     };
-    const subscriptions = tokens.filter(Boolean).map(token => token.onCancellationRequested(cancel));
-    if (tokens.some(token => token?.isCancellationRequested)) cancel();
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', chunk => { stdout += chunk; });
     child.stderr.on('data', chunk => output.append(chunk));
-    child.on('error', reject);
+    child.on('error', error => finish(cancelled ? cancelledError() : error));
     child.on('close', code => {
-      for (const subscription of subscriptions) subscription.dispose();
-      if (cancelled) return reject(Object.assign(new Error('Build cancelled'), { cancelled: true }));
-      if (code !== 0) return reject(new Error(`compiler exited with status ${code}; see Terrane Debugger output`));
+      if (cancelled) return finish(cancelledError());
+      if (code !== 0) return finish(new Error(`compiler exited with status ${code}; see Terrane Debugger output`));
       try {
         const artifact = JSON.parse(stdout);
         if (typeof artifact.program !== 'string' || !path.isAbsolute(artifact.program)
             || typeof artifact.terraneProvenance !== 'string' || !path.isAbsolute(artifact.terraneProvenance)) {
           throw new Error('compiler did not return absolute debug artifact paths');
         }
-        resolve({ program: artifact.program, terraneProvenance: artifact.terraneProvenance });
+        finish(undefined, { program: artifact.program, terraneProvenance: artifact.terraneProvenance });
       } catch (error) {
-        reject(new Error(`invalid debug build result (${error.message}); update the Terrane compiler`));
+        finish(new Error(`invalid debug build result (${error.message}); update the Terrane compiler`));
       }
     });
+    activeBuilds.add(cancel);
+    for (const token of tokens.filter(Boolean)) {
+      subscriptions.push(token.onCancellationRequested(cancel));
+    }
+    if (isDisposed() || tokens.some(token => token?.isCancellationRequested)) cancel();
   });
 }
 

@@ -2,7 +2,7 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
@@ -15,7 +15,7 @@
   },
   "scripts": {
     "package-server": "node ./scripts/package-server.js",
-    "check": "node --check extension.js && node --check debugger.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check scripts/package-server.js && npm test",
+    "check": "node --check extension.js && node --check debugger.js && node --check tests/debugger.integration.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check scripts/package-server.js && npm test",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
@@ -55,6 +55,11 @@
                 "items": { "type": "string" },
                 "description": "Program arguments, preserving spaces and Unicode.",
                 "default": []
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Debuggee working directory, resolved relative to the workspace folder (or source-file directory without a workspace). Defaults to the package source root when debug provenance is available.",
+                "default": "${workspaceFolder}"
               },
               "stopOnEntry": {
                 "type": "boolean",
@@ -152,7 +157,7 @@
           "type": "string",
           "default": "terrane",
           "scope": "resource",
-          "description": "Terrane compiler executable used to build debug programs and run the debug adapter. Defaults to terrane on PATH; requires lldb-dap."
+          "description": "Terrane compiler executable used for debug builds and the adapter. Bare names use PATH; relative paths resolve against the workspace folder (or source-file directory without a workspace). Requires lldb-dap."
         },
         "terrane.server.path": {
           "type": "string",

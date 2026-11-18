@@ -1763,3 +1763,73 @@ fn debugger_build_does_not_replace_ordinary_application_artifacts() {
         release_modified
     );
 }
+
+#[test]
+fn adapter_honors_explicit_cwd_in_source_and_native_modes() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace cwd-debugger\n",
+            "function main;\n",
+            "  rust\n",
+            "    println!(\"RUN_CWD={}\", std::env::current_dir().unwrap().display());\n",
+        ),
+    )
+    .unwrap();
+    let build = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--build-only"])
+        .arg(&fixture.source)
+        .output()
+        .unwrap();
+    assert!(build.status.success(), "{build:?}");
+    let artifacts: Value = serde_json::from_slice(&build.stdout).unwrap();
+    let run_directory = fixture.root.join("run from here");
+    fs::create_dir(&run_directory).unwrap();
+    for source_mode in [true, false] {
+        let mut dap = DapClient::start();
+        let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+        assert_eq!(dap.response(initialize)["success"], true);
+        assert_eq!(dap.read()["event"], "initialized");
+        let sidecar = if source_mode {
+            artifacts["terraneProvenance"].clone()
+        } else {
+            json!(fixture.root.join("missing-provenance.json"))
+        };
+        let launch = dap.send(
+            "launch",
+            json!({
+                "program": artifacts["program"],
+                "terraneProvenance": sidecar,
+                "cwd": run_directory,
+                "stopOnEntry": false,
+                "disableASLR": false,
+            }),
+        );
+        assert_eq!(dap.response(launch)["success"], true);
+        loop {
+            let message = dap.read();
+            if message["event"] == "terrane/fidelity" {
+                assert_eq!(
+                    message["body"]["mode"],
+                    if source_mode { "source" } else { "native" }
+                );
+                break;
+            }
+        }
+        let configuration = dap.send("configurationDone", json!({}));
+        let (response, _, messages) = dap.response_and_event(configuration, "terminated");
+        assert_eq!(response["success"], true, "{response}");
+        let stdout: String = messages
+            .iter()
+            .filter(|message| {
+                message["event"] == "output" && message["body"]["category"] == "stdout"
+            })
+            .filter_map(|message| message["body"]["output"].as_str())
+            .collect();
+        assert!(
+            stdout.contains(&format!("RUN_CWD={}", run_directory.display())),
+            "source mode {source_mode}: {stdout:?}"
+        );
+    }
+}

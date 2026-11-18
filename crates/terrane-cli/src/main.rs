@@ -224,7 +224,22 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let profile_options = (command == CliCommand::Profile)
         .then(|| profile_command::parse_record(arguments))
         .transpose()?;
-    let (
+    let parsed = if let Some(options) = &profile_options {
+        ParsedInput {
+            input_path: options.input.clone(),
+            output_path: None,
+            require_canonical_rust: false,
+            lint_name_style: false,
+            lint_unused_functions: false,
+            release: false,
+            embed_debug_sources: options.embed_sources,
+            embed_generated_sources: false,
+            debug_build_only: false,
+        }
+    } else {
+        parse_input(arguments, command)?
+    };
+    let ParsedInput {
         input_path,
         output_path,
         require_canonical_rust,
@@ -234,21 +249,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         embed_debug_sources,
         embed_generated_sources,
         debug_build_only,
-    ) = if let Some(options) = &profile_options {
-        (
-            options.input.clone(),
-            None,
-            false,
-            false,
-            false,
-            false,
-            options.embed_sources,
-            false,
-            false,
-        )
-    } else {
-        parse_input(arguments, command)?
-    };
+    } = parsed;
     let mut progress =
         (command == CliCommand::Build).then(|| build_progress::BuildProgress::new(&input_path));
     let source_input = !input_path.is_dir()
@@ -468,13 +469,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         .map_err(CliFailure::backend)?;
         let sidecar = debug_command::write_provenance(&crate_dir, &executable, &provenance)?;
         if debug_build_only {
-            println!(
-                "{}",
-                serde_json::json!({
-                    "program": executable,
-                    "terraneProvenance": sidecar,
-                })
-            );
+            let artifacts = debug_command::artifact_json_paths(&executable, &sidecar)?;
+            println!("{artifacts}");
             return Ok(ExitCode::SUCCESS);
         }
         let separator = arguments.iter().position(|argument| argument == "--");
@@ -591,17 +587,22 @@ fn rust_build_identity(
     })
 }
 
-type ParsedInput = (
-    PathBuf,
-    Option<PathBuf>,
-    bool,
-    bool,
-    bool,
-    bool,
-    bool,
-    bool,
-    bool,
-);
+#[derive(Debug, Eq, PartialEq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent command-line switches retain their named parsed states"
+)]
+struct ParsedInput {
+    input_path: PathBuf,
+    output_path: Option<PathBuf>,
+    require_canonical_rust: bool,
+    lint_name_style: bool,
+    lint_unused_functions: bool,
+    release: bool,
+    embed_debug_sources: bool,
+    embed_generated_sources: bool,
+    debug_build_only: bool,
+}
 
 fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInput, CliFailure> {
     let mut input_index = 1;
@@ -645,6 +646,12 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
     if release && !matches!(command, CliCommand::Build | CliCommand::Run) {
         return Err(CliFailure::usage());
     }
+    if debug_build_only && arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--"
+    {
+        return Err(CliFailure::usage_with(
+            "`terrane debug --build-only` does not accept program arguments",
+        ));
+    }
     if matches!(command, CliCommand::Run | CliCommand::Debug)
         && arguments.len() >= input_index + 2
         && arguments[input_index + 1] != "--"
@@ -665,7 +672,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         .get(input_index)
         .map(PathBuf::from)
         .ok_or_else(CliFailure::usage)?;
-    Ok((
+    Ok(ParsedInput {
         input_path,
         output_path,
         require_canonical_rust,
@@ -675,7 +682,7 @@ fn parse_input(arguments: &[OsString], command: CliCommand) -> Result<ParsedInpu
         embed_debug_sources,
         embed_generated_sources,
         debug_build_only,
-    ))
+    })
 }
 
 fn emit_warnings(compilation: &terrane_compiler::Compilation) {
@@ -1936,7 +1943,8 @@ fn usage() -> String {
      --lint-unused-functions  report authored top-level functions with no resolved references\n  \
      --release  use Cargo's optimized release profile for build or run\n  \
      --embed-sources  include authored source snapshots in debug provenance or profile artifacts\n  \
-     --retain-arguments  include profile workload arguments in the artifact (profile record only)\n  \
+     --embed-generated-sources  include generated Rust sources in debug provenance\n  \
+     --build-only  build debug artifacts and print their paths as JSON without launching\n  \
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile the package's native artifact\n  run    compile and execute the program\n  \
@@ -2200,17 +2208,17 @@ mod tests {
         assert_eq!(
             parse_input(&build, CliCommand::Build)
                 .unwrap_or_else(|_| panic!("release build should parse")),
-            (
-                PathBuf::from("package.toml"),
-                None,
-                false,
-                false,
-                false,
-                true,
-                false,
-                false,
-                false,
-            )
+            ParsedInput {
+                input_path: PathBuf::from("package.toml"),
+                output_path: None,
+                require_canonical_rust: false,
+                lint_name_style: false,
+                lint_unused_functions: false,
+                release: true,
+                embed_debug_sources: false,
+                embed_generated_sources: false,
+                debug_build_only: false,
+            }
         );
 
         let check = [
@@ -2235,6 +2243,23 @@ mod tests {
                 "program arguments must follow `--` (for example, `terrane run package.toml -- arg`)"
             ));
         }
+    }
+    #[test]
+    fn build_only_rejects_program_arguments_with_specific_error() {
+        let arguments = [
+            OsString::from("debug"),
+            OsString::from("--build-only"),
+            OsString::from("package.toml"),
+            OsString::from("--"),
+            OsString::from("arg"),
+        ];
+        let failure =
+            parse_input(&arguments, CliCommand::Debug).expect_err("build-only rejects arguments");
+        assert!(
+            failure
+                .message
+                .contains("does not accept program arguments")
+        );
     }
 
     #[test]
