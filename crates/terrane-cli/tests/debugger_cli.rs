@@ -1768,7 +1768,7 @@ fn debugger_build_does_not_replace_ordinary_application_artifacts() {
 }
 
 #[test]
-fn adapter_honors_explicit_cwd_in_source_and_native_modes() {
+fn adapter_cwd_handles_explicit_missing_and_null() {
     let fixture = DebugFixture::new();
     fs::write(
         &fixture.source,
@@ -1789,7 +1789,15 @@ fn adapter_honors_explicit_cwd_in_source_and_native_modes() {
     let artifacts: Value = serde_json::from_slice(&build.stdout).unwrap();
     let run_directory = fixture.root.join("run from here");
     fs::create_dir(&run_directory).unwrap();
-    for source_mode in [true, false] {
+    let inherited_directory = std::env::current_dir().unwrap();
+    for (source_mode, cwd, expected_directory) in [
+        (true, Some(json!(run_directory)), &run_directory),
+        (false, Some(json!(run_directory)), &run_directory),
+        (true, None, &fixture.root),
+        (true, Some(Value::Null), &fixture.root),
+        (false, None, &inherited_directory),
+        (false, Some(Value::Null), &inherited_directory),
+    ] {
         let mut dap = DapClient::start();
         let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
         assert_eq!(dap.response(initialize)["success"], true);
@@ -1799,16 +1807,16 @@ fn adapter_honors_explicit_cwd_in_source_and_native_modes() {
         } else {
             json!(fixture.root.join("missing-provenance.json"))
         };
-        let launch = dap.send(
-            "launch",
-            json!({
-                "program": artifacts["program"],
-                "terraneProvenance": sidecar,
-                "cwd": run_directory,
-                "stopOnEntry": false,
-                "disableASLR": false,
-            }),
-        );
+        let mut arguments = json!({
+            "program": artifacts["program"],
+            "terraneProvenance": sidecar,
+            "stopOnEntry": false,
+            "disableASLR": false,
+        });
+        if let Some(cwd) = cwd {
+            arguments["cwd"] = cwd;
+        }
+        let launch = dap.send("launch", arguments);
         assert_eq!(dap.response(launch)["success"], true);
         loop {
             let message = dap.read();
@@ -1831,7 +1839,7 @@ fn adapter_honors_explicit_cwd_in_source_and_native_modes() {
             .filter_map(|message| message["body"]["output"].as_str())
             .collect();
         assert!(
-            stdout.contains(&format!("RUN_CWD={}", run_directory.display())),
+            stdout.contains(&format!("RUN_CWD={}", expected_directory.display())),
             "source mode {source_mode}: {stdout:?}"
         );
     }

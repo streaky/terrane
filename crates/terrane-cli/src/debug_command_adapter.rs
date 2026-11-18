@@ -163,16 +163,19 @@ impl Adapter {
             });
             let mut backend_arguments = arguments;
             backend_arguments["program"] = executable.to_string_lossy().into_owned().into();
+            let backend_object = backend_arguments
+                .as_object_mut()
+                .expect("DAP arguments are an object");
             for name in [
                 "terraneProvenance",
                 "terraneRelocation",
                 "useBuildSnapshot",
                 "__terraneCompiler",
             ] {
-                backend_arguments
-                    .as_object_mut()
-                    .expect("DAP arguments are an object")
-                    .remove(name);
+                backend_object.remove(name);
+            }
+            if backend_object.get("cwd").is_some_and(Value::is_null) {
+                backend_object.remove("cwd");
             }
             if let (Some(recorded), Ok(relocated)) = (&recorded_relocation, &translation) {
                 let mut source_map = Vec::new();
