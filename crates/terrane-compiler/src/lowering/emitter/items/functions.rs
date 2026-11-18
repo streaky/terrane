@@ -722,6 +722,11 @@ impl Emitter<'_> {
                     |value_type| rust_value_type(self.package, value_type),
                 ),
             };
+            let ty = if crate::semantics::interpolatable::borrows_key(self.unit, contract) {
+                "&str".to_owned()
+            } else {
+                ty
+            };
             let mutable = if mutable_storage && !native_mutable_reference {
                 "mut "
             } else {
@@ -810,6 +815,23 @@ impl Emitter<'_> {
             self.unit.namespace.trim_end_matches('/'),
             contract.name
         ));
+        let borrowed_key = crate::semantics::interpolatable::borrows_key(self.unit, contract);
+        let materialize_key = borrowed_key && {
+            let parameter = &contract.parameters[0];
+            self.parameter_needs_shared_storage(parameter)
+                || self.unit.completion_capture_slots.contains(&parameter.span)
+                || matches!(
+                    self.unit.flow_binding_types.get(&parameter.span),
+                    Some(ValueType::Union(_))
+                )
+                || self.unit.typed_bindings.iter().any(|binding| {
+                    binding.span == parameter.span && self.binding_is_reference_owner(binding)
+                })
+        };
+        let outer_borrowed_key = std::mem::replace(
+            &mut self.borrowed_interpolation_key,
+            (borrowed_key && !materialize_key).then(|| contract.parameters[0].span),
+        );
         let outer_parameter_types = std::mem::replace(
             &mut self.parameter_types,
             contract
@@ -865,6 +887,13 @@ impl Emitter<'_> {
             self.line("__terrane_group_frame(async move {");
             self.indent += 1;
         }
+        if materialize_key {
+            // A source reference needs a stable String owner, not the borrowed
+            // text ABI. Materialize once before ordinary parameter carriers.
+            let parameter = &contract.parameters[0];
+            let name = self.parameter_source_name(&parameter.name, parameter.span);
+            self.line(&format!("let {name} = {name}.to_owned();"));
+        }
         for function in &local_functions {
             self.local_function(function);
         }
@@ -894,6 +923,7 @@ impl Emitter<'_> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
+        self.borrowed_interpolation_key = outer_borrowed_key;
         self.current_function = outer_function;
         self.indent -= 1;
         if async_main {
@@ -1073,6 +1103,7 @@ impl Emitter<'_> {
         let outer_return_type = self.return_type.replace(result.clone());
         let outer_function_errors = std::mem::replace(&mut self.function_errors, contract.throws);
         let outer_propagation = std::mem::replace(&mut self.propagate_errors, contract.throws);
+        let outer_borrowed_key = self.borrowed_interpolation_key.take();
         let outer_parameter_types = std::mem::replace(
             &mut self.parameter_types,
             contract
@@ -1153,6 +1184,7 @@ impl Emitter<'_> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
+        self.borrowed_interpolation_key = outer_borrowed_key;
         self.async_mutable_captures = outer_async_mutable_captures;
         self.fresh_empty_lists = outer_fresh_empty_lists;
         self.active_function_bindings = outer_active_bindings;
@@ -1251,6 +1283,17 @@ impl Emitter<'_> {
         }
     }
 
+    fn capture_borrows_lexical_reference(&self, binding: &crate::semantics::TypedBinding) -> bool {
+        matches!(
+            binding.value_type,
+            ValueType::Reference(_) | ValueType::MutableReference(_)
+        ) && self
+            .unit
+            .reference_provenance
+            .get(&(binding.span.start, binding.span.end))
+            .is_some_and(|provenance| !self.reference_owner_uses_shared_storage(provenance.owner))
+    }
+
     fn anonymous_function_captures(
         &self,
         node: &SyntaxNode,
@@ -1290,20 +1333,17 @@ impl Emitter<'_> {
                 ""
             };
             let source = if capture == "this" { "self" } else { &name };
+            let snapshot_method = if binding
+                .is_some_and(|binding| Some(binding.span) == self.borrowed_interpolation_key)
+            {
+                "to_owned"
+            } else {
+                "clone"
+            };
             let transfer =
                 binding.is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
-            let borrowed = binding.is_some_and(|binding| {
-                matches!(
-                    binding.value_type,
-                    ValueType::Reference(_) | ValueType::MutableReference(_)
-                ) && self
-                    .unit
-                    .reference_provenance
-                    .get(&(binding.span.start, binding.span.end))
-                    .is_some_and(|provenance| {
-                        !self.reference_owner_uses_shared_storage(provenance.owner)
-                    })
-            });
+            let borrowed =
+                binding.is_some_and(|binding| self.capture_borrows_lexical_reference(binding));
             let borrowed_mutable = borrowed
                 && matches!(
                     binding.map(|binding| &binding.value_type),
@@ -1313,7 +1353,7 @@ impl Emitter<'_> {
                 self.registry.uses_async_mutable_state.set(true);
                 write!(
                     captures,
-                    "let {name} = TerraneAsyncMutableState::new({source}.clone()); "
+                    "let {name} = TerraneAsyncMutableState::new({source}.{snapshot_method}()); "
                 )
                 .expect("writing to a String cannot fail");
                 write!(invocation_captures, "let {name} = {name}.share(); ")
@@ -1334,8 +1374,11 @@ impl Emitter<'_> {
                 write!(captures, "let {mutable}{name} = {reborrow}{source}; ")
                     .expect("writing to a String cannot fail");
             } else {
-                write!(captures, "let {mutable}{name} = {source}.clone(); ")
-                    .expect("writing to a String cannot fail");
+                write!(
+                    captures,
+                    "let {mutable}{name} = {source}.{snapshot_method}(); "
+                )
+                .expect("writing to a String cannot fail");
             }
             if borrowed_mutable && contract.written_invocation_mode == InvocationMode::Mutable {
                 write!(invocation_captures, "let mut {name} = &mut *{name}; ")

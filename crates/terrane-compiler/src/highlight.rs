@@ -92,11 +92,14 @@ pub fn highlight(source: &SourceFile) -> HighlightOutput {
 
 fn base_classification(token: &Token, next: Option<&Token>) -> Option<(HighlightKind, bool)> {
     match token.kind {
-        TokenKind::Number => Some((HighlightKind::Number, false)),
-        TokenKind::String | TokenKind::TailString | TokenKind::BlockString => {
-            Some((HighlightKind::String, false))
-        }
-        TokenKind::Assign
+        TokenKind::String
+        | TokenKind::StringStart
+        | TokenKind::StringText
+        | TokenKind::StringEnd
+        | TokenKind::TailString
+        | TokenKind::BlockString => Some((HighlightKind::String, false)),
+        TokenKind::RenderingSelector
+        | TokenKind::Assign
         | TokenKind::Operator
         | TokenKind::Increment
         | TokenKind::Decrement
@@ -197,6 +200,22 @@ fn classify_node(
             {
                 classify_names(name, tokens, classified, HighlightKind::Property, false);
             }
+        }
+        SyntaxKind::Interpolation => {
+            if let Some(key) = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::RenderingKey)
+            {
+                let key_start = key.token_range.start;
+                if key_start >= 2 {
+                    classified[key_start - 2] = Some((HighlightKind::Operator, false));
+                    classified[key_start - 1] = Some((HighlightKind::Operator, false));
+                }
+            }
+        }
+        SyntaxKind::RenderingKey => {
+            classify_names(node, tokens, classified, HighlightKind::Property, false);
         }
         SyntaxKind::CallExpression => {
             if let Some(callee) = node.children.first()

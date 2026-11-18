@@ -1,0 +1,7 @@
+namespace core/display
+
+from /core/errors import throwable
+
+/// Explicit synchronous text interpolation protocol.
+interface interpolatable
+    function interpolate string throws throwable; key string

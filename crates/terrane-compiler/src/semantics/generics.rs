@@ -642,6 +642,9 @@ pub(crate) fn generic_bounds_satisfied(
                     super::types::object_types_compatible(&unit.descriptors, bound, actual_bound)
                 });
         }
+        if super::interpolatable::is_protocol(bound) {
+            return super::interpolatable::generic_conforms(unit, actual, position);
+        }
         let ValueType::Object(actual) = actual else {
             return false;
         };

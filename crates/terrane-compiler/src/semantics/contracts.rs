@@ -133,11 +133,11 @@ fn collect_function_bindings(
                 parameter
                     .binding_value_type()
                     .map(|value_type| TypedBinding {
+                        value_type,
                         name: parameter.name.clone(),
                         span: parameter.span,
                         visible_from: parameter.span.start,
                         scope: Some(node.span),
-                        value_type,
                         destination_arms: Vec::new(),
                         storage_type: None,
                         mutable: false,

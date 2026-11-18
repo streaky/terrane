@@ -1147,6 +1147,7 @@ fn analyze_parsed_with_projection(
         super::pipeline_syntax::normalize(&mut semantic)?;
     }
     super::throw_construction::normalize(&mut semantic);
+    super::interpolation::normalize_keys(&mut semantic)?;
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     super::ownership::validate_reference_expression_sites(&semantic)?;
@@ -1196,6 +1197,7 @@ fn analyze_parsed_with_projection(
         crate::compilation_progress::start("final semantic validation", package.root.display());
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     super::pipelines::validate(&semantic)?;
+    super::interpolation::validate(&semantic)?;
     super::objects::validate_closed_interface_bindings(&semantic)?;
     super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.

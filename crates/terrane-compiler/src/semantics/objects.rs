@@ -300,10 +300,7 @@ fn field_metadata(
                         entry.span,
                     ));
                 }
-                let decoded = crate::lexer::unescape_bytes(&value[1..value.len() - 1])
-                    .expect("the lexer validated string escapes");
-                external_name =
-                    String::from_utf8(decoded).expect("Terrane source strings remain UTF-8");
+                external_name = crate::lexer::string_literal_value(value);
             }
             "secret" => match value {
                 "true" => secret = true,

@@ -6,6 +6,11 @@ pub(crate) struct BundledSource {
 
 const SOURCES: &[BundledSource] = &[
     BundledSource {
+        namespace: "/core/display",
+        path: "core/display.trn",
+        text: include_str!("core/display.trn"),
+    },
+    BundledSource {
         namespace: "/core/streams",
         path: "core/streams.trn",
         text: include_str!("core/streams.trn"),

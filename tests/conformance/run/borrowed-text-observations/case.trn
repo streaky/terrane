@@ -101,7 +101,7 @@ async function main;
     print; (item.items[0].contains; item.items[1])
     shared.items = list; 'al', 'alpha'
     print; (shared.items[0].contains; shared.items[1])
-    print; ('escaped\n雪'.contains; '雪')
+    print; ("escaped\n雪".contains; '雪')
     print; ('x'.contains; ('b'))
     grid list of list of string = list; (list; 'a', 'b'), (list; 'c', 'd')
     print; (grid[1][0].trim;)

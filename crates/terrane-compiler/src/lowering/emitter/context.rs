@@ -47,6 +47,9 @@ impl<'unit> Emitter<'unit> {
         {
             return local.clone();
         }
+        if let Some(name) = self.borrowed_key_name(node) {
+            return format!("{name}.to_owned()");
+        }
         let resolved = self
             .package
             .resolve_name_at(self.unit, node.span.start, source_name);
@@ -59,6 +62,15 @@ impl<'unit> Emitter<'unit> {
         else {
             return rust_name(source_name);
         };
+        if symbol.kind == SymbolKind::Function
+            && let Some(contract) = self.contract_for_call(node, false)
+            && contract.owner.is_none()
+            && self.package.units.iter().any(|unit| {
+                unit.source.id() == contract.span.file && !unit.namespace.starts_with("/deps/")
+            })
+        {
+            return function_name(self.package, contract);
+        }
         if symbol.kind != SymbolKind::Binding {
             return rust_name(source_name);
         }
@@ -1105,6 +1117,17 @@ impl<'unit> Emitter<'unit> {
                 continue;
             }
             if let Some(default) = parameter.children.last() {
+                let borrowed_key =
+                    crate::semantics::interpolatable::borrows_key(self.unit, contract);
+                let text = &owner.source.text()[default.span.start..default.span.end];
+                if borrowed_key
+                    && default.kind == SyntaxKind::Literal
+                    && (text.starts_with('\'') || text.starts_with('"'))
+                {
+                    let value = crate::lexer::string_literal_value(text);
+                    values[index] = Some(format!("{value:?}"));
+                    continue;
+                }
                 let destination = contract.parameters[index].value_type.clone();
                 let value = destination
                     .and_then(|destination| match destination {
@@ -1122,7 +1145,11 @@ impl<'unit> Emitter<'unit> {
                         _ => None,
                     })
                     .unwrap_or_else(|| literal_or_text(&owner.source, default));
-                values[index] = Some(value);
+                values[index] = Some(if borrowed_key {
+                    format!("AsRef::<str>::as_ref(&({value}))")
+                } else {
+                    value
+                });
             }
         }
     }
@@ -1567,6 +1594,7 @@ impl<'unit> Emitter<'unit> {
     }
     fn rust_block_needs_snapshot(&self, binding: &TypedBinding, node: &SyntaxNode) -> bool {
         if self.reference_backed(binding)
+            || self.borrowed_interpolation_key == Some(binding.span)
             || self.binding_is_reference_owner(binding)
             || self.binding_may_be_unassigned(binding)
             || matches!(&binding.value_type, ValueType::Object(object) if self.object_requires_separation(object))
@@ -1613,6 +1641,8 @@ impl<'unit> Emitter<'unit> {
                     } else {
                         format!("let {name} = {value}.clone();")
                     }
+                } else if self.borrowed_interpolation_key == Some(binding.span) {
+                    format!("let {name} = {name}.to_owned();")
                 } else {
                     format!("let {name} = {name}.clone();")
                 }

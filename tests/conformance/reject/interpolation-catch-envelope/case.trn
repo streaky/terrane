@@ -1,0 +1,11 @@
+namespace interpolation-catch-envelope
+from /core/errors import throwable
+class problem implements throwable
+    message string = 'problem'
+    function render string;
+        return 'problem'
+function main;
+    try
+        throw instance problem;
+    catch problem as error
+        print; "{error}"

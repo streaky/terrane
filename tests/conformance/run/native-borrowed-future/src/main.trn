@@ -44,9 +44,9 @@ function describe string; value throwable
     return value.message
 
 async function main;
-    print; (await read_literal_later; 'borrowed\nλ')
-    print; ((Options::new;).with_label; 'generic\nλ')
-    print; ((Options::new;).with_borrowed_label; 'direct escaped\tvalue')
+    print; (await read_literal_later; "borrowed\nλ")
+    print; ((Options::new;).with_label; "generic\nλ")
+    print; ((Options::new;).with_borrowed_label; "direct escaped\tvalue")
     print; ((Options::new;).with_owned_label; 'owned parameter')
     named string = 'named value survives'
     print; ((Options::new;).with_label; named)

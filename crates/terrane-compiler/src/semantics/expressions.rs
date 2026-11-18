@@ -365,6 +365,12 @@ fn infer_nonbinary_value_type(
     {
         return infer_value_type(unit, construction, bindings);
     }
+    if matches!(
+        node.kind,
+        SyntaxKind::InterpolatedString | SyntaxKind::StringText
+    ) {
+        return Ok(Some(ValueType::Scalar(ScalarType::String)));
+    }
     if node.kind == SyntaxKind::Literal {
         return Ok(infer_literal_type(unit, node).map(ValueType::Scalar));
     }

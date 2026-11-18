@@ -2036,6 +2036,9 @@ pub(super) fn value_types_compatible(
     actual: &ValueType,
 ) -> bool {
     match (expected, actual) {
+        (ValueType::Object(expected), actual) if super::interpolatable::is_protocol(expected) => {
+            super::interpolatable::concrete_conforms(objects, actual)
+        }
         (_, ValueType::Union(actual)) => actual
             .iter()
             .all(|actual| value_types_compatible(objects, expected, actual)),

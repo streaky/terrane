@@ -1,0 +1,6 @@
+phase = "check"
+status = "reject"
+
+[diagnostics]
+code = "T0250"
+contains = "key must be a selector identifier"

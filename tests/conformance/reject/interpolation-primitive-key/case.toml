@@ -1,0 +1,6 @@
+phase = "check"
+status = "reject"
+
+[diagnostics]
+code = "T0253"
+contains = "no interpolation renderer is registered for key `money`"

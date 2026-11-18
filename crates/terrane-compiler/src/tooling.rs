@@ -3588,6 +3588,46 @@ mod tests {
     static NEXT_TEMPORARY_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
 
     #[test]
+    fn interpolation_cursors_keep_source_names() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/interpolation-cursors.trn";
+        let text = "namespace interpolation-cursors\nfrom /core/modifiers import interpolation-renderer\nfunction text string; value int\n    return value.to-string;\nfunction main;\n    with (interpolation-renderer; key = 'k') renderer function from int to string = text\n    value = 7\n    print; \"literal {value !: k}\"\n";
+        let metadata = open(
+            &mut engine,
+            uri,
+            text,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let value_at = text.find("{value").unwrap() + 1;
+        let value = engine
+            .locate(&metadata.snapshot_id, uri, value_at)
+            .unwrap()
+            .unwrap();
+        assert_eq!(value.name.as_deref(), Some("value"));
+        assert_eq!(value.value_type, Availability::Known("int".to_owned()));
+        let Availability::Known(definition) = engine
+            .definition(&metadata.snapshot_id, uri, value_at)
+            .unwrap()
+        else {
+            panic!("interpolated source value must retain its definition");
+        };
+        assert_eq!(definition.span.start, text.find("value = 7").unwrap());
+        for offset in [
+            text.find("literal").unwrap(),
+            text.find("!: k").unwrap() + 3,
+        ] {
+            let object = engine
+                .locate(&metadata.snapshot_id, uri, offset)
+                .unwrap()
+                .unwrap();
+            assert!(object.name.is_none(), "{object:?}");
+        }
+    }
+
+    #[test]
     fn generic_members_and_variants_keep_navigation() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/generic-navigation.trn";

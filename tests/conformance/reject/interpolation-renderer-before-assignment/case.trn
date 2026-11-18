@@ -1,0 +1,7 @@
+namespace interpolation-renderer-before-assignment
+from /core/modifiers import interpolation-renderer
+function text string; value int
+    return value.to-string;
+function main;
+    print; "{1 !: k}"
+    with (interpolation-renderer; key = 'k') renderer function from int to string = text

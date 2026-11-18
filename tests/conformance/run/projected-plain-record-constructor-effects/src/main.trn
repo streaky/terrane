@@ -23,7 +23,7 @@ function literal-count Count throws dependency-error;
 function literal-mark Mark throws dependency-error;
     return instance Mark; mark = ('A')
 function escaped-mark Mark throws dependency-error;
-    return instance Mark; mark = '\n'
+    return instance Mark; mark = "\n"
 function literal-optional OptionalMark throws dependency-error;
     return instance OptionalMark; mark = 'Ω'
 async function main;

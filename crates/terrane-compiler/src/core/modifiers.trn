@@ -18,3 +18,8 @@ class scoped-access
 /// Applies an ordered, fused, demand-driven sequence of list transformations.
 @[modifier; operation = 'pipeline-sequential', structural = true]
 class pipeline-sequential
+
+/// Registers a lexical callable used to render interpolated values by key.
+@[modifier; operation = 'interpolation-renderer']
+class interpolation-renderer
+    key string

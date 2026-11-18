@@ -1,0 +1,11 @@
+namespace interpolation-union-arm
+class item
+    value int = 1
+function describe string; selected bool
+    if selected
+        value item = instance item;
+    else
+        value int = 1
+    return "{value}"
+function main;
+    print; (describe; true)

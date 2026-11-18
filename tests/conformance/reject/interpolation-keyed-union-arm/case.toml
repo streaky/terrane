@@ -1,0 +1,6 @@
+phase = "check"
+status = "reject"
+
+[diagnostics]
+code = "T0253"
+contains = "built-in arm `int` defines no interpolation keys"

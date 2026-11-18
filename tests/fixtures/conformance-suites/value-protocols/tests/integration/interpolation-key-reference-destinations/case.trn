@@ -1,0 +1,66 @@
+namespace interpolation-key-reference-destinations
+
+from /core/display import interpolatable
+from /core/testing import assert-equal-string
+
+function key-length int; value ref string
+    return value.length
+
+function forward-key ref string; value ref string
+    return value
+
+function generic-reference of (T) ref T; value ref T
+    return value
+
+class reference-key implements interpolatable
+    function interpolate string; key string
+        direct = key-length; key
+        alias = ref key
+        forwarded = forward-key; (key)
+        generic = generic-reference; key
+        callback function from ref string to int = key-length
+        maybe (ref string)|none = alias
+        if maybe != none
+            return "refs:{direct}:{key-length; alias}:{key-length; forwarded}:{key-length; generic}:{callback; key}:{key-length; maybe}"
+        return 'missing'
+
+class shared-key implements interpolatable
+    function interpolate string; key string
+        shared = shared ref key
+        observer = ref key
+        return "shared:{shared}:{observer}:{key}"
+
+class borrowed-key implements interpolatable
+    function interpolate string; key string
+        if (key) == 'snapshot'
+            owned = key
+            owned = owned + '!'
+            return "{owned}|{key}"
+        if key == 'return'
+            return key
+        if key == 'single'
+            return "{key}"
+        if key == 'capture'
+            callback = function string;
+                return key
+            return (callback;) + (callback;)
+        return "[{key}]" + (key + '!') + (key.concat; '?') + "[{((key))}]" + ((key).join; 'x', 'y')
+
+function test-scenario;
+    value = instance reference-key;
+    assert-equal-string; "{value !: overview}", 'refs:8:8:8:8:8:8'
+    assert-equal-string; "{value}", 'refs:0:0:0:0:0:0'
+    assert-equal-string; (value.interpolate; 'key'), 'refs:3:3:3:3:3:3'
+    bound = value.interpolate
+    assert-equal-string; (bound; 'key'), 'refs:3:3:3:3:3:3'
+    shared = instance shared-key;
+    assert-equal-string; "{shared !: overview}", 'shared:overview:overview:overview'
+    assert-equal-string; "{shared}", 'shared:::'
+    borrowed = instance borrowed-key;
+    assert-equal-string; "{borrowed !: overview}", '[overview]overview!overview?[overview]xoverviewy'
+    assert-equal-string; "{borrowed}", '[]!?[]xy'
+    assert-equal-string; (borrowed.interpolate; 'é{a}\z'), '[é{a}\z]é{a}\z!é{a}\z?[é{a}\z]xé{a}\zy'
+    assert-equal-string; (borrowed.interpolate; 'snapshot'), 'snapshot!|snapshot'
+    assert-equal-string; (borrowed.interpolate; 'return'), 'return'
+    assert-equal-string; (borrowed.interpolate; 'single'), 'single'
+    assert-equal-string; (borrowed.interpolate; 'capture'), 'capturecapture'

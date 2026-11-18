@@ -1,0 +1,20 @@
+namespace function-value-name-collisions
+
+from /core/testing import assert
+from /function-value-left import selected as selected-left
+from /function-value-right import selected as selected-right
+from /function-value-left import parse-selected as parse-left
+from /function-value-right import parse-selected as parse-right
+
+function test-scenario;
+    left function to int = selected-left
+    right function to int = selected-right
+    assert; (left;) == 11
+    assert; (right;) == 22
+    value = 'value'
+    assert; (value.parse; parse-left) == 11
+    parsed = value.parse.checked; parse-right
+    if parsed != none
+        assert; parsed == 22
+    else
+        assert; false

@@ -75,17 +75,54 @@
       }
     },
     "quoted-text": {
-      "name": "string.quoted.single.terrane",
-      "begin": "b?'",
-      "beginCaptures": {
-        "0": { "name": "punctuation.definition.string.begin.terrane" }
-      },
-      "end": "'|$",
-      "endCaptures": {
-        "0": { "name": "punctuation.definition.string.end.terrane" }
-      },
       "patterns": [
-        { "include": "#escapes" }
+        { "include": "#byte-string" },
+        { "include": "#single-string" },
+        { "include": "#double-string" }
+      ]
+    },
+    "single-string": {
+      "name": "string.quoted.single.terrane",
+      "begin": "'",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.terrane" } },
+      "end": "'|$",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
+      "patterns": [{ "include": "#single-escapes" }]
+    },
+    "byte-string": {
+      "name": "string.quoted.single.terrane",
+      "begin": "b'",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.terrane" } },
+      "end": "'|$",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
+      "patterns": [{ "include": "#byte-escapes" }]
+    },
+    "single-escapes": {
+      "name": "constant.character.escape.terrane",
+      "match": "\\\\[\\\\']"
+    },
+    "byte-escapes": {
+      "name": "constant.character.escape.terrane",
+      "match": "\\\\(?:[\\\\'nrt0]|x[0-9A-Fa-f]{2})"
+    },
+    "double-string": {
+      "name": "string.quoted.double.terrane",
+      "begin": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.terrane" } },
+      "end": "\"|$",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
+      "patterns": [
+        { "name": "constant.character.escape.terrane", "match": "\\\\u\\{[0-9A-Fa-f]+\\}" },
+        { "name": "constant.character.escape.terrane", "match": "\\{\\{" },
+        { "name": "constant.character.escape.terrane", "match": "\\}\\}" },
+        {
+          "name": "meta.interpolation.terrane",
+          "begin": "\\{(?!\\{)",
+          "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.terrane" } },
+          "end": "\\}(?!\\})",
+          "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.terrane" } },
+          "patterns": [{ "include": "#interpolation-key" }, { "include": "$self" }]
+        }
       ]
     },
     "escapes": {
@@ -122,6 +159,17 @@
           "captures": {
             "1": { "name": "keyword.control.terrane" },
             "3": { "name": "keyword.control.terrane" }
+          }
+        }
+      ]
+    },
+    "interpolation-key": {
+      "patterns": [
+        {
+          "match": "(?<=\\s)(!:)(\\s+)([A-Za-z_][A-Za-z0-9_]*(?:[+*%<>-]+[A-Za-z0-9_]+)*)",
+          "captures": {
+            "1": { "name": "keyword.operator.terrane" },
+            "3": { "name": "variable.other.interpolation-key.terrane" }
           }
         }
       ]

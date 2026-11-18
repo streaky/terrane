@@ -2304,6 +2304,11 @@ pub(crate) fn selected_callable_contract(
         let Some(bound) = &parameter.bound else {
             continue;
         };
+        // The intrinsic protocol's scalar implementations have no source descriptor.
+        // Unit selection has already checked its canonical conformance relation.
+        if super::interpolatable::is_protocol(bound) {
+            continue;
+        }
         // Unit selection already proved an enclosing parameter's declared bound.
         // Only concrete implementors need the package-wide interface lookup.
         if matches!(

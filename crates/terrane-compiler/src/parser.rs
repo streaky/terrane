@@ -16,6 +16,8 @@ mod structured_assignment;
 
 #[path = "parser/call_layout.rs"]
 mod call_layout;
+#[path = "parser/interpolated_string.rs"]
+mod interpolated_string;
 
 /// The recovered syntax tree and any source-oriented syntax diagnostics.
 #[derive(Clone, Debug)]
@@ -1912,6 +1914,7 @@ impl Parser<'_> {
                 self.parse_rust_block(true)
             }
             TokenKind::Identifier => self.leaf(SyntaxKind::Name),
+            TokenKind::StringStart => self.parse_interpolated_string(),
             TokenKind::Number
             | TokenKind::String
             | TokenKind::TailString
@@ -2498,6 +2501,9 @@ impl Parser<'_> {
                     | TokenKind::CloseBracket
                     | TokenKind::OpenBrace
                     | TokenKind::CloseBrace
+                    | TokenKind::InterpolationClose
+                    | TokenKind::RenderingSelector
+                    | TokenKind::StringEnd
             )
     }
     fn at(&self, kind: TokenKind) -> bool {

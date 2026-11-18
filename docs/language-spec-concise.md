@@ -864,6 +864,25 @@ cow: separation at first mutation visible through a non-unique value handle
 hash_keys: mutable values and identity-bearing resources cannot be hash keys
 ```
 
+Quoted strings:
+
+```yaml
+single_quotes: raw Unicode; only \' and \\ escapes are interpreted; all other backslash sequences remain literal
+double_quotes: interpolation plus \\, \', \", \n, \r, \t, \0, \u{1F600}; unknown escapes error
+literal_braces: {{ and }} produce { and } only in double-quoted strings; a lone } is an error
+interpolation: {ordinary Terrane expression}; inline calls and inner strings use ordinary expression and quote rules; at most two active interpolating levels; non-interpolating inner strings do not count; ordinary expression nesting is unrestricted
+selector: whitespace-separated `expr !: key`, only at interpolation-expression top level; `!:` inside nested expressions is rejected
+interpolation_renderer: `with (interpolation-renderer; key = 'overview') renderer function from T to string = f`; explicit inventory of keys; function-local callable slot is initialized then ordinarily reassigned; one registration per key/function; registered key overrides interface dispatch; registration slot shadowing is rejected with T0250; no global callable storage
+interpolation_protocol: explicit `/core/display::interpolatable`; synchronous `interpolate string; key string`, with `''` for plain interpolation; no default parameter
+interpolation_values: built-in scalar types conform; plain unregistered interpolation uses canonical scalar text; direct statically primitive keyed interpolation without registration rejects; primitives through a generic `interpolatable` bound return canonical text for any key; every union/optional arm must conform including `none`; bytes and catch envelopes reject; throwable classes may separately implement the interface
+interpolation_effects: ordinary interface calls retain effects, including throws; evaluate the value before loading the selected callback slot; invoke and append before evaluating the next interpolation; no whole-string handler snapshot
+```
+
+Single-quoted backslashes other than `\'` and `\\` are preserved, including sequences
+such as `\n`; use double quotes for escapes that represent control characters. This intentional
+change has no compatibility warning: every other backslash sequence is valid raw text.
+
+
 String members follow the same callable-family shape:
 
 ```yaml
@@ -1104,7 +1123,7 @@ text_read_result: text string plus the same byte-count/status fields; malformed 
 write_result: incomplete result retains encoded data bytes for resume; completed result releases data; completed byte count, failed bool, message string
 partial_policy: read/write/resume may complete partially; resume performs one host write and may be repeated; read-exact fails on short EOF, bounded read-all accepts EOF, write-all loops until complete/failure/no progress
 bounded_read_all: explicit limit REQUIRED
-newline: no implicit translation; text-writer.line explicitly appends '\n' and its completed count includes the encoded newline
+newline: no implicit translation; text-writer.line explicitly appends "\n" and its completed count includes the encoded newline; single-quoted '\n' means literal backslash+n
 close: explicit, consuming, idempotent host release with observable failure; destruction explicitly discards release failure
 writer_durability: byte/text writer flush, sync-data, and sync-all are distinct; unsupported/failure never silently weakens
 async: read-async/write-async preserve synchronous result contracts; cancellation is task-outcome state and never fabricates stream progress

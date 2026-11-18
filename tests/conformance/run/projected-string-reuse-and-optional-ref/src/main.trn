@@ -12,7 +12,7 @@ function parse-twice int; text string
             _second = HeaderValue::from_str; text
             return 2
         catch InvalidHeaderValue
-            if text.contains; '\n'
+            if text.contains; "\n"
                 return 3
             return 4
 
@@ -24,7 +24,7 @@ function mark-sensitive; header mutable ref HeaderValue
 
 function main;
     print; (parse-twice; 'valid')
-    print; (parse-twice; 'bad\nvalue')
+    print; (parse-twice; "bad\nvalue")
     header HeaderValue|none = HeaderValue::from_str; 'value'
     if header != none
         print; (sensitive; header)

@@ -38,12 +38,16 @@ impl Drop for Fixture {
 
 fn source_literal(value: &str) -> String {
     format!(
-        "'{}'",
+        "\"{}\"",
         value
             .replace('\\', "\\\\")
-            .replace('\'', "\\'")
+            .replace('"', "\\\"")
             .replace('\n', "\\n")
             .replace('\r', "\\r")
+            .replace('\t', "\\t")
+            .replace('\0', "\\0")
+            .replace('{', "{{")
+            .replace('}', "}}")
     )
 }
 
@@ -193,7 +197,7 @@ editor-tool = "src"
 path = "../../protocol"
 "#,
     );
-    fixture.write("provider/consumer/src/main.trn", r"namespace editor-tool
+    fixture.write("provider/consumer/src/main.trn", r#"namespace editor-tool
 from /terrane/annotation-consumer-protocol import read-request, get, at, text, emit-source
 from /core/filesystem import filesystem-capability, filesystem-read-bounded
 from /core/filesystem/paths import path
@@ -205,11 +209,11 @@ function main;
     loaded = filesystem-read-bounded; authority, (instance path; 'mode.txt'), 32
     mode = loaded.data.decode; utf8
     if (text; (get; declaration, 'documentation')) == 'integer' and mode == 'integer'
-        emit-source; 'answer', 'namespace generated/result\npublic function answer int;\n    return 41\n'
+        emit-source; 'answer', "namespace generated/result\npublic function answer int;\n    return 41\n"
     else
-        emit-source; 'answer', 'namespace generated/result\npublic function answer string;\n    return \'changed\'\n'
+        emit-source; 'answer', "namespace generated/result\npublic function answer string;\n    return 'changed'\n"
 main
-");
+"#);
     fixture.write(
         "app/package.toml",
         r#"package = "consumer-app"

@@ -1,0 +1,8 @@
+namespace interpolation-renderer-duplicate
+from /core/modifiers import interpolation-renderer
+function text string; value int
+    return value.to-string;
+function main;
+    with (interpolation-renderer; key = 'k') first function from int to string = text
+    with (interpolation-renderer; key = 'k') second function from int to string = text
+    print; "{1 !: k}"

@@ -219,7 +219,7 @@ pub(super) fn literal(text: &str) -> String {
         && ((trimmed.starts_with('\'') && trimmed.ends_with('\''))
             || (trimmed.starts_with('"') && trimmed.ends_with('"')))
     {
-        crate::lexer::unescape_string(&trimmed[1..trimmed.len() - 1])
+        crate::lexer::string_literal_value(trimmed)
     } else {
         trimmed.to_owned()
     };

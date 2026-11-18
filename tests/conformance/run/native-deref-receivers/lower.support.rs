@@ -1454,6 +1454,15 @@ impl PipelineSequential {
         Self {}
     }
 }
+#[derive(Clone)]
+pub struct InterpolationRenderer {
+    pub key: String,
+}
+impl InterpolationRenderer {
+    pub fn terrane_construct() -> Self {
+        Self { key: String::new() }
+    }
+}
 // Source: core/time.trn
 // Namespace: core/time
 #[derive(Clone)]

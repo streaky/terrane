@@ -95,6 +95,9 @@ impl Emitter<'_> {
         method: &FunctionContract,
         index: usize,
     ) -> String {
+        if crate::semantics::interpolatable::borrows_key(self.unit, method) {
+            return "&str".to_owned();
+        }
         let parameter = &method.parameters[index];
         let source = parameter.binding_value_type().map_or_else(
             || "i128".to_owned(),

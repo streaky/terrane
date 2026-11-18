@@ -8,6 +8,7 @@ const DEFINITION: &str = "/core/modifiers::modifier";
 pub(crate) enum ModifierOperation {
     ScopedAccess,
     PipelineSequential,
+    InterpolationRenderer,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -63,6 +64,7 @@ fn resolve_operation(
         Some(CompileTimeValue::Boolean(true))
     );
     let operation = match operation.as_str() {
+        "interpolation-renderer" if !structural => ModifierOperation::InterpolationRenderer,
         "scoped-access" if structural => ModifierOperation::ScopedAccess,
         "pipeline-sequential" if structural => ModifierOperation::PipelineSequential,
         "scoped-access" => {
@@ -79,6 +81,13 @@ fn resolve_operation(
                 "pipeline-sequential requires the compiler-defined structural contract",
             ));
         }
+        "interpolation-renderer" if structural => {
+            return Err(error(
+                unit,
+                application.span,
+                "interpolation-renderer does not use the structural contract",
+            ));
+        }
         _ => {
             return Err(error(
                 unit,
@@ -89,6 +98,16 @@ fn resolve_operation(
             ));
         }
     };
+    validate_operation(unit, declaration, application, payload, operation)
+}
+
+fn validate_operation(
+    unit: &SemanticUnit,
+    declaration: &SyntaxNode,
+    application: &SyntaxNode,
+    payload: &CompileTimeValue,
+    operation: ModifierOperation,
+) -> Result<ModifierOperation, SemanticFailure> {
     match operation {
         ModifierOperation::ScopedAccess => {
             if declaration.kind != SyntaxKind::WithRegion {
@@ -124,6 +143,26 @@ fn resolve_operation(
                     unit,
                     application.span,
                     "pipeline-sequential does not accept configuration fields",
+                ));
+            }
+        }
+        ModifierOperation::InterpolationRenderer => {
+            if !matches!(
+                declaration.kind,
+                SyntaxKind::Binding | SyntaxKind::Assignment
+            ) {
+                return Err(error(
+                    unit,
+                    declaration.span,
+                    "interpolation-renderer applies to a callable binding",
+                ));
+            }
+            if !matches!(field(payload, "key"), Some(CompileTimeValue::String(key)) if !key.is_empty())
+            {
+                return Err(error(
+                    unit,
+                    application.span,
+                    "interpolation-renderer requires a non-empty string key",
                 ));
             }
         }

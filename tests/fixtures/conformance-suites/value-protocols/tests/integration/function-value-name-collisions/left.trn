@@ -1,0 +1,7 @@
+namespace function-value-left
+
+public function selected int;
+    return 11
+
+public function parse-selected int; source string
+    return 11

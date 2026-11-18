@@ -1,0 +1,7 @@
+namespace interpolation-optional-arm
+class item
+    value int = 1
+function describe string; value item|none
+    return "{value}"
+function main;
+    print; (describe; none)

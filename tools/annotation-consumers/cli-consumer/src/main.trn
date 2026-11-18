@@ -157,15 +157,15 @@ function generate string throws consumer-error; request document-value
             prior-flag = selected-flag; prior-record, prior-name
             if prior-flag == flag
                 raise; record, ('duplicate or reserved CLI option '.concat; (quote; flag))
-    generated = 'namespace generated/annotation-cli\nfrom /core/output import print\nfrom /core/process import arguments, native-string, cli-schema, parse-command-line\nfrom /core/collections import list\nfrom /core/errors import coercion-error\n'
-    generated = generated.concat; 'from ', pieces[0], ' import ', pieces[pieces.length - 1], ' as selected-command\n\nfunction run-command int;\n    user-arguments = arguments;\n    schema-entries list of string = (list; \'flag:--help\')\n'
+    generated = "namespace generated/annotation-cli\nfrom /core/output import print\nfrom /core/process import arguments, native-string, cli-schema, parse-command-line\nfrom /core/collections import list\nfrom /core/errors import coercion-error\n"
+    generated = generated.concat; 'from ', pieces[0], ' import ', pieces[pieces.length - 1], " as selected-command\n\nfunction run-command int;\n    user-arguments = arguments;\n    schema-entries list of string = (list; 'flag:--help')\n"
     for index in (range; 0, parameter-count)
         parameter = at; parameters, index
         parameter-name = text; (get; parameter, 'name')
         record = parameter-record; declarations, identity, parameter-name, function-declaration
         flag = selected-flag; record, parameter-name
-        generated = generated.concat; '    schema-entries.append; ', (quote; ('value:'.concat; flag)), '\n'
-    generated = generated.concat; '    schema = instance cli-schema; schema-entries\n    parsed = parse-command-line; schema, user-arguments\n    if parsed.diagnostic-messages.length > 0\n        index int = 0\n        while index < parsed.diagnostic-messages.length\n            print; parsed.diagnostic-messages[index]\n            index = index + 1\n        return 2\n    if parsed.flags.length > 0\n        print; ', (quote; ('Usage: '.concat; command-name, ' [options]')), '\n        print; ', (quote; summary), '\n'
+        generated = generated.concat; '    schema-entries.append; ', (quote; ('value:'.concat; flag)), "\n"
+    generated = generated.concat; "    schema = instance cli-schema; schema-entries\n    parsed = parse-command-line; schema, user-arguments\n    if parsed.diagnostic-messages.length > 0\n        index int = 0\n        while index < parsed.diagnostic-messages.length\n            print; parsed.diagnostic-messages[index]\n            index = index + 1\n        return 2\n    if parsed.flags.length > 0\n        print; ", (quote; ('Usage: '.concat; command-name, ' [options]')), "\n        print; ", (quote; summary), "\n"
     for index in (range; 0, parameter-count)
         parameter = at; parameters, index
         pname = text; (get; parameter, 'name')
@@ -180,8 +180,8 @@ function generate string throws consumer-error; request document-value
         shown-default = ''
         if optional and default-value.kind != 'none'
             shown-default = ' (default: '.concat; (text; (get; default-value, 'value')), ')'
-        generated = generated.concat; '        print; ', (quote; ('  '.concat; flag, ' <', kind, '>', shown-default, '  ', help-text)), '\n'
-    generated = generated.concat; '        print; \'  --help  Show this help\'\n        return 0\n'
+        generated = generated.concat; '        print; ', (quote; ('  '.concat; flag, ' <', kind, '>', shown-default, '  ', help-text)), "\n"
+    generated = generated.concat; "        print; '  --help  Show this help'\n        return 0\n"
     for index in (range; 0, parameter-count)
         parameter = at; parameters, index
         pname = text; (get; parameter, 'name')
@@ -191,25 +191,25 @@ function generate string throws consumer-error; request document-value
         default-value = get; parameter, 'default'
         optional = (truth; (get; parameter, 'optional')) or default-value.kind != 'none'
         initial = initial-source; optional, default-value, kind, type-name, function-declaration
-        generated = generated.concat; '    ', pname, ' ', type-name, ' = ', initial, '\n'
+        generated = generated.concat; '    ', pname, ' ', type-name, ' = ', initial, "\n"
         if not optional
-            generated = generated.concat; '    seen-', pname, ' bool = false\n'
-    generated = generated.concat; '    option-index int = 0\n    while option-index < parsed.option-names.length\n        option-name = parsed.option-names[option-index]\n        option-value = parsed.option-values[option-index]\n'
+            generated = generated.concat; '    seen-', pname, " bool = false\n"
+    generated = generated.concat; "    option-index int = 0\n    while option-index < parsed.option-names.length\n        option-name = parsed.option-names[option-index]\n        option-value = parsed.option-values[option-index]\n"
     for index in (range; 0, parameter-count)
         parameter = at; parameters, index
         pname = text; (get; parameter, 'name')
         record = parameter-record; declarations, identity, pname, function-declaration
         kind = parameter-kind; parameter, record
         flag = selected-flag; record, pname
-        generated = generated.concat; '        if option-name == ', (quote; flag), '\n'
+        generated = generated.concat; '        if option-name == ', (quote; flag), "\n"
         if kind == 'string'
-            generated = generated.concat; '            ', pname, ' = option-value.text\n'
+            generated = generated.concat; '            ', pname, " = option-value.text\n"
         else
-            generated = generated.concat; '            try\n                ', pname, ' = option-value.text.radix; 10\n            catch coercion-error\n                print; ', (quote; ('invalid integer value for '.concat; flag)), '\n                return 2\n'
+            generated = generated.concat; "            try\n                ", pname, " = option-value.text.radix; 10\n            catch coercion-error\n                print; ", (quote; ('invalid integer value for '.concat; flag)), "\n                return 2\n"
         optional = (truth; (get; parameter, 'optional')) or (get; parameter, 'default').kind != 'none'
         if not optional
-            generated = generated.concat; '            seen-', pname, ' = true\n'
-    generated = generated.concat; '        option-index = option-index + 1\n'
+            generated = generated.concat; '            seen-', pname, " = true\n"
+    generated = generated.concat; "        option-index = option-index + 1\n"
     call-arguments = ''
     for index in (range; 0, parameter-count)
         parameter = at; parameters, index
@@ -221,8 +221,8 @@ function generate string throws consumer-error; request document-value
         if not optional
             record = parameter-record; declarations, identity, pname, function-declaration
             flag = selected-flag; record, pname
-            generated = generated.concat; '    if not seen-', pname, '\n        print; ', (quote; ('missing required option '.concat; flag)), '\n        return 2\n'
-    generated = generated.concat; '    return selected-command; ', call-arguments, '\n'
+            generated = generated.concat; '    if not seen-', pname, "\n        print; ", (quote; ('missing required option '.concat; flag)), "\n        return 2\n"
+    generated = generated.concat; '    return selected-command; ', call-arguments, "\n"
     return generated
 
 function main;

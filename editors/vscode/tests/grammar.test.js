@@ -144,6 +144,37 @@ test('quoted arguments are preserved in block-text and Rust initializer headers'
   lacks(rows[2], 'return', 'meta.embedded.block.rust');
 });
 
+test('double strings tokenize code interpolation, nested quotes, calls, selectors and brace escapes', () => {
+  const row = tokenize(`value = "hello {{literal}} {render(user.name, "inner {count}")}"`)[0];
+  has(row, 'hello', 'string.quoted.double.terrane');
+  has(row, '{{', 'constant.character.escape.terrane');
+  has(row, 'render', 'meta.interpolation.terrane');
+  has(row, 'user', 'meta.interpolation.terrane');
+  has(row, 'name', 'meta.interpolation.terrane');
+  has(row, 'inner', 'string.quoted.double.terrane');
+  has(row, 'count', 'meta.interpolation.terrane');
+});
+test('interpolation selector marker and key have separate scopes', () => {
+  const row = tokenize('value = "x {(render; user) !: plain}"')[0];
+  has(row, '!: ', 'keyword.operator.terrane');
+  has(row, 'plain', 'variable.other.interpolation-key.terrane');
+  lacks(tokenize('value = "x {!: plain}"')[0], 'plain', 'variable.other.interpolation-key.terrane');
+});
+
+test('byte escapes and unicode escapes stay inside string scopes', () => {
+  const row = tokenize(String.raw`value = b'\n\r\t\0\xAF'`)[0];
+  for (const escape of [String.raw`\n`, String.raw`\r`, String.raw`\t`, String.raw`\0`, String.raw`\xAF`]) {
+    has(row, escape, 'constant.character.escape.terrane');
+  }
+  const unicode = tokenize(String.raw`value = "\u{1F600}"`)[0];
+  has(unicode, String.raw`\u{1F600}`, 'constant.character.escape.terrane');
+  lacks(unicode, '{1F600}', 'meta.interpolation.terrane');
+});
+test('interpolation key marker is not scoped in ordinary code', () => {
+  lacks(tokenize('value = user !: plain')[0], '!: ', 'variable.other.interpolation-key.terrane');
+});
+
+
 test('unfinished Terrane text ends at the physical line boundary', () => {
   const rows = tokenize("value = 'unfinished\nrust\n  42\nreturn none");
   has(rows[0], 'unfinished', 'string.quoted.single.terrane');

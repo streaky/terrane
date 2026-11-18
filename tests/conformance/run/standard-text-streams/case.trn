@@ -16,7 +16,7 @@ function main;
         print; copied.message
     if copied.completed != 3
         print; 'unexpected copied count'
-    first = output.write; 'one\r'
+    first = output.write; "one\r"
     if first.failed
         print; first.message
     if first.completed != 4

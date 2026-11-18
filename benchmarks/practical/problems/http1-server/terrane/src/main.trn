@@ -40,10 +40,10 @@ class http-connection
             if filled.failed
                 throw instance benchmark-failure;
             text = filled.value
-            parts = text.split; '\r\n\r\n'
+            parts = text.split; "\r\n\r\n"
             if parts.length > 1
                 if body-length < 0
-                    headers = parts[0].split; '\r\n'
+                    headers = parts[0].split; "\r\n"
                     if headers[0] != start-line
                         throw instance benchmark-failure;
                     for header in headers
@@ -68,7 +68,7 @@ async function handle-request none throws throwable; stream tcp-stream
     if parsed.failed
         exit; (make-exit-status; 1)
     text = parsed.value.value.to-string;
-    response = 'HTTP/1.1 200 OK\r\nContent-Length: '.concat; text.bytes.length, '\r\nConnection: close\r\n\r\n', text
+    response = "HTTP/1.1 200 OK\r\nContent-Length: ".concat; text.bytes.length, "\r\nConnection: close\r\n\r\n", text
     written = await connection.stream.write-all-async; (response.encode; utf8)
     if written.failed
         throw instance benchmark-failure;
@@ -97,7 +97,7 @@ async function send-one int throws throwable; address socket-address, value int
         exit; (make-exit-status; 1)
     connection = instance http-connection; move connected.value
     payload = '{"value":'.concat; value, '}'
-    request = 'POST /api HTTP/1.1\r\nHost: localhost\r\nContent-Length: '.concat; payload.bytes.length, '\r\nConnection: close\r\n\r\n', payload
+    request = "POST /api HTTP/1.1\r\nHost: localhost\r\nContent-Length: ".concat; payload.bytes.length, "\r\nConnection: close\r\n\r\n", payload
     written = await connection.stream.write-all-async; (request.encode; utf8)
     if written.failed
         throw instance benchmark-failure;

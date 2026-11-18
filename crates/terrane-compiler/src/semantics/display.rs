@@ -62,18 +62,21 @@ pub(super) fn implicit_display_methods<'a>(
         value: &ValueType,
         at: usize,
         methods: &mut Vec<&'a FunctionContract>,
+        interpolation: bool,
     ) {
         match value {
             ValueType::Union(arms) => {
                 for arm in arms {
-                    collect(unit, arm, at, methods);
+                    collect(unit, arm, at, methods, interpolation);
                 }
             }
-            ValueType::Optional(inner) => collect(unit, inner, at, methods),
+            ValueType::Optional(inner) => collect(unit, inner, at, methods, interpolation),
+            _ if interpolation => methods.extend(super::interpolatable::method(unit, value, at)),
             _ => methods.extend(display_method(unit, value, at)),
         }
     }
     let operands: Vec<&SyntaxNode> = match node.kind {
+        SyntaxKind::Interpolation if !node.interpolation_renderer => vec![&node.children[0]],
         SyntaxKind::BinaryExpression if node.children.len() == 2 => {
             let left = &node.children[0];
             let right = &node.children[1];
@@ -126,7 +129,13 @@ pub(super) fn implicit_display_methods<'a>(
         if let Ok(Some(value)) =
             super::expressions::infer_value_type(unit, operand, &unit.typed_bindings)
         {
-            collect(unit, &value, operand.span.start, &mut methods);
+            collect(
+                unit,
+                &value,
+                operand.span.start,
+                &mut methods,
+                node.kind == SyntaxKind::Interpolation,
+            );
         }
     }
     methods

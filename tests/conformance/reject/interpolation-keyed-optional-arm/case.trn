@@ -1,0 +1,9 @@
+namespace interpolation-keyed-optional-arm
+from /core/display import interpolatable
+class item implements interpolatable
+    function interpolate string; key string
+        return 'item'
+function describe string; value item|none
+    return "{value !: label}"
+function main;
+    print; (describe; none)

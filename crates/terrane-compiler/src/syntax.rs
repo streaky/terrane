@@ -157,9 +157,13 @@ pub enum SyntaxKind {
     ArgumentList,
     Argument,
     GroupExpression,
+    TypeExpression,
+    InterpolatedString,
+    StringText,
+    Interpolation,
+    RenderingKey,
     Name,
     Literal,
-    TypeExpression,
     UnionType,
     PrefixType,
     AppliedType,
@@ -194,6 +198,10 @@ impl SyntaxKind {
             };
         }
         match (self, child, index) {
+            (Self::InterpolatedString, Self::StringText, _) => "text",
+            (Self::InterpolatedString, Self::Interpolation, _) => "interpolation",
+            (Self::Interpolation, Self::RenderingKey, _) => "rendering-key",
+            (Self::Interpolation, _, 0) => "expression",
             (_, Self::AnnotationApplication, _) => "annotation",
             (_, Self::ModifierApplication, _) => "modifier",
             (Self::ModifierApplication, Self::Name, _) => "modifier-type",
@@ -290,6 +298,8 @@ pub struct SyntaxNode {
     pub modifier_applications: Vec<SyntaxNode>,
     pub documentation: Option<String>,
     pub(crate) is_unsafe_call: bool,
+    /// Semantic normalization selected an explicit interpolation rendering call.
+    pub(crate) interpolation_renderer: bool,
     /// Compiler-authored receiver names retain each operation's own source span.
     pub(crate) name_override: Option<String>,
 }
@@ -310,6 +320,7 @@ impl SyntaxNode {
             modifier_applications: Vec::new(),
             documentation: None,
             is_unsafe_call: false,
+            interpolation_renderer: false,
             name_override: None,
         }
     }
