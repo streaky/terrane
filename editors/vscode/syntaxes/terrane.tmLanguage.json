@@ -75,17 +75,37 @@
       }
     },
     "quoted-text": {
+      "patterns": [
+        { "include": "#single-string" },
+        { "include": "#double-string" }
+      ]
+    },
+    "single-string": {
       "name": "string.quoted.single.terrane",
       "begin": "b?'",
-      "beginCaptures": {
-        "0": { "name": "punctuation.definition.string.begin.terrane" }
-      },
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.terrane" } },
       "end": "'|$",
-      "endCaptures": {
-        "0": { "name": "punctuation.definition.string.end.terrane" }
-      },
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
+      "patterns": [{ "name": "constant.character.escape.terrane", "match": "\\\\[\\\\']" }]
+    },
+    "double-string": {
+      "name": "string.quoted.double.terrane",
+      "begin": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.terrane" } },
+      "end": "\"|$",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
       "patterns": [
-        { "include": "#escapes" }
+        { "name": "constant.character.escape.terrane", "match": "\\\\(?:[\\\\'\"nrt0]|u\\{[0-9A-Fa-f]+\\})" },
+        { "name": "constant.character.escape.terrane", "match": "\\{\\{" },
+        { "name": "constant.character.escape.terrane", "match": "\\}\\}" },
+        {
+          "name": "meta.interpolation.terrane",
+          "begin": "\\{(?!\\{)",
+          "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.terrane" } },
+          "end": "\\}(?!\\})",
+          "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.terrane" } },
+          "patterns": [{ "include": "#interpolation-key" }, { "include": "$self" }]
+        }
       ]
     },
     "escapes": {
@@ -125,6 +145,10 @@
           }
         }
       ]
+    },
+    "interpolation-key": {
+      "name": "variable.other.interpolation-key.terrane",
+      "match": "(?<=\\s)!:(?=\\s)"
     },
     "lexical-tokens": {
       "comment": "Consume unscoped lexemes so later regex searches cannot begin inside joined names or split an increment/decrement token.",

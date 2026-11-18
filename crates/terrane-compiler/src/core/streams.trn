@@ -470,7 +470,7 @@ class text-writer
         return instance write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
 
     function line write-result; text string
-        return this.write-all; (text.concat; '\n')
+        return this.write-all; (text.concat; "\n")
 
     async function write-async write-result; text string
         return this.write; text

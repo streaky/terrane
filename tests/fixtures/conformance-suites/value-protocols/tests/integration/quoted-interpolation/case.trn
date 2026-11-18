@@ -1,0 +1,81 @@
+namespace quoted-interpolation
+
+from /core/modifiers import interpolation-renderer
+from /core/testing import assert, assert-equal-string
+from /core/errors import throwable
+
+class server
+    name string = 'primary'
+    function render string; flag string = ''
+        if flag == 'overview'
+            return 'object overview:' + this.name
+        return 'object default:' + this.name
+    function to-string string;
+        return 'ordinary display'
+
+class render-failure implements throwable
+    message string = 'render failed'
+    function render string;
+        return this.message
+
+class failing-server
+    function render string;
+        throw instance render-failure;
+
+function decorate string; value string
+    return '[' + value + ']'
+
+function overview string; value server
+    return 'app overview:' + value.name
+
+function detail string; value server
+    return 'app detail:' + value.name
+
+function first string; value int
+    return 'first:' + value
+
+function second string; value int
+    return 'second:' + value
+
+function switch-number int; renderer mutable ref (function from int to string)
+    renderer = second
+    return 9
+
+function test-scenario;
+    name = 'Ada'
+    assert-equal-string; 'literal {name}\n', 'literal {name}' + '\\n'
+    assert-equal-string; 'It\'s ready', "It's ready"
+    assert-equal-string; "Hello, {name}!", 'Hello, Ada!'
+    assert-equal-string; "{{name}}", '{name}'
+    assert-equal-string; "{2 + 3}:{true}:{none}", '5:true:none'
+    assert-equal-string; "Outer: {decorate; "Hello {name}"}", 'Outer: [Hello Ada]'
+    assert-equal-string; "Outer: {decorate; "Hello {{name}}"}", 'Outer: [Hello {name}]'
+    assert-equal-string; "Outer: {decorate; 'Hello {name}'}", 'Outer: [Hello {name}]'
+    assert-equal-string; "{decorate; "}}"}", '[}]'
+    assert-equal-string; "Outer: {decorate; "Hello {decorate; "}}"}"}", 'Outer: [Hello [}]]'
+    assert-equal-string; "{decorate; /* } " */ 'comment'}", '[comment]'
+    assert-equal-string; "\u{1F600}", '😀'
+    assert; "\0".bytes.length == 1
+    assert; "\r\n\t".bytes.length == 3
+    item = instance server;
+    assert-equal-string; "Server: {item}", 'Server: object default:primary'
+    assert-equal-string; "Server: {item !: overview}", 'Server: object overview:primary'
+    try
+        _ = "{instance failing-server;}"
+        assert; false
+    catch render-failure
+        assert; true
+
+function test-renderer-bindings;
+    item = instance server;
+    with (interpolation-renderer; key = 'overview') renderer function from server to string = overview
+    assert-equal-string; "{item !: overview}", 'app overview:primary'
+    if item.name == 'primary'
+        renderer = detail
+    assert-equal-string; "{item !: overview}", 'app detail:primary'
+    with (interpolation-renderer; key = 'number') number-renderer function from int to string = first
+    assert-equal-string; "{7 !: number}", 'first:7'
+    number-renderer = second
+    assert-equal-string; "{8 !: number}", 'second:8'
+    number-renderer = first
+    assert-equal-string; "{1 !: number}|{switch-number; number-renderer !: number}|{3 !: number}", 'first:1|second:9|second:3'

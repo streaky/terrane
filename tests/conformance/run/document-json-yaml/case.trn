@@ -110,7 +110,7 @@ function main;
     print; trailing-json.failed
 
     yaml-limits = make-yaml-options; 32, 2048, 20
-    yaml-value = parse-yaml; 'integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279', yaml-limits
+    yaml-value = parse-yaml; "integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279", yaml-limits
     yaml-integer = yaml-value.value.field; 'integer'
     yaml-decimal = yaml-value.value.field; 'decimal'
     print; yaml-value.failed, yaml-integer.value.integer.text
@@ -119,7 +119,7 @@ function main;
     print; yaml-decoded.failed
     ordinary-star = parse-yaml; 'glob: "a * b * c"', (make-yaml-options; 32, 1024, 0)
     print; ordinary-star.failed
-    bomb = parse-yaml; 'leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]', yaml-limits
+    bomb = parse-yaml; "leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]", yaml-limits
     print; bomb.failed
     yaml-depth = parse-yaml; 'a: [[[[]]]]', (make-yaml-options; 2, 1024, 65536)
     print; yaml-depth.failed

@@ -49,7 +49,7 @@ function test-scenario;
     permissive = decode-typed-json; '{"serviceName":"extra","endpoint":{"host":"ok"},"extra":true}', service-config, (default-json-options;), true
     print; permissive.failed, permissive.value.endpoint.port
 
-    yaml = decode-typed-yaml; 'serviceName: yaml\nendpoint:\n  host: local', service-config, (default-yaml-options;), false
+    yaml = decode-typed-yaml; "serviceName: yaml\nendpoint:\n  host: local", service-config, (default-yaml-options;), false
     print; yaml.failed, yaml.value.service-name, yaml.value.endpoint.host
 
     journey = decode-typed-json; '{"name":"coast","points":[{"x":1.25,"y":2.75},{"x":3.5,"y":4.5}],"active":true}', route, (default-json-options;), false

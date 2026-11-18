@@ -864,6 +864,20 @@ cow: separation at first mutation visible through a non-unique value handle
 hash_keys: mutable values and identity-bearing resources cannot be hash keys
 ```
 
+Quoted strings:
+
+```yaml
+single_quotes: raw Unicode; only \' and \\ escapes are interpreted; other escapes remain literal
+double_quotes: interpolation plus \\, \', \", \n, \r, \t, \0, \u{1F600}; unknown escapes error
+literal_braces: {{ and }} produce { and }
+interpolation: {ordinary Terrane expression}; inline calls and inner strings use ordinary expression and quote rules; at most two active interpolating levels; non-interpolating inner strings do not count; ordinary expression nesting is unrestricted
+selector: whitespace-separated `expr !: key`, only at interpolation-expression top level
+interpolation_renderer: `with (interpolation-renderer; key = 'overview') renderer function from T to string = f`; explicit inventory of keys; function-local binding initialized then ordinarily reassigned; one registration per key/function; ordinary lexical captures; no global callable storage
+interpolation_to_string: interpolation conversion is separate; no `.to-string;` fallback; primitives use normal display; object render protocol or selected registration required
+interpolation_dispatch: registered key overrides accessible object synchronous `render(string flag)`; absent registration requires render; missing, incompatible, or maybe-unassigned handler is compile-time error; no silent fallback
+interpolation_order: evaluate interpolation expression once, then snapshot/select current handler, invoke and append before next interpolation; no whole-string handler snapshot; ordinary calls and effects; no built-in html binding
+```
+
 String members follow the same callable-family shape:
 
 ```yaml

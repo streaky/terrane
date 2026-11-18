@@ -51,6 +51,7 @@ struct LineContext<'a> {
     base: usize,
     argument: bool,
     argument_boundary: bool,
+    interpolation_depth: usize,
 }
 
 /// Tokenizes one UTF-8 Terrane source file.
@@ -285,6 +286,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     base: offset,
                     argument: block_layouts.last().is_some_and(|mode| mode.argument()),
                     argument_boundary,
+                    interpolation_depth: 0,
                 },
                 &mut tokens,
                 &mut trivia,
@@ -672,6 +674,7 @@ fn lex_line(
         base,
         argument,
         argument_boundary,
+        interpolation_depth,
     } = context;
     let initial_tokens = tokens.len();
     let bytes = line.as_bytes();
@@ -707,30 +710,146 @@ fn lex_line(
         let start = index;
         match bytes[index] {
             b'"' => {
-                index += 1;
-                let mut escaped = false;
-                let mut terminated = false;
-                while index < bytes.len() {
-                    if bytes[index] == b'"' && !escaped {
-                        index += 1;
-                        terminated = true;
-                        break;
-                    }
-                    escaped = bytes[index] == b'\\' && !escaped;
-                    if bytes[index] != b'\\' { escaped = false; }
-                    index += 1;
-                }
-                if terminated {
-                    let text = &line[start..index];
-                    push_token(source, tokens, TokenKind::String, base + start, base + index,
-                        attachment(line, start, index));
-                    if let Err((relative_start, relative_end)) = validate_double_string(text) {
-                        diagnostics.push(Diagnostic::error("L0013", "invalid escape in double-quoted string",
-                            Span::new(source.id(), base + start + relative_start, base + start + relative_end)));
+                let (end, has_interpolation) =
+                    match scan_double_quoted(bytes, start, interpolation_depth) {
+                        Ok(boundary) => boundary,
+                        Err((code, at, message)) => {
+                            diagnostics.push(Diagnostic::error(
+                                code,
+                                message,
+                                Span::new(source.id(), base + at, base + (at + 1).min(bytes.len())),
+                            ));
+                            break;
+                        }
+                    };
+                index = end;
+                if !has_interpolation {
+                    push_token(
+                        source,
+                        tokens,
+                        TokenKind::String,
+                        base + start,
+                        base + end,
+                        attachment(line, start, end),
+                    );
+                    if let Err((relative_start, relative_end)) =
+                        validate_double_string(&line[start..end])
+                    {
+                        diagnostics.push(Diagnostic::error(
+                            "L0013",
+                            "invalid escape in double-quoted string",
+                            Span::new(
+                                source.id(),
+                                base + start + relative_start,
+                                base + start + relative_end,
+                            ),
+                        ));
                     }
                 } else {
-                    diagnostics.push(Diagnostic::error("L0007", "unterminated string literal",
-                        Span::new(source.id(), base + start, base + index)));
+                    push_token(
+                        source,
+                        tokens,
+                        TokenKind::StringStart,
+                        base + start,
+                        base + start + 1,
+                        Attachment::Right,
+                    );
+                    let content_end = end - 1;
+                    let mut part = start + 1;
+                    let mut scan = part;
+                    while scan < content_end {
+                        if bytes[scan] == b'\\' {
+                            scan = skip_double_escape(bytes, scan);
+                            continue;
+                        }
+                        if matches!(bytes[scan], b'{' | b'}')
+                            && bytes.get(scan + 1) == Some(&bytes[scan])
+                        {
+                            scan += 2;
+                            continue;
+                        }
+                        if bytes[scan] != b'{' {
+                            scan += 1;
+                            continue;
+                        }
+                        if part < scan {
+                            push_double_fragment(
+                                source,
+                                line,
+                                base,
+                                part,
+                                scan,
+                                tokens,
+                                diagnostics,
+                            );
+                        }
+                        push_token(
+                            source,
+                            tokens,
+                            TokenKind::InterpolationOpen,
+                            base + scan,
+                            base + scan + 1,
+                            Attachment::Right,
+                        );
+                        let expr_start = scan + 1;
+                        let close =
+                            scan_interpolation_close(bytes, expr_start, interpolation_depth + 1)
+                                .expect("the quote boundary scan validated this interpolation");
+                        let before = tokens.len();
+                        let mut nested_comment = None;
+                        lex_line(
+                            source,
+                            LineContext {
+                                text: &line[expr_start..close],
+                                base: base + expr_start,
+                                argument: false,
+                                argument_boundary: false,
+                                interpolation_depth: interpolation_depth + 1,
+                            },
+                            tokens,
+                            trivia,
+                            diagnostics,
+                            &mut nested_comment,
+                        );
+                        for selector_index in before..tokens.len().saturating_sub(1) {
+                            if tokens[selector_index].text == "!"
+                                && tokens[selector_index + 1].text == ":"
+                                && tokens[selector_index].span.end
+                                    == tokens[selector_index + 1].span.start
+                            {
+                                tokens[selector_index].kind = TokenKind::RenderingSelector;
+                            }
+                        }
+                        push_token(
+                            source,
+                            tokens,
+                            TokenKind::InterpolationClose,
+                            base + close,
+                            base + close + 1,
+                            Attachment::Left,
+                        );
+                        scan = close + 1;
+                        part = scan;
+                    }
+                    if part < content_end {
+                        push_double_fragment(
+                            source,
+                            line,
+                            base,
+                            part,
+                            content_end,
+                            tokens,
+                            diagnostics,
+                        );
+                    }
+                    push_token(
+                        source,
+                        tokens,
+                        TokenKind::StringEnd,
+                        base + content_end,
+                        base + end,
+                        Attachment::Left,
+                    );
                 }
             }
             b' ' | b'\t' => {
@@ -1233,7 +1352,10 @@ pub fn string_literal_value(text: &str) -> String {
                 match chars.next() {
                     Some('\\') => output.push('\\'),
                     Some('\'') => output.push('\''),
-                    Some(other) => { output.push('\\'); output.push(other); }
+                    Some(other) => {
+                        output.push('\\');
+                        output.push(other);
+                    }
                     None => output.push('\\'),
                 }
             } else {
@@ -1272,15 +1394,22 @@ pub fn interpreted_text(text: &str) -> String {
                     while chars.peek().is_some_and(|next| *next != '}') {
                         digits.push(chars.next().expect("peeked character"));
                     }
-                    if chars.next() == Some('}') && !digits.is_empty()
-                        && digits.len() <= 6 && digits.chars().all(|d| d.is_ascii_hexdigit())
+                    if chars.next() == Some('}')
+                        && !digits.is_empty()
+                        && digits.len() <= 6
+                        && digits.chars().all(|d| d.is_ascii_hexdigit())
                     {
                         if let Ok(value) = u32::from_str_radix(&digits, 16) {
-                            if let Some(decoded) = char::from_u32(value) { output.push(decoded); }
+                            if let Some(decoded) = char::from_u32(value) {
+                                output.push(decoded);
+                            }
                         }
                     }
                 }
-                Some(other) => { output.push('\\'); output.push(other); }
+                Some(other) => {
+                    output.push('\\');
+                    output.push(other);
+                }
                 None => output.push('\\'),
             }
         } else {
@@ -1291,9 +1420,164 @@ pub fn interpreted_text(text: &str) -> String {
 }
 
 fn validate_double_string(text: &str) -> Result<(), (usize, usize)> {
+    validate_double_fragment(&text[1..text.len() - 1]).map_err(|(start, end)| (start + 1, end + 1))
+}
+
+type QuotedScanError = (&'static str, usize, &'static str);
+
+fn skip_double_escape(bytes: &[u8], start: usize) -> usize {
+    if bytes.get(start + 1) == Some(&b'u') && bytes.get(start + 2) == Some(&b'{') {
+        let mut end = start + 3;
+        while end < bytes.len() && !matches!(bytes[end], b'}' | b'"') {
+            end += 1;
+        }
+        end + usize::from(bytes.get(end) == Some(&b'}'))
+    } else {
+        (start + 2).min(bytes.len())
+    }
+}
+
+/// Boundary discovery and token emission use the same scanner. Recursion is
+/// bounded by the two-interpolating-level contract, not by the native stack.
+fn scan_double_quoted(
+    bytes: &[u8],
+    start: usize,
+    depth: usize,
+) -> Result<(usize, bool), QuotedScanError> {
+    let mut cursor = start + 1;
+    let mut interpolated = false;
+    while cursor < bytes.len() {
+        match bytes[cursor] {
+            b'\\' => cursor = skip_double_escape(bytes, cursor),
+            b'"' => return Ok((cursor + 1, interpolated)),
+            b'{' | b'}' if bytes.get(cursor + 1) == Some(&bytes[cursor]) => cursor += 2,
+            b'{' => {
+                if depth >= 2 {
+                    return Err((
+                        "S1133",
+                        cursor,
+                        "string interpolation may nest at most two levels",
+                    ));
+                }
+                interpolated = true;
+                cursor = scan_interpolation_close(bytes, cursor + 1, depth + 1)? + 1;
+            }
+            b'}' => {
+                return Err((
+                    "S1130",
+                    cursor,
+                    "literal `}` in a double-quoted string must be doubled",
+                ));
+            }
+            _ => cursor += 1,
+        }
+    }
+    Err(("L0007", start, "unterminated string literal"))
+}
+
+fn scan_interpolation_close(
+    bytes: &[u8],
+    start: usize,
+    depth: usize,
+) -> Result<usize, QuotedScanError> {
+    let mut cursor = start;
+    let mut braces = 0usize;
+    let mut grouping = 0usize;
+    while cursor < bytes.len() {
+        match bytes[cursor] {
+            b'"' => cursor = scan_double_quoted(bytes, cursor, depth)?.0,
+            b'\'' => {
+                cursor += 1;
+                while cursor < bytes.len() && bytes[cursor] != b'\'' {
+                    cursor += if bytes[cursor] == b'\\' { 2 } else { 1 };
+                }
+                if cursor >= bytes.len() {
+                    return Err((
+                        "L0007",
+                        start,
+                        "unterminated string literal in interpolation",
+                    ));
+                }
+                cursor += 1;
+            }
+            b'/' if bytes.get(cursor + 1) == Some(&b'*') => {
+                let mut comments = 1usize;
+                cursor += 2;
+                while cursor < bytes.len() && comments > 0 {
+                    if bytes.get(cursor..cursor + 2) == Some(b"/*") {
+                        comments += 1;
+                        cursor += 2;
+                    } else if bytes.get(cursor..cursor + 2) == Some(b"*/") {
+                        comments -= 1;
+                        cursor += 2;
+                    } else {
+                        cursor += 1;
+                    }
+                }
+            }
+            b'#' => break,
+            b'/' if bytes.get(cursor + 1) == Some(&b'/') => break,
+            b'{' => {
+                braces += 1;
+                cursor += 1;
+            }
+            b'}' if braces == 0 && grouping == 0 => return Ok(cursor),
+            b'}' => {
+                braces = braces.saturating_sub(1);
+                cursor += 1;
+            }
+            b'(' | b'[' => {
+                grouping += 1;
+                cursor += 1;
+            }
+            b')' | b']' => {
+                grouping = grouping.saturating_sub(1);
+                cursor += 1;
+            }
+            _ => cursor += 1,
+        }
+    }
+    Err((
+        "S1130",
+        start.saturating_sub(1),
+        "unterminated string interpolation",
+    ))
+}
+
+fn push_double_fragment(
+    source: &SourceFile,
+    line: &str,
+    base: usize,
+    start: usize,
+    end: usize,
+    tokens: &mut Vec<Token>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    if let Err((relative_start, relative_end)) = validate_double_fragment(&line[start..end]) {
+        diagnostics.push(Diagnostic::error(
+            "L0013",
+            "invalid escape in double-quoted string",
+            Span::new(
+                source.id(),
+                base + start + relative_start,
+                base + start + relative_end,
+            ),
+        ));
+    }
+    push_token(
+        source,
+        tokens,
+        TokenKind::StringText,
+        base + start,
+        base + end,
+        Attachment::Detached,
+    );
+}
+
+fn validate_double_fragment(text: &str) -> Result<(), (usize, usize)> {
     let bytes = text.as_bytes();
-    let mut index = 1;
-    while index + 1 < bytes.len() {
+    let mut index = 0;
+    while index < bytes.len() {
         if bytes[index] != b'\\' {
             index += 1;
             continue;
@@ -1305,39 +1589,26 @@ fn validate_double_string(text: &str) -> Result<(), (usize, usize)> {
             Some(b'u') if bytes.get(index + 1) == Some(&b'{') => {
                 index += 2;
                 let digits = index;
-                while bytes.get(index).is_some_and(u8::is_ascii_hexdigit) { index += 1; }
-                let valid = index > digits && index - digits <= 6
+                while bytes.get(index).is_some_and(u8::is_ascii_hexdigit) {
+                    index += 1;
+                }
+                let valid = index > digits
+                    && index - digits <= 6
                     && bytes.get(index) == Some(&b'}')
-                    && std::str::from_utf8(&bytes[digits..index]).ok()
+                    && std::str::from_utf8(&bytes[digits..index])
+                        .ok()
                         .and_then(|hex| u32::from_str_radix(hex, 16).ok())
-                        .and_then(char::from_u32).is_some();
-                if !valid { return Err((start, (index + 1).min(bytes.len() - 1))); }
+                        .and_then(char::from_u32)
+                        .is_some();
+                if !valid {
+                    return Err((start, (index + 1).min(bytes.len())));
+                }
                 index += 1;
             }
-            _ => return Err((start, (index + 1).min(bytes.len() - 1))),
+            _ => return Err((start, (index + 1).min(bytes.len()))),
         }
     }
     Ok(())
-}
-pub(crate) fn unescape_string(value: &str) -> String {
-    let mut output = String::with_capacity(value.len());
-    let mut chars = value.chars();
-    while let Some(character) = chars.next() {
-        if character == '\\' {
-            match chars.next() {
-                Some('n') => output.push('\n'),
-                Some('r') => output.push('\r'),
-                Some('t') => output.push('\t'),
-                Some('\\') | None => output.push('\\'),
-                Some('\'') => output.push('\''),
-                Some('"') => output.push('"'),
-                Some(other) => output.push(other),
-            }
-        } else {
-            output.push(character);
-        }
-    }
-    output
 }
 
 pub(crate) fn unescape_bytes(value: &str) -> Result<Vec<u8>, (usize, usize)> {

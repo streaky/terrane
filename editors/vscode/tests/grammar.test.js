@@ -144,6 +144,26 @@ test('quoted arguments are preserved in block-text and Rust initializer headers'
   lacks(rows[2], 'return', 'meta.embedded.block.rust');
 });
 
+test('double strings tokenize code interpolation, nested quotes, calls, selectors and brace escapes', () => {
+  const row = tokenize(`value = "hello {{literal}} {render(user.name, "inner {count}")}"`)[0];
+  has(row, 'hello', 'string.quoted.double.terrane');
+  has(row, '{{', 'constant.character.escape.terrane');
+  has(row, 'render', 'meta.interpolation.terrane');
+  has(row, 'user', 'meta.interpolation.terrane');
+  has(row, 'name', 'meta.interpolation.terrane');
+  has(row, 'inner', 'string.quoted.double.terrane');
+  has(row, 'count', 'meta.interpolation.terrane');
+});
+test('interpolation key marker receives a distinct scope only as a separated marker', () => {
+  const row = tokenize('value = "x {render(user !: plain)}"')[0];
+  has(row, '!: ', 'variable.other.interpolation-key.terrane');
+  lacks(tokenize('value = "x {!: plain}"')[0], '!: ', 'variable.other.interpolation-key.terrane');
+});
+test('interpolation key marker is not scoped in ordinary code', () => {
+  lacks(tokenize('value = user !: plain')[0], '!: ', 'variable.other.interpolation-key.terrane');
+});
+
+
 test('unfinished Terrane text ends at the physical line boundary', () => {
   const rows = tokenize("value = 'unfinished\nrust\n  42\nreturn none");
   has(rows[0], 'unfinished', 'string.quoted.single.terrane');

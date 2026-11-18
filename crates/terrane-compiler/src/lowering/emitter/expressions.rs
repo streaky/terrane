@@ -425,10 +425,53 @@ impl Emitter<'_> {
         format!("{{ {body} {name} }}")
     }
 
+    fn interpolated_string(&mut self, node: &SyntaxNode) -> String {
+        if let [part] = node.children.as_slice()
+            && part.kind == SyntaxKind::Interpolation
+            && self.value_type(&part.children[0]) == Some(ValueType::Scalar(ScalarType::String))
+        {
+            let value = &part.children[0];
+            return if part.children.len() > 1 && value.children[0].kind == SyntaxKind::Name {
+                self.interpolation_renderer_call(value)
+            } else {
+                self.expression_as(value, ValueType::Scalar(ScalarType::String))
+            };
+        }
+        let output = self.fresh_read_binding_name("interpolated");
+        let mut body = String::new();
+        let mut literal_capacity = 0usize;
+        for part in &node.children {
+            match part.kind {
+                SyntaxKind::StringText => {
+                    let text = crate::lexer::interpreted_text(self.text(part));
+                    literal_capacity += text.len();
+                    write!(body, "{output}.push_str({text:?});").unwrap();
+                }
+                SyntaxKind::Interpolation => {
+                    let value = &part.children[0];
+                    let callback = part.children.len() > 1
+                        && value.kind == SyntaxKind::CallExpression
+                        && value.children[0].kind == SyntaxKind::Name;
+                    if callback {
+                        let call = self.interpolation_renderer_call(value);
+                        write!(body, "{{ let __terrane_rendered = {call}; {output}.push_str(&__terrane_rendered); }}").unwrap();
+                    } else {
+                        body.push_str(&self.write_display(value, &output));
+                    }
+                }
+                _ => unreachable!("interpolated strings contain text and interpolation parts"),
+            }
+        }
+        format!(
+            "{{ let mut {output} = String::with_capacity({literal_capacity}); {body} {output} }}"
+        )
+    }
+
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::PipelineExpression => self.sequential_pipeline(node),
             SyntaxKind::InitializationExpression => self.initialization_expression(node),
+            SyntaxKind::InterpolatedString => self.interpolated_string(node),
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
             SyntaxKind::AppliedType => self.source_applied_function(node).map_or_else(

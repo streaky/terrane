@@ -114,9 +114,7 @@ fn literal_value(
             .map_err(|_| error(unit, node.span, "invalid immutable byte literal"));
     }
     if text.starts_with(['\'', '"']) {
-        return Ok(CompileTimeValue::String(lexer::unescape_string(
-            &text[1..text.len() - 1],
-        )));
+        return Ok(CompileTimeValue::String(lexer::string_literal_value(text)));
     }
     if let Some(integer) = parse_integer_source_text(&unit.source, node) {
         return Ok(CompileTimeValue::Integer(integer.to_string()));

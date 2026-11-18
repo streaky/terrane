@@ -300,10 +300,7 @@ fn field_metadata(
                         entry.span,
                     ));
                 }
-                let decoded = crate::lexer::unescape_bytes(&value[1..value.len() - 1])
-                    .expect("the lexer validated string escapes");
-                external_name =
-                    String::from_utf8(decoded).expect("Terrane source strings remain UTF-8");
+                external_name = crate::lexer::string_literal_value(value);
             }
             "secret" => match value {
                 "true" => secret = true,
@@ -3567,6 +3564,9 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     let bindings = crate::compilation_progress::start("refreshing inferred bindings", &target);
     collect_initial_typed_bindings(package)?;
     bindings.finish();
+    if super::interpolation::normalize_objects(package)? {
+        collect_initial_typed_bindings(package)?;
+    }
     let native = crate::compilation_progress::start("normalizing native type contracts", &target);
     super::native_constructors::normalize_contracts(package)?;
     native.finish();

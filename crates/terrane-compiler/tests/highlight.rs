@@ -17,6 +17,42 @@ fn classified(source: &str) -> Vec<(String, HighlightKind, bool)> {
 }
 
 #[test]
+fn highlights_interpolated_string_fragments_expressions_and_rendering_keys() {
+    let source = "value = \"Hello {format; person.name !: html}!\"\n";
+    let file = SourceFile::new(0, "case.trn".into(), source.to_owned());
+    let output = highlight(&file);
+    assert_eq!(output.diagnostics, Vec::new(), "{:#?}", output.diagnostics);
+    let actual = output
+        .highlights
+        .into_iter()
+        .map(|item| {
+            (
+                source[item.span.start..item.span.end].to_owned(),
+                item.kind,
+                item.declaration,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    for expected in [
+        ("\"", HighlightKind::String, false),
+        ("Hello ", HighlightKind::String, false),
+        ("format", HighlightKind::Function, false),
+        ("person", HighlightKind::Variable, false),
+        ("name", HighlightKind::Property, false),
+        ("!", HighlightKind::Operator, false),
+        (":", HighlightKind::Operator, false),
+        ("html", HighlightKind::Property, false),
+        ("!", HighlightKind::String, false),
+    ] {
+        assert!(
+            actual.contains(&(expected.0.to_owned(), expected.1, expected.2)),
+            "missing {expected:?} in {actual:#?}"
+        );
+    }
+}
+
+#[test]
 fn classifies_real_lexical_and_syntax_constructs() {
     let source = concat!(
         "namespace sample/app\n",

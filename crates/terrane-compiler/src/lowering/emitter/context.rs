@@ -59,6 +59,15 @@ impl<'unit> Emitter<'unit> {
         else {
             return rust_name(source_name);
         };
+        if symbol.kind == SymbolKind::Function
+            && let Some(contract) = self.contract_for_call(node, false)
+            && contract.owner.is_none()
+            && self.package.units.iter().any(|unit| {
+                unit.source.id() == contract.span.file && !unit.namespace.starts_with("/deps/")
+            })
+        {
+            return function_name(self.package, contract);
+        }
         if symbol.kind != SymbolKind::Binding {
             return rust_name(source_name);
         }

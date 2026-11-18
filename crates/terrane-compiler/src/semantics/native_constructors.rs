@@ -197,7 +197,7 @@ pub(super) fn native_value_conversion_errors(
     if *ty == ProjectedType::Char && value.kind == SyntaxKind::Literal {
         let text = super::diagnostics::node_text(&unit.source, value);
         if text.starts_with(['\'', '"']) {
-            let decoded = crate::lexer::unescape_string(&text[1..text.len() - 1]);
+            let decoded = crate::lexer::string_literal_value(text);
             let mut scalars = decoded.chars();
             if scalars.next().is_some() && scalars.next().is_none() {
                 return;

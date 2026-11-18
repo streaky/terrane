@@ -257,11 +257,19 @@ impl Emitter<'_> {
         format!("emit_at({})", values.join(", "))
     }
 
+    pub(super) fn call(&mut self, node: &SyntaxNode) -> String {
+        self.call_with_order(node, false)
+    }
+
+    pub(super) fn interpolation_renderer_call(&mut self, node: &SyntaxNode) -> String {
+        self.call_with_order(node, true)
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "all call forms share one ordering and error-propagation path"
     )]
-    pub(super) fn call(&mut self, node: &SyntaxNode) -> String {
+    fn call_with_order(&mut self, node: &SyntaxNode, argument_first: bool) -> String {
         #[cfg(test)]
         tests::count_call(node.span.file);
         let [source_callee, arguments] = node.children.as_slice() else {
@@ -2540,6 +2548,13 @@ impl Emitter<'_> {
                 .collect::<Vec<_>>();
         }
         self.borrowed_receiver_overrides.truncate(prior_read_guards);
+        if argument_first {
+            for value in &mut values {
+                let name = self.fresh_read_binding_name("interpolation_argument");
+                write!(shared_argument_setup, "let {name} = {value}; ").unwrap();
+                *value = name;
+            }
+        }
         let projected_static_owner = contract.as_ref().and_then(|contract| {
             let owner = contract.owner.as_deref()?;
             let unit = self.package.units.iter().find(|unit| {
