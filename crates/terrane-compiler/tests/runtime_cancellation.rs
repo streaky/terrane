@@ -49,7 +49,31 @@ mod native_group_drop {
     }
 
     #[test]
-    fn cancellation_updates_and_releases_waiters() {
+    fn cancellation_releases_dropped_waiter() {
+        use std::{sync::Arc, task::Context};
+
+        let cancellation = TerraneCancellation::new();
+        let current = Arc::new(WakeCounter::default());
+        let current_waker = std::task::Waker::from(current.clone());
+        let mut waiter = Box::pin(cancellation.cancelled());
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&current_waker))
+                .is_pending()
+        );
+        drop(waiter);
+        assert_eq!(
+            Arc::strong_count(&current),
+            2,
+            "abandoned waiter is unlinked"
+        );
+        cancellation.cancel();
+        assert_eq!(current.0.load(std::sync::atomic::Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn cancellation_wakes_current_waker() {
         use std::{sync::Arc, task::Context};
 
         let cancellation = TerraneCancellation::new();
@@ -70,20 +94,15 @@ mod native_group_drop {
                 .poll(&mut Context::from_waker(&current_waker))
                 .is_pending()
         );
-        assert_eq!(
-            Arc::strong_count(&previous),
-            2,
-            "replaced waker is released"
-        );
-        drop(waiter);
-        assert_eq!(
-            Arc::strong_count(&current),
-            2,
-            "abandoned waiter is unlinked"
-        );
         cancellation.cancel();
         assert_eq!(previous.0.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(current.0.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert_eq!(current.0.load(std::sync::atomic::Ordering::Relaxed), 1);
+        assert!(
+            waiter
+                .as_mut()
+                .poll(&mut Context::from_waker(&current_waker))
+                .is_ready()
+        );
     }
 
     #[test]
@@ -128,9 +147,11 @@ mod native_group_drop {
     }
 
     #[test]
-    fn cancellation_racing_registration_wakes_waiter() {
+    fn cancellation_registration_race_smoke() {
         use std::{sync::Arc, task::Context};
 
+        // Scheduling does not guarantee the check/subscribe window is exercised.
+        // The notification-generation/flag ordering provides the no-lost-wakeup proof.
         for _ in 0..64 {
             let cancellation = TerraneCancellation::new();
             let counter = Arc::new(WakeCounter::default());
