@@ -18,7 +18,7 @@ The Terrane source uses grouped imports, indented call/chain layout, and double-
 interpolation for JSON and HTTP messages. Doubled braces delimit literal JSON braces;
 double quotes retain the required CRLF escapes. Refresh both lowered Rust receipts with
 `lower` after compiler changes, and run `check` before interpreting new measurements.
-Previously published results are historical, not measurements of the refreshed lowering.
+Earlier reports are historical; the current cancellation-waiter report is linked below.
 
 The reader takes a declaration-directed `ref tcp-stream` from a local owner, rather
 than borrowing an inline field of an async receiver across suspension. Callers retain
@@ -69,13 +69,15 @@ Pending waiters update or unlink their own registration; repeated polling no lon
 linearly searches every registered task. Ready-result precedence, finalizer
 shielding, deadlines, and the yields around source `await` remain unchanged.
 
-A paired release comparison at 1,000 requests measured medians of 75.07 ms before
+The [archived paired release comparison](reports/cancellation-waiters-paired-2026-11-18.json)
+at 1,000 requests measured medians of 75.07 ms before
 and 72.45 ms after the change (two warm-ups and seven measured runs per executable,
 alternating order, normalized `argv[0]`). All checksums were 500500. The 3.5%
 elapsed-time reduction is small relative to the observed run-to-run spread, so it
 is not evidence of a stable speedup on other hosts or workloads.
 
-Six CPU captures per version found 47 of 245 pre-change samples in cancellation
+Supplementary, unarchived local CPU captures (six per version) found 47 of 245
+pre-change samples in cancellation
 polling, including 16 in `will_wake`. The post-change captures contained 200 samples
 and no `will_wake` path; one sample had a named Tokio notification frame. Changed
 inlining/attribution prevents treating those counts as a precise before/after
@@ -84,9 +86,10 @@ cancellation-cost percentage. Profiles use ThinLTO, unlike release's fat LTO.
 The complete three-lane run is
 [`cancellation-waiters-2026-11-18.md`](reports/cancellation-waiters-2026-11-18.md),
 with adjacent raw JSON. It passed correctness with zero warnings and recorded
-cgroup peak memory. The paired comparison is retained locally under the repository
-root's `.trn/http-cancellation-comparison/measurements.json`; CPU captures are under
-`.trn/benchmark-profiles/http1-notify-cpu-*`.
+cgroup peak memory. The paired comparison's individual timings, checksums, launch
+layout, and lane order are archived in the linked JSON. The CPU profiles are not
+published with this report: their sample counts are local observations rather
+than independently reviewable archived evidence.
 
 ## Upstream attribution
 

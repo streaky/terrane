@@ -48,7 +48,7 @@ The Terrane sources use current call/chain layout and grouped imports where usef
 Syntax refreshes preserve scalar types, numerical evaluation order, and each problem's
 materialization/fusion boundary; sequential pipelines are not substituted for a different
 workload. After refreshing lowering, run `check` for both `terrane` and `terrane-numr`.
-Published reports below remain historical evidence, not measurements of refreshed code.
+The current refreshed-code measurement is linked under Published evidence; earlier reports are historical.
 
 On Linux systems with delegated cgroup-v2 memory accounting, every launched program and its descendants run in a fresh cgroup. Reports record that cgroup's `memory.peak`: total peak memory charged to the group, including anonymous memory, charged page cache, and kernel memory. Shared pages are charged once, potentially to a cgroup outside the measured execution, so small-footprint results depend on page-cache state and are not directly comparable across machines or reboots. Reports summarize the median and range across measured runs and deliberately label the metric peak memory rather than RSS. When this accounting is unavailable, memory results remain unavailable rather than falling back to a misleading process estimate.
 
@@ -82,36 +82,57 @@ threshold, iteration limits, input sizes, and correctness tolerances are unchang
 Separate operations may round differently from fused operations; this is a source
 implementation choice, not a weakening of Terrane's `multiply-add` contract.
 
-A local release comparison on 2026-11-18 at 20,000,000 observations measured
-2.410 s before this arithmetic change and 2.028 s afterward (median of seven
-executions per version, two warm-ups, alternating order, normalized `argv[0]`).
-Every output was `0.14715086979582306` and passed the unchanged performance
-tolerance. A separate standard three-lane report measured Terrane at 2.019 s,
-Terrane+numr at 1.900 s, and NumPy/SciPy at 2.789 s, with zero warnings.
-These are host-local observations, not an isolated instruction-cost attribution
-or a guarantee for other CPUs/toolchains. Local evidence is in
-`results/gamma-plain-arithmetic-2026-11-18.{md,json}` and the repository-local
-`.trn/gamma-benchmark-comparison/measurements.json`; historical published reports
-remain unchanged.
+A supplementary, unarchived local release comparison on 2026-11-18 at 20,000,000
+observations measured 2.410 s before this arithmetic change and 2.028 s afterward
+(median of seven executions per version, two warm-ups, alternating order,
+normalized `argv[0]`). Every output was `0.14715086979582306` and passed the
+unchanged performance tolerance. These are local observations, not independently
+archived A/B evidence or an isolated instruction-cost attribution.
+
+`multiply-add` lowers to Rust's `f64::mul_add`, preserving fused rounding. The
+default benchmark build does not opt into a target CPU or FMA feature. On a
+baseline target without enabled FMA instructions, this can require an out-of-line
+`fma` implementation rather than a hardware instruction. The earlier CPU capture
+showed a native `fma` path; attributing the timing difference specifically to that
+path remains an inference, not a disassembly-proven causal result. Ordinary
+multiply/add changes the required semantics and can avoid that cost; it does not
+repair fused-operation lowering. The portability and investigation conditions are
+recorded with the floating-point milestone in the
+[compiler plan](../../docs/compiler-plan.md).
+
+The current full-suite report measured gamma at 1.980 s for Terrane, 1.840 s for
+Terrane+numr, and 2.714 s for NumPy/SciPy, with zero warnings. See
+[`gamma-plain-arithmetic-2026-11-18.md`](reports/gamma-plain-arithmetic-2026-11-18.md)
+and its [raw measurements](reports/gamma-plain-arithmetic-2026-11-18.json).
+Memory figures are unavailable because cgroup delegation was unavailable in that run.
 
 Python dependencies are resolved by the checked-in `scientific-python/uv.lock`; each Terrane+numr package pins `numr = "=0.7.0"` and checks in its Terrane dependency projection lock. Pure Terrane uses only the standard process and output surfaces. Setup and dependency compilation remain outside execution measurements.
 
 ## Published evidence
 
-The initial two-lane baseline is
+The current full-suite measurement of the refreshed sources and plain-arithmetic
+gamma implementation is
+[`gamma-plain-arithmetic-2026-11-18.md`](reports/gamma-plain-arithmetic-2026-11-18.md),
+with [complete JSON records](reports/gamma-plain-arithmetic-2026-11-18.json).
+It uses two warm-ups and seven measured executions per problem and lane and
+passes every correctness check with zero warnings. Peak-memory figures were
+unavailable; the report records the delegated-scope command for a future
+memory-accounted measurement.
+
+The historical initial two-lane baseline is
 [`initial-two-lane-baseline.md`](reports/initial-two-lane-baseline.md), with its complete process
 records and frozen workload profiles in the adjacent
 [JSON report](reports/initial-two-lane-baseline.json). It was produced with the suite's default two
 warm-ups and seven measured executions per problem and lane.
 
-The expanded three-lane and scientific-stack measurement is
+The historical expanded three-lane and scientific-stack measurement is
 [`scientific-stack-20260901.md`](reports/scientific-stack-20260901.md), with its
 [complete JSON process records](reports/scientific-stack-20260901.json). It was measured under a
 delegated cgroup with memory accounting available. The recorded one-minute load average was 6.86
 on this 12-core host, so treat small timing differences as provisional rather than idle-host
 evidence.
 
-The current-default suite measured after iterator-backed list-builder lowering became enabled is
+The historical suite measured after iterator-backed list-builder lowering became enabled is
 [`iterator-list-builders-2026-09-16.md`](reports/iterator-list-builders-2026-09-16.md), with its
 [complete JSON process records](reports/iterator-list-builders-2026-09-16.json). It contains one
 Terrane lane and is not isolated A/B evidence for that lowering change; differences from earlier

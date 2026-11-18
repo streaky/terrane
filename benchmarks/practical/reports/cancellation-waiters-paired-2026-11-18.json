@@ -1,0 +1,32 @@
+{
+  "requests": 1000,
+  "warmups": 2,
+  "runs": 7,
+  "argv0": "http-benchmark",
+  "order": "alternating baseline/updated, then updated/baseline",
+  "records": {
+    "baseline": [
+      {"seconds": 0.07507396186701953, "checksum": "500500"},
+      {"seconds": 0.07253103610128164, "checksum": "500500"},
+      {"seconds": 0.06490215798839927, "checksum": "500500"},
+      {"seconds": 0.06765250209718943, "checksum": "500500"},
+      {"seconds": 0.09143952815793455, "checksum": "500500"},
+      {"seconds": 0.09303810307756066, "checksum": "500500"},
+      {"seconds": 0.09444016893394291, "checksum": "500500"}
+    ],
+    "updated": [
+      {"seconds": 0.0700788889080286, "checksum": "500500"},
+      {"seconds": 0.07626610086299479, "checksum": "500500"},
+      {"seconds": 0.07439194805920124, "checksum": "500500"},
+      {"seconds": 0.06721438700333238, "checksum": "500500"},
+      {"seconds": 0.07686282508075237, "checksum": "500500"},
+      {"seconds": 0.07244515605270863, "checksum": "500500"},
+      {"seconds": 0.06725969584658742, "checksum": "500500"}
+    ]
+  },
+  "median_seconds": {
+    "baseline": 0.07507396186701953,
+    "updated": 0.07244515605270863
+  },
+  "elapsed_reduction_percent": 3.5016212664617075
+}

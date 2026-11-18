@@ -4202,6 +4202,23 @@ Rust-style source generic arguments remain absent.
 
 Both floating widths expose the complete non-scientific scalar surface: roots and powers; cancellation-resistant exponentials and logarithms; direct and inverse trigonometry; sign, clamp, fractional, classification, adjacent-value, decomposition, and exact binary-scaling utilities; and canonical descriptor constants. Floating results preserve receiver precision. Direct target operations and compiler-owned bit-exact scalar support implement the settled NaN-selection, signed-zero, infinity, domain, overflow, underflow, rounding, accuracy, and target-reproducibility contracts without a scientific dependency. Canonical, warning-free accepted conformance exercises every member and representative IEEE boundaries on `float32` and `float64`; rejected cases cover receiver, property/method kind, arity, and inadmissible argument types, while the accepted case proves cross-width and integral-parameter coercion.
 
+Performance boundary (not an approved implementation plan): `multiply-add` currently
+delegates to Rust `mul_add` and must retain fused rounding. The portable benchmark
+build does not enable a host-specific CPU or FMA feature; on targets without enabled
+hardware FMA, this can require an out-of-line `fma` implementation. The gamma
+benchmark's local profile observed that native path, and replacing explicit fused
+operations with ordinary multiply/add reduced elapsed time, but this is not isolated
+proof of the call's cost. The benchmark's tolerated non-fused arithmetic is not a
+compiler fix and must not become a silent rewrite of `multiply-add`.
+
+Revisit if fused operations remain a material hotspot: compare exact generated
+instructions/call paths with and without supported FMA target features, retain a
+portable baseline, and measure identical workloads in both lane orders. Any future
+target-CPU opt-in needs an explicit deployment/portability contract; any alternative
+lowering must preserve fused-rounding and IEEE exceptional-value behavior on targets
+without FMA. Neither a new target-selection option nor a software-FMA optimization
+is committed work by this note.
+
 ### Milestone 26 — Remaining concurrency and system adapters
 
 Milestone 25.2 already established the package `[profile]` model, validates declared dependency
