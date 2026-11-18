@@ -2,7 +2,7 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
@@ -58,8 +58,7 @@
               },
               "cwd": {
                 "type": "string",
-                "description": "Debuggee working directory, resolved relative to the workspace folder (or source-file directory without a workspace). Defaults to the package source root when debug provenance is available.",
-                "default": "${workspaceFolder}"
+                "description": "Debuggee working directory, resolved relative to the workspace folder (or source-file directory without a workspace). Defaults to the package source root when debug provenance is available."
               },
               "stopOnEntry": {
                 "type": "boolean",
