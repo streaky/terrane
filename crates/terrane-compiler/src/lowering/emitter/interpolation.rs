@@ -25,7 +25,16 @@ impl Emitter<'_> {
             .expect("validated interpolation operand");
         let value = self.display_receiver(node);
         let write = self.write_interpolation_value(node, &ty, &value, &key, output);
-        self.wrap_receiver_guard(node, write)
+        if self.reference_uses_shared_storage(node) {
+            // Writers are statements: keep the upgraded owner local without
+            // wrapping the statement in a value-producing expression.
+            format!(
+                "{{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); {write} }}",
+                self.expression(node)
+            )
+        } else {
+            write
+        }
     }
 
     fn write_interpolation_value(

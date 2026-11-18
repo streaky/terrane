@@ -146,6 +146,12 @@ function test-scenario;
     catch render-failure
         assert; true
 
+function unrelated-catch string;
+    try
+        throw instance render-failure;
+    catch render-failure as renderer
+        return renderer.message
+
 function test-renderer-bindings;
     item = instance server;
     with (interpolation-renderer; key = 'overview') renderer function from server to string = overview
@@ -159,3 +165,8 @@ function test-renderer-bindings;
     assert-equal-string; "{8 !: number}", 'second:8'
     number-renderer = first
     assert-equal-string; "{1 !: number}|{switch-number; number-renderer !: number}|{3 !: number}", 'first:1|second:9|second:3'
+    try
+        throw instance render-failure;
+    catch render-failure as error
+        assert-equal-string; error.message, 'render failed'
+    assert-equal-string; (unrelated-catch;), 'render failed'

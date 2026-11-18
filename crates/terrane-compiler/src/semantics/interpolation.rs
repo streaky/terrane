@@ -60,17 +60,20 @@ fn validate_node(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticF
                 ));
             }
             if let Some(key) = node.children.get(1)
-                && has_builtin_arm(&actual)
+                && let Some(builtin) = builtin_arm(&actual)
             {
-                return Err(failure(
-                    &unit.source,
-                    "T0253",
+                let diagnostic = if matches!(actual, ValueType::Scalar(_)) {
                     format!(
                         "no interpolation renderer is registered for key `{}`, and `{actual}` defines no interpolation keys",
                         node_text(&unit.source, key)
-                    ),
-                    key.span,
-                ));
+                    )
+                } else {
+                    format!(
+                        "no interpolation renderer is registered for key `{}`, and built-in arm `{builtin}` defines no interpolation keys",
+                        node_text(&unit.source, key)
+                    )
+                };
+                return Err(failure(&unit.source, "T0253", diagnostic, key.span));
             }
         }
     }
@@ -80,14 +83,15 @@ fn validate_node(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticF
     Ok(())
 }
 
-fn has_builtin_arm(value: &ValueType) -> bool {
+fn builtin_arm(value: &ValueType) -> Option<ScalarType> {
     match value {
-        ValueType::Scalar(_) | ValueType::Optional(_) => true,
-        ValueType::Union(arms) => arms.iter().any(has_builtin_arm),
+        ValueType::Scalar(scalar) => Some(*scalar),
+        ValueType::Optional(_) => Some(ScalarType::None),
+        ValueType::Union(arms) => arms.iter().find_map(builtin_arm),
         ValueType::Reference(inner)
         | ValueType::MutableReference(inner)
-        | ValueType::SharedReference(inner) => has_builtin_arm(inner.value_type_ref()),
-        _ => false,
+        | ValueType::SharedReference(inner) => builtin_arm(inner.value_type_ref()),
+        _ => None,
     }
 }
 

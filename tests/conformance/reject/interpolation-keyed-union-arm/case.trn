@@ -1,0 +1,13 @@
+namespace interpolation-keyed-union-arm
+from /core/display import interpolatable
+class item implements interpolatable
+    function interpolate string; key string
+        return 'item'
+function describe string; selected bool
+    if selected
+        value item = instance item;
+    else
+        value int = 1
+    return "{value !: label}"
+function main;
+    print; (describe; true)

@@ -1,0 +1,15 @@
+namespace interpolation-renderer-catch-shadow
+from /core/modifiers import interpolation-renderer
+from /core/errors import throwable
+class problem implements throwable
+    message string = 'failed'
+    function render string;
+        return this.message
+function text string; value int
+    return value.to-string;
+function main;
+    with (interpolation-renderer; key = 'k') renderer function from int to string = text
+    try
+        throw instance problem;
+    catch problem as renderer
+        print; "{1 !: k}"

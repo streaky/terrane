@@ -816,9 +816,21 @@ impl Emitter<'_> {
             contract.name
         ));
         let borrowed_key = crate::semantics::interpolatable::borrows_key(self.unit, contract);
+        let materialize_key = borrowed_key && {
+            let parameter = &contract.parameters[0];
+            self.parameter_needs_shared_storage(parameter)
+                || self.unit.completion_capture_slots.contains(&parameter.span)
+                || matches!(
+                    self.unit.flow_binding_types.get(&parameter.span),
+                    Some(ValueType::Union(_))
+                )
+                || self.unit.typed_bindings.iter().any(|binding| {
+                    binding.span == parameter.span && self.binding_is_reference_owner(binding)
+                })
+        };
         let outer_borrowed_key = std::mem::replace(
             &mut self.borrowed_interpolation_key,
-            borrowed_key.then(|| contract.parameters[0].span),
+            (borrowed_key && !materialize_key).then(|| contract.parameters[0].span),
         );
         let outer_parameter_types = std::mem::replace(
             &mut self.parameter_types,
@@ -874,6 +886,13 @@ impl Emitter<'_> {
         if group_frame {
             self.line("__terrane_group_frame(async move {");
             self.indent += 1;
+        }
+        if materialize_key {
+            // A source reference needs a stable String owner, not the borrowed
+            // text ABI. Materialize once before ordinary parameter carriers.
+            let parameter = &contract.parameters[0];
+            let name = self.parameter_source_name(&parameter.name, parameter.span);
+            self.line(&format!("let {name} = {name}.to_owned();"));
         }
         for function in &local_functions {
             self.local_function(function);

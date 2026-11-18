@@ -204,6 +204,24 @@ fn rewrite_keys(
     Ok(())
 }
 
+fn catch_shadow_span(
+    source: &SourceFile,
+    current: &SyntaxNode,
+    registration: &Registration,
+) -> Option<Span> {
+    if current.span.end <= registration.owner.start || current.span.start >= registration.owner.end
+    {
+        return None;
+    }
+    if current.kind == SyntaxKind::CatchBinding && node_text(source, current) == registration.name {
+        return Some(current.span);
+    }
+    current
+        .children
+        .iter()
+        .find_map(|child| catch_shadow_span(source, child, registration))
+}
+
 fn reject_shadowing(
     unit: &SemanticUnit,
     registered: &[Registration],
@@ -230,6 +248,17 @@ fn reject_shadowing(
                     symbol.declaration_span.unwrap_or(scope.span),
                 ));
             }
+        }
+        if let Some(alias) = catch_shadow_span(&unit.source, &unit.tree.root, registration) {
+            return Err(failure(
+                &unit.source,
+                "T0250",
+                format!(
+                    "registered interpolation renderer binding `{}` cannot be shadowed within its registration scope",
+                    registration.name
+                ),
+                alias,
+            ));
         }
     }
     Ok(())
