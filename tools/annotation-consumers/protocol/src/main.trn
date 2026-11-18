@@ -107,11 +107,14 @@ function annotation document-value throws consumer-error; declaration document-v
 
 function quote string; value string
     escaped = value.replace; '\\', '\\\\'
-    escaped = escaped.replace; '\'', '\\\''
-    escaped = escaped.replace; '\n', '\\n'
-    escaped = escaped.replace; '\r', '\\r'
-    escaped = escaped.replace; '\t', '\\t'
-    return '\''.concat; escaped, '\''
+    escaped = escaped.replace; '"', '\\"'
+    escaped = escaped.replace; "\n", '\\n'
+    escaped = escaped.replace; "\r", '\\r'
+    escaped = escaped.replace; "\t", '\\t'
+    escaped = escaped.replace; "\0", '\\0'
+    escaped = escaped.replace; '{', '{{'
+    escaped = escaped.replace; '}', '}}'
+    return '"'.concat; escaped, '"'
 
 function selected document-value throws consumer-error; request document-value, kind string
     declarations = get; request, 'declarations'
