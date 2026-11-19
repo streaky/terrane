@@ -14,6 +14,35 @@ use std::{
     },
 };
 
+/// Returns a stable, source-facing name for common operating-system I/O failures.
+#[must_use]
+pub fn io_error_kind(kind: io::ErrorKind) -> &'static str {
+    match kind {
+        io::ErrorKind::NotFound => "not-found",
+        io::ErrorKind::PermissionDenied => "permission-denied",
+        io::ErrorKind::AlreadyExists => "already-exists",
+        io::ErrorKind::NotADirectory => "not-a-directory",
+        io::ErrorKind::IsADirectory => "is-a-directory",
+        io::ErrorKind::DirectoryNotEmpty => "directory-not-empty",
+        io::ErrorKind::ReadOnlyFilesystem => "read-only-filesystem",
+        io::ErrorKind::StorageFull => "storage-full",
+        io::ErrorKind::FileTooLarge => "file-too-large",
+        io::ErrorKind::CrossesDevices => "crosses-devices",
+        io::ErrorKind::InvalidInput => "invalid-input",
+        io::ErrorKind::InvalidData => "invalid-data",
+        io::ErrorKind::TimedOut => "timed-out",
+        io::ErrorKind::WouldBlock => "would-block",
+        io::ErrorKind::Interrupted => "interrupted",
+        io::ErrorKind::UnexpectedEof => "unexpected-eof",
+        io::ErrorKind::WriteZero => "write-zero",
+        io::ErrorKind::BrokenPipe => "broken-pipe",
+        io::ErrorKind::TooManyLinks => "too-many-links",
+        io::ErrorKind::Unsupported => "unsupported",
+        io::ErrorKind::OutOfMemory => "out-of-memory",
+        _ => "other",
+    }
+}
+
 #[derive(Debug)]
 pub struct ReadOutcome {
     pub data: Vec<u8>,
@@ -273,12 +302,42 @@ pub enum FileCreation {
     Create,
     Truncate,
     CreateOrTruncate,
+    Exclusive,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct FileOpenOptions {
     pub access: FileAccess,
     pub creation: FileCreation,
+    pub append: bool,
+}
+
+impl FileOpenOptions {
+    fn validated_access(self) -> io::Result<(bool, bool)> {
+        let (readable, writable) = match self.access {
+            FileAccess::Read => (true, false),
+            FileAccess::Write => (false, true),
+            FileAccess::ReadWrite => (true, true),
+        };
+        if !writable && (self.append || !matches!(self.creation, FileCreation::Existing)) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file creation, truncation and append require write access",
+            ));
+        }
+        if self.append
+            && matches!(
+                self.creation,
+                FileCreation::Truncate | FileCreation::CreateOrTruncate
+            )
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "append conflicts with truncate",
+            ));
+        }
+        Ok((readable, writable))
+    }
 }
 
 /// Opens a filesystem file without following a final symlink on Unix targets.
@@ -287,23 +346,22 @@ pub struct FileOpenOptions {
 ///
 /// Returns the host open error, including a refusal to follow the final symlink.
 pub fn open_file(path: &str, request: FileOpenOptions) -> io::Result<StreamHandle> {
-    let mut options = std::fs::OpenOptions::new();
-    let (readable, writable) = match request.access {
-        FileAccess::Read => (true, false),
-        FileAccess::Write => (false, true),
-        FileAccess::ReadWrite => (true, true),
-    };
+    let (readable, writable) = request.validated_access()?;
     let (create, truncate) = match request.creation {
         FileCreation::Existing => (false, false),
         FileCreation::Create => (true, false),
         FileCreation::Truncate => (false, true),
         FileCreation::CreateOrTruncate => (true, true),
+        FileCreation::Exclusive => (false, false),
     };
+    let mut options = std::fs::OpenOptions::new();
     options
         .read(readable)
         .write(writable)
         .create(create)
-        .truncate(truncate);
+        .truncate(truncate)
+        .create_new(matches!(request.creation, FileCreation::Exclusive))
+        .append(request.append);
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt as _;
@@ -388,16 +446,18 @@ pub fn open_file_beneath(
     child: &str,
     request: FileOpenOptions,
 ) -> io::Result<StreamHandle> {
-    let (readable, writable) = match request.access {
-        FileAccess::Read => (true, false),
-        FileAccess::Write => (false, true),
-        FileAccess::ReadWrite => (true, true),
-    };
+    let (readable, writable) = request.validated_access()?;
     let creation_flags = match request.creation {
         FileCreation::Existing => rustix::fs::OFlags::empty(),
         FileCreation::Create => rustix::fs::OFlags::CREATE,
         FileCreation::Truncate => rustix::fs::OFlags::TRUNC,
         FileCreation::CreateOrTruncate => rustix::fs::OFlags::CREATE | rustix::fs::OFlags::TRUNC,
+        FileCreation::Exclusive => rustix::fs::OFlags::CREATE | rustix::fs::OFlags::EXCL,
+    };
+    let append_flags = if request.append {
+        rustix::fs::OFlags::APPEND
+    } else {
+        rustix::fs::OFlags::empty()
     };
     let access_flags = match request.access {
         FileAccess::Read => rustix::fs::OFlags::RDONLY,
@@ -418,7 +478,7 @@ pub fn open_file_beneath(
         linux_open_beneath(
             &directory.file,
             child,
-            access_flags | creation_flags | rustix::fs::OFlags::CLOEXEC,
+            access_flags | creation_flags | append_flags | rustix::fs::OFlags::CLOEXEC,
             directory.cross_filesystem,
         )?
     };
@@ -733,6 +793,7 @@ mod tests {
             FileOpenOptions {
                 access: FileAccess::Write,
                 creation: FileCreation::CreateOrTruncate,
+                append: false,
             },
         )
         .unwrap();
@@ -745,6 +806,7 @@ mod tests {
             FileOpenOptions {
                 access: FileAccess::Read,
                 creation: FileCreation::Existing,
+                append: false,
             },
         )
         .unwrap();
@@ -777,6 +839,7 @@ mod tests {
                 FileOpenOptions {
                     access: FileAccess::Read,
                     creation: FileCreation::Existing,
+                    append: false,
                 },
             )
             .is_err()
@@ -803,6 +866,7 @@ mod tests {
             FileOpenOptions {
                 access: FileAccess::Read,
                 creation: FileCreation::Existing,
+                append: false,
             },
         )
         .unwrap();
@@ -815,6 +879,7 @@ mod tests {
                 FileOpenOptions {
                     access: FileAccess::Read,
                     creation: FileCreation::Existing,
+                    append: false,
                 },
             )
             .is_err()
@@ -826,6 +891,7 @@ mod tests {
                 FileOpenOptions {
                     access: FileAccess::Read,
                     creation: FileCreation::Existing,
+                    append: false,
                 },
             )
             .is_err()

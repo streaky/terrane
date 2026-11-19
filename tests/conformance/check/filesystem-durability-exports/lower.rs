@@ -20,6 +20,8 @@ fn main() {
         true,
         true,
         true,
+        false,
+        false,
     );
     exercise(capability, &output);
 }

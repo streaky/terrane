@@ -11,6 +11,7 @@ pub async fn terrane_platform_read_async(
             end: false,
             failed: error.failed,
             message: error.message,
+            error_kind: if error.deadline_exceeded { "timed-out" } else { "other" },
             deadline_exceeded: error.deadline_exceeded,
         };
     }
@@ -159,6 +160,7 @@ pub async fn terrane_platform_write_async(
             completed: 0_i64.into(),
             failed: error.failed,
             message: error.message,
+            error_kind: if error.deadline_exceeded { "timed-out" } else { "other" },
             deadline_exceeded: error.deadline_exceeded,
         };
     }

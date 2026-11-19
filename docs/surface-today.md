@@ -151,11 +151,11 @@ Terrane package
     ├── /core/filesystem                       filesystem operations; requires `filesystem`
     │   ├── filesystem                         unforgeable capability, acquired via filesystem-capability
     │   ├── filesystem-capability() -> filesystem
-    │   ├── filesystem-operation-result        failed / message
-    │   ├── existence-result                   exists / failed / message result object
+    │   ├── filesystem-operation-result        failed / message / error-kind
+    │   ├── existence-result                   exists / failed / message / error-kind
     │   ├── file-handle                        inferred resource-owning file stream
     │   ├── directory-handle                   inferred resource-owning directory anchor
-    │   ├── open-file(filesystem, path, …) -> file-handle
+    │   ├── open-file(filesystem, path, …) -> file-handle; exclusive creation and append
     │   ├── file-read(filesystem, file-handle, limit) / file-write(filesystem, file-handle, data, offset)
     │   ├── file-flush(filesystem, file-handle) / file-sync-data(filesystem, file-handle)
     │   ├── file-sync-all(filesystem, file-handle) / file-close(filesystem, file-handle)
@@ -164,7 +164,11 @@ Terrane package
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
     │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
-    │   └── filesystem-rename / filesystem-remove
+    │   ├── filesystem-rename / filesystem-remove
+    │   ├── filesystem-create-directory / filesystem-create-directories
+    │   ├── filesystem-list-directory -> directory-listing (bounded names)
+    │   ├── filesystem-remove-directory / filesystem-remove-directory-tree
+    │   └── filesystem-create-symlink / filesystem-create-hard-link
     ├── /core/process                          process and host environment; requires `process`
     │   ├── native-string                    lossless text-or-raw platform value
     │   ├── arguments / environment            explicit process snapshots

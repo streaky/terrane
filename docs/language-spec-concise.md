@@ -1154,8 +1154,12 @@ filesystem_authority: unforgeable value acquired only through `filesystem-capabi
 metadata: metadata follows final link; symlink-metadata inspects it; portable kind/size/read-only plus platform permission detail
 bounded_read: explicit limit; excess fails, never truncates
 atomic_replace: sibling temporary then rename over destination without following destination link
+directory_management: create one directory or all missing parents; list bounded, unsorted immediate UTF-8 names; remove empty directory or explicitly remove a tree without following encountered symlinks; ordinary paths, not confined operations
+links: capability-gated symbolic and hard link creation; relative symlink targets are stored verbatim, relative to the link's parent
+error_kinds: filesystem results and handles expose portable `error-kind` strings alongside `failed` and `message`; `none` on success, `other` for unclassified failures
 directory_relative: resource-owning directory handle; final anchor component and all beneath operations are no-follow; intermediate components of the caller-supplied anchor path use ordinary host resolution; beneath rejects escape; cross-filesystem requires explicit permission
 handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
+file_open_modes: `exclusive` creates only if absent; `append` writes at end via the host open mode; both require write access; available on path opens and confined opens
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
 snapshots: arguments and environment are explicit; environment returns paired native-string names/values
 host_name: /core/process process-host-name returns process-host-name-result with failed/available/message plus a lossless native-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle

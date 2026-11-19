@@ -1219,12 +1219,6 @@ fn case_command(
             fs::remove_dir_all(&working_directory).unwrap();
         }
         fs::create_dir(&working_directory).unwrap();
-        if let (Some(link), Some(target)) = (
-            field(manifest, "symlink-fixture"),
-            field(manifest, "symlink-target"),
-        ) {
-            create_file_symlink(target, working_directory.join(link));
-        }
         command.current_dir(working_directory);
     }
     coverage_test_environment(&mut command);
@@ -1324,16 +1318,6 @@ fn run_case_with_selector(
         "{} exit code",
         case.display()
     );
-}
-
-#[cfg(unix)]
-fn create_file_symlink(target: &str, link: PathBuf) {
-    std::os::unix::fs::symlink(target, link).unwrap();
-}
-
-#[cfg(windows)]
-fn create_file_symlink(target: &str, link: PathBuf) {
-    std::os::windows::fs::symlink_file(target, link).unwrap();
 }
 
 fn optional_bytes(path: PathBuf) -> Vec<u8> {

@@ -1455,7 +1455,8 @@ fn infer_nonbinary_value_type(
                         ))))
                     }
                     "intrinsic:logging::log-empty-spans"
-                    | "intrinsic:logging::log-result-entries" => Some(ValueType::List(
+                    | "intrinsic:logging::log-result-entries"
+                    | "intrinsic:system::result-entries" => Some(ValueType::List(
                         ElementType::new(ValueType::Scalar(ScalarType::String)),
                     )),
                     "intrinsic:logging::log-memory-sink"
@@ -1595,7 +1596,14 @@ fn infer_nonbinary_value_type(
                     "intrinsic:process-signals::process-signal-result-observed" => Some(
                         ValueType::Object(ObjectIdentity::new("/core/time", "monotonic-instant")),
                     ),
-                    "intrinsic:system::filesystem-exists"
+                    "intrinsic:system::filesystem-create-directory"
+                    | "intrinsic:system::filesystem-create-directories"
+                    | "intrinsic:system::filesystem-list-directory"
+                    | "intrinsic:system::filesystem-remove-directory"
+                    | "intrinsic:system::filesystem-remove-directory-tree"
+                    | "intrinsic:system::filesystem-create-symlink"
+                    | "intrinsic:system::filesystem-create-hard-link"
+                    | "intrinsic:system::filesystem-exists"
                     | "intrinsic:system::filesystem-metadata"
                     | "intrinsic:system::filesystem-realpath"
                     | "intrinsic:system::filesystem-read-link"
@@ -1641,6 +1649,7 @@ fn infer_nonbinary_value_type(
                     "intrinsic:logging::log-result-message"
                     | "intrinsic:capabilities::native-result-message"
                     | "intrinsic:system::result-message"
+                    | "intrinsic:system::result-error-kind"
                     | "intrinsic:system::result-text"
                     | "intrinsic:system::result-detail"
                     | "intrinsic:system::platform-value-text"

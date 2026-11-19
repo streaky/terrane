@@ -1,0 +1,52 @@
+format: 1
+id: filesystem.directory-tree-removal
+kind: security-contract
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Recursive directory removal does not follow symlinks
+  title-style: text
+  summary: Recursive removal delegates directly to the host operation without traversing symlinks encountered in the tree.
+  tags: [security, filesystem]
+  sections: []
+  see-also: []
+security:
+  audiences: [application]
+  invariant: |-
+    Recursive removal uses the host's remove-directory-tree operation directly. It does not recurse through encountered symlinks or select a target using a separate metadata check.
+  threats:
+    - A symlink in the selected tree must not cause deletion of its target directory or contents.
+  assumptions:
+    - The caller trusts the selected path and its parent resolution. The platform implementation honors the standard library's no-follow contract for recursive removal.
+  limitations:
+    - This is not directory-handle confinement. It does not constrain resolution of the supplied path's ancestors, prohibit crossing mounts, promise race resistance on every platform, or guarantee rollback after a failure.
+    - Evidence covers a real directory link and an existing target; it does not exercise all host platforms or concurrent tree mutation.
+  guidance: |-
+    Use this operation only when recursive deletion is intended and the target path is trusted. Choose ordinary empty-directory removal when recursion is not intended.
+  review:
+    considerations:
+      - Preserve delegation to the host's recursive removal operation. Do not substitute a path-based check followed by hand-written recursion. Run the filesystem-facilities conformance case.
+  files:
+    - path: crates/terrane-compiler/src/core/filesystem.trn
+      role: enforcement
+      detail: Dispatches the explicit recursive operation and preserves the host result.
+    - path: crates/terrane-compiler/src/runtime/platform_system.rs
+      role: enforcement
+      detail: Delegates to the standard library's recursive removal without a metadata precheck.
+    - path: crates/terrane-compiler/src/lowering/emitter/calls.rs
+      role: dependency
+      detail: Binds the source operation to the host entry point.
+    - path: tests/conformance/run/filesystem-facilities/case.trn
+      role: evidence
+      detail: Removes a tree containing a directory symlink and checks that the target's file remains readable.
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

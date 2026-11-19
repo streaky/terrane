@@ -3690,6 +3690,8 @@ traversal with beneath and cross-filesystem policy. Portable metadata has a stru
 carrying kind, size, read-only state, platform permission detail, and failure detail; existence
 checks likewise preserve lookup failures rather than collapsing them to `false`.
 
+The filesystem surface also supports bounded directory listings, single and recursive directory creation, empty and recursive removal, symbolic and hard links, exclusive file creation, and host append mode. Portable error kinds supplement the host diagnostic text. Path-based directory and link operations do not inherit the confinement policy of directory-handle opens.
+
 Process facilities expose lossless text-or-raw platform strings, explicit argument and environment
 snapshots, a schema-driven parser that returns option names, values, positionals, and structured
 diagnostics without terminating, and validated `exit-status` values in `0..=255`. Accepted

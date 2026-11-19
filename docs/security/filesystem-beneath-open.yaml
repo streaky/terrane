@@ -21,7 +21,7 @@ documentation:
 security:
   audiences: [application]
   invariant: |-
-    Confined traversal constrains the actual host open operation beneath the selected directory descriptor, not a separately checked path string. The Linux implementation requests BENEATH, NO_MAGICLINKS, and NO_SYMLINKS resolution. Unless crossing is explicitly enabled, it also requests NO_XDEV. File opens retain the policy stored on their directory handle. Unsupported targets and host failures produce errors rather than a weaker fallback. The Terrane wrappers preserve the selected handle, relative path, crossing policy, and failure result.
+    Confined traversal constrains the actual host open operation beneath the selected directory descriptor, not a separately checked path string. The Linux implementation requests BENEATH, NO_MAGICLINKS, and NO_SYMLINKS resolution. Unless crossing is explicitly enabled, it also requests NO_XDEV. File opens retain the policy stored on their directory handle, including when opening for exclusive creation or append. Unsupported targets and host failures produce errors rather than a weaker fallback. The Terrane wrappers preserve the selected handle, relative path, crossing policy, and failure result.
   threats:
     - >-
       An attacker-controlled relative path must not redirect an open outside the anchor through parent traversal, absolute paths, symbolic links, magic links, or disallowed mount traversal.
@@ -43,8 +43,7 @@ security:
       Non-Linux targets return Unsupported; Linux kernels that cannot provide the requested operation return a host error.
     - >-
       Existing unit evidence covers a successful read and asserts failures for parent traversal and a final symlink. Its outside targets are not created, so those negative assertions alone do not distinguish confinement from ordinary missing-target failures.
-    - >-
-      The conformance case exercises the Terrane wrappers. This evidence does not exhaustively establish concurrent rename behavior, mount boundaries, all symlink shapes, or unsupported-platform behavior. Registration here records a security-sensitive contract, not an audit or certification.
+    - The conformance case exercises the Terrane wrappers, including append through a confined file handle. This evidence does not exhaustively establish concurrent rename behavior, mount boundaries, all symlink shapes, or unsupported-platform behavior. Registration here records a security-sensitive contract, not an audit or certification.
   guidance: |-
     Acquire the anchor from a trusted location, then use filesystem-open-beneath and open-file-beneath for untrusted relative paths. Inspect the returned failure fields before using the handle. Keep cross-filesystem false unless crossing is an intentional policy decision. Lexical path normalization, component-prefix checks, and canonicalize-then-open are not substitutes for descriptor-relative confined opens. The public filesystem manual remains the API reference; this record describes the security maintenance boundary.
   review:
@@ -76,7 +75,7 @@ security:
       detail: Locked native dependency versions; changes conservatively require relevance review.
     - path: tests/conformance/run/filesystem-facilities/case.trn
       role: evidence
-      detail: Source-level rejection of an escaping directory path and successful handle-relative read.
+      detail: Source-level rejection of an escaping directory path, successful handle-relative read, and append through a confined file handle.
 provenance:
   specification: []
   conformance: []
