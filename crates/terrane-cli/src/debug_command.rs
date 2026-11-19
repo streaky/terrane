@@ -83,6 +83,21 @@ fn dap_program_arguments(arguments: &[OsString]) -> Result<Vec<Value>, CliFailur
         .collect()
 }
 
+pub(super) fn artifact_json_paths(executable: &Path, sidecar: &Path) -> Result<Value, CliFailure> {
+    Ok(json!({
+        "program": artifact_path_text(executable, "program")?,
+        "terraneProvenance": artifact_path_text(sidecar, "provenance")?,
+    }))
+}
+
+fn artifact_path_text<'a>(path: &'a Path, description: &str) -> Result<&'a str, CliFailure> {
+    path.to_str().ok_or_else(|| {
+        debugger_failure(format!(
+            "debugger {description} path is not valid UTF-8 and cannot be encoded as JSON"
+        ))
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the compact interactive command grammar keeps debugger session state in one loop"
@@ -106,7 +121,7 @@ pub(super) fn run_cli(
         }),
     )?;
     let mut backend_arguments = json!({
-        "program": executable,
+        "program": artifact_path_text(executable, "program")?,
         "cwd": provenance.relocation.source_root,
         "stopOnEntry": true,
         "disableASLR": false
@@ -1193,6 +1208,20 @@ mod tests {
     use crate::debug_command::adapter::Adapter;
 
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn artifact_paths_reject_non_utf8() {
+        use std::os::unix::ffi::OsStrExt as _;
+
+        let invalid = PathBuf::from(std::ffi::OsStr::from_bytes(b"/tmp/program-\xff"));
+        let failure = artifact_json_paths(&invalid, Path::new("/tmp/provenance.json"))
+            .expect_err("non-UTF-8 program path must be rejected");
+        assert_eq!(failure.code, 5);
+
+        let failure = artifact_json_paths(Path::new("/tmp/program"), &invalid)
+            .expect_err("non-UTF-8 provenance path must be rejected");
+        assert_eq!(failure.code, 5);
+    }
 
     #[cfg(unix)]
     #[test]

@@ -112,18 +112,24 @@
       "end": "\"|$",
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.terrane" } },
       "patterns": [
-        { "name": "constant.character.escape.terrane", "match": "\\\\u\\{[0-9A-Fa-f]+\\}" },
+        { "include": "#double-escapes" },
+        { "name": "invalid.illegal.escape.terrane", "match": "\\\\(?:.|$)" },
         { "name": "constant.character.escape.terrane", "match": "\\{\\{" },
         { "name": "constant.character.escape.terrane", "match": "\\}\\}" },
+        { "name": "invalid.illegal.brace.terrane", "match": "\\}" },
         {
           "name": "meta.interpolation.terrane",
           "begin": "\\{(?!\\{)",
           "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.terrane" } },
-          "end": "\\}(?!\\})",
+          "end": "\\}|$",
           "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.terrane" } },
           "patterns": [{ "include": "#interpolation-key" }, { "include": "$self" }]
         }
       ]
+    },
+    "double-escapes": {
+      "name": "constant.character.escape.terrane",
+      "match": "\\\\(?:[\\\\'\"nrt0]|u\\{[0-9A-Fa-f]+\\})"
     },
     "escapes": {
       "name": "constant.character.escape.terrane",

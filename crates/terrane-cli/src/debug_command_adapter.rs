@@ -105,7 +105,7 @@ impl Adapter {
             let mut messages = vec![
                 response(json!({
                     "supportsConfigurationDoneRequest": true,
-                    "supportsTerminateRequest": true,
+                    "supportsTerminateRequest": false,
                     "supportsRestartRequest": false,
                     "supportsConditionalBreakpoints": false,
                     "supportsLogPoints": false,
@@ -163,11 +163,19 @@ impl Adapter {
             });
             let mut backend_arguments = arguments;
             backend_arguments["program"] = executable.to_string_lossy().into_owned().into();
-            for name in ["terraneProvenance", "terraneRelocation", "useBuildSnapshot"] {
-                backend_arguments
-                    .as_object_mut()
-                    .expect("DAP arguments are an object")
-                    .remove(name);
+            let backend_object = backend_arguments
+                .as_object_mut()
+                .expect("DAP arguments are an object");
+            for name in [
+                "terraneProvenance",
+                "terraneRelocation",
+                "useBuildSnapshot",
+                "__terraneCompiler",
+            ] {
+                backend_object.remove(name);
+            }
+            if backend_object.get("cwd").is_some_and(Value::is_null) {
+                backend_object.remove("cwd");
             }
             if let (Some(recorded), Ok(relocated)) = (&recorded_relocation, &translation) {
                 let mut source_map = Vec::new();
@@ -196,6 +204,7 @@ impl Adapter {
                     .as_deref(),
             );
             if command == "launch"
+                && backend_arguments.get("cwd").is_none()
                 && let Ok(provenance) = &translation
             {
                 backend_arguments["cwd"] = provenance.relocation.source_root.clone().into();

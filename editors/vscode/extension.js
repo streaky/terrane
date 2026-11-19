@@ -61,6 +61,7 @@ function serverPath(context) {
 
 async function activate(context) {
   startDecorations(context);
+  require('./debugger').registerDebugger(vscode, context);
   const command = serverPath(context);
   if (!fs.existsSync(command)) {
     const message = `Terrane language server not found at ${command}. Configure terrane.server.path or package the server binary.`;

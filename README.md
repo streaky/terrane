@@ -119,7 +119,31 @@ See [`tests/native-testing/`](tests/native-testing/) for a tracked package exerc
 
 ### Debugging, profiling, and editor support
 
-The source debugger provides breakpoints, stepping, mapped frames, scope-aware locals, bounded value inspection, secret-field redaction, and explicit generated/native views. It requires the LLDB backend and currently has exact source fidelity for supported Linux x86-64 builds. Optimized source debugging is not supported; `debug --release` is rejected.
+The source debugger provides breakpoints, stepping, mapped frames, scope-aware locals, bounded value inspection, secret-field redaction, and explicit generated/native views. It requires `lldb-dap`; Linux x86-64 with LLDB 22 is the exercised source-fidelity configuration. Other platforms, architectures, LLDB versions, optimized modules, and stripped modules may fall back to native fidelity. Optimized source debugging is not supported; `debug --release` is rejected.
+
+Install the Terrane VS Code extension from `editors/vscode/` and make `terrane` available on `PATH`, or set `terrane.debugger.path` to its executable. Bare executable names use `PATH`; relative executable paths resolve against the workspace folder, or the selected source file's directory without a workspace. Install `lldb-dap`; Linux x86-64 with LLDB 22 is the exercised configuration. Place a gutter breakpoint in Terrane source, then press F5. Launches build the selected source or manifest automatically before starting the adapter. The workspace must be trusted to launch builds.
+
+Add a launch configuration in `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "terrane",
+      "request": "launch",
+      "name": "Debug current Terrane file",
+      "program": "${file}",
+      "args": [],
+      "stopOnEntry": false
+    }
+  ]
+}
+```
+
+Set `program` to a manifest path to debug a package instead. Saving follows VS Code's `debug.saveBeforeStart` policy; choosing not to save builds the on-disk sources, not unsaved editor buffers. `cwd` optionally sets the program's working directory, relative to the workspace folder or source-file directory. Without it, exact-build source debugging uses the package source root; native fallback without valid provenance uses the backend's inherited working directory. An explicit `cwd` is honored in both fidelity modes. Canceling a build or disposing the extension stops its build process group on POSIX. Conditional breakpoints, logpoints, restart, and Terrane expression/watch evaluation are unsupported. Stop uses DAP `disconnect`, terminating a launched program and detaching from an attached one by default.
+
+`terrane debug --build-only <file-or-manifest>` builds the normal exact debug profile and provenance without starting LLDB or the program. It writes one JSON object to stdout, `{"program":"<absolute executable path>","terraneProvenance":"<absolute sidecar path>"}`; diagnostics go to stderr.
 
 Profiling uses optimized native artifacts, not debugger builds. CPU sampling requires Linux x86-64 and host `perf` permission; allocation capture requires Heaptrack and zstd; process-memory timelines use Linux procfs. `--memory-timeline` may accompany CPU or allocation capture. Allocation reports support comparisons and allocated/retained byte thresholds. Retained-at-exit allocations are not automatically leaks, and RSS is not allocation-site evidence.
 

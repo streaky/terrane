@@ -91,6 +91,33 @@ impl Drop for DebugFixture {
 }
 
 #[test]
+fn build_only_returns_debug_artifacts_without_running_program() {
+    let fixture = DebugFixture::new();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--build-only", fixture.source.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // The program prints 42 if run: stdout must contain only the artifact object.
+    let artifact: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let executable = Path::new(artifact["program"].as_str().unwrap());
+    let sidecar = Path::new(artifact["terraneProvenance"].as_str().unwrap());
+    assert!(executable.is_absolute() && executable.is_file());
+    assert!(sidecar.is_absolute() && sidecar.is_file());
+    let provenance: Value = serde_json::from_slice(&fs::read(sidecar).unwrap()).unwrap();
+    assert_eq!(provenance["artifact_profile"], "terrane-debug-v1");
+    assert_eq!(Command::new(executable).output().unwrap().stdout, b"42\n");
+    assert_eq!(
+        launch_fidelity(executable, sidecar)["body"]["mode"],
+        "source"
+    );
+}
+
+#[test]
 fn cli_hits_source_breakpoint_and_inspects_preserved_scalar() {
     let fixture = DebugFixture::new();
     let commands = format!(
@@ -368,7 +395,8 @@ impl Drop for DapClient {
 fn launch_fidelity(executable: &Path, provenance: &Path) -> Value {
     let mut dap = DapClient::start();
     let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
-    assert!(dap.response(initialize)["success"].as_bool().unwrap());
+    let initialized = dap.response(initialize);
+    assert!(initialized["success"].as_bool().unwrap());
     assert_eq!(dap.read()["event"], "initialized");
     let launch = dap.send(
         "launch",
@@ -385,7 +413,13 @@ fn launch_fidelity(executable: &Path, provenance: &Path) -> Value {
             break message;
         }
     };
-    let disconnect = dap.send("disconnect", json!({"terminateDebuggee": true}));
+    // Follow the client's advertised stop route, as VS Code does.
+    let stop_command = if initialized["body"]["supportsTerminateRequest"] == true {
+        "terminate"
+    } else {
+        "disconnect"
+    };
+    let disconnect = dap.send(stop_command, json!({"terminateDebuggee": true}));
     assert!(dap.response(disconnect)["success"].as_bool().unwrap());
     fidelity
 }
@@ -1731,4 +1765,82 @@ fn debugger_build_does_not_replace_ordinary_application_artifacts() {
         fs::metadata(release).unwrap().modified().unwrap(),
         release_modified
     );
+}
+
+#[test]
+fn adapter_cwd_handles_explicit_missing_and_null() {
+    let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace cwd-debugger\n",
+            "function main;\n",
+            "  rust\n",
+            "    println!(\"RUN_CWD={}\", std::env::current_dir().unwrap().display());\n",
+        ),
+    )
+    .unwrap();
+    let build = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--build-only"])
+        .arg(&fixture.source)
+        .output()
+        .unwrap();
+    assert!(build.status.success(), "{build:?}");
+    let artifacts: Value = serde_json::from_slice(&build.stdout).unwrap();
+    let run_directory = fixture.root.join("run from here");
+    fs::create_dir(&run_directory).unwrap();
+    let inherited_directory = std::env::current_dir().unwrap();
+    for (source_mode, cwd, expected_directory) in [
+        (true, Some(json!(run_directory)), &run_directory),
+        (false, Some(json!(run_directory)), &run_directory),
+        (true, None, &fixture.root),
+        (true, Some(Value::Null), &fixture.root),
+        (false, None, &inherited_directory),
+        (false, Some(Value::Null), &inherited_directory),
+    ] {
+        let mut dap = DapClient::start();
+        let initialize = dap.send("initialize", json!({"adapterID": "terrane-test"}));
+        assert_eq!(dap.response(initialize)["success"], true);
+        assert_eq!(dap.read()["event"], "initialized");
+        let sidecar = if source_mode {
+            artifacts["terraneProvenance"].clone()
+        } else {
+            json!(fixture.root.join("missing-provenance.json"))
+        };
+        let mut arguments = json!({
+            "program": artifacts["program"],
+            "terraneProvenance": sidecar,
+            "stopOnEntry": false,
+            "disableASLR": false,
+        });
+        if let Some(cwd) = cwd {
+            arguments["cwd"] = cwd;
+        }
+        let launch = dap.send("launch", arguments);
+        assert_eq!(dap.response(launch)["success"], true);
+        loop {
+            let message = dap.read();
+            if message["event"] == "terrane/fidelity" {
+                assert_eq!(
+                    message["body"]["mode"],
+                    if source_mode { "source" } else { "native" }
+                );
+                break;
+            }
+        }
+        let configuration = dap.send("configurationDone", json!({}));
+        let (response, _, messages) = dap.response_and_event(configuration, "terminated");
+        assert_eq!(response["success"], true, "{response}");
+        let stdout: String = messages
+            .iter()
+            .filter(|message| {
+                message["event"] == "output" && message["body"]["category"] == "stdout"
+            })
+            .filter_map(|message| message["body"]["output"].as_str())
+            .collect();
+        assert!(
+            stdout.contains(&format!("RUN_CWD={}", expected_directory.display())),
+            "source mode {source_mode}: {stdout:?}"
+        );
+    }
 }

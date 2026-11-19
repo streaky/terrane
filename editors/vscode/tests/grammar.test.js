@@ -161,6 +161,40 @@ test('interpolation selector marker and key have separate scopes', () => {
   lacks(tokenize('value = "x {!: plain}"')[0], 'plain', 'variable.other.interpolation-key.terrane');
 });
 
+test('raw single strings only escape quote and backslash', () => {
+  const row = tokenize(String.raw`value = 'raw \n \' \\ \q'`)[0];
+  has(row, String.raw`\n`, 'string.quoted.single.terrane');
+  lacks(row, String.raw`\n`, 'constant.character.escape.terrane');
+  has(row, String.raw`\'`, 'constant.character.escape.terrane');
+  has(row, String.raw`\\`, 'constant.character.escape.terrane');
+  lacks(row, String.raw`\q`, 'constant.character.escape.terrane');
+});
+
+test('double escapes, interpolation-adjacent braces, and malformed boundaries recover', () => {
+  const row = tokenize(String.raw`value = "\n \q \" {item}}} {{tail}}"`)[0];
+  has(row, String.raw`\n`, 'constant.character.escape.terrane');
+  lacks(row, String.raw`\q`, 'constant.character.escape.terrane');
+  has(row, String.raw`\q`, 'invalid.illegal.escape.terrane');
+  has(row, String.raw`\"`, 'constant.character.escape.terrane');
+  has(row, '{item}', 'meta.interpolation.terrane');
+  has(row, '{{tail}}', 'string.quoted.double.terrane');
+  const close = row.line.indexOf('}}}');
+  const scopesAtOffset = offset => row.tokens.find(token => token.startIndex <= offset && token.endIndex > offset).scopes;
+  assert(scopesAtOffset(close).includes('punctuation.section.interpolation.end.terrane'));
+  assert(scopesAtOffset(close + 1).includes('constant.character.escape.terrane'));
+  assert(!scopesAtOffset(close + 1).includes('meta.interpolation.terrane'));
+  const evenBackslashes = tokenize(String.raw`value = "slash\\" + outside`)[0];
+  has(evenBackslashes, '+', 'keyword.operator.terrane');
+  lacks(evenBackslashes, 'outside', 'string.quoted.double.terrane');
+  const oddBackslashes = tokenize(String.raw`value = "slash\" still string" + outside`)[0];
+  has(oddBackslashes, 'still string', 'string.quoted.double.terrane');
+  has(oddBackslashes, '+', 'keyword.operator.terrane');
+  const malformed = tokenize('value = "{call("inner")}"')[0];
+  has(malformed, 'inner', 'string.quoted.double.terrane');
+  const following = tokenize('value = "{unfinished\nreturn none');
+  lacks(following[1], 'return', 'meta.interpolation.terrane');
+});
+
 test('byte escapes and unicode escapes stay inside string scopes', () => {
   const row = tokenize(String.raw`value = b'\n\r\t\0\xAF'`)[0];
   for (const escape of [String.raw`\n`, String.raw`\r`, String.raw`\t`, String.raw`\0`, String.raw`\xAF`]) {
@@ -169,6 +203,18 @@ test('byte escapes and unicode escapes stay inside string scopes', () => {
   const unicode = tokenize(String.raw`value = "\u{1F600}"`)[0];
   has(unicode, String.raw`\u{1F600}`, 'constant.character.escape.terrane');
   lacks(unicode, '{1F600}', 'meta.interpolation.terrane');
+});
+
+test('unknown double escapes and unmatched closing braces are invalid, not raw text', () => {
+  const double = tokenize(String.raw`value = "\q \x41 lone} {{literal}} {item}"`)[0];
+  has(double, String.raw`\q`, 'invalid.illegal.escape.terrane');
+  has(double, String.raw`\x`, 'invalid.illegal.escape.terrane');
+  has(double, '}', 'invalid.illegal.brace.terrane');
+  lacks(double, '{{', 'invalid.illegal.brace.terrane');
+  has(double, '{item}', 'meta.interpolation.terrane');
+  const raw = tokenize(String.raw`value = '\q \x41 }'`)[0];
+  lacks(raw, String.raw`\q`, 'invalid.illegal.escape.terrane');
+  lacks(raw, '}', 'invalid.illegal.brace.terrane');
 });
 test('interpolation key marker is not scoped in ordinary code', () => {
   lacks(tokenize('value = user !: plain')[0], '!: ', 'variable.other.interpolation-key.terrane');
