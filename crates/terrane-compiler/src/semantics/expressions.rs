@@ -1459,13 +1459,10 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:system::result-entries" => Some(ValueType::List(
                         ElementType::new(ValueType::Scalar(ScalarType::String)),
                     )),
-                    "intrinsic:child::child-result-capability" => {
-                        Some(ValueType::PlatformCapability)
-                    }
                     "intrinsic:child::child-capture"
                     | "intrinsic:child::child-poll"
-                    | "intrinsic:child::child-terminate" => Some(ValueType::PlatformResult),
-                    "intrinsic:logging::log-memory-sink"
+                    | "intrinsic:child::child-terminate"
+                    | "intrinsic:logging::log-memory-sink"
                     | "intrinsic:logging::log-console-sink"
                     | "intrinsic:logging::log-failing-sink"
                     | "intrinsic:logging::log-write"
@@ -1492,7 +1489,8 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:data::document-field"
                     | "intrinsic:data::validate-mapping" => Some(ValueType::PlatformDataResult),
                     "intrinsic:data::url-parse" => Some(ValueType::PlatformUrlResult),
-                    "intrinsic:logging::log-no-sink"
+                    "intrinsic:child::child-result-capability"
+                    | "intrinsic:logging::log-no-sink"
                     | "intrinsic:logging::log-result-capability"
                     | "intrinsic:capabilities::secure-random"
                     | "intrinsic:capabilities::cancellation-token"
@@ -1539,7 +1537,6 @@ fn infer_nonbinary_value_type(
                             TaskTransferability::Local,
                         )));
                     }
-                    "intrinsic:child::child-release" => Some(ValueType::Scalar(ScalarType::None)),
                     "intrinsic:capabilities::buffer-create"
                     | "intrinsic:capabilities::buffer-clear"
                     | "intrinsic:capabilities::buffer-close"
@@ -1735,16 +1732,16 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:process-signals::process-signal-result-int"
                     | "intrinsic:process-signals::process-signal-result-exact-int"
                     | "intrinsic:testing::test-result-exit-code"
+                    | "intrinsic:child::child-result-number"
                     | "intrinsic:testing::test-deadline-nanoseconds" => {
-                        Some(ValueType::Scalar(ScalarType::Int))
-                    }
-                    "intrinsic:child::child-result-number" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
                     "intrinsic:system::process-arguments"
                     | "intrinsic:system::environment-entries"
                     | "intrinsic:capabilities::result-entries" => Some(ValueType::StringList),
-                    "intrinsic:system::process-exit" => Some(ValueType::Scalar(ScalarType::None)),
+                    "intrinsic:system::process-exit" | "intrinsic:child::child-release" => {
+                        Some(ValueType::Scalar(ScalarType::None))
+                    }
                     _ => None,
                 };
                 if platform_result.is_some() {

@@ -1228,7 +1228,18 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
-        if self.is_builtin(callee, "intrinsic:child::child-result-capture") {
+        let child_call = if callee.kind == SyntaxKind::Name {
+            self.package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .and_then(|symbol| {
+                    symbol
+                        .compiler_identity()
+                        .strip_prefix("intrinsic:child::child-")
+                })
+        } else {
+            None
+        };
+        if child_call == Some("result-capture") {
             let capture = rust_value_type(
                 self.package,
                 ValueType::Object(ObjectIdentity::new(
@@ -1245,29 +1256,6 @@ impl Emitter<'_> {
                  __terrane_capture.secondary_flag) }}"
             );
         }
-        let child_call = [
-            "spawn",
-            "capture",
-            "capture-async",
-            "poll",
-            "wait",
-            "terminate",
-            "write",
-            "close-input",
-            "read-stdout",
-            "read-stderr",
-            "release",
-            "result-failed",
-            "result-message",
-            "result-number",
-            "result-flag",
-            "result-secondary-flag",
-            "result-deadline-exceeded",
-            "result-data",
-            "result-capability",
-        ]
-        .into_iter()
-        .find(|name| self.is_builtin(callee, &format!("intrinsic:child::child-{name}")));
         if let Some(name) = child_call {
             let function = name.replace('-', "_");
             let values = argument_values
@@ -1275,36 +1263,15 @@ impl Emitter<'_> {
                 .enumerate()
                 .map(|(index, value)| {
                     let value = self.expression(value);
-                    if matches!(name, "spawn" | "capture" | "capture-async") && index == 0 {
-                        format!("&({value})")
-                    } else if matches!(name, "spawn" | "capture" | "capture-async")
-                        && matches!(index, 1 | 3 | 4)
-                    {
-                        format!("({value}).as_slice()")
-                    } else if matches!(name, "spawn" | "capture" | "capture-async") && index == 2 {
-                        format!("&({value})")
-                    } else if matches!(name, "capture" | "capture-async") && index == 6
-                        || name == "write" && index == 1
-                    {
-                        format!("({value}).as_slice()")
-                    } else if name == "result-data" && index == 0 {
-                        value
-                    } else if name.starts_with("result-")
-                        || matches!(
-                            name,
-                            "poll"
-                                | "wait"
-                                | "terminate"
-                                | "write"
-                                | "close-input"
-                                | "read-stdout"
-                                | "read-stderr"
-                                | "release"
-                        ) && index == 0
-                    {
-                        format!("&({value})")
-                    } else {
-                        value
+                    match (name, index) {
+                        ("spawn" | "capture" | "capture-async", 1 | 3 | 4)
+                        | ("capture" | "capture-async", 6)
+                        | ("write", 1) => format!("({value}).as_slice()"),
+                        ("result-data", _) => value,
+                        ("spawn" | "capture" | "capture-async", 2) | (_, 0) => {
+                            format!("&({value})")
+                        }
+                        _ => value,
                     }
                 })
                 .collect::<Vec<_>>()

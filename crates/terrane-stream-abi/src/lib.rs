@@ -348,11 +348,10 @@ impl FileOpenOptions {
 pub fn open_file(path: &str, request: FileOpenOptions) -> io::Result<StreamHandle> {
     let (readable, writable) = request.validated_access()?;
     let (create, truncate) = match request.creation {
-        FileCreation::Existing => (false, false),
+        FileCreation::Existing | FileCreation::Exclusive => (false, false),
         FileCreation::Create => (true, false),
         FileCreation::Truncate => (false, true),
         FileCreation::CreateOrTruncate => (true, true),
-        FileCreation::Exclusive => (false, false),
     };
     let mut options = std::fs::OpenOptions::new();
     options

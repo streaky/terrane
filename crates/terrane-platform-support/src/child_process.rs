@@ -36,7 +36,10 @@ pub(super) struct ChildState {
     terminate: Mutex<Option<oneshot::Sender<()>>>,
 }
 
+#[cfg(target_os = "linux")]
 fn native_value(value: &str) -> io::Result<OsString> {
+    use std::os::unix::ffi::OsStringExt as _;
+
     if let Some(text) = value.strip_prefix("text:") {
         return Ok(OsString::from(text));
     }
@@ -45,49 +48,12 @@ fn native_value(value: &str) -> io::Result<OsString> {
     if decoded.failed {
         return Err(invalid());
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStringExt as _;
-        Ok(OsString::from_vec(decoded.data))
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::ffi::OsStringExt as _;
-        if !decoded.data.len().is_multiple_of(2) {
-            return Err(invalid());
-        }
-        let wide = decoded
-            .data
-            .chunks_exact(2)
-            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
-            .collect::<Vec<_>>();
-        Ok(OsString::from_wide(&wide))
-    }
+    Ok(OsString::from_vec(decoded.data))
 }
 
 //# SECURITY-BEGIN [process.direct-execution]
+#[cfg(target_os = "linux")]
 fn launch(request: ChildLaunch<'_>) -> io::Result<Child> {
-    #[cfg(windows)]
-    {
-        // Extensionless names use Windows' executable lookup. Refuse explicit
-        // non-executable suffixes, including normalized batch-file spellings.
-        let program = request.program.trim_end_matches([' ', '.']);
-        let extension = std::path::Path::new(program).extension();
-        let without_drive = if program.as_bytes().get(1) == Some(&b':') {
-            &program[2..]
-        } else {
-            program
-        };
-        if program != request.program
-            || without_drive.contains(':')
-            || extension.is_some_and(|ext| !ext.eq_ignore_ascii_case("exe"))
-        {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "expected a Windows executable, not a shell or batch script",
-            ));
-        }
-    }
     let mut command = Command::new(request.program);
     command.args(request.args);
     if !request.directory.is_empty() {
@@ -96,15 +62,15 @@ fn launch(request: ChildLaunch<'_>) -> io::Result<Child> {
     if !request.inherit {
         command.env_clear();
     }
-    let entries = request.env.chunks_exact(2);
-    if !entries.remainder().is_empty() {
+    let (entries, remainder) = request.env.as_chunks::<2>();
+    if !remainder.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "unpaired environment entry",
         ));
     }
-    for pair in entries {
-        command.env(native_value(&pair[0])?, native_value(&pair[1])?);
+    for [name, value] in entries {
+        command.env(native_value(name)?, native_value(value)?);
     }
     for name in request.remove_env {
         command.env_remove(native_value(name)?);
@@ -115,6 +81,14 @@ fn launch(request: ChildLaunch<'_>) -> io::Result<Child> {
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn launch(_: ChildLaunch<'_>) -> io::Result<Child> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "child process launch is supported only on Linux",
+    ))
 }
 //# SECURITY-END [process.direct-execution]
 
@@ -316,7 +290,7 @@ async fn drain(
     limit: usize,
     output: &mut Captured,
 ) -> io::Result<()> {
-    let mut buffer = [0; 8192];
+    let mut buffer = vec![0; 8192];
     loop {
         let count = reader.read(&mut buffer).await?;
         if count == 0 {
@@ -352,13 +326,19 @@ pub async fn child_capture_async(
     let mut output = Captured::default();
     let mut errors = Captured::default();
     let capture = async {
+        let write_input = async move {
+            match stdin.write_all(options.input).await {
+                Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
+                result => result,
+            }
+        };
         tokio::try_join!(
-            async move { stdin.write_all(options.input).await },
+            write_input,
             drain(stdout, options.stdout_limit, &mut output),
             drain(stderr, options.stderr_limit, &mut errors),
             child.wait(),
         )
-        .map(|(_, (), (), status)| status)
+        .map(|((), (), (), status)| status)
     };
     let (status, timed_out) =
         match tokio::time::timeout(Duration::from_millis(options.timeout_ms), capture).await {

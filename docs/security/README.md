@@ -74,6 +74,6 @@ New authority, untrusted-input handling, interpreter/query construction, native 
 
 The tooling is Terrane in [`tools/security-contracts/`](../../tools/security-contracts/). It invokes Git with an explicit argument vector through `/core/process/child`. Marker recognition, record validation, diff parsing, and review policy remain Terrane. No Python runtime or manual checkout is needed.
 
-The Git caller strips repository- and pathspec-selection environment overrides. Capture retains at most 64 MiB of stdout (16 MiB for a base blob) and 1 MiB of stderr, rejects truncated output, and applies a deadline. Working-tree file reads use the filesystem's bounded read.
+The Git caller strips repository- and pathspec-selection environment overrides. Each Git invocation has a 120-second capture deadline to allow for large repositories and slow disks. Capture retains at most 64 MiB of stdout (16 MiB for a base blob) and 1 MiB of stderr; the tool rejects truncated output. Working-tree file reads use the filesystem's bounded read.
 
 On Linux the Rust CLI integration suite runs the Terrane security-tool unit suite with the compiler built by Cargo. A focused pass is not a substitute for the repository's measured workspace evidence required before handing compiler/runtime changes over for merge review.

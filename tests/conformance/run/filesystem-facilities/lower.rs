@@ -97,7 +97,6 @@ fn exercise_directory_operations(fs: Filesystem, outside: Path) {
         fs.clone(),
         Path::terrane_construct(String::from("../kept")),
         Path::terrane_construct(String::from("tree/external")),
-        true,
     );
     hard_path = Path::terrane_construct(String::from("tree/duplicate"));
     hard = filesystem_create_hard_link(fs.clone(), kept_file.clone(), hard_path.clone());
@@ -380,12 +379,7 @@ fn main() {
         .as_str() == canonical.resolved.text.as_str()))
     );
     link = Path::terrane_construct(String::from("terrane-filesystem-case-link.txt"));
-    created_link = filesystem_create_symlink(
-        fs.clone(),
-        target.clone(),
-        link.clone(),
-        false,
-    );
+    created_link = filesystem_create_symlink(fs.clone(), target.clone(), link.clone());
     println!("{}", terrane_scalar_support::scalar_text(&created_link.failed));
     link_metadata = filesystem_symlink_metadata(fs.clone(), link.clone());
     linked = filesystem_read_link(fs.clone(), link.clone());

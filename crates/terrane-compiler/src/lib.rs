@@ -89,7 +89,7 @@ fn platform_support_manifest_from(source: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n"
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[features]\ndefault = []\nchild-process = [\"tokio/process\"]\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n"
     )
 }
 
@@ -131,9 +131,10 @@ mod manifest_tests {
         let without_following_section = platform_support_manifest_from(without_following_section);
 
         assert!(with_features.contains("base64 = \"0.22\""));
-        assert!(!with_features.contains("[features]"));
+        assert!(with_features.contains("child-process = [\"tokio/process\"]"));
         assert!(!with_features.contains("rcgen"));
         assert!(without_following_section.contains("base64 = \"0.22\""));
+        assert!(without_following_section.contains("[features]"));
     }
 
     #[test]

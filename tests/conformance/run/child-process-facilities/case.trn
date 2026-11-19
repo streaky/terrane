@@ -11,6 +11,9 @@ async function child-mode; mode string
     if mode == 'stall'
         await clock::sleep; (duration::seconds; 2)
         return
+    if mode == 'ignore-input'
+        print; 'done'
+        exit; (make-exit-status; 7)
     output = stdout;
     errors = stderr;
     if mode == 'stream'
@@ -59,6 +62,10 @@ async function exercise-capture throws process-error; executable string
     print; ((exit-is; copied.status.exit-code, 7) and copied.stdout == b'input' and copied.stderr == b'warning')
     expired = await run-process-async; executable, (list; 'stall'), timeout-ms = 5
     print; (expired.status.timed-out and expired.status.exited)
+    payload bytes = rust
+        vec![b'x'; 1024 * 1024]
+    ignored = await run-process-async; executable, (list; 'ignore-input'), input = payload
+    print; ((exit-is; ignored.status.exit-code, 7) and ignored.stdout == b'done\n' and not ignored.status.timed-out)
 
 async function received-expected bool throws process-error; reader child-output-stream, expected bytes
     first = await reader.read; 100

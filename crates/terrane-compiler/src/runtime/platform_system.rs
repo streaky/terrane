@@ -267,10 +267,12 @@ pub fn terrane_filesystem_list_directory(
             Err(error) => return terrane_io_error(error),
         };
         if entries.len() == limit {
-            return terrane_io_error(std::io::Error::new(
-                std::io::ErrorKind::FileTooLarge,
-                "directory exceeds declared entry limit",
-            ));
+            return TerraneFilesystemResult {
+                failed: true,
+                message: "directory exceeds declared entry limit".to_owned(),
+                error_kind: "too-many-entries",
+                ..TerraneFilesystemResult::default()
+            };
         }
         match entry.file_name().into_string() {
             Ok(name) => entries.push(name),
@@ -304,28 +306,15 @@ pub fn terrane_filesystem_remove_directory_tree(path: String) -> TerraneFilesyst
 }
 //# SECURITY-END [filesystem.directory-tree-removal]
 
-pub fn terrane_filesystem_create_symlink(
-    target: String,
-    link: String,
-    directory: bool,
-) -> TerraneFilesystemResult {
-    #[cfg(unix)]
+pub fn terrane_filesystem_create_symlink(target: String, link: String) -> TerraneFilesystemResult {
+    #[cfg(target_os = "linux")]
+    let result = std::os::unix::fs::symlink(target, link);
+    #[cfg(not(target_os = "linux"))]
     let result = {
-        let _ = directory;
-        std::os::unix::fs::symlink(target, link)
-    };
-    #[cfg(windows)]
-    let result = if directory {
-        std::os::windows::fs::symlink_dir(target, link)
-    } else {
-        std::os::windows::fs::symlink_file(target, link)
-    };
-    #[cfg(not(any(unix, windows)))]
-    let result: std::io::Result<()> = {
-        let _ = (target, link, directory);
+        let _ = (target, link);
         Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
-            "symbolic links are unsupported on this platform",
+            "symbolic link creation is supported only on Linux",
         ))
     };
     match result {

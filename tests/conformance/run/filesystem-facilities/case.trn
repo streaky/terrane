@@ -39,7 +39,7 @@ function exercise-directory-operations; fs filesystem, outside path
     kept-file = instance path; 'kept/contents'
     kept-created = filesystem-create-directory; fs, kept
     kept-written = filesystem-write-atomic; fs, kept-file, b'keep'
-    link = filesystem-create-symlink; fs, (instance path; '../kept'), (instance path; 'tree/external'), directory = true
+    link = filesystem-create-symlink; fs, (instance path; '../kept'), (instance path; 'tree/external')
     hard-path = instance path; 'tree/duplicate'
     hard = filesystem-create-hard-link; fs, kept-file, hard-path
     hard-handle = open-file; fs, hard-path, false, true, append = true

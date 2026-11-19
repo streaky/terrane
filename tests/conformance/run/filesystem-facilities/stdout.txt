@@ -12,7 +12,7 @@ falseterrane-filesystem-case.txt
 falsefalse
 truetruetrue
 nested
-truefile-too-large0
+truetoo-many-entries0
 truedirectory-not-empty
 false
 falsefalsetrue

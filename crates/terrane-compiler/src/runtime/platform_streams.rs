@@ -5,13 +5,14 @@ pub async fn terrane_platform_read_async(
     cancellation: Option<&TerranePlatformCapability>,
 ) -> TerranePlatformReadResult {
     if let Some(error) = terrane_platform_stream_options(&deadline, cancellation) {
+        let error_kind = terrane_platform_stream_option_error_kind(&error);
         return TerranePlatformReadResult {
             data: Vec::new(),
             completed: 0_i64.into(),
             end: false,
             failed: error.failed,
             message: error.message,
-            error_kind: if error.deadline_exceeded { "timed-out" } else { "other" },
+            error_kind,
             deadline_exceeded: error.deadline_exceeded,
         };
     }
@@ -155,12 +156,13 @@ pub async fn terrane_platform_write_async(
     cancellation: Option<&TerranePlatformCapability>,
 ) -> TerranePlatformWriteResult {
     if let Some(error) = terrane_platform_stream_options(&deadline, cancellation) {
+        let error_kind = terrane_platform_stream_option_error_kind(&error);
         return TerranePlatformWriteResult {
             data,
             completed: 0_i64.into(),
             failed: error.failed,
             message: error.message,
-            error_kind: if error.deadline_exceeded { "timed-out" } else { "other" },
+            error_kind,
             deadline_exceeded: error.deadline_exceeded,
         };
     }
@@ -177,6 +179,16 @@ pub async fn terrane_platform_write_async(
 
 pub fn terrane_platform_buffer_close(buffer: &TerranePlatformCapability) -> TerranePlatformResult {
     terrane_platform_support::close(buffer)
+}
+
+fn terrane_platform_stream_option_error_kind(error: &TerranePlatformResult) -> &'static str {
+    if error.deadline_exceeded {
+        "timed-out"
+    } else if error.flag {
+        "interrupted"
+    } else {
+        "invalid-input"
+    }
 }
 
 fn terrane_platform_stream_options(

@@ -245,8 +245,8 @@ function filesystem-remove-directory-tree filesystem-operation-result; capabilit
     return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 //# SECURITY-END [filesystem.directory-tree-removal]
 
-function filesystem-create-symlink filesystem-operation-result; capability filesystem, target path, link path, directory bool = false
-    record = host-filesystem-create-symlink; target.text, link.text, directory
+function filesystem-create-symlink filesystem-operation-result; capability filesystem, target path, link path
+    record = host-filesystem-create-symlink; target.text, link.text
     return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-create-hard-link filesystem-operation-result; capability filesystem, target path, link path

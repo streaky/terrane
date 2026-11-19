@@ -46,9 +46,9 @@ private function run-command command-result throws security-error; root string, 
     for argument in args
         argv.append; argument
     try
-        captured = run-process; 'git', argv, (git-options;), stdout-limit = limit
+        captured = run-process; 'git', argv, (git-options;), timeout-ms = 120000, stdout-limit = limit, stderr-limit = 1048576
         if captured.status.timed-out
-            throw instance security-error; 'git did not finish before the process deadline'
+            throw instance security-error; 'git capture exceeded the 120-second deadline'
         if captured.stdout-truncated
             throw instance security-error; 'captured git stdout exceeds byte limit'
         if captured.stderr-truncated

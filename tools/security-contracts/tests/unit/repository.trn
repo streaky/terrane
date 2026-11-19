@@ -123,7 +123,7 @@ function test-working-snapshot-reports-symlink-in-path throws throwable;
     made = filesystem-create-directory; fs, (instance filesystem-path; (root.concat; '/real'))
     require; not made.failed, 'real', made.message
     fixture-write; root, 'real/value.rs', 'contents'
-    directory-link = filesystem-create-symlink; fs, (instance filesystem-path; 'real'), (instance filesystem-path; (root.concat; '/alias')), directory = true
+    directory-link = filesystem-create-symlink; fs, (instance filesystem-path; 'real'), (instance filesystem-path; (root.concat; '/alias'))
     require; not directory-link.failed, 'alias', directory-link.message
     file-link = filesystem-create-symlink; fs, (instance filesystem-path; 'real/value.rs'), (instance filesystem-path; (root.concat; '/alias.rs'))
     require; not file-link.failed, 'alias.rs', file-link.message
