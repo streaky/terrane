@@ -9,13 +9,15 @@ A contract identifies a guarantee, its threat boundary, assumptions, limitations
 Use exactly the same paired standalone line comments in authored Rust and Terrane:
 
 ```text
-// SECURITY-BEGIN[filesystem.beneath-open]
+//# SECURITY-BEGIN [filesystem.beneath-open]
 // Explain the local invariant and why this region matters.
 ...implementation...
-// SECURITY-END[filesystem.beneath-open]
+//# SECURITY-END [filesystem.beneath-open]
 ```
 
-Include relevant documentation comments, attributes, signatures, platform branches, and fail-closed alternatives inside the region. Markers must be paired in the same file with the same ID. Regions may nest but cannot cross; use several cohesive regions if one guarantee depends on noncontiguous code. Indentation and trailing whitespace are allowed. A case-insensitive `SECURITY-` prefix at the start of comment content reserves that comment for a marker: doc, hash, and block comments, noncanonical spelling, and trailing prose are errors. An ordinary prose mention elsewhere in a comment is not a marker. Marker-looking text in quoted/raw literals or text blocks is ignored. Rust block comments nest; Terrane block comments end at the first terminator. The extractor is not a language validator and does not replace the compiler.
+Only standalone `//# SECURITY-BEGIN [id]` and `//# SECURITY-END [id]` comments are accepted. Indentation and trailing whitespace are allowed, but the comment prefix, capitalization, and spaces shown above are required. Marker declarations in plain `//`, doc, hash, or block comments are errors, as is trailing prose. A case-insensitive `SECURITY-` prefix at the start of comment content is checked for a declaration; an ordinary prose mention elsewhere is not. Marker-like text in literals and text blocks is ignored. Rust block comments nest; Terrane block comments end at the first terminator. The checker does not replace the compiler.
+
+Include relevant documentation comments, attributes, signatures, platform branches, and fail-closed alternatives inside the region. Pair markers in the same file with the same ID. Regions may nest but cannot cross; use several cohesive regions when a guarantee depends on noncontiguous code.
 
 The ID is the record's global `id`, not a filename or implementation-language identity. Do not reuse a deleted ID for a different guarantee. Place markers in authored sources; the current compiler does not propagate these maintenance comments into generated Rust. Changes to relevant lowering templates are tracked as dependencies instead.
 
@@ -62,7 +64,7 @@ Generated page-local section IDs are `security-overview`, `security-invariant`, 
 
 The standalone checker validates the security schema, complete common metadata for active contracts, and code/evidence associations. The docs converter independently validates ordinary documentation blocks, prose safety, anchors, and reference resolution when converting a publication that includes the record. The local active registry requires current lifecycle status, a quoted `since` version, null migration fields, and empty specification/conformance provenance plus null compiler provenance; evidence lives in `security.files`. Unknown security fields, duplicate YAML keys, empty required content, invalid audiences/roles, and malformed paths are errors.
 
-The old topic/seven-section encoding is not accepted. Both snapshots used by `impact` must use a schema understood by the current checker; a baseline predating security records is also valid. Format migration does not introduce automatic manual imports or version selection.
+Both snapshots used by `impact` must use a record format and marker spelling understood by the current checker. A baseline predating security records is valid; one containing the retired `// SECURITY-BEGIN[id]` spelling is not. Format migration does not introduce automatic manual imports or version selection.
 
 ## Review discipline
 

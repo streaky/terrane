@@ -12,7 +12,7 @@ function security-fixture string throws throwable;
             std::fs::create_dir_all(std::path::Path::new(&root).join(directory)).expect("create test directories");
         }
     fixture-write; root, 'docs/security/sample.yaml', (sample-contract;)
-    fixture-write; root, 'src/guard.rs', "// SECURITY-BEGIN[sample.contract]\nfn guard() {{}}\n// SECURITY-END[sample.contract]\n"
+    fixture-write; root, 'src/guard.rs', "//# SECURITY-BEGIN [sample.contract]\n/// Protects the guarded operation.\nfn guard() {{}}\n//# SECURITY-END [sample.contract]\n"
     fixture-write; root, 'tests/guard.trn', 'source-level evidence'
     return root
 
@@ -25,7 +25,7 @@ function test-snapshot-links-regions-to-records throws throwable;
 
 function test-snapshot-rejects-unknown-marker-contract throws throwable;
     root = security-fixture;
-    fixture-write; root, 'src/guard.rs', "// SECURITY-BEGIN[unknown]\n// SECURITY-END[unknown]\n"
+    fixture-write; root, 'src/guard.rs', "//# SECURITY-BEGIN [unknown]\n//# SECURITY-END [unknown]\n"
     message string = ''
     try
         load-snapshot; root
@@ -66,7 +66,7 @@ function test-snapshot-rejects-missing-evidence-file throws throwable;
 
 function test-base-snapshot-checks-mixed-case-markers throws throwable;
     root = security-fixture;
-    fixture-write; root, 'src/other.rs', '// security-begin[sample.contract]'
+    fixture-write; root, 'src/other.rs', '//# security-begin [sample.contract]'
     fixture-commit; root
     base = resolve-revision; root, 'HEAD'
     message string = ''

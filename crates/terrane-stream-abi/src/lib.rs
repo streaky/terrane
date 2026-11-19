@@ -140,7 +140,7 @@ macro_rules! impl_standard_writer {
 impl_standard_writer!(StdoutWriter, stdout, io::stdout());
 impl_standard_writer!(StderrWriter, stderr, io::stderr());
 
-// SECURITY-BEGIN[filesystem.beneath-open]
+//# SECURITY-BEGIN [filesystem.beneath-open]
 // The directory descriptor and its crossing policy must travel together.
 #[derive(Debug)]
 pub struct FileStream {
@@ -149,7 +149,7 @@ pub struct FileStream {
     writable: bool,
     cross_filesystem: bool,
 }
-// SECURITY-END[filesystem.beneath-open]
+//# SECURITY-END [filesystem.beneath-open]
 
 impl FileStream {
     fn read(&mut self, limit: usize) -> io::Result<ReadOutcome> {
@@ -219,7 +219,7 @@ impl StreamHandle {
     }
 }
 
-// SECURITY-BEGIN[filesystem.beneath-open]
+//# SECURITY-BEGIN [filesystem.beneath-open]
 // Directory handles must resolve to their original registered stream.
 enum StandardStream {
     Stdin(StdinReader),
@@ -243,7 +243,7 @@ fn acquire(stream: StandardStream) -> StreamHandle {
     registry().insert(handle, Arc::new(Mutex::new(stream)));
     StreamHandle(handle)
 }
-// SECURITY-END[filesystem.beneath-open]
+//# SECURITY-END [filesystem.beneath-open]
 
 #[must_use]
 pub fn acquire_stdin() -> StreamHandle {
@@ -317,7 +317,7 @@ pub fn open_file(path: &str, request: FileOpenOptions) -> io::Result<StreamHandl
         cross_filesystem: false,
     })))
 }
-// SECURITY-BEGIN[filesystem.beneath-open]
+//# SECURITY-BEGIN [filesystem.beneath-open]
 // Constrain the open itself, not a preceding lexical/canonical path check.
 // Preserve no-follow resolution and fail closed when unavailable.
 #[cfg(target_os = "linux")]
@@ -445,7 +445,7 @@ pub fn open_file_beneath(_: StreamHandle, _: &str, _: FileOpenOptions) -> io::Re
         "handle-relative traversal is unavailable in this target profile",
     ))
 }
-// SECURITY-END[filesystem.beneath-open]
+//# SECURITY-END [filesystem.beneath-open]
 
 /// Performs at most one host read through a registered process-stream handle.
 ///
@@ -558,7 +558,7 @@ pub fn sync_all(handle: StreamHandle) -> io::Result<()> {
     with_writer(handle, |writer| writer.sync_all())
 }
 
-// SECURITY-BEGIN[filesystem.beneath-open]
+//# SECURITY-BEGIN [filesystem.beneath-open]
 // Closing a handle must retire its registry entry, not redirect it.
 /// Releases a registered process-stream wrapper and removes it from the live registry.
 ///
@@ -611,7 +611,7 @@ pub fn release(handle: StreamHandle) -> io::Result<()> {
         StandardStream::File(file) => file.close(),
     }
 }
-// SECURITY-END[filesystem.beneath-open]
+//# SECURITY-END [filesystem.beneath-open]
 
 fn with_writer(
     handle: StreamHandle,
@@ -632,14 +632,14 @@ fn with_writer(
     }
 }
 
-// SECURITY-BEGIN[filesystem.beneath-open]
+//# SECURITY-BEGIN [filesystem.beneath-open]
 fn registered_stream(handle: StreamHandle) -> io::Result<Arc<Mutex<StandardStream>>> {
     registry()
         .get(&handle.0)
         .cloned()
         .ok_or_else(invalid_handle)
 }
-// SECURITY-END[filesystem.beneath-open]
+//# SECURITY-END [filesystem.beneath-open]
 
 trait StandardWriter {
     fn flush(&mut self) -> io::Result<()>;

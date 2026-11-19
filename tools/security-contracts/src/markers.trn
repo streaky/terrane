@@ -196,14 +196,16 @@ function scan-regions list of source-region throws security-error; path string, 
                 comment = decode-source; input[(range; index, after)]
                 prefix = decode-source; input[(range; line-start, index)]
                 require; (prefix.trim;) == '', path, 'security markers must occupy their own line'
-                begin = comment.contains.start; '// SECURITY-BEGIN['
-                end = comment.contains.start; '// SECURITY-END['
-                require; begin or end, path, 'malformed security marker'
+                begin-prefix = '//# SECURITY-BEGIN ['
+                end-prefix = '//# SECURITY-END ['
+                begin = comment.contains.start; begin-prefix
+                end = comment.contains.start; end-prefix
+                require; begin or end, path, 'malformed security marker: expected //# SECURITY-BEGIN [id] or //# SECURITY-END [id]'
                 cleaned = comment.trim.end;
                 require; (cleaned.contains.end; ']'), path, 'malformed security marker'
-                identity = cleaned.trim.start; '// SECURITY-BEGIN['
+                identity = cleaned.trim.start; begin-prefix
                 if end
-                    identity = cleaned.trim.start; '// SECURITY-END['
+                    identity = cleaned.trim.start; end-prefix
                 identity = identity.trim.end; ']'
                 require; (valid-identity; identity), path, 'invalid security marker identity'
                 if begin
