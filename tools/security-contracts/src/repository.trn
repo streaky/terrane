@@ -2,7 +2,7 @@ namespace security-contracts
 
 from /core/collections import list, range
 from /core/encodings import utf8
-from /core/filesystem import filesystem-capability, filesystem-read-bounded
+from /core/filesystem import filesystem-capability, filesystem-symlink-metadata, filesystem-read-bounded
 from /core/filesystem/paths import path as filesystem-path
 from /core/errors import decode-error
 
@@ -22,25 +22,40 @@ class file-change
 
 private class command-result
     status int
-    stdout string
+    stdout bytes
     stderr string
 
-    function construct; status int, stdout string, stderr string
+    function construct; status int, stdout bytes, stderr string
         this.status = status
         this.stdout = stdout
         this.stderr = stderr
 
-# Terrane has no argv-safe spawn/output API yet. Keep only this process boundary
-# native; remove it when /core/process supports spawn with argv and captured output.
-private function capture-git int32; root string, args list of string, output mutable ref string, errors mutable ref string, failure mutable ref string
+// Terrane has no argv-safe spawn/capture API yet. Keep that boundary native
+// until /core/process supports it; parse Git output in Terrane.
+private function capture-git int32; root string, args list of string, output mutable ref bytes, errors mutable ref string, failure mutable ref string
     return rust
         use std::process::Command;
-        match Command::new("git").arg("-C").arg(&root).args(args.as_slice()).output() {
+        let mut command = Command::new("git");
+        command.arg("-C").arg(&root).args(args.as_slice()).env("LC_ALL", "C");
+        for key in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_COMMON_DIR",
+            "GIT_NAMESPACE",
+            "GIT_PREFIX",
+            "GIT_LITERAL_PATHSPECS",
+            "GIT_GLOB_PATHSPECS",
+            "GIT_NOGLOB_PATHSPECS",
+            "GIT_ICASE_PATHSPECS",
+        ] {
+            command.env_remove(key);
+        }
+        match command.output() {
             Ok(result) => {
-                match String::from_utf8(result.stdout) {
-                    Ok(value) => *output = value,
-                    Err(_) => *failure = "git returned non-UTF-8 stdout".to_string(),
-                }
+                *output = result.stdout;
                 match String::from_utf8(result.stderr) {
                     Ok(value) => *errors = value,
                     Err(_) => *failure = "git returned non-UTF-8 stderr".to_string(),
@@ -53,22 +68,30 @@ private function capture-git int32; root string, args list of string, output mut
             }
         }
 
-private function run-command command-result throws security-error; root string, args list of string
-    output string = ''
+private function run-command command-result throws security-error; root string, args list of string, limit int = 67108864
+    output bytes = b''
     errors string = ''
     failure string = ''
     status = capture-git; root, args, output, errors, failure
     if failure != ''
         throw instance security-error; failure
-    if output.length > 67108864
-        throw instance security-error; 'git output exceeds 64 MiB limit'
+    // This rejects oversized output after capture; Command::output is buffered.
+    if output.length > limit
+        throw instance security-error; 'captured git stdout exceeds byte limit'
     return instance command-result; status, output, errors
+
+private function git-text string throws security-error; data bytes
+    try
+        return data.decode; utf8
+    catch decode-error
+        throw instance security-error; 'git returned non-UTF-8 stdout'
+
 
 public function git string throws security-error; root string, args list of string
     result = run-command; root, args
     if result.status != 0
         throw instance security-error; ('git failed: '.concat; result.stderr)
-    return result.stdout
+    return git-text; result.stdout
 
 private function nul-fields list of string throws security-error; data string
     encoded = data.encode; utf8
@@ -93,7 +116,7 @@ private function git-nul-list list of string throws security-error; root string,
     result = run-command; root, args
     if result.status != 0
         throw instance security-error; ('git failed: '.concat; result.stderr)
-    return nul-fields; result.stdout
+    return nul-fields; (git-text; result.stdout)
 
 public function repository-files list of string throws security-error; root string
     args list of string = list; '--literal-pathspecs', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'
@@ -110,6 +133,19 @@ public function revision-files list of string throws security-error; root string
     args list of string = list; '--literal-pathspecs', 'ls-tree', '-rz', '--name-only', revision
     return git-nul-list; root, args
 
+function revision-marker-files list of string throws security-error; root string, revision string
+    args list of string = list; 'grep', '--no-textconv', '--full-name', '-l', '-z', '-i', '-F', '-e', 'SECURITY-', revision, '--', '*.rs', '*.trn'
+    result = run-command; root, args
+    if result.status == 1
+        return list
+    require; result.status == 0, 'git grep', result.stderr
+    prefix = revision.concat; ':'
+    candidates list of string = list
+    for entry in (nul-fields; (git-text; result.stdout))
+        require; (entry.contains.start; prefix), 'git grep', 'expected a revision-prefixed path'
+        candidates.append; (entry.trim.start; prefix)
+    return candidates
+
 private function valid-path bool; value string
     if value == '' or (value.contains; "\0") or (value.contains.start; '/') or (value.contains; '\\')
         return false
@@ -118,35 +154,51 @@ private function valid-path bool; value string
             return false
     return true
 
-public function read-working string throws security-error; root string, path string
+function read-working-source string|none throws security-error; root string, path string
     if not (valid-path; path)
         throw instance security-error; 'invalid working path'
     authority = filesystem-capability;
-    loaded = filesystem-read-bounded; authority, (instance filesystem-path; (root.concat; '/', path)), 16777217
-    if loaded.failed or loaded.completed > 16777216
-        throw instance security-error; ('unable to read working file within 16 MiB limit: '.concat; path)
+    // The caller selects the checkout root. Inspect its descendants without
+    // following links; this is a working-tree check, not a concurrent sandbox.
+    components = path.split; '/'
+    target = root
+    for index in (range; 0, components.length)
+        target = target.concat; '/', components[index]
+        expected = 'directory'
+        if index == components.length - 1
+            expected = 'regular-file'
+        metadata = filesystem-symlink-metadata; authority, (instance filesystem-path; target)
+        if not metadata.failed and metadata.kind == 'symlink'
+            return none
+        require; not metadata.failed and metadata.kind == expected, path, 'working path must use regular files and directories'
+    loaded = filesystem-read-bounded; authority, (instance filesystem-path; target), 16777216
+    require; not loaded.failed, path, ('unable to read working file within 16 MiB: '.concat; loaded.message)
     try
         return loaded.data.decode; utf8
     catch decode-error
         throw instance security-error; ('working file is not valid UTF-8: '.concat; path)
+
+public function read-working string throws security-error; root string, path string
+    source = read-working-source; root, path
+    if source != none
+        return source
+    throw instance security-error; (path.concat; ': working path must not use symlinks')
 
 public function resolve-revision string throws security-error; root string, revision string
     args list of string = list; 'rev-parse', '--verify', '--end-of-options', (revision.concat; '^{commit}')
     result = run-command; root, args
     if result.status != 0
         throw instance security-error; ('invalid revision: '.concat; result.stderr)
-    return result.stdout.trim;
+    return (git-text; result.stdout).trim;
 
 public function read-revision string throws security-error; root string, revision string, path string
     if not (valid-path; path)
         throw instance security-error; 'invalid revision path'
     args list of string = list; 'show', (revision.concat; ':', path)
-    result = run-command; root, args
+    result = run-command; root, args, 16777216
     if result.status != 0
         throw instance security-error; ('unable to read revision file: '.concat; result.stderr)
-    if result.stdout.length > 16777216
-        throw instance security-error; ('revision file exceeds 16 MiB limit: '.concat; path)
-    return result.stdout
+    return git-text; result.stdout
 
 private function parse-number int throws security-error; text string
     encoded = text.encode; utf8
@@ -187,10 +239,22 @@ private function collect-diff-hunks list of file-change throws security-error; r
     if result.status != 0 and result.status != 1
         throw instance security-error; ('git diff failed: '.concat; result.stderr)
     changes list of file-change = list
-    for line in (result.stdout.split; "\n")
-        if line.contains.start; '@@ '
-            changes.append; (parse-hunk; file-path, line)
-    if result.stdout != '' and changes.length == 0
+    data = result.stdout
+    count = data.length
+    index int = 0
+    while index < count
+        if (byte-at; data, count, index, 64) and (byte-at; data, count, index + 1, 64) and (byte-at; data, count, index + 2, 32)
+            end = index + 3
+            while end < count and data[end] != 10 and not ((byte-at; data, count, end, 32) and (byte-at; data, count, end + 1, 64) and (byte-at; data, count, end + 2, 64))
+                end = end + 1
+            require; end < count and data[end] != 10, file-path, 'malformed unified diff hunk header'
+            // The optional function context and the diff body are arbitrary bytes.
+            header = decode-source; data[(range; index, end)]
+            changes.append; (parse-hunk; file-path, header)
+        while index < count and data[index] != 10
+            index = index + 1
+        index = index + 1
+    if count > 0 and changes.length == 0
         changes.append; (instance file-change; file-path, 1, 2147483647, 1, 2147483647)
     return changes
 
@@ -211,11 +275,11 @@ public function repository-changes list of file-change throws security-error; ro
     untracked = git-nul-list; root, untracked-args
     changes list of file-change = list
     for file-path in names
-        diff-args list of string = list; '--literal-pathspecs', 'diff', '--no-ext-diff', '--no-textconv', '--no-color', '--no-renames', '--unified=0', base, '--', file-path
+        diff-args list of string = list; '--literal-pathspecs', 'diff', '--no-ext-diff', '--no-textconv', '--no-color', '--no-renames', '--output-indicator-new=+', '--output-indicator-old=-', '--output-indicator-context= ', '--unified=0', base, '--', file-path
         for change in (collect-diff-hunks; root, diff-args, file-path)
             changes.append; change
     for file-path in untracked
-        diff-args list of string = list; '--literal-pathspecs', 'diff', '--no-index', '--no-ext-diff', '--no-textconv', '--no-color', '--unified=0', '--', '/dev/null', file-path
+        diff-args list of string = list; '--literal-pathspecs', 'diff', '--no-index', '--no-ext-diff', '--no-textconv', '--no-color', '--output-indicator-new=+', '--output-indicator-old=-', '--output-indicator-context= ', '--unified=0', '--', '/dev/null', file-path
         for change in (collect-diff-hunks; root, diff-args, file-path)
             changes.append; change
     return changes

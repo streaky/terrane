@@ -146,27 +146,33 @@ function parse-contract security-contract throws security-error; path string, so
 
 function load-snapshot security-snapshot throws security-error; root string, revision string = ''
     paths list of string = list
+    candidates list of string = list
     if revision == ''
         paths = repository-files; root
     else
         paths = revision-files; root, revision
+        candidates = revision-marker-files; root, revision
     snapshot = instance security-snapshot;
     identities list of string = list
     for path in paths
-        if (is-record; path) or (is-source; path)
-            source string = ''
-            if revision == ''
+        record-file = is-record; path
+        if record-file or ((is-source; path) and (revision == '' or (has-string; candidates, path)))
+            source string|none = none
+            if revision != ''
+                source = read-revision; root, revision, path
+            else if record-file
                 source = read-working; root, path
             else
-                source = read-revision; root, revision, path
-            if is-record; path
-                contract = parse-contract; path, source
-                require; not (has-string; identities, contract.identity), path, 'duplicate contract identity'
-                identities.append; contract.identity
-                snapshot.contracts.append; contract
-            else
-                for region in (scan-regions; path, source)
-                    snapshot.regions.append; region
+                source = read-working-source; root, path
+            if source != none
+                if record-file
+                    contract = parse-contract; path, source
+                    require; not (has-string; identities, contract.identity), path, 'duplicate contract identity'
+                    identities.append; contract.identity
+                    snapshot.contracts.append; contract
+                else
+                    for region in (scan-regions; path, source)
+                        snapshot.regions.append; region
     for region in snapshot.regions
         require; (has-string; identities, region.identity), region.path, ('unknown contract '.concat; region.identity)
         listed bool = false

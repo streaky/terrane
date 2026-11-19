@@ -4,6 +4,7 @@ from /core/testing import assert, assert-equal-int, assert-equal-string, tempora
 from /core/errors import throwable
 from /core/collections import list
 from /core/encodings import utf8
+from /core/codecs import bytes-from-octets
 from /core/filesystem import filesystem-capability, filesystem-write-atomic, filesystem-remove, filesystem-rename
 from /core/filesystem/paths import path as filesystem-path
 
@@ -93,3 +94,45 @@ function test-insertion-gaps-respect-both-marker-boundaries throws throwable;
     assert; not (touches-region; region, 10, 0)
     assert; not (touches-region; region, 1, 2)
     assert; (touches-region; region, 3, 2)
+
+function test-changed-file-with-non-utf8-body-still-has-hunk-coordinates throws throwable;
+    root = fixture-root;
+    fixture-write; root, 'latin.txt', "before\n"
+    fixture-commit; root
+    target = instance filesystem-path; (root.concat; '/latin.txt')
+    octets list of uint8 = list; 254, 10
+    written = filesystem-write-atomic; (filesystem-capability;), target, (bytes-from-octets; octets)
+    assert; not written.failed
+    changes = repository-changes; root, 'HEAD'
+    assert-equal-int; changes.length, 1
+    assert-equal-string; changes[0].path, 'latin.txt'
+    assert-equal-int; changes[0].old-start, 1
+    assert-equal-int; changes[0].old-count, 1
+    assert-equal-int; changes[0].new-start, 1
+    assert-equal-int; changes[0].new-count, 1
+
+function test-working-snapshot-reports-symlink-in-path throws throwable;
+    root = fixture-root;
+    // Core has no symlink creation API. Set up the fixture on Unix only.
+    supported bool = rust
+        cfg!(unix)
+    if not supported
+        return
+    rust
+        #[cfg(unix)]
+        {
+            let root = std::path::Path::new(&root);
+            std::fs::create_dir(root.join("real")).expect("create fixture directory");
+            std::fs::write(root.join("real/value.rs"), "contents").expect("write fixture");
+            std::os::unix::fs::symlink("real", root.join("alias")).expect("link fixture directory");
+            std::os::unix::fs::symlink("real/value.rs", root.join("alias.rs")).expect("link fixture file");
+        }
+    assert-equal-string; (read-working; root, 'real/value.rs'), 'contents'
+    for path in (list; 'alias/value.rs', 'alias.rs')
+        assert; (read-working-source; root, path) == none
+        rejected bool = false
+        try
+            read-working; root, path
+        catch security-error as failure
+            rejected = (failure.message.contains; 'must not use symlinks')
+        assert; rejected

@@ -94,6 +94,7 @@ function run int throws security-error;
     if args.length == 0
         help;
         return 0
+    require; args[0].is-text, 'arguments', 'arguments must be UTF-8'
     command = args[0].text
     if command == '--help'
         help;

@@ -11,11 +11,11 @@ function byte-at bool; input ref bytes, count int, index int, value int
 function word-byte bool; value int
     return (value >= 65 and value <= 90) or (value >= 97 and value <= 122) or (value >= 48 and value <= 57) or value == 95 or value >= 128
 
-function block-end int throws security-error; input ref bytes, count int, start int
-    depth int = 1
+function block-end int throws security-error; input ref bytes, count int, start int, nested bool
     index = start + 2
+    depth int = 1
     while index < count
-        if (byte-at; input, count, index, 47) and (byte-at; input, count, index + 1, 42)
+        if nested and (byte-at; input, count, index, 47) and (byte-at; input, count, index + 1, 42)
             depth = depth + 1
             index = index + 2
         else if (byte-at; input, count, index, 42) and (byte-at; input, count, index + 1, 47)
@@ -89,10 +89,14 @@ function interpolation-end int throws security-error; input ref bytes, count int
         if byte == 34 or byte == 39
             index = quoted-literal-end; input, count, index, byte == 34
         else if byte == 47 and (byte-at; input, count, index + 1, 42)
-            index = block-end; input, count, index
+            end = block-end; input, count, index, false
+            require; not (comment-has-marker; input, index + 2, end - 2), 'interpolation', 'security marker cannot appear in an interpolation comment'
+            index = end
         else if (byte == 47 and (byte-at; input, count, index + 1, 47)) or byte == 35
+            start = index
             while index < count and input[index] != 10
                 index = index + 1
+            require; not (comment-has-marker; input, start, index), 'interpolation', 'security marker cannot appear in an interpolation comment'
         else if byte == 123
             depth = depth + 1
             index = index + 1
@@ -123,8 +127,24 @@ function quoted-literal-end int throws security-error; input ref bytes, count in
             index = index + 1
     throw instance security-error; 'unterminated quoted literal'
 
+function security-prefix-at bool; input ref bytes, index int
+    return (input[index] == 83 or input[index] == 115) and (input[index + 1] == 69 or input[index + 1] == 101) and (input[index + 2] == 67 or input[index + 2] == 99) and (input[index + 3] == 85 or input[index + 3] == 117) and (input[index + 4] == 82 or input[index + 4] == 114) and (input[index + 5] == 73 or input[index + 5] == 105) and (input[index + 6] == 84 or input[index + 6] == 116) and (input[index + 7] == 89 or input[index + 7] == 121) and input[index + 8] == 45
+
+// Check the start of comment content, not prose mentioning the syntax.
+function comment-has-marker bool; input ref bytes, start int, end int
+    index = start
+    while index < end
+        while index < end and (input[index] == 32 or input[index] == 9 or input[index] == 13 or input[index] == 47 or input[index] == 42 or input[index] == 33 or input[index] == 35)
+            index = index + 1
+        if index + 9 <= end and (security-prefix-at; input, index)
+            return true
+        while index < end and input[index] != 10
+            index = index + 1
+        index = index + 1
+    return false
+
 function scan-regions list of source-region throws security-error; path string, source string
-    if not (source.contains; 'SECURITY-')
+    if not ((source.lower;).contains; 'security-')
         return list
     input = source.encode; utf8
     count = input.length
@@ -143,6 +163,9 @@ function scan-regions list of source-region throws security-error; path string, 
     native-indent int = -1
     native bool = not terrane
     expression-start bool = true
+    // Header prefix states: empty, return, eligible unsafe, assign, other.
+    header-prefix int = 0
+    native-tail bool = false
     while index < count
         if index == line-start
             indent = 0
@@ -155,20 +178,22 @@ function scan-regions list of source-region throws security-error; path string, 
                 native-indent = -1
             native = not terrane or native-indent >= 0
             expression-start = true
+            header-prefix = 0
+            native-tail = false
         byte = input[index]
         after = index + 1
         if block-indent >= 0 and byte != 10
             while after < count and input[after] != 10
                 after = after + 1
         else if byte == 47 and (byte-at; input, count, index + 1, 42)
-            after = block-end; input, count, index
+            after = block-end; input, count, index, native
+            require; not (comment-has-marker; input, index + 2, after - 2), path, 'malformed security marker in block comment'
         else if byte == 47 and (byte-at; input, count, index + 1, 47)
             after = index + 2
             while after < count and input[after] != 10
                 after = after + 1
-            comment = decode-source; input[(range; index, after)]
-            content = (comment.trim.start; '//').trim;
-            if content.contains.start; 'SECURITY-'
+            if comment-has-marker; input, index + 2, after
+                comment = decode-source; input[(range; index, after)]
                 prefix = decode-source; input[(range; line-start, index)]
                 require; (prefix.trim;) == '', path, 'security markers must occupy their own line'
                 begin = comment.contains.start; '// SECURITY-BEGIN['
@@ -198,6 +223,7 @@ function scan-regions list of source-region throws security-error; path string, 
         else if terrane and not native and byte == 35
             while after < count and input[after] != 10
                 after = after + 1
+            require; not (comment-has-marker; input, index + 1, after), path, 'malformed security marker in hash comment'
         else if native and (byte == 114 or byte == 98 or byte == 99) and (index == 0 or not (word-byte; input[index - 1]))
             quote = raw-quote; input, count, index
             if quote >= 0
@@ -211,6 +237,8 @@ function scan-regions list of source-region throws security-error; path string, 
         else if byte == 34
             after = quoted-literal-end; input, count, index, terrane and not native
             expression-start = false
+            header-prefix = 4
+            native-tail = false
         else if byte == 39
             if native
                 character = character-end; input, count, index
@@ -219,7 +247,10 @@ function scan-regions list of source-region throws security-error; path string, 
             else
                 after = quoted-literal-end; input, count, index, false
             expression-start = false
+            header-prefix = 4
+            native-tail = false
         else if terrane and not native and byte == 62 and expression-start
+            native-tail = false
             after = index + 1
             while after < count and input[after] != 10
                 after = after + 1
@@ -227,19 +258,29 @@ function scan-regions list of source-region throws security-error; path string, 
             if (tail.trim;) == '>>'
                 block-indent = indent
         else if word-byte; byte
-            // Terrane's native regions are indentation-delimited; the header's
-            // Rust expression and its deeper lines use Rust literal rules.
+            // Only the final token of an eligible header opens a native block.
             while after < count and ((word-byte; input[after]) or (terrane and input[after] == 45))
                 after = after + 1
             word = decode-source; input[(range; index, after)]
-            if terrane and word == 'rust'
-                native = true
-                native-indent = indent
+            native-tail = terrane and not native and word == 'rust' and header-prefix != 4
+            if word == 'unsafe' and (header-prefix == 0 or header-prefix == 1 or header-prefix == 3)
+                header-prefix = 2
+            else if word == 'return' and header-prefix == 0
+                header-prefix = 1
+            else
+                header-prefix = 4
             expression-start = word == 'return' or word == 'throw'
-        else if byte != 32 and byte != 9 and byte != 13
+        else if byte != 32 and byte != 9 and byte != 13 and byte != 10
+            native-tail = false
+            header-prefix = 4
+            if byte == 61 and not (byte-at; input, count, index + 1, 61) and not (byte-at; input, count, index - 1, 61) and not (byte-at; input, count, index - 1, 33) and not (byte-at; input, count, index - 1, 60) and not (byte-at; input, count, index - 1, 62)
+                header-prefix = 3
             expression-start = byte == 61 or byte == 59 or byte == 44 or byte == 40 or byte == 91
         while index < after
             if input[index] == 10
+                if native-tail
+                    native-indent = indent
+                    native-tail = false
                 line = line + 1
                 line-start = index + 1
             index = index + 1

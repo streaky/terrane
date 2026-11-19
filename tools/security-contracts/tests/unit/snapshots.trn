@@ -63,3 +63,15 @@ function test-snapshot-rejects-missing-evidence-file throws throwable;
     catch security-error as error
         message = error.render;
     assert; (message.contains; 'missing referenced file tests/missing.trn')
+
+function test-base-snapshot-checks-mixed-case-markers throws throwable;
+    root = security-fixture;
+    fixture-write; root, 'src/other.rs', '// security-begin[sample.contract]'
+    fixture-commit; root
+    base = resolve-revision; root, 'HEAD'
+    message string = ''
+    try
+        load-snapshot; root, base
+    catch security-error as error
+        message = error.render;
+    assert; (message.contains; 'malformed security marker')

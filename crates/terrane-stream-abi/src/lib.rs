@@ -140,6 +140,8 @@ macro_rules! impl_standard_writer {
 impl_standard_writer!(StdoutWriter, stdout, io::stdout());
 impl_standard_writer!(StderrWriter, stderr, io::stderr());
 
+// SECURITY-BEGIN[filesystem.beneath-open]
+// The directory descriptor and its crossing policy must travel together.
 #[derive(Debug)]
 pub struct FileStream {
     file: std::fs::File,
@@ -147,6 +149,7 @@ pub struct FileStream {
     writable: bool,
     cross_filesystem: bool,
 }
+// SECURITY-END[filesystem.beneath-open]
 
 impl FileStream {
     fn read(&mut self, limit: usize) -> io::Result<ReadOutcome> {
@@ -216,6 +219,8 @@ impl StreamHandle {
     }
 }
 
+// SECURITY-BEGIN[filesystem.beneath-open]
+// Directory handles must resolve to their original registered stream.
 enum StandardStream {
     Stdin(StdinReader),
     Stdout(StdoutWriter),
@@ -238,6 +243,7 @@ fn acquire(stream: StandardStream) -> StreamHandle {
     registry().insert(handle, Arc::new(Mutex::new(stream)));
     StreamHandle(handle)
 }
+// SECURITY-END[filesystem.beneath-open]
 
 #[must_use]
 pub fn acquire_stdin() -> StreamHandle {
@@ -552,6 +558,8 @@ pub fn sync_all(handle: StreamHandle) -> io::Result<()> {
     with_writer(handle, |writer| writer.sync_all())
 }
 
+// SECURITY-BEGIN[filesystem.beneath-open]
+// Closing a handle must retire its registry entry, not redirect it.
 /// Releases a registered process-stream wrapper and removes it from the live registry.
 ///
 /// Releasing an already-absent handle is successful so host release remains idempotent. A stream
@@ -603,6 +611,7 @@ pub fn release(handle: StreamHandle) -> io::Result<()> {
         StandardStream::File(file) => file.close(),
     }
 }
+// SECURITY-END[filesystem.beneath-open]
 
 fn with_writer(
     handle: StreamHandle,
@@ -623,12 +632,14 @@ fn with_writer(
     }
 }
 
+// SECURITY-BEGIN[filesystem.beneath-open]
 fn registered_stream(handle: StreamHandle) -> io::Result<Arc<Mutex<StandardStream>>> {
     registry()
         .get(&handle.0)
         .cloned()
         .ok_or_else(invalid_handle)
 }
+// SECURITY-END[filesystem.beneath-open]
 
 trait StandardWriter {
     fn flush(&mut self) -> io::Result<()>;

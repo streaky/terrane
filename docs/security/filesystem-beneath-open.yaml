@@ -33,7 +33,7 @@ security:
     - >-
       Host kernel resolution and rustix faithfully implement the requested openat2 flags.
     - >-
-      The directory registry retains the opened descriptor and its crossing policy. Changes to those dependencies can affect this contract even outside the marked regions.
+      The directory registry retains the opened descriptor and its crossing policy. Its storage, registration, lookup, and release are marked as part of this contract.
   limitations:
     - >-
       Intermediate components in the initial anchor path use ordinary host resolution; only its final component is opened with no-follow behavior.
@@ -58,7 +58,7 @@ security:
   files:
     - path: crates/terrane-stream-abi/src/lib.rs
       role: enforcement
-      detail: Host resolution flags, directory descriptors and crossing policy, unsupported-target failures; includes the directory_handle_confines_relative_file_traversal unit witness.
+      detail: Host resolution flags, directory descriptor and crossing policy storage, handle registry lifetime, and unsupported-target failures; includes the directory_handle_confines_relative_file_traversal unit witness.
     - path: crates/terrane-compiler/src/core/filesystem.trn
       role: enforcement
       detail: Source wrappers preserve directory-relative operations, policy selection, and failures.

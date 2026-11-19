@@ -17,7 +17,7 @@ function test-nested-regions-have-inclusive-lines throws throwable;
     assert-equal-int; regions[0].start, 1
     assert-equal-int; regions[0].end, 4
 
-function test-rust-literals-and-comments-hide-markers throws throwable;
+function test-rust-literals-hide-markers-and-block-comments-nest throws throwable;
     source = >>
         fn f<'a>(value: &'a str) {
             let a = r##"first
@@ -31,7 +31,7 @@ function test-rust-literals-and-comments-hide-markers throws throwable;
         }
         /* outer
         /* nested */
-        // SECURITY-BEGIN[fake]
+        Text mentioning SECURITY-BEGIN[fake] is not a declaration.
         */
         // SECURITY-BEGIN[real]
         // SECURITY-END[real]
@@ -42,7 +42,6 @@ function test-rust-literals-and-comments-hide-markers throws throwable;
 
 function test-terrane-text-interpolation-and-native-literals throws throwable;
     source = >>
-        # // SECURITY-BEGIN[comment]
         text = >quotes " and /* are plain tail text
         block = >>
             // SECURITY-BEGIN[fake]
@@ -69,6 +68,11 @@ function test-marker-errors-do-not-silently-drop-coverage throws throwable;
     cases.append; "// SECURITY-BEGIN[x] trailing prose"
     cases.append; "fn f() {{}} // SECURITY-BEGIN[x]"
     cases.append; "/* unterminated // SECURITY-BEGIN[x]"
+    cases.append; "/// SECURITY-BEGIN[x]\n/// SECURITY-END[x]"
+    cases.append; "//! SECURITY-BEGIN[x]\n//! SECURITY-END[x]"
+    cases.append; "/* SECURITY-BEGIN[x] */"
+    cases.append; "/**\n * security-end[x]\n */"
+    cases.append; "// security-begin[x]\n// security-end[x]"
     for source in cases
         rejected bool = false
         try
@@ -82,3 +86,33 @@ function test-indentation-crlf-and-adjacent-regions throws throwable;
     regions = scan-regions; 'sample.trn', source
     assert-equal-int; regions.length, 2
     assert-equal-int; regions[1].start, 3
+
+function test-terrane-block-comments-end-at-first-terminator throws throwable;
+    source = >>
+        /* outer /* not nested */
+        // SECURITY-BEGIN[real]
+        value = '*/'
+        // SECURITY-END[real]
+    regions = scan-regions; 'sample.trn', source
+    assert-equal-int; regions.length, 1
+    assert-equal-int; regions[0].start, 2
+    assert-equal-int; regions[0].end, 4
+
+function test-terrane-hash-comment-marker-is-rejected throws throwable;
+    rejected bool = false
+    try
+        scan-regions; 'sample.trn', '# SECURITY-BEGIN[x]'
+    catch security-error as failure
+        rejected = (failure.message.contains; 'hash comment')
+    assert; rejected
+
+function test-ordinary-rust-identifier-does-not-open-native-block throws throwable;
+    source = >>
+        call; rust, '// SECURITY-BEGIN[hidden]'
+        value = options.rust
+            '// SECURITY-BEGIN[also-hidden]'
+        // SECURITY-BEGIN[real]
+        // SECURITY-END[real]
+    regions = scan-regions; 'sample.trn', source
+    assert-equal-int; regions.length, 1
+    assert-equal-string; regions[0].identity, 'real'
