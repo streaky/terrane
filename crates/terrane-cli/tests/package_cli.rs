@@ -707,6 +707,43 @@ fn assert_explicit_selectors(package: &Path) {
     }
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn security_contract_tool_unit_suite() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let package = root.join("tools/security-contracts");
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["test", "--tier", "unit"])
+        .arg(&package)
+        .output()
+        .unwrap();
+    let report = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success() && !report.contains("0 tests selected"),
+        "{report}\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Workspace archives can still run the unit suite against its fixture
+    // repositories, but only a checkout has an inventory to validate.
+    if root.join(".git").exists() {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .current_dir(&root)
+            .env("GIT_DIR", "not-this-checkout")
+            .arg("run")
+            .arg(&package)
+            .args(["--", "check"])
+            .output()
+            .unwrap();
+        let report = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && report.contains("filesystem.beneath-open"),
+            "{report}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
 #[test]
 fn tracked_native_testing_package_covers_all_tiers() {
     let package = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/native-testing");

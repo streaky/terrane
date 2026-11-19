@@ -1,0 +1,138 @@
+namespace security-contracts
+
+from /core/testing import assert, assert-equal-int, assert-equal-string, temporary-directory
+from /core/errors import throwable
+from /core/collections import list
+from /core/encodings import utf8
+from /core/codecs import bytes-from-octets
+from /core/filesystem import filesystem-capability, filesystem-write-atomic, filesystem-remove, filesystem-rename
+from /core/filesystem/paths import path as filesystem-path
+
+function fixture-root string throws throwable;
+    root = temporary-directory;
+    if root != none
+        git; root, (list; 'init', '-q')
+        return root
+    throw instance security-error; 'test runner did not supply a temporary directory'
+
+function fixture-write throws throwable; root string, name string, content string
+    result = filesystem-write-atomic; (filesystem-capability;), (instance filesystem-path; (root.concat; '/', name)), (content.encode; utf8)
+    require; not result.failed, name, result.message
+
+function fixture-commit throws security-error; root string
+    git; root, (list; 'add', '--all')
+    git; root, (list; '-c', 'user.email=test@example.invalid', '-c', 'user.name=Test', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'base')
+
+function test-repository-discovery-and-reads-preserve-unusual-paths throws throwable;
+    root = fixture-root;
+    name = "tracked [file] λ\nname.trn"
+    fixture-write; root, name, "snapshot\n"
+    fixture-commit; root
+    files = revision-files; root, 'HEAD'
+    assert-equal-int; files.length, 1
+    assert-equal-string; files[0], name
+    assert-equal-string; (read-revision; root, 'HEAD', name), "snapshot\n"
+    assert-equal-string; (read-working; root, name), "snapshot\n"
+    removed = filesystem-remove; (filesystem-capability;), (instance filesystem-path; (root.concat; '/', name))
+    assert; not removed.failed
+    fixture-write; root, 'new [file].trn', "new\n"
+    files = repository-files; root
+    assert-equal-int; files.length, 1
+    assert-equal-string; files[0], 'new [file].trn'
+
+function test-staged-and-unstaged-hunks-compare-to-base throws throwable;
+    root = fixture-root;
+    fixture-write; root, 'tracked.trn', "one\ntwo\nthree\n"
+    fixture-commit; root
+    fixture-write; root, 'tracked.trn', "staged\ntwo\nthree\n"
+    git; root, (list; 'add', 'tracked.trn')
+    fixture-write; root, 'tracked.trn', "staged\nfinal\nthree\n"
+    fixture-write; root, 'untracked file.trn', "added\n"
+    base = resolve-revision; root, 'HEAD'
+    changes = repository-changes; root, base
+    tracked bool = false
+    untracked bool = false
+    for change in changes
+        if change.path == 'tracked.trn'
+            tracked = true
+            assert-equal-int; change.old-start, 1
+            assert-equal-int; change.old-count, 2
+            assert-equal-int; change.new-start, 1
+            assert-equal-int; change.new-count, 2
+        if change.path == 'untracked file.trn'
+            untracked = true
+            assert-equal-int; change.old-count, 0
+            assert-equal-int; change.new-count, 1
+    assert; tracked and untracked
+
+function test-renamed-file-is-reported-as-deletion-and-addition throws throwable;
+    root = fixture-root;
+    fixture-write; root, 'before.trn', "content\n"
+    fixture-commit; root
+    renamed = filesystem-rename; (filesystem-capability;), (instance filesystem-path; (root.concat; '/before.trn')), (instance filesystem-path; (root.concat; '/after.trn'))
+    assert; not renamed.failed
+    git; root, (list; 'add', '--all')
+    changes = repository-changes; root, 'HEAD'
+    deleted bool = false
+    added bool = false
+    for change in changes
+        if change.path == 'before.trn'
+            deleted = true
+            assert-equal-int; change.old-count, 1
+            assert-equal-int; change.new-count, 0
+        if change.path == 'after.trn'
+            added = true
+            assert-equal-int; change.old-count, 0
+            assert-equal-int; change.new-count, 1
+    assert; deleted and added
+
+function test-insertion-gaps-respect-both-marker-boundaries throws throwable;
+    region = instance source-region; 'sample', 'a.trn', 4, 10
+    assert; not (touches-region; region, 3, 0)
+    assert; (touches-region; region, 4, 0)
+    assert; (touches-region; region, 9, 0)
+    assert; not (touches-region; region, 10, 0)
+    assert; not (touches-region; region, 1, 2)
+    assert; (touches-region; region, 3, 2)
+
+function test-changed-file-with-non-utf8-body-still-has-hunk-coordinates throws throwable;
+    root = fixture-root;
+    fixture-write; root, 'latin.txt', "before\n"
+    fixture-commit; root
+    target = instance filesystem-path; (root.concat; '/latin.txt')
+    octets list of uint8 = list; 254, 10
+    written = filesystem-write-atomic; (filesystem-capability;), target, (bytes-from-octets; octets)
+    assert; not written.failed
+    changes = repository-changes; root, 'HEAD'
+    assert-equal-int; changes.length, 1
+    assert-equal-string; changes[0].path, 'latin.txt'
+    assert-equal-int; changes[0].old-start, 1
+    assert-equal-int; changes[0].old-count, 1
+    assert-equal-int; changes[0].new-start, 1
+    assert-equal-int; changes[0].new-count, 1
+
+function test-working-snapshot-reports-symlink-in-path throws throwable;
+    root = fixture-root;
+    // Core has no symlink creation API. Set up the fixture on Unix only.
+    supported bool = rust
+        cfg!(unix)
+    if not supported
+        return
+    rust
+        #[cfg(unix)]
+        {
+            let root = std::path::Path::new(&root);
+            std::fs::create_dir(root.join("real")).expect("create fixture directory");
+            std::fs::write(root.join("real/value.rs"), "contents").expect("write fixture");
+            std::os::unix::fs::symlink("real", root.join("alias")).expect("link fixture directory");
+            std::os::unix::fs::symlink("real/value.rs", root.join("alias.rs")).expect("link fixture file");
+        }
+    assert-equal-string; (read-working; root, 'real/value.rs'), 'contents'
+    for path in (list; 'alias/value.rs', 'alias.rs')
+        assert; (read-working-source; root, path) == none
+        rejected bool = false
+        try
+            read-working; root, path
+        catch security-error as failure
+            rejected = (failure.message.contains; 'must not use symlinks')
+        assert; rejected

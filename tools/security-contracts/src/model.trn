@@ -1,0 +1,98 @@
+namespace security-contracts
+
+from /core/collections import list
+from /core/encodings import utf8
+from /core/errors import throwable, decode-error
+
+class security-error implements throwable
+    message string = ''
+
+    function construct; message string
+        this.message = message
+
+    function render string;
+        return this.message
+
+function decode-source string throws security-error; data bytes
+    try
+        return data.decode; utf8
+    catch decode-error
+        throw instance security-error; 'source fragment is not UTF-8'
+
+class source-region
+    identity string
+    path string
+    start int
+    end int
+
+    function construct; identity string, path string, start int, end int
+        this.identity = identity
+        this.path = path
+        this.start = start
+        this.end = end
+
+class security-file
+    path string
+    role string
+    detail string
+
+    function construct; path string, role string, detail string
+        this.path = path
+        this.role = role
+        this.detail = detail
+
+class security-contract
+    identity string
+    path string
+    title string
+    files list of security-file = list
+    audiences list of string = list
+
+    function construct; identity string, path string, title string
+        this.identity = identity
+        this.path = path
+        this.title = title
+
+class security-snapshot
+    contracts list of security-contract = list
+    regions list of source-region = list
+
+function has-string bool; values list of string, sought string
+    for value in values
+        if value == sought
+            return true
+    return false
+
+function valid-identity bool; value string
+    input = value.encode; utf8
+    count = input.length
+    if count == 0
+        return false
+    initial bool = true
+    index int = 0
+    while index < count
+        byte = input[index]
+        if initial
+            if byte < 97 or byte > 122
+                return false
+            initial = false
+        else if byte == 46
+            initial = true
+        else if not ((byte >= 97 and byte <= 122) or (byte >= 48 and byte <= 57) or byte == 45)
+            return false
+        index = index + 1
+    return not initial
+
+function valid-source-path bool; value string
+    if value == '' or (value.contains.start; '/') or (value.contains; "\0") or (value.contains; '\\')
+        return false
+    for component in (value.split; '/')
+        if component == '' or component == '.' or component == '..'
+            return false
+    return true
+
+function is-source bool; path string
+    return (path.contains.end; '.rs') or (path.contains.end; '.trn')
+
+function is-record bool; path string
+    return (path.contains.start; 'docs/security/') and (path.contains.end; '.yaml')

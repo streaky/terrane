@@ -1,0 +1,83 @@
+format: 1
+id: filesystem.beneath-open
+kind: security-contract
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Directory-handle confined file opens
+  title-style: text
+  summary: >-
+    Preserve race-resistant, no-follow traversal beneath a directory handle and explicit failure when that operation is unavailable.
+  tags: [security, filesystem]
+  sections: []
+  see-also: []
+security:
+  audiences: [application]
+  invariant: |-
+    Confined traversal constrains the actual host open operation beneath the selected directory descriptor, not a separately checked path string. The Linux implementation requests BENEATH, NO_MAGICLINKS, and NO_SYMLINKS resolution. Unless crossing is explicitly enabled, it also requests NO_XDEV. File opens retain the policy stored on their directory handle. Unsupported targets and host failures produce errors rather than a weaker fallback. The Terrane wrappers preserve the selected handle, relative path, crossing policy, and failure result.
+  threats:
+    - >-
+      An attacker-controlled relative path must not redirect an open outside the anchor through parent traversal, absolute paths, symbolic links, magic links, or disallowed mount traversal.
+    - >-
+      Binding resolution and opening into one host operation avoids the check-then-open race of canonicalizing a path and opening it later.
+  assumptions:
+    - >-
+      The caller selects a trusted anchor and grants the filesystem authority intentionally.
+    - >-
+      Host kernel resolution and rustix faithfully implement the requested openat2 flags.
+    - >-
+      The directory registry retains the opened descriptor and its crossing policy. Its storage, registration, lookup, and release are marked as part of this contract.
+  limitations:
+    - >-
+      Intermediate components in the initial anchor path use ordinary host resolution; only its final component is opened with no-follow behavior.
+    - >-
+      This contract is not a whole-process sandbox, an application authorization policy, or protection against access to an object through a hard link already within the anchor. Explicitly permitting filesystem crossing relaxes that part of the policy.
+    - >-
+      Non-Linux targets return Unsupported; Linux kernels that cannot provide the requested operation return a host error.
+    - >-
+      Existing unit evidence covers a successful read and asserts failures for parent traversal and a final symlink. Its outside targets are not created, so those negative assertions alone do not distinguish confinement from ordinary missing-target failures.
+    - >-
+      The conformance case exercises the Terrane wrappers. This evidence does not exhaustively establish concurrent rename behavior, mount boundaries, all symlink shapes, or unsupported-platform behavior. Registration here records a security-sensitive contract, not an audit or certification.
+  guidance: |-
+    Acquire the anchor from a trusted location, then use filesystem-open-beneath and open-file-beneath for untrusted relative paths. Inspect the returned failure fields before using the handle. Keep cross-filesystem false unless crossing is an intentional policy decision. Lexical path normalization, component-prefix checks, and canonicalize-then-open are not substitutes for descriptor-relative confined opens. The public filesystem manual remains the API reference; this record describes the security maintenance boundary.
+  review:
+    considerations:
+      - >-
+        A reviewer familiar with filesystem resolution must assess changes to flags, anchor acquisition, descriptor ownership, directory policy storage, wrapper arguments, error propagation, platform selection, and native dependencies.
+      - >-
+        Preserve fail-closed behavior and review both successful confined access and rejected escapes. Run cargo test -p terrane-stream-abi directory_handle_confines_relative_file_traversal for the existing host-level witness. The filesystem-facilities conformance case provides source-level evidence through the compiler harness.
+      - >-
+        Review required does not imply that the tooling automatically enforces reviewer identity or approval.
+  files:
+    - path: crates/terrane-stream-abi/src/lib.rs
+      role: enforcement
+      detail: Host resolution flags, directory descriptor and crossing policy storage, handle registry lifetime, and unsupported-target failures; includes the directory_handle_confines_relative_file_traversal unit witness.
+    - path: crates/terrane-compiler/src/core/filesystem.trn
+      role: enforcement
+      detail: Source wrappers preserve directory-relative operations, policy selection, and failures.
+    - path: crates/terrane-compiler/src/runtime/platform_files.rs
+      role: dependency
+      detail: Host-call bridge preserves directory handles, inputs, and failure results.
+    - path: crates/terrane-compiler/src/lowering/emitter/calls.rs
+      role: dependency
+      detail: Maps source host operations to the runtime bridge.
+    - path: crates/terrane-stream-abi/Cargo.toml
+      role: dependency
+      detail: Native filesystem dependency features and platform selection.
+    - path: Cargo.lock
+      role: dependency
+      detail: Locked native dependency versions; changes conservatively require relevance review.
+    - path: tests/conformance/run/filesystem-facilities/case.trn
+      role: evidence
+      detail: Source-level rejection of an escaping directory path and successful handle-relative read.
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

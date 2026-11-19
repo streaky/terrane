@@ -1,0 +1,272 @@
+namespace security-contracts
+
+from /core/collections import list, range
+from /core/encodings import utf8
+
+// This is a comment extractor, not a parser. Skip complete literals before
+// looking for markers, including nested interpolation and native Rust strings.
+function byte-at bool; input ref bytes, count int, index int, value int
+    return index >= 0 and index < count and input[index] == value
+
+function word-byte bool; value int
+    return (value >= 65 and value <= 90) or (value >= 97 and value <= 122) or (value >= 48 and value <= 57) or value == 95 or value >= 128
+
+function block-end int throws security-error; input ref bytes, count int, start int, nested bool
+    index = start + 2
+    depth int = 1
+    while index < count
+        if nested and (byte-at; input, count, index, 47) and (byte-at; input, count, index + 1, 42)
+            depth = depth + 1
+            index = index + 2
+        else if (byte-at; input, count, index, 42) and (byte-at; input, count, index + 1, 47)
+            depth = depth - 1
+            index = index + 2
+            if depth == 0
+                return index
+        else
+            index = index + 1
+    throw instance security-error; 'unterminated block comment'
+
+function raw-quote int; input ref bytes, count int, start int
+    index = start
+    if (byte-at; input, count, index, 98) or (byte-at; input, count, index, 99)
+        index = index + 1
+    if not (byte-at; input, count, index, 114)
+        return -1
+    index = index + 1
+    while byte-at; input, count, index, 35
+        index = index + 1
+    if byte-at; input, count, index, 34
+        return index
+    return -1
+
+function raw-literal-end int throws security-error; input ref bytes, count int, start int, quote int
+    hashes = quote - start - 1
+    if input[start] != 114
+        hashes = hashes - 1
+    index = quote + 1
+    while index < count
+        if input[index] == 34
+            after = index + 1
+            matched int = 0
+            while matched < hashes and (byte-at; input, count, after, 35)
+                after = after + 1
+                matched = matched + 1
+            if matched == hashes
+                return after
+        index = index + 1
+    throw instance security-error; 'unterminated Rust raw string'
+
+function character-end int; input ref bytes, count int, start int
+    // A Rust lifetime/label is not a character literal.
+    index = start + 1
+    if byte-at; input, count, index, 92
+        index = index + 1
+        if byte-at; input, count, index, 117
+            index = index + 1
+            if not (byte-at; input, count, index, 123)
+                return -1
+            while index < count and not (byte-at; input, count, index, 125) and not (byte-at; input, count, index, 10)
+                index = index + 1
+            index = index + 1
+        else if byte-at; input, count, index, 120
+            index = index + 3
+        else
+            index = index + 1
+    else
+        index = index + 1
+        while index < count and input[index] >= 128 and input[index] < 192
+            index = index + 1
+    if byte-at; input, count, index, 39
+        return index + 1
+    return -1
+
+function interpolation-end int throws security-error; input ref bytes, count int, start int
+    index = start
+    depth int = 1
+    while index < count
+        byte = input[index]
+        if byte == 34 or byte == 39
+            index = quoted-literal-end; input, count, index, byte == 34
+        else if byte == 47 and (byte-at; input, count, index + 1, 42)
+            index = block-end; input, count, index, false
+        else if (byte == 47 and (byte-at; input, count, index + 1, 47)) or byte == 35
+            while index < count and input[index] != 10
+                index = index + 1
+        else if byte == 123
+            depth = depth + 1
+            index = index + 1
+        else if byte == 125
+            depth = depth - 1
+            index = index + 1
+            if depth == 0
+                return index
+        else
+            index = index + 1
+    throw instance security-error; 'unterminated Terrane interpolation'
+
+function quoted-literal-end int throws security-error; input ref bytes, count int, start int, interpolate bool
+    quote = input[start]
+    index = start + 1
+    while index < count
+        byte = input[index]
+        if byte == quote
+            return index + 1
+        if byte == 92
+            index = index + 2
+        else if interpolate and byte == 123
+            if byte-at; input, count, index + 1, 123
+                index = index + 2
+            else
+                index = interpolation-end; input, count, index + 1
+        else
+            index = index + 1
+    throw instance security-error; 'unterminated quoted literal'
+
+function scan-regions list of source-region throws security-error; path string, source string
+    begin-prefix = '//# SECURITY-BEGIN ['
+    end-prefix = '//# SECURITY-END ['
+    if not (source.contains; begin-prefix) and not (source.contains; end-prefix)
+        return list
+    input = source.encode; utf8
+    count = input.length
+    // Hoist byte length once: ref-bytes length currently snapshots its buffer
+    // during lowering, which would otherwise copy the source per character.
+    terrane = path.contains.end; '.trn'
+    starts list of source-region = list
+    completed list of source-region = list
+    stack list of source-region = list
+    depth int = 0
+    index int = 0
+    line int = 1
+    line-start int = 0
+    indent int = 0
+    block-indent int = -1
+    native-indent int = -1
+    native bool = not terrane
+    expression-start bool = true
+    // Header prefix states: empty, return, eligible unsafe, assign, other.
+    header-prefix int = 0
+    native-tail bool = false
+    while index < count
+        if index == line-start
+            indent = 0
+            while (byte-at; input, count, index + indent, 32) or (byte-at; input, count, index + indent, 9)
+                indent = indent + 1
+            blank = index + indent >= count or (byte-at; input, count, index + indent, 10) or (byte-at; input, count, index + indent, 13)
+            if block-indent >= 0 and not blank and indent <= block-indent
+                block-indent = -1
+            if native-indent >= 0 and not blank and indent <= native-indent
+                native-indent = -1
+            native = not terrane or native-indent >= 0
+            expression-start = true
+            header-prefix = 0
+            native-tail = false
+        byte = input[index]
+        after = index + 1
+        if block-indent >= 0 and byte != 10
+            while after < count and input[after] != 10
+                after = after + 1
+        else if byte == 47 and (byte-at; input, count, index + 1, 42)
+            after = block-end; input, count, index, native
+        else if byte == 47 and (byte-at; input, count, index + 1, 47)
+            after = index + 2
+            while after < count and input[after] != 10
+                after = after + 1
+            comment = decode-source; input[(range; index, after)]
+            begin = comment.contains.start; begin-prefix
+            end = comment.contains.start; end-prefix
+            if begin or end
+                prefix = decode-source; input[(range; line-start, index)]
+                require; (prefix.trim;) == '', path, 'security markers must occupy their own line'
+                cleaned = comment.trim.end;
+                require; (cleaned.contains.end; ']'), path, 'malformed security marker'
+                identity = cleaned.trim.start; begin-prefix
+                if end
+                    identity = cleaned.trim.start; end-prefix
+                identity = identity.trim.end; ']'
+                require; (valid-identity; identity), path, 'invalid security marker identity'
+                if begin
+                    region = instance source-region; identity, path, line, 0
+                    starts.append; region
+                    if depth < stack.length
+                        stack[depth] = region
+                    else
+                        stack.append; region
+                    depth = depth + 1
+                else
+                    require; depth > 0, path, 'security end marker without begin'
+                    top = stack[depth - 1]
+                    require; top.identity == identity, path, 'crossing or mismatched security markers'
+                    completed.append; (instance source-region; identity, path, top.start, line)
+                    depth = depth - 1
+        else if terrane and not native and byte == 35
+            while after < count and input[after] != 10
+                after = after + 1
+        else if native and (byte == 114 or byte == 98 or byte == 99) and (index == 0 or not (word-byte; input[index - 1]))
+            quote = raw-quote; input, count, index
+            if quote >= 0
+                after = raw-literal-end; input, count, index, quote
+            else if byte == 98 or byte == 99
+                if byte-at; input, count, index + 1, 34
+                    after = quoted-literal-end; input, count, index + 1, false
+                else if byte-at; input, count, index + 1, 39
+                    after = character-end; input, count, index + 1
+                    require; after > index, path, 'invalid Rust byte character'
+        else if byte == 34
+            after = quoted-literal-end; input, count, index, terrane and not native
+            expression-start = false
+            header-prefix = 4
+            native-tail = false
+        else if byte == 39
+            if native
+                character = character-end; input, count, index
+                if character >= 0
+                    after = character
+            else
+                after = quoted-literal-end; input, count, index, false
+            expression-start = false
+            header-prefix = 4
+            native-tail = false
+        else if terrane and not native and byte == 62 and expression-start
+            native-tail = false
+            after = index + 1
+            while after < count and input[after] != 10
+                after = after + 1
+            tail = decode-source; input[(range; index, after)]
+            if (tail.trim;) == '>>'
+                block-indent = indent
+        else if word-byte; byte
+            // Only the final token of an eligible header opens a native block.
+            while after < count and ((word-byte; input[after]) or (terrane and input[after] == 45))
+                after = after + 1
+            word = decode-source; input[(range; index, after)]
+            native-tail = terrane and not native and word == 'rust' and header-prefix != 4
+            if word == 'unsafe' and (header-prefix == 0 or header-prefix == 1 or header-prefix == 3)
+                header-prefix = 2
+            else if word == 'return' and header-prefix == 0
+                header-prefix = 1
+            else
+                header-prefix = 4
+            expression-start = word == 'return' or word == 'throw'
+        else if byte != 32 and byte != 9 and byte != 13 and byte != 10
+            native-tail = false
+            header-prefix = 4
+            if byte == 61 and not (byte-at; input, count, index + 1, 61) and not (byte-at; input, count, index - 1, 61) and not (byte-at; input, count, index - 1, 33) and not (byte-at; input, count, index - 1, 60) and not (byte-at; input, count, index - 1, 62)
+                header-prefix = 3
+            expression-start = byte == 61 or byte == 59 or byte == 44 or byte == 40 or byte == 91
+        while index < after
+            if input[index] == 10
+                if native-tail
+                    native-indent = indent
+                    native-tail = false
+                line = line + 1
+                line-start = index + 1
+            index = index + 1
+    require; depth == 0, path, 'security begin marker without end'
+    ordered list of source-region = list
+    for start in starts
+        for region in completed
+            if region.start == start.start
+                ordered.append; region
+    return ordered

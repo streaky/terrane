@@ -1,0 +1,127 @@
+namespace security-contracts
+
+from /core/testing import assert-equal-int, assert-equal-string, assert
+from /core/errors import throwable
+from /core/collections import list
+
+function test-nested-regions-have-inclusive-lines throws throwable;
+    source = >>
+        //# SECURITY-BEGIN [outer]
+        //# SECURITY-BEGIN [inner]
+        //# SECURITY-END [inner]
+        //# SECURITY-END [outer]
+    regions = scan-regions; 'sample.rs', source
+    assert-equal-int; regions.length, 2
+    assert-equal-string; regions[0].identity, 'outer'
+    assert-equal-string; regions[1].identity, 'inner'
+    assert-equal-int; regions[0].start, 1
+    assert-equal-int; regions[0].end, 4
+
+function test-rust-literals-hide-markers-and-block-comments-nest throws throwable;
+    source = >>
+        fn f<'a>(value: &'a str) {
+            let a = r##"first
+        //# SECURITY-BEGIN [fake]
+        /* not a comment */
+        "##;
+            let b = br"//# SECURITY-END [fake]";
+            let c = b'/';
+            let d = '\u{1f600}';
+            let e = "/* \" //# SECURITY-END [fake] */";
+        }
+        /* outer
+        /* nested */
+        Text mentioning SECURITY-BEGIN [fake] is not a declaration.
+        */
+        //# SECURITY-BEGIN [real]
+        //# SECURITY-END [real]
+    regions = scan-regions; 'sample.rs', source
+    assert-equal-int; regions.length, 1
+    assert-equal-string; regions[0].identity, 'real'
+    assert-equal-int; regions[0].start, 15
+
+function test-terrane-text-interpolation-and-native-literals throws throwable;
+    source = >>
+        text = >quotes " and /* are plain tail text
+        block = >>
+            //# SECURITY-BEGIN [fake]
+        text = "outer {value.concat; "inner"}
+        //# SECURITY-BEGIN [still-text]
+        end"
+        native = rust
+            r#"
+        //# SECURITY-BEGIN [raw]
+        "#.to_owned()
+        //# SECURITY-BEGIN [real]
+        //# SECURITY-END [real]
+    regions = scan-regions; 'sample.trn', source
+    assert-equal-int; regions.length, 1
+    assert-equal-string; regions[0].identity, 'real'
+
+function test-marker-errors-do-not-silently-drop-coverage throws throwable;
+    cases list of string = list
+    cases.append; "//# SECURITY-END [x]"
+    cases.append; "//# SECURITY-BEGIN [x]"
+    cases.append; "//# SECURITY-BEGIN [a]\n//# SECURITY-BEGIN [b]\n//# SECURITY-END [a]\n//# SECURITY-END [b]"
+    cases.append; "//# SECURITY-BEGIN [bad id]\n//# SECURITY-END [bad id]"
+    cases.append; "//# SECURITY-BEGIN [x] trailing prose\n//# SECURITY-END [x]"
+    cases.append; "fn f() {{}} //# SECURITY-BEGIN [x]\n//# SECURITY-END [x]"
+    cases.append; "/* unterminated //# SECURITY-BEGIN [x]"
+    for source in cases
+        rejected bool = false
+        try
+            scan-regions; 'sample.rs', source
+        catch security-error
+            rejected = true
+        assert; rejected
+
+function test-marker-lookalikes-are-ordinary-comments throws throwable;
+    source = >>
+        // Security-sensitive: validate untrusted input.
+        /// Security-relevant helper.
+        /* Security-related notes. */
+        // SECURITY-BEGIN[legacy]
+        /// SECURITY-BEGIN [doc]
+        //! SECURITY-END [doc]
+        //# security-begin [lowercase]
+        //#SECURITY-BEGIN [spacing]
+        //# SECURITY-END[spacing]
+        /* //# SECURITY-BEGIN [block] */
+        //# SECURITY-BEGIN [real]
+        // Security-sensitive implementation.
+        //# SECURITY-END [real]
+    regions = scan-regions; 'sample.rs', source
+    assert-equal-int; regions.length, 1
+    assert-equal-int; regions[0].start, 11
+    assert-equal-int; regions[0].end, 13
+    terrane-source = "# security-review: done\n# SECURITY-BEGIN [hash]\n//# SECURITY-BEGIN [real]\n//# SECURITY-END [real]"
+    terrane-regions = scan-regions; 'sample.trn', terrane-source
+    assert-equal-int; terrane-regions.length, 1
+
+function test-indentation-crlf-and-adjacent-regions throws throwable;
+    source = "    //# SECURITY-BEGIN [first] \r\n    //# SECURITY-END [first]\r\n//# SECURITY-BEGIN [second]\n//# SECURITY-END [second]"
+    regions = scan-regions; 'sample.trn', source
+    assert-equal-int; regions.length, 2
+    assert-equal-int; regions[1].start, 3
+
+function test-terrane-block-comments-end-at-first-terminator throws throwable;
+    source = >>
+        /* outer /* not nested */
+        //# SECURITY-BEGIN [real]
+        value = '*/'
+        //# SECURITY-END [real]
+    regions = scan-regions; 'sample.trn', source
+    assert-equal-int; regions.length, 1
+    assert-equal-int; regions[0].start, 2
+    assert-equal-int; regions[0].end, 4
+
+function test-ordinary-rust-identifier-does-not-open-native-block throws throwable;
+    source = >>
+        call; rust, '//# SECURITY-BEGIN [hidden]'
+        value = options.rust
+            '//# SECURITY-BEGIN [also-hidden]'
+        //# SECURITY-BEGIN [real]
+        //# SECURITY-END [real]
+    regions = scan-regions; 'sample.trn', source
+    assert-equal-int; regions.length, 1
+    assert-equal-string; regions[0].identity, 'real'

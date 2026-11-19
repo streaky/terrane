@@ -152,6 +152,8 @@ function filesystem-read-link path-result; capability filesystem, target path
     linked = instance path; (host-result-text; record)
     return instance path-result; linked, (host-result-failed; record), (host-result-message; record)
 
+//# SECURITY-BEGIN [filesystem.beneath-open]
+// Preserve directory-handle traversal, explicit crossing policy, and host failures.
 function filesystem-open-beneath directory-handle; capability filesystem, directory path, relative path, cross-filesystem bool = false
     raw = host-open-directory-beneath; directory.text, relative.text, cross-filesystem
     failure = raw.failed
@@ -165,6 +167,7 @@ function open-file-beneath file-handle; capability filesystem, directory ref dir
     detail = raw.message
     acquired host-resource-handle = raw.handle
     return instance file-handle; acquired, failure, detail
+//# SECURITY-END [filesystem.beneath-open]
 
 function filesystem-read-bounded file-data; capability filesystem, target path, limit int
     record = host-filesystem-read-bounded; target.text, limit
