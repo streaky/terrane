@@ -379,6 +379,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             role,
             panic: package.profile.panic,
             uses_platform_support,
+            uses_child_process: compilation.requires_child_process,
             uses_async_runtime,
             uses_tokio_blocking,
             uses_tokio_sync,
@@ -2089,6 +2090,7 @@ mod tests {
                 GeneratedCrateOptions {
                     role,
                     panic,
+                    uses_child_process: false,
                     uses_platform_support: false,
                     uses_async_runtime: runtime,
                     uses_tokio_blocking: false,

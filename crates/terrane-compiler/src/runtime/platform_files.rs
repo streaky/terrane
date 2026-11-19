@@ -3,28 +3,42 @@ pub struct TerranePlatformOpenResult {
     pub handle: TerranePlatformStreamHandle,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
 }
 pub fn terrane_file_open_options(
     readable: bool,
     writable: bool,
     create: bool,
     truncate: bool,
-) -> Result<terrane_stream_abi::FileOpenOptions, String> {
+    exclusive: bool,
+    append: bool,
+) -> std::io::Result<terrane_stream_abi::FileOpenOptions> {
     let access = match (readable, writable) {
         (true, false) => terrane_stream_abi::FileAccess::Read,
         (false, true) => terrane_stream_abi::FileAccess::Write,
         (true, true) => terrane_stream_abi::FileAccess::ReadWrite,
         (false, false) => {
-            return Err("a file must be opened for reading, writing, or both".to_owned());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "a file must be opened for reading, writing, or both",
+            ));
         }
     };
-    let creation = match (create, truncate) {
-        (false, false) => terrane_stream_abi::FileCreation::Existing,
-        (true, false) => terrane_stream_abi::FileCreation::Create,
-        (false, true) => terrane_stream_abi::FileCreation::Truncate,
-        (true, true) => terrane_stream_abi::FileCreation::CreateOrTruncate,
+    use terrane_stream_abi::FileCreation;
+    let creation = match (create, truncate, exclusive) {
+        (false, false, true) => FileCreation::Exclusive,
+        (_, _, true) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "exclusive conflicts with create or truncate",
+            ));
+        }
+        (false, false, false) => FileCreation::Existing,
+        (true, false, false) => FileCreation::Create,
+        (false, true, false) => FileCreation::Truncate,
+        (true, true, false) => FileCreation::CreateOrTruncate,
     };
-    Ok(terrane_stream_abi::FileOpenOptions { access, creation })
+    Ok(terrane_stream_abi::FileOpenOptions { access, creation, append })
 }
 
 pub fn terrane_platform_open_result(
@@ -35,11 +49,13 @@ pub fn terrane_platform_open_result(
             handle: TerranePlatformStreamHandle::new(handle),
             failed: false,
             message: String::new(),
+            error_kind: "none",
         },
         Err(error) => TerranePlatformOpenResult {
             handle: TerranePlatformStreamHandle::default(),
             failed: true,
             message: error.to_string(),
+            error_kind: terrane_stream_abi::io_error_kind(error.kind()),
         },
     }
 }
@@ -50,18 +66,13 @@ pub fn terrane_platform_open_file(
     writable: bool,
     create: bool,
     truncate: bool,
+    exclusive: bool,
+    append: bool,
 ) -> TerranePlatformOpenResult {
-    let request = match terrane_file_open_options(readable, writable, create, truncate) {
-        Ok(request) => request,
-        Err(message) => {
-            return TerranePlatformOpenResult {
-                handle: TerranePlatformStreamHandle::default(),
-                failed: true,
-                message,
-            };
-        }
-    };
-    terrane_platform_open_result(terrane_stream_abi::open_file(&path, request))
+    terrane_platform_open_result(
+        terrane_file_open_options(readable, writable, create, truncate, exclusive, append)
+            .and_then(|request| terrane_stream_abi::open_file(&path, request)),
+    )
 }
 
 pub fn terrane_platform_open_directory_beneath(
@@ -83,20 +94,13 @@ pub fn terrane_platform_open_file_beneath(
     writable: bool,
     create: bool,
     truncate: bool,
+    exclusive: bool,
+    append: bool,
 ) -> TerranePlatformOpenResult {
-    let request = match terrane_file_open_options(readable, writable, create, truncate) {
-        Ok(request) => request,
-        Err(message) => {
-            return TerranePlatformOpenResult {
-                handle: TerranePlatformStreamHandle::default(),
-                failed: true,
-                message,
-            };
-        }
-    };
-    terrane_platform_open_result(terrane_stream_abi::open_file_beneath(
-        directory.abi_handle(),
-        &child,
-        request,
-    ))
+    terrane_platform_open_result(
+        terrane_file_open_options(readable, writable, create, truncate, exclusive, append)
+            .and_then(|request| {
+                terrane_stream_abi::open_file_beneath(directory.abi_handle(), &child, request)
+            }),
+    )
 }

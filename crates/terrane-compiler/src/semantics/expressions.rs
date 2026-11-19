@@ -1455,10 +1455,14 @@ fn infer_nonbinary_value_type(
                         ))))
                     }
                     "intrinsic:logging::log-empty-spans"
-                    | "intrinsic:logging::log-result-entries" => Some(ValueType::List(
+                    | "intrinsic:logging::log-result-entries"
+                    | "intrinsic:system::result-entries" => Some(ValueType::List(
                         ElementType::new(ValueType::Scalar(ScalarType::String)),
                     )),
-                    "intrinsic:logging::log-memory-sink"
+                    "intrinsic:child::child-capture"
+                    | "intrinsic:child::child-poll"
+                    | "intrinsic:child::child-terminate"
+                    | "intrinsic:logging::log-memory-sink"
                     | "intrinsic:logging::log-console-sink"
                     | "intrinsic:logging::log-failing-sink"
                     | "intrinsic:logging::log-write"
@@ -1485,7 +1489,8 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:data::document-field"
                     | "intrinsic:data::validate-mapping" => Some(ValueType::PlatformDataResult),
                     "intrinsic:data::url-parse" => Some(ValueType::PlatformUrlResult),
-                    "intrinsic:logging::log-no-sink"
+                    "intrinsic:child::child-result-capability"
+                    | "intrinsic:logging::log-no-sink"
                     | "intrinsic:logging::log-result-capability"
                     | "intrinsic:capabilities::secure-random"
                     | "intrinsic:capabilities::cancellation-token"
@@ -1519,7 +1524,14 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:capabilities::tls-read-async"
                     | "intrinsic:capabilities::tls-write-async"
                     | "intrinsic:capabilities::tls-shutdown-async"
-                    | "intrinsic:process-signals::process-signal-next" => {
+                    | "intrinsic:process-signals::process-signal-next"
+                    | "intrinsic:child::child-spawn"
+                    | "intrinsic:child::child-capture-async"
+                    | "intrinsic:child::child-wait"
+                    | "intrinsic:child::child-write"
+                    | "intrinsic:child::child-close-input"
+                    | "intrinsic:child::child-read-stdout"
+                    | "intrinsic:child::child-read-stderr" => {
                         return Ok(Some(ValueType::Task(
                             ElementType::new(ValueType::PlatformResult),
                             TaskTransferability::Local,
@@ -1595,7 +1607,14 @@ fn infer_nonbinary_value_type(
                     "intrinsic:process-signals::process-signal-result-observed" => Some(
                         ValueType::Object(ObjectIdentity::new("/core/time", "monotonic-instant")),
                     ),
-                    "intrinsic:system::filesystem-exists"
+                    "intrinsic:system::filesystem-create-directory"
+                    | "intrinsic:system::filesystem-create-directories"
+                    | "intrinsic:system::filesystem-list-directory"
+                    | "intrinsic:system::filesystem-remove-directory"
+                    | "intrinsic:system::filesystem-remove-directory-tree"
+                    | "intrinsic:system::filesystem-create-symlink"
+                    | "intrinsic:system::filesystem-create-hard-link"
+                    | "intrinsic:system::filesystem-exists"
                     | "intrinsic:system::filesystem-metadata"
                     | "intrinsic:system::filesystem-realpath"
                     | "intrinsic:system::filesystem-read-link"
@@ -1627,6 +1646,10 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:concurrency::result-failed"
                     | "intrinsic:concurrency::result-bool"
                     | "intrinsic:adapters::result-failed"
+                    | "intrinsic:child::child-result-failed"
+                    | "intrinsic:child::child-result-flag"
+                    | "intrinsic:child::child-result-secondary-flag"
+                    | "intrinsic:child::child-result-deadline-exceeded"
                     | "intrinsic:adapters::result-bool"
                     | "intrinsic:process-signals::process-signal-result-failed"
                     | "intrinsic:process-signals::process-signal-result-bool"
@@ -1641,6 +1664,7 @@ fn infer_nonbinary_value_type(
                     "intrinsic:logging::log-result-message"
                     | "intrinsic:capabilities::native-result-message"
                     | "intrinsic:system::result-message"
+                    | "intrinsic:system::result-error-kind"
                     | "intrinsic:system::result-text"
                     | "intrinsic:system::result-detail"
                     | "intrinsic:system::platform-value-text"
@@ -1681,16 +1705,21 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:testing::test-render-int"
                     | "intrinsic:testing::test-render-float64"
                     | "intrinsic:testing::test-render-bytes"
-                    | "intrinsic:testing::test-render-bool" => {
+                    | "intrinsic:testing::test-render-bool"
+                    | "intrinsic:child::child-result-message" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "intrinsic:system::result-bytes"
                     | "intrinsic:system::platform-value-bytes"
                     | "intrinsic:capabilities::bytes-from-octets"
                     | "intrinsic:testing::test-result-stdout"
-                    | "intrinsic:testing::test-result-stderr" => {
+                    | "intrinsic:testing::test-result-stderr"
+                    | "intrinsic:child::child-result-data" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
+                    "intrinsic:child::child-result-capture" => Some(ValueType::Object(
+                        ObjectIdentity::new("/core/process/child", "process-capture"),
+                    )),
                     "intrinsic:logging::log-discarded-count"
                     | "intrinsic:system::result-int"
                     | "intrinsic:data::document-exponent"
@@ -1703,13 +1732,16 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:process-signals::process-signal-result-int"
                     | "intrinsic:process-signals::process-signal-result-exact-int"
                     | "intrinsic:testing::test-result-exit-code"
+                    | "intrinsic:child::child-result-number"
                     | "intrinsic:testing::test-deadline-nanoseconds" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
                     "intrinsic:system::process-arguments"
                     | "intrinsic:system::environment-entries"
                     | "intrinsic:capabilities::result-entries" => Some(ValueType::StringList),
-                    "intrinsic:system::process-exit" => Some(ValueType::Scalar(ScalarType::None)),
+                    "intrinsic:system::process-exit" | "intrinsic:child::child-release" => {
+                        Some(ValueType::Scalar(ScalarType::None))
+                    }
                     _ => None,
                 };
                 if platform_result.is_some() {

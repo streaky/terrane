@@ -6,6 +6,7 @@ from /core/collections import list
 from /core/encodings import utf8
 from /core/codecs import bytes-from-octets
 from /core/filesystem import filesystem-capability, filesystem-write-atomic, filesystem-remove, filesystem-rename
+from /core/filesystem import filesystem-create-directory, filesystem-create-symlink
 from /core/filesystem/paths import path as filesystem-path
 
 function fixture-root string throws throwable;
@@ -113,20 +114,19 @@ function test-changed-file-with-non-utf8-body-still-has-hunk-coordinates throws 
 
 function test-working-snapshot-reports-symlink-in-path throws throwable;
     root = fixture-root;
-    // Core has no symlink creation API. Set up the fixture on Unix only.
+    // Outside Unix, creating symlinks may require additional host privileges.
     supported bool = rust
         cfg!(unix)
     if not supported
         return
-    rust
-        #[cfg(unix)]
-        {
-            let root = std::path::Path::new(&root);
-            std::fs::create_dir(root.join("real")).expect("create fixture directory");
-            std::fs::write(root.join("real/value.rs"), "contents").expect("write fixture");
-            std::os::unix::fs::symlink("real", root.join("alias")).expect("link fixture directory");
-            std::os::unix::fs::symlink("real/value.rs", root.join("alias.rs")).expect("link fixture file");
-        }
+    fs = filesystem-capability;
+    made = filesystem-create-directory; fs, (instance filesystem-path; (root.concat; '/real'))
+    require; not made.failed, 'real', made.message
+    fixture-write; root, 'real/value.rs', 'contents'
+    directory-link = filesystem-create-symlink; fs, (instance filesystem-path; 'real'), (instance filesystem-path; (root.concat; '/alias'))
+    require; not directory-link.failed, 'alias', directory-link.message
+    file-link = filesystem-create-symlink; fs, (instance filesystem-path; 'real/value.rs'), (instance filesystem-path; (root.concat; '/alias.rs'))
+    require; not file-link.failed, 'alias.rs', file-link.message
     assert-equal-string; (read-working; root, 'real/value.rs'), 'contents'
     for path in (list; 'alias/value.rs', 'alias.rs')
         assert; (read-working-source; root, path) == none

@@ -1228,6 +1228,56 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
+        let child_call = if callee.kind == SyntaxKind::Name {
+            self.package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .and_then(|symbol| {
+                    symbol
+                        .compiler_identity()
+                        .strip_prefix("intrinsic:child::child-")
+                })
+        } else {
+            None
+        };
+        if child_call == Some("result-capture") {
+            let capture = rust_value_type(
+                self.package,
+                ValueType::Object(ObjectIdentity::new(
+                    "/core/process/child",
+                    "process-capture",
+                )),
+            );
+            let status = self.expression(argument_values[0]);
+            let raw = self.expression(argument_values[1]);
+            return format!(
+                "{{ let __terrane_status = {status}; let __terrane_capture = {raw}; \
+                 {capture}::terrane_construct(__terrane_status, __terrane_capture.data, \
+                 __terrane_capture.secondary_data, __terrane_capture.truncated, \
+                 __terrane_capture.secondary_flag) }}"
+            );
+        }
+        if let Some(name) = child_call {
+            let function = name.replace('-', "_");
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    let value = self.expression(value);
+                    match (name, index) {
+                        ("spawn" | "capture" | "capture-async", 1 | 3 | 4)
+                        | ("capture" | "capture-async", 6)
+                        | ("write", 1) => format!("({value}).as_slice()"),
+                        ("result-data", _) => value,
+                        ("spawn" | "capture" | "capture-async", 2) | (_, 0) => {
+                            format!("&({value})")
+                        }
+                        _ => value,
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_platform_child_{function}({values})");
+        }
         if self.is_builtin(
             callee,
             "intrinsic:process-signals::process-signal-no-capability",
@@ -1706,6 +1756,19 @@ impl Emitter<'_> {
                 "acquire-filesystem-authority",
                 "acquire_filesystem_authority",
             ),
+            ("filesystem-create-directory", "filesystem_create_directory"),
+            (
+                "filesystem-create-directories",
+                "filesystem_create_directories",
+            ),
+            ("filesystem-list-directory", "filesystem_list_directory"),
+            ("filesystem-remove-directory", "filesystem_remove_directory"),
+            (
+                "filesystem-remove-directory-tree",
+                "filesystem_remove_directory_tree",
+            ),
+            ("filesystem-create-symlink", "filesystem_create_symlink"),
+            ("filesystem-create-hard-link", "filesystem_create_hard_link"),
             ("filesystem-exists", "filesystem_exists"),
             ("filesystem-metadata", "filesystem_metadata"),
             ("filesystem-realpath", "filesystem_realpath"),
@@ -1715,9 +1778,11 @@ impl Emitter<'_> {
             ("filesystem-rename", "filesystem_rename"),
             ("filesystem-remove", "filesystem_remove"),
             ("result-failed", "filesystem_result_failed"),
+            ("result-error-kind", "filesystem_result_error_kind"),
             ("result-message", "filesystem_result_message"),
             ("result-text", "filesystem_result_text"),
             ("result-detail", "filesystem_result_detail"),
+            ("result-entries", "filesystem_result_entries"),
             ("result-bytes", "filesystem_result_bytes"),
             ("result-int", "filesystem_result_int"),
             ("result-bool", "filesystem_result_bool"),
@@ -1740,7 +1805,10 @@ impl Emitter<'_> {
                 .iter()
                 .enumerate()
                 .map(|(index, value)| {
-                    if (function == "filesystem_call" && index == 4) || function == "process_exit" {
+                    if (function == "filesystem_list_directory" && index == 1)
+                        || (function == "filesystem_call" && index == 4)
+                        || function == "process_exit"
+                    {
                         self.expression_as(value, ValueType::Scalar(ScalarType::Int))
                     } else {
                         self.expression(value)

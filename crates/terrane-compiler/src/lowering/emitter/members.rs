@@ -1234,6 +1234,7 @@ impl Emitter<'_> {
                 "handle" | "data" | "completed" | "message" => {
                     format!("({receiver}).{}.clone()", self.text(member))
                 }
+                "error-kind" => format!("({receiver}).error_kind.to_owned()"),
                 name => format!("({receiver}).{name}"),
             };
         }
@@ -1546,7 +1547,10 @@ impl Emitter<'_> {
                 | ValueType::PlatformReadResult
                 | ValueType::PlatformWriteResult
                 | ValueType::PlatformUnitResult,
-            ) => matches!(name, "handle" | "data" | "completed" | "message"),
+            ) => matches!(
+                name,
+                "handle" | "data" | "completed" | "message" | "error-kind"
+            ),
             Some(ValueType::DocumentDecodeOutcome(_)) => matches!(name, "value" | "diagnostics"),
             Some(ValueType::DocumentDiagnostic) => true,
             Some(ValueType::Entry(_, _)) => matches!(name, "key" | "value"),

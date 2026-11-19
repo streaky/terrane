@@ -159,6 +159,7 @@ pub(crate) fn rust_syntactic_identifiers(rust: &str) -> std::collections::BTreeS
 pub struct Program {
     pub version: &'static str,
     pub requires_platform_support: bool,
+    pub requires_child_process: bool,
     pub requires_async_runtime: bool,
     pub requires_blocking_runtime: bool,
     pub requires_runtime_sync: bool,
@@ -1411,6 +1412,7 @@ mod tests {
         let program = |runtime_body, sites_body| Program {
             version: "test",
             requires_platform_support: false,
+            requires_child_process: false,
             requires_async_runtime: true,
             requires_blocking_runtime: false,
             requires_runtime_sync: false,
@@ -1472,6 +1474,7 @@ mod tests {
         let rendered = Program {
             version: "test",
             requires_platform_support: false,
+            requires_child_process: false,
             requires_async_runtime: false,
             requires_blocking_runtime: false,
             requires_runtime_sync: false,

@@ -27,6 +27,10 @@ pub fn write_platform_support(directory: &Path) -> io::Result<()> {
             include_bytes!("../../terrane-platform-support/src/lib.rs").as_slice(),
         ),
         (
+            "child_process.rs",
+            include_bytes!("../../terrane-platform-support/src/child_process.rs").as_slice(),
+        ),
+        (
             "observability.rs",
             include_bytes!("../../terrane-platform-support/src/observability.rs").as_slice(),
         ),

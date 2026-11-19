@@ -7,12 +7,75 @@ from /core/filesystem import filesystem-read-bounded, filesystem-canonical, file
 from /core/filesystem import filesystem-open-beneath, filesystem-remove, filesystem-rename
 from /core/filesystem import directory-handle, file-handle, open-file, open-file-beneath, file-read, file-write
 from /core/filesystem import file-flush, file-sync-data, file-sync-all, file-close
+from /core/filesystem import filesystem-create-directory, filesystem-create-directories, filesystem-list-directory
+from /core/filesystem import filesystem-remove-directory, filesystem-remove-directory-tree, filesystem-create-symlink, filesystem-create-hard-link
 
 function sync-file bool; capability filesystem, output ref file-handle
     flushed = file-flush; capability, output
     data = file-sync-data; capability, output
     all = file-sync-all; capability, output
     return flushed.failed or data.failed or all.failed
+
+function exercise-directory-operations; fs filesystem, outside path
+    tree = instance path; 'tree'
+    nested = instance path; 'tree/nested/deep'
+    missing-parent = filesystem-create-directory; fs, nested
+    made = filesystem-create-directories; fs, nested
+    repeated = filesystem-create-directories; fs, nested
+    duplicate = filesystem-create-directory; fs, nested
+    print; (missing-parent.failed and missing-parent.error-kind == 'not-found'), (not made.failed and not repeated.failed), (duplicate.failed and duplicate.error-kind == 'already-exists')
+    entries = filesystem-list-directory; fs, tree, 1
+    if not entries.failed and entries.entries.length == 1
+        print; entries.entries[0]
+    else
+        print; entries.message
+    limited = filesystem-list-directory; fs, tree, 0
+    print; limited.failed, limited.error-kind, limited.entries.length
+    plain-remove = filesystem-remove-directory; fs, tree
+    print; plain-remove.failed, plain-remove.error-kind
+    removed-empty = filesystem-remove-directory; fs, nested
+    print; removed-empty.failed
+    kept = instance path; 'kept'
+    kept-file = instance path; 'kept/contents'
+    kept-created = filesystem-create-directory; fs, kept
+    kept-written = filesystem-write-atomic; fs, kept-file, b'keep'
+    link = filesystem-create-symlink; fs, (instance path; '../kept'), (instance path; 'tree/external')
+    hard-path = instance path; 'tree/duplicate'
+    hard = filesystem-create-hard-link; fs, kept-file, hard-path
+    hard-handle = open-file; fs, hard-path, false, true, append = true
+    hard-written = file-write; fs, hard-handle, b'!'
+    hard-closed = file-close; fs, hard-handle
+    contents = filesystem-read-bounded; fs, hard-path, 16
+    print; link.failed, hard.failed, (not hard-written.failed and not hard-closed.failed and contents.data == b'keep!')
+    removed-tree = filesystem-remove-directory-tree; fs, tree
+    after = filesystem-exists; fs, tree
+    retained = filesystem-read-bounded; fs, outside, 16
+    print; removed-tree.failed, after.exists, (retained.data == b'content')
+    retained-directory-data = filesystem-read-bounded; fs, kept-file, 16
+    print; (not kept-created.failed and not kept-written.failed and retained-directory-data.data == b'keep!')
+
+function exercise-open-modes; fs filesystem
+    subject = instance path; 'file-open-modes.txt'
+    invalid = open-file; fs, subject, true, false, append = true
+    print; invalid.failed, invalid.error-kind
+    fresh = open-file; fs, subject, false, true, exclusive = true
+    print; fresh.failed
+    written = file-write; fs, fresh, b'base'
+    closed = file-close; fs, fresh
+    print; written.completed, closed.failed
+    duplicate = open-file; fs, subject, false, true, exclusive = true
+    print; duplicate.failed, duplicate.error-kind
+    base = instance path; '.'
+    anchor = filesystem-open-beneath; fs, base, base
+    relative-duplicate = open-file-beneath; fs, anchor, subject, false, true, exclusive = true
+    print; relative-duplicate.failed, relative-duplicate.error-kind
+    appended = open-file-beneath; fs, anchor, subject, false, true, append = true
+    appended-data = file-write; fs, appended, b'+tail'
+    appended-closed = file-close; fs, appended
+    bytes-read = filesystem-read-bounded; fs, subject, 16
+    print; appended-data.completed, appended-closed.failed, (bytes-read.data == b'base+tail')
+    removed = filesystem-remove; fs, subject
+    print; removed.failed, removed.error-kind
 
 function main;
     fs = filesystem-capability;
@@ -38,6 +101,8 @@ function main;
     print; lexical.text
     print; canonical.failed, canonical.resolved.text == lexical.text, real.resolved.text == canonical.resolved.text
     link = instance path; 'terrane-filesystem-case-link.txt'
+    created-link = filesystem-create-symlink; fs, target, link
+    print; created-link.failed
     link-metadata = filesystem-symlink-metadata; fs, link
     linked = filesystem-read-link; fs, link
     print; link-metadata.failed, link-metadata.kind
@@ -46,6 +111,8 @@ function main;
     renamed = filesystem-rename; fs, target, renamed-target
     restored = filesystem-rename; fs, renamed-target, target
     print; renamed.failed, restored.failed
+    exercise-directory-operations; fs, target
+    exercise-open-modes; fs
     base = instance path; '.'
     escape = instance path; '../Cargo.toml'
     escaped = filesystem-open-beneath; fs, base, escape

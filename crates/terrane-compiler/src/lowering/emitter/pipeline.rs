@@ -645,6 +645,7 @@ fn lower_with_tests(
     let mut uses_logging = false;
     let mut uses_time = false;
     let mut uses_process_signals = false;
+    let mut uses_child_process = false;
     for unit in package.units.iter().filter(|unit| {
         !simple_standard_streams || !matches!(unit.namespace.as_str(), "/core/io" | "/core/time")
     }) {
@@ -666,6 +667,7 @@ fn lower_with_tests(
             "/core/logging" | "/core/logging/async" => uses_logging = true,
             "/core/time" => uses_time = true,
             "/core/process-signals" => uses_process_signals = true,
+            "/core/process/child" => uses_child_process = true,
             _ => {}
         }
     }
@@ -704,7 +706,8 @@ fn lower_with_tests(
         || uses_concurrency
         || uses_logging
         || uses_time
-        || uses_process_signals;
+        || uses_process_signals
+        || uses_child_process;
     let requires_platform_support = (uses_streams && advanced_streams)
         || uses_filesystem
         || uses_process
@@ -939,6 +942,12 @@ fn lower_with_tests(
             )));
             source_files.push("platform_signals.rs");
         }
+        if uses_child_process {
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_child_process.rs"
+            )));
+            source_files.push("platform_child_process.rs");
+        }
         runtime.push(GeneratedModule {
             name: "platform_capabilities",
             source_files,
@@ -1120,6 +1129,7 @@ fn lower_with_tests(
     Ok(Program {
         version: crate::VERSION,
         requires_platform_support,
+        requires_child_process: uses_child_process,
         // Async support includes Tokio-typed destructor machinery even when the
         // entrypoint is synchronous (for example, a duration-only program).
         requires_async_runtime: has_async_entry

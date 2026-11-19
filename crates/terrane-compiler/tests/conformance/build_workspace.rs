@@ -132,14 +132,18 @@ impl ConformanceBuild {
                 "terrane-stream-abi",
                 self.support.join("terrane-stream-abi"),
             ),
-            (
-                "terrane-platform-support",
-                self.support.join("terrane-platform-support"),
-            ),
         ] {
             let path = toml::Value::String(path.to_string_lossy().into_owned());
             writeln!(manifest, "{name} = {{ path = {path} }}").unwrap();
         }
+        // The shared test harness links all support crates, unlike native application builds.
+        let platform = self.support.join("terrane-platform-support");
+        let path = toml::Value::String(platform.to_string_lossy().into_owned());
+        writeln!(
+            manifest,
+            "terrane-platform-support = {{ path = {path}, features = [\"child-process\"] }}"
+        )
+        .unwrap();
         for dependency in terrane_compiler::with_tokio_runtime(
             dependencies,
             &["rt", "rt-multi-thread", "sync", "time"],

@@ -464,7 +464,9 @@ pub(super) fn collect_declaration(
 
 pub(crate) fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
     match namespace {
-        "/core/streams" | "/core/process" | "/core/testing/process" => &["process"],
+        "/core/streams" | "/core/process" | "/core/testing/process" | "/core/process/child" => {
+            &["process"]
+        }
         "/core/filesystem" => &["filesystem"],
         "/core/random" | "/core/random/uuid" => &["entropy"],
         "/core/networking" => &["networking"],

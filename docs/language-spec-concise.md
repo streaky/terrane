@@ -1154,14 +1154,21 @@ filesystem_authority: unforgeable value acquired only through `filesystem-capabi
 metadata: metadata follows final link; symlink-metadata inspects it; portable kind/size/read-only plus platform permission detail
 bounded_read: explicit limit; excess fails, never truncates
 atomic_replace: sibling temporary then rename over destination without following destination link
+directory_management: create one directory or all missing parents; list bounded, unsorted immediate UTF-8 names; remove empty directory or explicitly remove a tree without following encountered symlinks; ordinary paths, not confined operations
+links: capability-gated symbolic and hard link creation; relative symlink targets are stored verbatim, relative to the link's parent
+error_kinds: filesystem results and handles expose portable `error-kind` strings alongside `failed` and `message`; `none` on success, `other` for unclassified failures
 directory_relative: resource-owning directory handle; final anchor component and all beneath operations are no-follow; intermediate components of the caller-supplied anchor path use ordinary host resolution; beneath rejects escape; cross-filesystem requires explicit permission
 handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
+file_open_modes: `exclusive` creates only if absent; `append` writes at end via the host open mode; both require write access; available on path opens and confined opens
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
 snapshots: arguments and environment are explicit; environment returns paired native-string names/values
 host_name: /core/process process-host-name returns process-host-name-result with failed/available/message plus a lossless native-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle
 cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
 cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
 exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates
+child_process: /core/process/child requires process; executable and separate argv values, no shell; optional cwd and environment policy
+child_io: spawn returns an owning process with independent async stdin/stdout/stderr; poll, wait with timeout, terminate, and observe terminal status; dropping the owner requests termination
+child_capture: synchronous run-process and async run-process-async drain both byte streams concurrently with independent bounds and a deadline; nonzero exits are observations, not launch errors
 rust_boundary: filesystem/descriptor syscalls, lossless OS argument/environment access, process exit
 terrane_layers: paths, filesystem objects/policy/results, native-string model, CLI parser, exit validation
 ```

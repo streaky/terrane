@@ -88,6 +88,7 @@ impl GeneratedCrateRole {
 pub struct GeneratedCrateOptions {
     pub role: GeneratedCrateRole,
     pub panic: crate::PanicProfile,
+    pub uses_child_process: bool,
     pub uses_platform_support: bool,
     pub uses_async_runtime: bool,
     pub uses_tokio_blocking: bool,
@@ -201,11 +202,6 @@ pub fn write_generated_crate(
         }
     }
     let mut manifest = base_generated_manifest(options.unsafe_code, options.role);
-    if options.uses_platform_support {
-        manifest.push_str(
-            "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
-        );
-    }
     write_runtime_dependencies(&mut manifest, rust_dependencies, options);
     let target_tables = rust_dependencies
         .iter()
@@ -288,6 +284,13 @@ fn write_runtime_dependencies(
     rust_dependencies: &[crate::RustDependency],
     options: GeneratedCrateOptions,
 ) {
+    if options.uses_platform_support {
+        manifest.push_str(if options.uses_child_process {
+            "terrane-platform-support = { path = \"support/terrane-platform-support\", default-features = false, features = [\"child-process\"] }\n"
+        } else {
+            "terrane-platform-support = { path = \"support/terrane-platform-support\", default-features = false }\n"
+        });
+    }
     let dependencies =
         if options.uses_async_runtime || options.uses_tokio_blocking || options.uses_tokio_sync {
             let mut required_features = vec!["rt"];

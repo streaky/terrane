@@ -10,12 +10,20 @@
     clippy::semicolon_if_nothing_returned,
     clippy::struct_excessive_bools
 )]
+#[cfg(feature = "child-process")]
+mod child_process;
 mod networking_buffers;
 mod networking_native;
 #[cfg(test)]
 mod networking_review_tests;
 mod networking_state;
 mod networking_transport;
+#[cfg(feature = "child-process")]
+pub use child_process::{
+    ChildCapture, ChildLaunch, child_capture, child_capture_async, child_close_input, child_poll,
+    child_read_stderr, child_read_stdout, child_release, child_spawn, child_terminate, child_wait,
+    child_write,
+};
 pub use networking_native::{
     NativeTcpListener, NativeTcpStream, into_native_tcp_listener, into_native_tcp_stream,
 };
@@ -61,11 +69,13 @@ pub struct ResultValue {
     pub text: String,
     pub detail: String,
     pub data: Vec<u8>,
+    pub secondary_data: Vec<u8>,
     pub number: i128,
     pub secondary_number: i128,
     pub exact_number: String,
     pub secondary_exact_number: String,
     pub flag: bool,
+    pub secondary_flag: bool,
     pub entries: Vec<String>,
     pub capability: Option<Capability>,
 }
@@ -150,6 +160,8 @@ enum CapabilityInner {
     Udp(UdpState),
     Tls(Mutex<Option<rustls::StreamOwned<rustls::ClientConnection, TcpStream>>>),
     Buffer(tokio::sync::Mutex<ReadBuffer>),
+    #[cfg(feature = "child-process")]
+    ChildProcess(Box<child_process::ChildState>),
     #[cfg(unix)]
     SignalSubscription(Arc<signals::Subscription>),
 }
@@ -713,7 +725,14 @@ fn cancellation_error(token: Option<&Capability>) -> Option<ResultValue> {
 }
 
 pub fn check_cancellation(token: Option<&Capability>) -> ResultValue {
-    cancellation_error(token).unwrap_or_default()
+    match token.map(is_cancelled) {
+        Some(Ok(true)) => ResultValue {
+            flag: true,
+            ..ResultValue::error("operation cancelled")
+        },
+        Some(Err(error)) => error,
+        _ => ResultValue::default(),
+    }
 }
 
 async fn cancellation_wait(token: &Capability) -> ResultValue {

@@ -1,0 +1,48 @@
+format: 1
+id: process.bounded-capture
+kind: security-contract
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Child process capture bounds retained output
+  title-style: text
+  summary: Stdout and stderr are drained concurrently while retaining only the explicit per-stream byte limits.
+  tags: [security, process]
+  sections: []
+  see-also: []
+security:
+  audiences: [application]
+  invariant: |-
+    Capture accumulates at most the requested number of bytes from each output pipe independently. It continues draining after the bound, records discarded data as truncation, and applies one timeout to child I/O and observation instead of waiting indefinitely for inherited pipe endpoints.
+  threats:
+    - Unbounded or uneven child output must not cause unbounded retained bytes or block capture indefinitely on one full output pipe.
+  assumptions:
+    - The caller chooses bounds appropriate for its memory budget. The host supports concurrent pipe I/O and direct-child termination.
+  limitations:
+    - Limits do not bound allocations by the child, pipe storage in the host, or memory the application spends combining multiple capture calls. Direct-child cleanup on timeout depends on the operating system; descendants are not managed.
+  guidance: |-
+    Check timeout and both truncation flags before using captured data. Use independent streaming reads instead of capture when retaining the output is not needed.
+  review:
+    considerations:
+      - Preserve simultaneous progress of all three pipes, byte limits before buffer growth, truncation, and teardown on timeout. Run the child-process-facilities conformance case.
+  files:
+    - path: crates/terrane-platform-support/src/child_process.rs
+      role: enforcement
+      detail: Reads bounded chunks and never appends past the selected byte limits.
+    - path: crates/terrane-compiler/src/core/process_child.trn
+      role: dependency
+      detail: Preserves timeout, independent bounds, and truncation fields across the facade.
+    - path: tests/conformance/run/child-process-facilities/case.trn
+      role: evidence
+      detail: Drains a child that fills stderr before emitting stdout, checks independent truncation, and observes timeout cleanup.
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

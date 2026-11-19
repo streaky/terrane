@@ -2,15 +2,16 @@ namespace security-contracts
 
 from /core/testing import assert, assert-equal-int
 from /core/errors import throwable
+from /core/collections import list
+from /core/filesystem import filesystem-capability, filesystem-create-directories
+from /core/filesystem/paths import path as filesystem-path
 
 function security-fixture string throws throwable;
     root = fixture-root;
-    // The core filesystem API has no directory-creation operation. Fixture
-    // scaffolding alone uses Rust; remove this when core can create directories.
-    rust
-        for directory in ["docs/security", "src", "tests"] {
-            std::fs::create_dir_all(std::path::Path::new(&root).join(directory)).expect("create test directories");
-        }
+    fs = filesystem-capability;
+    for directory in (list; 'docs/security', 'src', 'tests')
+        created = filesystem-create-directories; fs, (instance filesystem-path; (root.concat; '/', directory))
+        require; not created.failed, directory, created.message
     fixture-write; root, 'docs/security/sample.yaml', (sample-contract;)
     fixture-write; root, 'src/guard.rs', "//# SECURITY-BEGIN [sample.contract]\n/// Protects the guarded operation.\nfn guard() {{}}\n//# SECURITY-END [sample.contract]\n"
     fixture-write; root, 'tests/guard.trn', 'source-level evidence'

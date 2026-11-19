@@ -1,34 +1,48 @@
 namespace core/filesystem
 
+from /core/collections import list
 from /core/filesystem/paths import path
+
+private function filesystem-error-kind string; failure bool, category string|none
+    if category != none
+        return category
+    if failure
+        return 'other'
+    return 'none'
 
 class filesystem-operation-result
     failed bool = false
     message string = ''
+    error-kind string = ''
 
-    function construct; failure bool, detail string
+    function construct; failure bool, detail string, category string|none = none
         this.failed = failure
         this.message = detail
+        this.error-kind = filesystem-error-kind; failure, category
 
 class existence-result
     exists bool = false
     failed bool = false
     message string = ''
+    error-kind string = ''
 
-    function construct; exists bool, failure bool, detail string
+    function construct; exists bool, failure bool, detail string, category string|none = none
         this.exists = exists
         this.failed = failure
         this.message = detail
+        this.error-kind = filesystem-error-kind; failure, category
 
 class path-result
     resolved path = instance path; ''
     failed bool = false
     message string = ''
+    error-kind string = ''
 
-    function construct; target path, failure bool, detail string
+    function construct; target path, failure bool, detail string, category string|none = none
         this.resolved = target
         this.failed = failure
         this.message = detail
+        this.error-kind = filesystem-error-kind; failure, category
 
 class file-metadata
     kind string = 'other'
@@ -37,14 +51,16 @@ class file-metadata
     permission-detail string = ''
     failed bool = false
     message string = ''
+    error-kind string = ''
 
-    function construct; kind string, size int, readonly bool, permission-detail string, failure bool, detail string
+    function construct; kind string, size int, readonly bool, permission-detail string, failure bool, detail string, category string|none = none
         this.kind = kind
         this.size = size
         this.readonly = readonly
         this.permission-detail = permission-detail
         this.failed = failure
         this.message = detail
+        this.error-kind = filesystem-error-kind; failure, category
 
 class file-data
     data bytes = b''
@@ -52,23 +68,39 @@ class file-data
     end bool = false
     failed bool = false
     message string = ''
+    error-kind string = ''
 
-    function construct; data bytes, completed int, end bool, failure bool, detail string
+    function construct; data bytes, completed int, end bool, failure bool, detail string, category string|none = none
         this.data = data
         this.completed = completed
         this.end = end
         this.failed = failure
         this.message = detail
+        this.error-kind = filesystem-error-kind; failure, category
+
+class directory-listing
+    entries list of string
+    failed bool = false
+    message string = ''
+    error-kind string = ''
+
+    private function construct; entries list of string, failure bool, detail string, category string
+        this.entries = entries
+        this.failed = failure
+        this.message = detail
+        this.error-kind = category
 
 class file-handle
     private handle host-resource-handle
     failed bool = false
     message string = ''
+    error-kind string = ''
 
-    private function construct; raw host-resource-handle, failure bool, detail string
+    private function construct; raw host-resource-handle, failure bool, detail string, category string
         this.handle = raw
         this.failed = failure
         this.message = detail
+        this.error-kind = category
 
     consuming function destruct;
         host-release; this.handle
@@ -77,45 +109,48 @@ class directory-handle
     private handle host-resource-handle
     failed bool = false
     message string = ''
+    error-kind string = ''
 
-    private function construct; raw host-resource-handle, failure bool, detail string
+    private function construct; raw host-resource-handle, failure bool, detail string, category string
         this.handle = raw
         this.failed = failure
         this.message = detail
+        this.error-kind = category
 
     consuming function destruct;
         host-release; this.handle
 
-function open-file file-handle; capability filesystem, target path, readable bool, writable bool, create bool = false, truncate bool = false
-    raw = host-open-file; target.text, readable, writable, create, truncate
+function open-file file-handle; capability filesystem, target path, readable bool, writable bool, create bool = false, truncate bool = false, exclusive bool = false, append bool = false
+    raw = host-open-file; target.text, readable, writable, create, truncate, exclusive, append
     failure = raw.failed
     detail = raw.message
+    category = raw.error-kind
     acquired host-resource-handle = raw.handle
-    return instance file-handle; acquired, failure, detail
+    return instance file-handle; acquired, failure, detail, category
 
 function file-read file-data; capability filesystem, file ref file-handle, limit int
     raw = host-read; file.handle, limit
-    return instance file-data; raw.data, raw.completed, raw.end, raw.failed, raw.message
+    return instance file-data; raw.data, raw.completed, raw.end, raw.failed, raw.message, raw.error-kind
 
 function file-write file-data; capability filesystem, file ref file-handle, data bytes, offset int = 0
     raw = host-write; file.handle, data, offset
-    return instance file-data; data, raw.completed, false, raw.failed, raw.message
+    return instance file-data; data, raw.completed, false, raw.failed, raw.message, raw.error-kind
 
 function file-flush filesystem-operation-result; capability filesystem, file ref file-handle
     raw = host-flush; file.handle
-    return instance filesystem-operation-result; raw.failed, raw.message
+    return instance filesystem-operation-result; raw.failed, raw.message, raw.error-kind
 
 function file-sync-data filesystem-operation-result; capability filesystem, file ref file-handle
     raw = host-sync-data; file.handle
-    return instance filesystem-operation-result; raw.failed, raw.message
+    return instance filesystem-operation-result; raw.failed, raw.message, raw.error-kind
 
 function file-sync-all filesystem-operation-result; capability filesystem, file ref file-handle
     raw = host-sync-all; file.handle
-    return instance filesystem-operation-result; raw.failed, raw.message
+    return instance filesystem-operation-result; raw.failed, raw.message, raw.error-kind
 
 function file-close filesystem-operation-result; capability filesystem, file file-handle
     raw = host-close; file.handle
-    return instance filesystem-operation-result; raw.failed, raw.message
+    return instance filesystem-operation-result; raw.failed, raw.message, raw.error-kind
 
 class filesystem
     private authority host-filesystem-authority
@@ -129,20 +164,20 @@ function filesystem-capability filesystem;
 
 function filesystem-exists existence-result; capability filesystem, target path
     record = host-filesystem-exists; target.text
-    return instance existence-result; (host-result-bool; record), (host-result-failed; record), (host-result-message; record)
+    return instance existence-result; (host-result-bool; record), (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-metadata file-metadata; capability filesystem, target path
     record = host-filesystem-metadata; target.text, true
-    return instance file-metadata; (host-result-text; record), (host-result-int; record), (host-result-bool; record), (host-result-detail; record), (host-result-failed; record), (host-result-message; record)
+    return instance file-metadata; (host-result-text; record), (host-result-int; record), (host-result-bool; record), (host-result-detail; record), (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-symlink-metadata file-metadata; capability filesystem, target path
     record = host-filesystem-metadata; target.text, false
-    return instance file-metadata; (host-result-text; record), (host-result-int; record), (host-result-bool; record), (host-result-detail; record), (host-result-failed; record), (host-result-message; record)
+    return instance file-metadata; (host-result-text; record), (host-result-int; record), (host-result-bool; record), (host-result-detail; record), (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-canonical path-result; capability filesystem, target path
     record = host-filesystem-realpath; target.text
     resolved = instance path; (host-result-text; record)
-    return instance path-result; resolved, (host-result-failed; record), (host-result-message; record)
+    return instance path-result; resolved, (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-realpath path-result; capability filesystem, target path
     return filesystem-canonical; capability, target
@@ -150,7 +185,7 @@ function filesystem-realpath path-result; capability filesystem, target path
 function filesystem-read-link path-result; capability filesystem, target path
     record = host-filesystem-read-link; target.text
     linked = instance path; (host-result-text; record)
-    return instance path-result; linked, (host-result-failed; record), (host-result-message; record)
+    return instance path-result; linked, (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 //# SECURITY-BEGIN [filesystem.beneath-open]
 // Preserve directory-handle traversal, explicit crossing policy, and host failures.
@@ -158,29 +193,62 @@ function filesystem-open-beneath directory-handle; capability filesystem, direct
     raw = host-open-directory-beneath; directory.text, relative.text, cross-filesystem
     failure = raw.failed
     detail = raw.message
+    category = raw.error-kind
     acquired host-resource-handle = raw.handle
-    return instance directory-handle; acquired, failure, detail
+    return instance directory-handle; acquired, failure, detail, category
 
-function open-file-beneath file-handle; capability filesystem, directory ref directory-handle, relative path, readable bool, writable bool, create bool = false, truncate bool = false
-    raw = host-open-file-beneath; directory.handle, relative.text, readable, writable, create, truncate
+function open-file-beneath file-handle; capability filesystem, directory ref directory-handle, relative path, readable bool, writable bool, create bool = false, truncate bool = false, exclusive bool = false, append bool = false
+    raw = host-open-file-beneath; directory.handle, relative.text, readable, writable, create, truncate, exclusive, append
     failure = raw.failed
     detail = raw.message
+    category = raw.error-kind
     acquired host-resource-handle = raw.handle
-    return instance file-handle; acquired, failure, detail
+    return instance file-handle; acquired, failure, detail, category
 //# SECURITY-END [filesystem.beneath-open]
 
 function filesystem-read-bounded file-data; capability filesystem, target path, limit int
     record = host-filesystem-read-bounded; target.text, limit
-    return instance file-data; (host-result-bytes; record), (host-result-int; record), true, (host-result-failed; record), (host-result-message; record)
+    return instance file-data; (host-result-bytes; record), (host-result-int; record), true, (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-write-atomic filesystem-operation-result; capability filesystem, target path, data bytes
     record = host-filesystem-write-atomic; target.text, data
-    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record)
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-rename filesystem-operation-result; capability filesystem, source path, destination path
     record = host-filesystem-rename; source.text, destination.text
-    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record)
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
 
 function filesystem-remove filesystem-operation-result; capability filesystem, target path
     record = host-filesystem-remove; target.text
-    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record)
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
+
+function filesystem-create-directory filesystem-operation-result; capability filesystem, target path
+    record = host-filesystem-create-directory; target.text
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
+
+function filesystem-create-directories filesystem-operation-result; capability filesystem, target path
+    record = host-filesystem-create-directories; target.text
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
+
+function filesystem-list-directory directory-listing; capability filesystem, target path, limit int
+    record = host-filesystem-list-directory; target.text, limit
+    return instance directory-listing; (host-result-entries; record), (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
+
+function filesystem-remove-directory filesystem-operation-result; capability filesystem, target path
+    record = host-filesystem-remove-directory; target.text
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
+
+//# SECURITY-BEGIN [filesystem.directory-tree-removal]
+// Delegate tree removal to the host without a separate link check or custom traversal.
+function filesystem-remove-directory-tree filesystem-operation-result; capability filesystem, target path
+    record = host-filesystem-remove-directory-tree; target.text
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
+//# SECURITY-END [filesystem.directory-tree-removal]
+
+function filesystem-create-symlink filesystem-operation-result; capability filesystem, target path, link path
+    record = host-filesystem-create-symlink; target.text, link.text
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)
+
+function filesystem-create-hard-link filesystem-operation-result; capability filesystem, target path, link path
+    record = host-filesystem-create-hard-link; target.text, link.text
+    return instance filesystem-operation-result; (host-result-failed; record), (host-result-message; record), (host-result-error-kind; record)

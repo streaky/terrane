@@ -329,7 +329,7 @@ pub(crate) fn platform_result_member_type(
             | ValueType::PlatformReadResult
             | ValueType::PlatformWriteResult
             | ValueType::PlatformUnitResult,
-            "message",
+            "message" | "error-kind",
         ) => Some(ValueType::Scalar(ScalarType::String)),
         _ => None,
     }
