@@ -548,6 +548,7 @@ pub struct TerranePlatformReadResult {
     pub end: bool,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
     pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
@@ -556,12 +557,14 @@ pub struct TerranePlatformWriteResult {
     pub completed: terrane_int_support::Int,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
     pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
 pub struct TerranePlatformUnitResult {
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
 }
 pub fn terrane_platform_read(
     handle: &TerranePlatformStreamHandle,
@@ -574,6 +577,7 @@ pub fn terrane_platform_read(
             end: false,
             failed: true,
             message: "stream read count is outside the supported size range".to_owned(),
+            error_kind: "invalid-input",
             deadline_exceeded: false,
         };
     };
@@ -585,6 +589,7 @@ pub fn terrane_platform_read(
                 end: outcome.end,
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
                 deadline_exceeded: false,
             }
         }
@@ -595,6 +600,7 @@ pub fn terrane_platform_read(
                 end: false,
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
                 deadline_exceeded: false,
             }
         }
@@ -611,6 +617,7 @@ pub fn terrane_platform_write(
             completed: terrane_int_support::Int::from(0_i64),
             failed: true,
             message: "stream write offset is outside the buffer".to_owned(),
+            error_kind: "invalid-input",
             deadline_exceeded: false,
         };
     };
@@ -621,6 +628,7 @@ pub fn terrane_platform_write(
                 completed: terrane_int_support::Int::from(completed as i128),
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
                 deadline_exceeded: false,
             }
         }
@@ -630,6 +638,7 @@ pub fn terrane_platform_write(
                 completed: terrane_int_support::Int::from(0_i64),
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
                 deadline_exceeded: false,
             }
         }
@@ -664,6 +673,7 @@ pub fn terrane_platform_release(
         TerranePlatformUnitResult {
             failed: false,
             message: String::new(),
+            error_kind: "none",
         }
     }
 }
@@ -673,12 +683,14 @@ pub fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnit
             TerranePlatformUnitResult {
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
             }
         }
         Err(error) => {
             TerranePlatformUnitResult {
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
             }
         }
     }
@@ -688,30 +700,49 @@ pub struct TerranePlatformOpenResult {
     pub handle: TerranePlatformStreamHandle,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
 }
 pub fn terrane_file_open_options(
     readable: bool,
     writable: bool,
     create: bool,
     truncate: bool,
-) -> Result<terrane_stream_abi::FileOpenOptions, String> {
+    exclusive: bool,
+    append: bool,
+) -> std::io::Result<terrane_stream_abi::FileOpenOptions> {
     let access = match (readable, writable) {
         (true, false) => terrane_stream_abi::FileAccess::Read,
         (false, true) => terrane_stream_abi::FileAccess::Write,
         (true, true) => terrane_stream_abi::FileAccess::ReadWrite,
         (false, false) => {
-            return Err("a file must be opened for reading, writing, or both".to_owned());
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "a file must be opened for reading, writing, or both",
+                ),
+            );
         }
     };
-    let creation = match (create, truncate) {
-        (false, false) => terrane_stream_abi::FileCreation::Existing,
-        (true, false) => terrane_stream_abi::FileCreation::Create,
-        (false, true) => terrane_stream_abi::FileCreation::Truncate,
-        (true, true) => terrane_stream_abi::FileCreation::CreateOrTruncate,
+    use terrane_stream_abi::FileCreation;
+    let creation = match (create, truncate, exclusive) {
+        (false, false, true) => FileCreation::Exclusive,
+        (_, _, true) => {
+            return Err(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "exclusive conflicts with create or truncate",
+                ),
+            );
+        }
+        (false, false, false) => FileCreation::Existing,
+        (true, false, false) => FileCreation::Create,
+        (false, true, false) => FileCreation::Truncate,
+        (true, true, false) => FileCreation::CreateOrTruncate,
     };
     Ok(terrane_stream_abi::FileOpenOptions {
         access,
         creation,
+        append,
     })
 }
 pub fn terrane_platform_open_result(
@@ -723,6 +754,7 @@ pub fn terrane_platform_open_result(
                 handle: TerranePlatformStreamHandle::new(handle),
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
             }
         }
         Err(error) => {
@@ -730,6 +762,7 @@ pub fn terrane_platform_open_result(
                 handle: TerranePlatformStreamHandle::default(),
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
             }
         }
     }
@@ -740,18 +773,20 @@ pub fn terrane_platform_open_file(
     writable: bool,
     create: bool,
     truncate: bool,
+    exclusive: bool,
+    append: bool,
 ) -> TerranePlatformOpenResult {
-    let request = match terrane_file_open_options(readable, writable, create, truncate) {
-        Ok(request) => request,
-        Err(message) => {
-            return TerranePlatformOpenResult {
-                handle: TerranePlatformStreamHandle::default(),
-                failed: true,
-                message,
-            };
-        }
-    };
-    terrane_platform_open_result(terrane_stream_abi::open_file(&path, request))
+    terrane_platform_open_result(
+        terrane_file_open_options(
+                readable,
+                writable,
+                create,
+                truncate,
+                exclusive,
+                append,
+            )
+            .and_then(|request| terrane_stream_abi::open_file(&path, request)),
+    )
 }
 pub fn terrane_platform_open_directory_beneath(
     base: String,
@@ -769,19 +804,25 @@ pub fn terrane_platform_open_file_beneath(
     writable: bool,
     create: bool,
     truncate: bool,
+    exclusive: bool,
+    append: bool,
 ) -> TerranePlatformOpenResult {
-    let request = match terrane_file_open_options(readable, writable, create, truncate) {
-        Ok(request) => request,
-        Err(message) => {
-            return TerranePlatformOpenResult {
-                handle: TerranePlatformStreamHandle::default(),
-                failed: true,
-                message,
-            };
-        }
-    };
     terrane_platform_open_result(
-        terrane_stream_abi::open_file_beneath(directory.abi_handle(), &child, request),
+        terrane_file_open_options(
+                readable,
+                writable,
+                create,
+                truncate,
+                exclusive,
+                append,
+            )
+            .and_then(|request| {
+                terrane_stream_abi::open_file_beneath(
+                    directory.abi_handle(),
+                    &child,
+                    request,
+                )
+            }),
     )
 }
 #[derive(Clone, Default)]
@@ -802,11 +843,15 @@ pub struct TerraneFilesystemResult {
     pub data: Vec<u8>,
     pub number: i128,
     pub flag: bool,
+    pub entries: Option<terrane_collection_support::List<String>>,
+    pub error_kind: &'static str,
 }
 pub fn terrane_io_error(error: std::io::Error) -> TerraneFilesystemResult {
+    let kind = terrane_stream_abi::io_error_kind(error.kind());
     TerraneFilesystemResult {
         failed: true,
         message: error.to_string(),
+        error_kind: kind,
         ..TerraneFilesystemResult::default()
     }
 }
@@ -832,6 +877,17 @@ pub fn terrane_filesystem_result_int(
 }
 pub fn terrane_filesystem_result_bool(result: &TerraneFilesystemResult) -> bool {
     result.flag
+}
+pub fn terrane_filesystem_result_error_kind(result: &TerraneFilesystemResult) -> String {
+    if result.failed { result.error_kind.to_owned() } else { "none".to_owned() }
+}
+pub fn terrane_filesystem_result_entries(
+    result: &TerraneFilesystemResult,
+) -> terrane_collection_support::List<String> {
+    result
+        .entries
+        .clone()
+        .unwrap_or_else(|| terrane_collection_support::List::new(Vec::new()))
 }
 #[cfg(unix)]
 pub fn terrane_permission_detail(metadata: &std::fs::Metadata) -> String {
@@ -875,6 +931,7 @@ pub fn terrane_metadata(
             TerraneFilesystemResult {
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
                 text: "other".to_owned(),
                 detail: "unavailable".to_owned(),
                 ..TerraneFilesystemResult::default()
@@ -1016,6 +1073,109 @@ pub fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
         Err(error) => terrane_io_error(error),
     }
 }
+pub fn terrane_filesystem_create_directory(path: String) -> TerraneFilesystemResult {
+    match std::fs::create_dir(path) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+pub fn terrane_filesystem_create_directories(path: String) -> TerraneFilesystemResult {
+    match std::fs::create_dir_all(path) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+pub fn terrane_filesystem_list_directory(
+    path: String,
+    limit: terrane_int_support::Int,
+) -> TerraneFilesystemResult {
+    let Some(limit) = limit.as_usize() else {
+        return terrane_io_error(
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid directory entry limit",
+            ),
+        );
+    };
+    let mut entries = Vec::new();
+    let directory = match std::fs::read_dir(path) {
+        Ok(directory) => directory,
+        Err(error) => return terrane_io_error(error),
+    };
+    for entry in directory {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => return terrane_io_error(error),
+        };
+        if entries.len() == limit {
+            return TerraneFilesystemResult {
+                failed: true,
+                message: "directory exceeds declared entry limit".to_owned(),
+                error_kind: "too-many-entries",
+                ..TerraneFilesystemResult::default()
+            };
+        }
+        match entry.file_name().into_string() {
+            Ok(name) => entries.push(name),
+            Err(_) => {
+                return terrane_io_error(
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "directory entry name is not valid UTF-8",
+                    ),
+                );
+            }
+        }
+    }
+    TerraneFilesystemResult {
+        entries: Some(terrane_collection_support::List::new(entries)),
+        ..TerraneFilesystemResult::default()
+    }
+}
+pub fn terrane_filesystem_remove_directory(path: String) -> TerraneFilesystemResult {
+    match std::fs::remove_dir(path) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+pub fn terrane_filesystem_remove_directory_tree(
+    path: String,
+) -> TerraneFilesystemResult {
+    match std::fs::remove_dir_all(path) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+pub fn terrane_filesystem_create_symlink(
+    target: String,
+    link: String,
+) -> TerraneFilesystemResult {
+    #[cfg(target_os = "linux")]
+    let result = std::os::unix::fs::symlink(target, link);
+    #[cfg(not(target_os = "linux"))]
+    let result = {
+        let _ = (target, link);
+        Err(
+            std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "symbolic link creation is supported only on Linux",
+            ),
+        )
+    };
+    match result {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+pub fn terrane_filesystem_create_hard_link(
+    target: String,
+    link: String,
+) -> TerraneFilesystemResult {
+    match std::fs::hard_link(target, link) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
 pub fn terrane_filesystem_rename(
     source: String,
     destination: String,
@@ -1037,21 +1197,44 @@ pub fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
 }
 // Source: core/filesystem.trn
 // Namespace: core/filesystem
+pub fn filesystem_error_kind(failure: bool, category: Option<String>) -> String {
+    if (&category).is_some() {
+        return match category {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        };
+    }
+    if failure {
+        return String::from("other");
+    }
+    return String::from("none");
+}
 #[derive(Clone)]
 pub struct FilesystemOperationResult {
     pub failed: bool,
     pub message: String,
+    pub error_kind: String,
 }
 impl FilesystemOperationResult {
-    pub fn terrane_construct(failure: bool, detail: String) -> Self {
+    pub fn terrane_construct(
+        failure: bool,
+        detail: String,
+        category: Option<String>,
+    ) -> Self {
         let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
+            error_kind: String::from(""),
         };
-        __terrane_constructed_value.construct(failure, detail);
+        __terrane_constructed_value.construct(failure, detail, category);
         __terrane_constructed_value
     }
-    pub fn construct(&mut self, failure: bool, detail: String) {
+    pub fn construct(
+        &mut self,
+        failure: bool,
+        detail: String,
+        category: Option<String>,
+    ) {
         {
             let __terrane_value: bool = failure;
             self.failed = __terrane_value;
@@ -1060,6 +1243,10 @@ impl FilesystemOperationResult {
             let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
+        {
+            let __terrane_value: String = filesystem_error_kind(failure, category);
+            self.error_kind = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1067,18 +1254,31 @@ pub struct ExistenceResult {
     pub exists: bool,
     pub failed: bool,
     pub message: String,
+    pub error_kind: String,
 }
 impl ExistenceResult {
-    pub fn terrane_construct(exists: bool, failure: bool, detail: String) -> Self {
+    pub fn terrane_construct(
+        exists: bool,
+        failure: bool,
+        detail: String,
+        category: Option<String>,
+    ) -> Self {
         let mut __terrane_constructed_value = Self {
             exists: false,
             failed: false,
             message: String::from(""),
+            error_kind: String::from(""),
         };
-        __terrane_constructed_value.construct(exists, failure, detail);
+        __terrane_constructed_value.construct(exists, failure, detail, category);
         __terrane_constructed_value
     }
-    pub fn construct(&mut self, exists: bool, failure: bool, detail: String) {
+    pub fn construct(
+        &mut self,
+        exists: bool,
+        failure: bool,
+        detail: String,
+        category: Option<String>,
+    ) {
         {
             let __terrane_value: bool = exists;
             self.exists = __terrane_value;
@@ -1091,6 +1291,10 @@ impl ExistenceResult {
             let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
+        {
+            let __terrane_value: String = filesystem_error_kind(failure, category);
+            self.error_kind = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1098,18 +1302,31 @@ pub struct PathResult {
     pub resolved: Path,
     pub failed: bool,
     pub message: String,
+    pub error_kind: String,
 }
 impl PathResult {
-    pub fn terrane_construct(target: Path, failure: bool, detail: String) -> Self {
+    pub fn terrane_construct(
+        target: Path,
+        failure: bool,
+        detail: String,
+        category: Option<String>,
+    ) -> Self {
         let mut __terrane_constructed_value = Self {
             resolved: Path::terrane_construct(String::from("")),
             failed: false,
             message: String::from(""),
+            error_kind: String::from(""),
         };
-        __terrane_constructed_value.construct(target, failure, detail);
+        __terrane_constructed_value.construct(target, failure, detail, category);
         __terrane_constructed_value
     }
-    pub fn construct(&mut self, target: Path, failure: bool, detail: String) {
+    pub fn construct(
+        &mut self,
+        target: Path,
+        failure: bool,
+        detail: String,
+        category: Option<String>,
+    ) {
         {
             let __terrane_value: Path = target;
             self.resolved = __terrane_value;
@@ -1122,6 +1339,10 @@ impl PathResult {
             let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
+        {
+            let __terrane_value: String = filesystem_error_kind(failure, category);
+            self.error_kind = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1132,6 +1353,7 @@ pub struct FileMetadata {
     pub permission_detail: String,
     pub failed: bool,
     pub message: String,
+    pub error_kind: String,
 }
 impl FileMetadata {
     pub fn terrane_construct(
@@ -1141,6 +1363,7 @@ impl FileMetadata {
         permission_detail: String,
         failure: bool,
         detail: String,
+        category: Option<String>,
     ) -> Self {
         let mut __terrane_constructed_value = Self {
             kind: String::from("other"),
@@ -1149,9 +1372,18 @@ impl FileMetadata {
             permission_detail: String::from(""),
             failed: false,
             message: String::from(""),
+            error_kind: String::from(""),
         };
         __terrane_constructed_value
-            .construct(kind, size, readonly, permission_detail, failure, detail);
+            .construct(
+                kind,
+                size,
+                readonly,
+                permission_detail,
+                failure,
+                detail,
+                category,
+            );
         __terrane_constructed_value
     }
     pub fn construct(
@@ -1162,6 +1394,7 @@ impl FileMetadata {
         permission_detail: String,
         failure: bool,
         detail: String,
+        category: Option<String>,
     ) {
         {
             let __terrane_value: String = kind;
@@ -1187,6 +1420,10 @@ impl FileMetadata {
             let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
+        {
+            let __terrane_value: String = filesystem_error_kind(failure, category);
+            self.error_kind = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1196,6 +1433,7 @@ pub struct FileData {
     pub end: bool,
     pub failed: bool,
     pub message: String,
+    pub error_kind: String,
 }
 impl FileData {
     pub fn terrane_construct(
@@ -1204,6 +1442,7 @@ impl FileData {
         end: bool,
         failure: bool,
         detail: String,
+        category: Option<String>,
     ) -> Self {
         let mut __terrane_constructed_value = Self {
             data: Vec::<u8>::from([]),
@@ -1211,8 +1450,10 @@ impl FileData {
             end: false,
             failed: false,
             message: String::from(""),
+            error_kind: String::from(""),
         };
-        __terrane_constructed_value.construct(data, completed, end, failure, detail);
+        __terrane_constructed_value
+            .construct(data, completed, end, failure, detail, category);
         __terrane_constructed_value
     }
     pub fn construct(
@@ -1222,6 +1463,7 @@ impl FileData {
         end: bool,
         failure: bool,
         detail: String,
+        category: Option<String>,
     ) {
         {
             let __terrane_value: Vec<u8> = data;
@@ -1243,6 +1485,58 @@ impl FileData {
             let __terrane_value: String = detail;
             self.message = __terrane_value;
         }
+        {
+            let __terrane_value: String = filesystem_error_kind(failure, category);
+            self.error_kind = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct DirectoryListing {
+    pub entries: terrane_collection_support::List<String>,
+    pub failed: bool,
+    pub message: String,
+    pub error_kind: String,
+}
+impl DirectoryListing {
+    pub fn terrane_construct(
+        entries: terrane_collection_support::List<String>,
+        failure: bool,
+        detail: String,
+        category: String,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            entries: terrane_collection_support::List::<String>::new(Vec::new()),
+            failed: false,
+            message: String::from(""),
+            error_kind: String::from(""),
+        };
+        __terrane_constructed_value.construct(entries, failure, detail, category);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        entries: terrane_collection_support::List<String>,
+        failure: bool,
+        detail: String,
+        category: String,
+    ) {
+        {
+            let __terrane_value: terrane_collection_support::List<String> = entries;
+            self.entries = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: String = category;
+            self.error_kind = __terrane_value;
+        }
     }
 }
 pub struct FileHandle {
@@ -1250,20 +1544,23 @@ pub struct FileHandle {
     pub handle: Option<TerranePlatformStreamHandle>,
     pub failed: bool,
     pub message: String,
+    pub error_kind: String,
 }
 impl FileHandle {
     pub fn terrane_construct(
         raw: TerranePlatformStreamHandle,
         failure: bool,
         detail: String,
+        category: String,
     ) -> Self {
         let mut __terrane_constructed_value = Self {
             __terrane_constructed: false,
             handle: None,
             failed: false,
             message: String::from(""),
+            error_kind: String::from(""),
         };
-        __terrane_constructed_value.construct(raw, failure, detail);
+        __terrane_constructed_value.construct(raw, failure, detail, category);
         __terrane_constructed_value.__terrane_constructed = true;
         __terrane_constructed_value
     }
@@ -1272,6 +1569,7 @@ impl FileHandle {
         raw: TerranePlatformStreamHandle,
         failure: bool,
         detail: String,
+        category: String,
     ) {
         {
             let __terrane_value: TerranePlatformStreamHandle = raw;
@@ -1284,6 +1582,10 @@ impl FileHandle {
         {
             let __terrane_value: String = detail;
             self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: String = category;
+            self.error_kind = __terrane_value;
         }
     }
     pub fn destruct(&mut self) {
@@ -1305,20 +1607,23 @@ pub struct DirectoryHandle {
     pub handle: Option<TerranePlatformStreamHandle>,
     pub failed: bool,
     pub message: String,
+    pub error_kind: String,
 }
 impl DirectoryHandle {
     pub fn terrane_construct(
         raw: TerranePlatformStreamHandle,
         failure: bool,
         detail: String,
+        category: String,
     ) -> Self {
         let mut __terrane_constructed_value = Self {
             __terrane_constructed: false,
             handle: None,
             failed: false,
             message: String::from(""),
+            error_kind: String::from(""),
         };
-        __terrane_constructed_value.construct(raw, failure, detail);
+        __terrane_constructed_value.construct(raw, failure, detail, category);
         __terrane_constructed_value.__terrane_constructed = true;
         __terrane_constructed_value
     }
@@ -1327,6 +1632,7 @@ impl DirectoryHandle {
         raw: TerranePlatformStreamHandle,
         failure: bool,
         detail: String,
+        category: String,
     ) {
         {
             let __terrane_value: TerranePlatformStreamHandle = raw;
@@ -1339,6 +1645,10 @@ impl DirectoryHandle {
         {
             let __terrane_value: String = detail;
             self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: String = category;
+            self.error_kind = __terrane_value;
         }
     }
     pub fn destruct(&mut self) {
@@ -1362,17 +1672,29 @@ pub fn open_file(
     writable: bool,
     create: bool,
     truncate: bool,
+    exclusive: bool,
+    append: bool,
 ) -> FileHandle {
     let raw: TerranePlatformOpenResult;
     let failure: bool;
     let detail: String;
+    let category: String;
     let acquired: TerranePlatformStreamHandle;
     let _ = &capability;
-    raw = terrane_platform_open_file(target.text, readable, writable, create, truncate);
+    raw = terrane_platform_open_file(
+        target.text,
+        readable,
+        writable,
+        create,
+        truncate,
+        exclusive,
+        append,
+    );
     failure = raw.failed;
     detail = raw.message.clone();
+    category = raw.error_kind.to_owned();
     acquired = raw.handle.clone();
-    return FileHandle::terrane_construct(acquired, failure, detail);
+    return FileHandle::terrane_construct(acquired, failure, detail, category);
 }
 pub fn file_read(
     capability: Filesystem,
@@ -1398,6 +1720,7 @@ pub fn file_read(
         raw.end,
         raw.failed,
         raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
     );
 }
 pub fn file_write(
@@ -1426,6 +1749,7 @@ pub fn file_write(
         false,
         raw.failed,
         raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
     );
 }
 pub fn file_flush(
@@ -1444,7 +1768,11 @@ pub fn file_flush(
             __terrane_snapshot
         },
     );
-    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
+    );
 }
 pub fn file_sync_data(
     capability: Filesystem,
@@ -1462,7 +1790,11 @@ pub fn file_sync_data(
             __terrane_snapshot
         },
     );
-    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
+    );
 }
 pub fn file_sync_all(
     capability: Filesystem,
@@ -1480,7 +1812,11 @@ pub fn file_sync_all(
             __terrane_snapshot
         },
     );
-    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
+    );
 }
 pub fn file_close(
     capability: Filesystem,
@@ -1491,7 +1827,11 @@ pub fn file_close(
     raw = terrane_platform_close(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
+    );
 }
 #[derive(Clone)]
 pub struct Filesystem {
@@ -1523,6 +1863,7 @@ pub fn filesystem_exists(capability: Filesystem, target: Path) -> ExistenceResul
         terrane_filesystem_result_bool(&record),
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_metadata(capability: Filesystem, target: Path) -> FileMetadata {
@@ -1536,6 +1877,7 @@ pub fn filesystem_metadata(capability: Filesystem, target: Path) -> FileMetadata
         terrane_filesystem_result_detail(&record),
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_symlink_metadata(
@@ -1552,6 +1894,7 @@ pub fn filesystem_symlink_metadata(
         terrane_filesystem_result_detail(&record),
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult {
@@ -1564,6 +1907,7 @@ pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult 
         resolved,
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
@@ -1579,6 +1923,7 @@ pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult 
         linked,
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_open_beneath(
@@ -1590,6 +1935,7 @@ pub fn filesystem_open_beneath(
     let raw: TerranePlatformOpenResult;
     let failure: bool;
     let detail: String;
+    let category: String;
     let acquired: TerranePlatformStreamHandle;
     let _ = &capability;
     raw = terrane_platform_open_directory_beneath(
@@ -1599,8 +1945,9 @@ pub fn filesystem_open_beneath(
     );
     failure = raw.failed;
     detail = raw.message.clone();
+    category = raw.error_kind.to_owned();
     acquired = raw.handle.clone();
-    return DirectoryHandle::terrane_construct(acquired, failure, detail);
+    return DirectoryHandle::terrane_construct(acquired, failure, detail, category);
 }
 pub fn open_file_beneath(
     capability: Filesystem,
@@ -1610,10 +1957,13 @@ pub fn open_file_beneath(
     writable: bool,
     create: bool,
     truncate: bool,
+    exclusive: bool,
+    append: bool,
 ) -> FileHandle {
     let raw: TerranePlatformOpenResult;
     let failure: bool;
     let detail: String;
+    let category: String;
     let acquired: TerranePlatformStreamHandle;
     let _ = &capability;
     raw = terrane_platform_open_file_beneath(
@@ -1630,11 +1980,14 @@ pub fn open_file_beneath(
         writable,
         create,
         truncate,
+        exclusive,
+        append,
     );
     failure = raw.failed;
     detail = raw.message.clone();
+    category = raw.error_kind.to_owned();
     acquired = raw.handle.clone();
-    return FileHandle::terrane_construct(acquired, failure, detail);
+    return FileHandle::terrane_construct(acquired, failure, detail, category);
 }
 pub fn filesystem_read_bounded(
     capability: Filesystem,
@@ -1650,6 +2003,7 @@ pub fn filesystem_read_bounded(
         true,
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_write_atomic(
@@ -1663,6 +2017,7 @@ pub fn filesystem_write_atomic(
     return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_rename(
@@ -1676,6 +2031,7 @@ pub fn filesystem_rename(
     return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 pub fn filesystem_remove(
@@ -1688,6 +2044,102 @@ pub fn filesystem_remove(
     return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
+    );
+}
+pub fn filesystem_create_directory(
+    capability: Filesystem,
+    target: Path,
+) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
+    let _ = &capability;
+    record = terrane_filesystem_create_directory(target.text);
+    return FilesystemOperationResult::terrane_construct(
+        terrane_filesystem_result_failed(&record),
+        terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
+    );
+}
+pub fn filesystem_create_directories(
+    capability: Filesystem,
+    target: Path,
+) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
+    let _ = &capability;
+    record = terrane_filesystem_create_directories(target.text);
+    return FilesystemOperationResult::terrane_construct(
+        terrane_filesystem_result_failed(&record),
+        terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
+    );
+}
+pub fn filesystem_list_directory(
+    capability: Filesystem,
+    target: Path,
+    limit: terrane_int_support::Int,
+) -> DirectoryListing {
+    let record: TerraneFilesystemResult;
+    let _ = &capability;
+    record = terrane_filesystem_list_directory(target.text, limit.clone());
+    return DirectoryListing::terrane_construct(
+        terrane_filesystem_result_entries(&record),
+        terrane_filesystem_result_failed(&record),
+        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_error_kind(&record),
+    );
+}
+pub fn filesystem_remove_directory(
+    capability: Filesystem,
+    target: Path,
+) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
+    let _ = &capability;
+    record = terrane_filesystem_remove_directory(target.text);
+    return FilesystemOperationResult::terrane_construct(
+        terrane_filesystem_result_failed(&record),
+        terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
+    );
+}
+pub fn filesystem_remove_directory_tree(
+    capability: Filesystem,
+    target: Path,
+) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
+    let _ = &capability;
+    record = terrane_filesystem_remove_directory_tree(target.text);
+    return FilesystemOperationResult::terrane_construct(
+        terrane_filesystem_result_failed(&record),
+        terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
+    );
+}
+pub fn filesystem_create_symlink(
+    capability: Filesystem,
+    target: Path,
+    link: Path,
+) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
+    let _ = &capability;
+    record = terrane_filesystem_create_symlink(target.text, link.text);
+    return FilesystemOperationResult::terrane_construct(
+        terrane_filesystem_result_failed(&record),
+        terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
+    );
+}
+pub fn filesystem_create_hard_link(
+    capability: Filesystem,
+    target: Path,
+    link: Path,
+) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
+    let _ = &capability;
+    record = terrane_filesystem_create_hard_link(target.text, link.text);
+    return FilesystemOperationResult::terrane_construct(
+        terrane_filesystem_result_failed(&record),
+        terrane_filesystem_result_message(&record),
+        Some(terrane_filesystem_result_error_kind(&record)),
     );
 }
 // Source: core/paths.trn

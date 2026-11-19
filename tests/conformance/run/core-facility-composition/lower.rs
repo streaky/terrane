@@ -8,6 +8,7 @@ fn main() {
     filesystem_result = FilesystemOperationResult::terrane_construct(
         false,
         String::from(""),
+        None,
     );
     stream_result = StreamOperationResult::terrane_construct(
         false,

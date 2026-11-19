@@ -1723,6 +1723,7 @@ pub struct TerranePlatformReadResult {
     pub end: bool,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
     pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
@@ -1731,12 +1732,14 @@ pub struct TerranePlatformWriteResult {
     pub completed: terrane_int_support::Int,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
     pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
 pub struct TerranePlatformUnitResult {
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
 }
 pub fn terrane_platform_read(
     handle: &TerranePlatformStreamHandle,
@@ -1749,6 +1752,7 @@ pub fn terrane_platform_read(
             end: false,
             failed: true,
             message: "stream read count is outside the supported size range".to_owned(),
+            error_kind: "invalid-input",
             deadline_exceeded: false,
         };
     };
@@ -1760,6 +1764,7 @@ pub fn terrane_platform_read(
                 end: outcome.end,
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
                 deadline_exceeded: false,
             }
         }
@@ -1770,6 +1775,7 @@ pub fn terrane_platform_read(
                 end: false,
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
                 deadline_exceeded: false,
             }
         }
@@ -1786,6 +1792,7 @@ pub fn terrane_platform_write(
             completed: terrane_int_support::Int::from(0_i64),
             failed: true,
             message: "stream write offset is outside the buffer".to_owned(),
+            error_kind: "invalid-input",
             deadline_exceeded: false,
         };
     };
@@ -1796,6 +1803,7 @@ pub fn terrane_platform_write(
                 completed: terrane_int_support::Int::from(completed as i128),
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
                 deadline_exceeded: false,
             }
         }
@@ -1805,6 +1813,7 @@ pub fn terrane_platform_write(
                 completed: terrane_int_support::Int::from(0_i64),
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
                 deadline_exceeded: false,
             }
         }
@@ -1839,6 +1848,7 @@ pub fn terrane_platform_release(
         TerranePlatformUnitResult {
             failed: false,
             message: String::new(),
+            error_kind: "none",
         }
     }
 }
@@ -1848,12 +1858,14 @@ pub fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnit
             TerranePlatformUnitResult {
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
             }
         }
         Err(error) => {
             TerranePlatformUnitResult {
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
             }
         }
     }
@@ -1865,12 +1877,14 @@ pub async fn terrane_platform_read_async(
     cancellation: Option<&TerranePlatformCapability>,
 ) -> TerranePlatformReadResult {
     if let Some(error) = terrane_platform_stream_options(&deadline, cancellation) {
+        let error_kind = terrane_platform_stream_option_error_kind(&error);
         return TerranePlatformReadResult {
             data: Vec::new(),
             completed: 0_i64.into(),
             end: false,
             failed: error.failed,
             message: error.message,
+            error_kind,
             deadline_exceeded: error.deadline_exceeded,
         };
     }
@@ -2013,11 +2027,13 @@ pub async fn terrane_platform_write_async(
     cancellation: Option<&TerranePlatformCapability>,
 ) -> TerranePlatformWriteResult {
     if let Some(error) = terrane_platform_stream_options(&deadline, cancellation) {
+        let error_kind = terrane_platform_stream_option_error_kind(&error);
         return TerranePlatformWriteResult {
             data,
             completed: 0_i64.into(),
             failed: error.failed,
             message: error.message,
+            error_kind,
             deadline_exceeded: error.deadline_exceeded,
         };
     }
@@ -2035,6 +2051,17 @@ pub fn terrane_platform_buffer_close(
     buffer: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::close(buffer)
+}
+fn terrane_platform_stream_option_error_kind(
+    error: &TerranePlatformResult,
+) -> &'static str {
+    if error.deadline_exceeded {
+        "timed-out"
+    } else if error.flag {
+        "interrupted"
+    } else {
+        "invalid-input"
+    }
 }
 fn terrane_platform_stream_options(
     deadline: &terrane_int_support::Int,

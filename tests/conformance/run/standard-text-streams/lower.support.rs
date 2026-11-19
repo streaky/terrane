@@ -688,6 +688,7 @@ pub struct TerranePlatformReadResult {
     pub end: bool,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
     pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
@@ -696,12 +697,14 @@ pub struct TerranePlatformWriteResult {
     pub completed: terrane_int_support::Int,
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
     pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
 pub struct TerranePlatformUnitResult {
     pub failed: bool,
     pub message: String,
+    pub error_kind: &'static str,
 }
 pub fn terrane_platform_read(
     handle: &TerranePlatformStreamHandle,
@@ -714,6 +717,7 @@ pub fn terrane_platform_read(
             end: false,
             failed: true,
             message: "stream read count is outside the supported size range".to_owned(),
+            error_kind: "invalid-input",
             deadline_exceeded: false,
         };
     };
@@ -725,6 +729,7 @@ pub fn terrane_platform_read(
                 end: outcome.end,
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
                 deadline_exceeded: false,
             }
         }
@@ -735,6 +740,7 @@ pub fn terrane_platform_read(
                 end: false,
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
                 deadline_exceeded: false,
             }
         }
@@ -751,6 +757,7 @@ pub fn terrane_platform_write(
             completed: terrane_int_support::Int::from(0_i64),
             failed: true,
             message: "stream write offset is outside the buffer".to_owned(),
+            error_kind: "invalid-input",
             deadline_exceeded: false,
         };
     };
@@ -761,6 +768,7 @@ pub fn terrane_platform_write(
                 completed: terrane_int_support::Int::from(completed as i128),
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
                 deadline_exceeded: false,
             }
         }
@@ -770,6 +778,7 @@ pub fn terrane_platform_write(
                 completed: terrane_int_support::Int::from(0_i64),
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
                 deadline_exceeded: false,
             }
         }
@@ -804,6 +813,7 @@ pub fn terrane_platform_release(
         TerranePlatformUnitResult {
             failed: false,
             message: String::new(),
+            error_kind: "none",
         }
     }
 }
@@ -813,12 +823,14 @@ pub fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnit
             TerranePlatformUnitResult {
                 failed: false,
                 message: String::new(),
+                error_kind: "none",
             }
         }
         Err(error) => {
             TerranePlatformUnitResult {
                 failed: true,
                 message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
             }
         }
     }
