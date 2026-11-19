@@ -8,7 +8,7 @@ function sample-contract string;
     return >>
         format: 1
         id: sample.contract
-        kind: topic
+        kind: security-contract
         surface: null
         lifecycle:
           status: current
@@ -22,41 +22,21 @@ function sample-contract string;
           title: Sample boundary
           title-style: text
           summary: Protect the sample boundary.
-          tags: [security-contract, security-core, security-application]
-          sections:
-            - id: invariant
-              title: Invariant
-              blocks: [{type: markdown, markdown: Preserve authority.}]
-            - id: threats
-              title: Threats
-              blocks: [{type: markdown, markdown: Unauthorized access.}]
-            - id: assumptions
-              title: Assumptions
-              blocks: [{type: markdown, markdown: Trusted kernel.}]
-            - id: limitations
-              title: Limitations
-              blocks: [{type: markdown, markdown: Not a sandbox.}]
-            - id: guidance
-              title: Guidance
-              blocks: [{type: markdown, markdown: Check failures.}]
-            - id: review
-              title: Review
-              blocks: [{type: markdown, markdown: Review resolution changes.}]
-            - id: files
-              title: Files
-              blocks:
-                - type: table
-                  id: security-files
-                  title: Files
-                  show-header: true
-                  columns:
-                    - {id: path, title: Path, cell: code}
-                    - {id: role, title: Role, cell: code}
-                    - {id: detail, title: Detail, cell: text}
-                  rows:
-                    - {path: src/guard.rs, role: enforcement, detail: Enforce confinement.}
-                    - {path: tests/guard.trn, role: evidence, detail: Reject escapes.}
+          tags: []
+          sections: []
           see-also: []
+        security:
+          audiences: [core, application]
+          invariant: Preserve authority.
+          threats: [Unauthorized access.]
+          assumptions: [Trusted kernel.]
+          limitations: [Not a sandbox.]
+          guidance: Check failures.
+          review:
+            considerations: [Review resolution changes.]
+          files:
+            - {path: src/guard.rs, role: enforcement, detail: Enforce confinement.}
+            - {path: tests/guard.trn, role: evidence, detail: Reject escapes.}
         provenance:
           specification: []
           conformance: []
@@ -80,10 +60,17 @@ function test-record-rejects-ambiguous-or-incomplete-contracts throws throwable;
     cases.append; (original.replace; 'role: enforcement', 'role: unknown')
     cases.append; (original.replace; 'role: evidence', 'role: dependency')
     cases.append; (original.replace; 'src/guard.rs', '../guard.rs')
-    cases.append; (original.replace; 'id: threats', 'id: invariant')
-    cases.append; (original.replace; 'security-core, security-application', 'security-core-typo')
+    cases.append; (original.replace; 'kind: security-contract', 'kind: topic')
+    cases.append; (original.replace; 'audiences: [core, application]', 'audiences: [both]')
+    cases.append; (original.replace; 'audiences: [core, application]', 'audiences: [core, core]')
+    cases.append; (original.replace; 'audiences: [core, application]', 'audiences: []')
+    cases.append; (original.replace; 'threats: [Unauthorized access.]', 'threats: []')
+    cases.append; (original.replace; 'assumptions: [Trusted kernel.]', 'assumptions: [42]')
+    cases.append; (original.replace; 'limitations: [Not a sandbox.]', 'limitations: [" "]')
+    cases.append; (original.replace; 'considerations: [Review resolution changes.]', 'considerations: []')
+    cases.append; (original.replace; 'security:', 'unknown-security:')
     cases.append; (original.replace; 'summary: Protect the sample boundary.', 'unknown: ignored')
-    cases.append; (original.replace; 'markdown: Preserve authority.', 'markdown: "```source"')
+    cases.append; (original.replace; 'invariant: Preserve authority.', 'invariant: "```source"')
     for source in cases
         rejected bool = false
         try

@@ -32,49 +32,37 @@ function text-field string throws security-error; value document-value, name str
     require; found.kind == 'string' and (found.scalar.trim;) != '', context, ('expected nonempty text in '.concat; name)
     return found.scalar
 
-function prose throws security-error; block document-value, context string
-    exact-keys; block, (list; 'type', 'markdown'), context
-    require; (field; block, 'type').scalar == 'markdown', context, 'expected a prose-only markdown block'
-    text = text-field; block, 'markdown', context
+function validate-prose throws security-error; text string, context string
+    require; (text.trim;) != '', context, 'security prose must not be empty'
     for line in (text.split; "\n")
         stripped = line.trim.start;
         require; not (stripped.contains.start; '```') and not (stripped.contains.start; '~~~') and not (line.contains.start; '    ') and not (line.contains.start; "\t") and not (stripped.contains.start; '<pre') and not (stripped.contains.start; '<code'), context, 'preformatted examples do not belong in markdown prose'
 
+function validate-prose-list throws security-error; values document-value, context string
+    require; values.kind == 'list' and (values.length;) > 0, context, 'expected a nonempty prose sequence'
+    for index in (range; 0, (values.length;))
+        entry = item; values, index
+        require; entry.kind == 'string', context, 'expected a prose string'
+        validate-prose; entry.scalar, context
+
 function validate-lifecycle throws security-error; value document-value, context string
     exact-keys; value, (list; 'status', 'stability', 'since', 'deprecated-since', 'removed-in', 'replacement'), context
     require; (field; value, 'status').scalar == 'current', context, 'security contracts must describe current behavior'
-    require; (field; value, 'stability').scalar == 'experimental', context, 'expected experimental stability'
+    stability = field; value, 'stability'
+    require; stability.kind == 'none' or (stability.kind == 'string' and (stability.scalar == 'experimental' or stability.scalar == 'stable')), context, 'invalid lifecycle stability'
     text-field; value, 'since', context
     for name in (list; 'deprecated-since', 'removed-in', 'replacement')
         require; (field; value, name).kind == 'none', context, 'unexpected lifecycle migration'
 
-function parse-files list of security-file throws security-error; block document-value, context string
-    exact-keys; block, (list; 'type', 'id', 'title', 'show-header', 'columns', 'rows'), context
-    require; (field; block, 'type').scalar == 'table' and (field; block, 'id').scalar == 'security-files', context, 'expected security-files table'
-    text-field; block, 'title', context
-    header = field; block, 'show-header'
-    require; header.kind == 'bool' and header.scalar == 'true', context, 'file table must show headers'
-    columns = field; block, 'columns'
-    require; columns.kind == 'list' and (columns.length;) == 3, context, 'expected path, role, detail columns'
-    names list of string = list; 'path', 'role', 'detail'
-    for index in (range; 0, 3)
-        column = item; columns, index
-        exact-keys; column, (list; 'id', 'title', 'cell'), context
-        require; (field; column, 'id').scalar == names[index], context, 'unexpected file column'
-        text-field; column, 'title', context
-        expected = 'code'
-        if index == 2
-            expected = 'text'
-        require; (field; column, 'cell').scalar == expected, context, 'unexpected file column representation'
-    rows = field; block, 'rows'
-    require; rows.kind == 'list' and (rows.length;) > 0, context, 'file table must not be empty'
+function parse-files list of security-file throws security-error; rows document-value, context string
+    require; rows.kind == 'list' and (rows.length;) > 0, context, 'security.files must not be empty'
     result list of security-file = list
     paths list of string = list
     enforcement bool = false
     evidence bool = false
     for index in (range; 0, (rows.length;))
         row = item; rows, index
-        exact-keys; row, names, context
+        exact-keys; row, (list; 'path', 'role', 'detail'), context
         path = text-field; row, 'path', context
         role = text-field; row, 'role', context
         detail = text-field; row, 'detail', context
@@ -95,15 +83,20 @@ function parse-contract security-contract throws security-error; path string, so
     parsed = parse-yaml; source, (make-yaml-options; 64, 1048576, 0)
     require; not parsed.failed, path, parsed.message
     record = parsed.value
-    exact-keys; record, (list; 'format', 'id', 'kind', 'surface', 'lifecycle', 'documentation', 'provenance'), path
+    exact-keys; record, (list; 'format', 'id', 'kind', 'surface', 'lifecycle', 'documentation', 'security', 'provenance'), path
     version = field; record, 'format'
     require; version.kind == 'integer' and version.scalar == '1', path, 'expected manual format 1'
     identity = text-field; record, 'id', path
     require; (valid-identity; identity), path, 'invalid contract identity'
-    require; (field; record, 'kind').scalar == 'topic' and (field; record, 'surface').kind == 'none', path, 'expected a conceptual topic with null surface'
+    require; (field; record, 'kind').scalar == 'security-contract' and (field; record, 'surface').kind == 'none', path, 'expected security-contract kind with null surface'
     validate-lifecycle; (field; record, 'lifecycle'), path
     documentation = field; record, 'documentation'
-    exact-keys; documentation, (list; 'status', 'title', 'title-style', 'summary', 'tags', 'sections', 'see-also'), path
+    documentation-keys list of string = list; 'status', 'title', 'title-style', 'summary', 'tags', 'sections', 'see-also'
+    blocks = documentation.field; 'blocks'
+    if not blocks.failed
+        require; blocks.value.kind == 'list', path, 'documentation.blocks must be a sequence'
+        documentation-keys.append; 'blocks'
+    exact-keys; documentation, documentation-keys, path
     require; (field; documentation, 'status').scalar == 'complete' and (field; documentation, 'title-style').scalar == 'text', path, 'expected complete documentation with text title'
     title = text-field; documentation, 'title', path
     text-field; documentation, 'summary', path
@@ -116,36 +109,38 @@ function parse-contract security-contract throws security-error; path string, so
         require; tag.kind == 'string' and (tag.scalar.trim;) != '', path, 'expected nonempty tag'
         require; not (has-string; tag-values, tag.scalar), path, 'duplicate documentation tag'
         tag-values.append; tag.scalar
-        if tag.scalar == 'security-core'
-            result.audiences.append; 'core'
-        else if tag.scalar == 'security-application'
-            result.audiences.append; 'application'
-    require; (has-string; tag-values, 'security-contract') and result.audiences.length > 0, path, 'expected security-contract tag and security-core and/or security-application audience'
+    // Tags are search terms. Security meaning belongs only to the typed fields.
     related = field; documentation, 'see-also'
-    require; related.kind == 'list' and (related.length;) == 0, path, 'standalone records use prose links until manual assembly'
+    require; related.kind == 'list', path, 'expected related reference sequence'
+    for index in (range; 0, (related.length;))
+        reference = item; related, index
+        require; reference.kind == 'string' and (reference.scalar.trim;) != '', path, 'expected nonempty related reference'
     sections = field; documentation, 'sections'
-    expected list of string = list; 'invariant', 'threats', 'assumptions', 'limitations', 'guidance', 'review', 'files'
-    require; sections.kind == 'list' and (sections.length;) == expected.length, path, 'missing or unknown contract sections'
-    seen list of string = list
-    for index in (range; 0, (sections.length;))
-        section = item; sections, index
-        exact-keys; section, (list; 'id', 'title', 'blocks'), path
-        section-id = text-field; section, 'id', path
-        require; (has-string; expected, section-id) and not (has-string; seen, section-id), path, 'unknown or duplicate contract section'
-        seen.append; section-id
-        text-field; section, 'title', path
-        blocks = field; section, 'blocks'
-        require; blocks.kind == 'list' and (blocks.length;) == 1, path, 'each contract section needs exactly one block'
-        block = item; blocks, 0
-        if section-id == 'files'
-            result.files = parse-files; block, path
-        else
-            prose; block, path
+    require; sections.kind == 'list', path, 'documentation.sections must be a sequence'
+    // Publication assembly validates ordinary documentation blocks and links;
+    // this standalone checker owns the security fields and code associations.
+    security = field; record, 'security'
+    exact-keys; security, (list; 'audiences', 'invariant', 'threats', 'assumptions', 'limitations', 'guidance', 'review', 'files'), path
+    audiences = field; security, 'audiences'
+    require; audiences.kind == 'list' and (audiences.length;) > 0, path, 'expected nonempty security audiences'
+    for index in (range; 0, (audiences.length;))
+        audience = item; audiences, index
+        require; audience.kind == 'string' and (audience.scalar == 'core' or audience.scalar == 'application'), path, 'unknown security audience'
+        require; not (has-string; result.audiences, audience.scalar), path, 'duplicate security audience'
+        result.audiences.append; audience.scalar
+    for name in (list; 'invariant', 'guidance')
+        validate-prose; (text-field; security, name, path), path
+    for name in (list; 'threats', 'assumptions', 'limitations')
+        validate-prose-list; (field; security, name), path
+    review = field; security, 'review'
+    exact-keys; review, (list; 'considerations'), path
+    validate-prose-list; (field; review, 'considerations'), path
+    result.files = parse-files; (field; security, 'files'), path
     provenance = field; record, 'provenance'
     exact-keys; provenance, (list; 'specification', 'conformance', 'compiler'), path
     for name in (list; 'specification', 'conformance')
         entries = field; provenance, name
-        require; entries.kind == 'list' and (entries.length;) == 0, path, 'evidence is recorded in the security-files table'
+        require; entries.kind == 'list' and (entries.length;) == 0, path, 'evidence is recorded in security.files'
     require; (field; provenance, 'compiler').kind == 'none', path, 'security records do not claim compiler-generated provenance'
     return result
 

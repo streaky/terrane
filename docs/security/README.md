@@ -1,6 +1,6 @@
 # Security contracts
 
-This directory owns security-sensitive maintenance contracts, versioned with Terrane's implementation. YAML files are canonical manual-format-1 topic records. They are not copies of the standalone manual and do not require its checkout. A later manual build can explicitly include these records under Internals → Security contracts; this change does not implement manual assembly or choose manual versioning.
+This directory owns security-sensitive maintenance contracts, versioned with Terrane's implementation. YAML files use the shared manual format's dedicated `security-contract` record kind. They are not copies of the standalone manual and do not require its checkout. A later manual build can explicitly include these records under Internals → Security contracts; this change does not implement manual assembly or choose manual versioning.
 
 A contract identifies a guarantee, its threat boundary, assumptions, limitations, application guidance, implementation, evidence, and review considerations. Registration means **security-sensitive**, not audited, certified, or proven secure. The pilot is [directory-handle confined opens](filesystem-beneath-open.yaml).
 
@@ -37,19 +37,30 @@ terrane test tools/security-contracts
 
 Exit status is 0 for a successful report, 1 for invalid input or validation failure, and 2 when `--fail-on-impact` finds affected contracts. Errors go to stderr. These commands do not execute the evidence commands, grant security approval, enforce reviewer identity, or modify Git state. A CI/review workflow can use exit 2 to request the recorded review; it must not treat an empty report as proof that a change has no security consequences.
 
-## Record profile
+## Dedicated record format
 
-The security profile deliberately uses existing manual fields rather than inventing an incompatible envelope or custom YAML tags. Records are a strict subset of manual format 1:
+Records use `format: 1`, `kind: security-contract`, the normal manual envelope, and a required structured `security` mapping. The [shared manual format specification](https://github.com/streaky/terrane-manual/blob/main/spec.md) owns this extension. Older processors reject the new kind rather than silently treating its security facts as an ordinary topic.
 
-- `format: 1`, a stable lowercase dot-separated `id`, `kind: topic`, and `surface: null`.
-- A complete current, experimental `lifecycle` with a quoted `since` version and null migration fields.
-- Complete `documentation` with a text title, summary, tags, sections, and empty `see-also` (until publication assembly provides a reference registry).
-- The tag `security-contract`, plus `security-core`, `security-application`, or both. Additional search tags are allowed. Core protects the language/toolchain host or its safety guarantees; application identifies guarantees developers rely on in their programs. Neither is a severity score.
-- Exactly seven sections with stable IDs: `invariant`, `threats`, `assumptions`, `limitations`, `guidance`, `review`, and `files`. Each has a title and one block. Prose sections use a prose-only `markdown` block, without fenced/indented code or HTML code blocks.
-- `files` contains the typed `security-files` table, with `path`/`role` code columns and a `detail` text column. Paths are unique, exact, repository-relative files, never globs or parent traversal. Roles are `enforcement` (Rust/Terrane regions), `dependency` (whole-file impact), and `evidence` (whole-file impact). At least one enforcement and one evidence file are required. A file containing implementation and tests can be listed once as enforcement, with its tests explained in `detail`; additional evidence must still be listed.
-- `provenance` has empty specification/conformance sequences and null compiler provenance. Evidence associations belong in the file table; these records do not pretend to be compiler-generated entities or compiler conformance case registries.
+| Security field | Meaning |
+|---|---|
+| `audiences` | A nonempty, duplicate-free list of `core`, `application`, or both as separate entries. |
+| `invariant` | The guarantee that must remain true, as nonempty Markdown prose. |
+| `threats` | A nonempty list of threat descriptions. |
+| `assumptions` | A nonempty list of preconditions and trusted dependencies. |
+| `limitations` | A nonempty list of exclusions, platform restrictions, and evidence gaps. |
+| `guidance` | Nonempty application/developer guidance. |
+| `review.considerations` | A nonempty list of required review considerations. |
+| `files` | Exact repository-relative `path`, `role`, and plain-text `detail` entries. |
 
-Unknown profile fields, duplicate YAML keys, aliases beyond the configured zero-alias budget, missing required content, and invalid file roles fail validation. This validator checks the security authoring profile, not every possible manual-format record. Because the profile only uses existing topic/section/table/tag structures, future manual assembly can consume the authored records directly rather than translate a parallel registry.
+Sequence descriptions are nonempty prose strings. Security prose cannot contain fenced/indented code or raw HTML; executable or preformatted material belongs in ordinary typed manual examples. Roles remain `enforcement`, `dependency`, and `evidence`. Paths are unique exact files, never globs or parent traversal. Enforcement files must be Rust or Terrane source, and at least one enforcement and one evidence file are required. A file containing implementation and tests can be listed once as enforcement, with its tests explained in `detail`; additional evidence must still be listed.
+
+`documentation` owns title, summary, search tags, and optional explanatory blocks/sections. Tags no longer encode audiences, and security facts no longer depend on specially named documentation sections or table columns. The renderer derives consistently labelled sections, prominent limitations, an explicit no-audit/certification notice, and an accessible file table from the structured fields. JSON preserves the authored security object. Ordinary explanatory content follows the generated security material.
+
+Generated page-local section IDs are `security-overview`, `security-invariant`, `security-threats`, `security-assumptions`, `security-limitations`, `security-guidance`, `security-review`, and `security-files`. Authored sections and blocks must not collide with them. Repository paths in `security.files` describe code ownership; publication renderers do not treat them as assets to open beneath the manual root.
+
+The standalone checker validates the security schema, complete common metadata for active contracts, and code/evidence associations. Full manual conversion also validates ordinary documentation blocks, prose safety, anchors, and reference resolution. The local active registry requires current lifecycle status, a quoted `since` version, null migration fields, and empty specification/conformance provenance plus null compiler provenance; evidence lives in `security.files`. Unknown security fields, duplicate YAML keys, empty required content, invalid audiences/roles, and malformed paths are errors.
+
+The old topic/seven-section encoding is not accepted. Both snapshots used by `impact` must use a schema understood by the current checker; a baseline predating security records is also valid. Format migration does not introduce automatic manual imports or version selection.
 
 ## Review discipline
 
