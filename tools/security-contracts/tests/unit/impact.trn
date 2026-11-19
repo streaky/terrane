@@ -1,0 +1,42 @@
+namespace security-contracts
+
+from /core/collections import list
+from /core/errors import throwable
+from /core/testing import assert-equal-int, assert
+
+function test-impact-uses-each-snapshots-coordinates throws throwable;
+    contract = instance security-contract; 'sample.contract', 'docs/security/sample.yaml', 'Sample'
+    contract.files.append; (instance security-file; 'guard.rs', 'enforcement', 'Confined open')
+    snapshot = instance security-snapshot;
+    snapshot.regions.append; (instance source-region; 'sample.contract', 'guard.rs', 10, 20)
+    changes list of file-change = list
+    // A preceding insertion shifts the new coordinates but does not touch the
+    // old marked region. Do not compare new hunk coordinates with old regions.
+    changes.append; (instance file-change; 'guard.rs', 1, 0, 2, 15)
+    assert-equal-int; (impact-reasons; contract, snapshot, changes, true).length, 0
+    assert-equal-int; (impact-reasons; contract, snapshot, changes, false).length, 1
+
+function test-old-regions-report-deleted-markers throws throwable;
+    contract = instance security-contract; 'sample.contract', 'docs/security/sample.yaml', 'Sample'
+    contract.files.append; (instance security-file; 'guard.rs', 'enforcement', 'Confined open')
+    previous = instance security-snapshot;
+    previous.regions.append; (instance source-region; 'sample.contract', 'guard.rs', 2, 5)
+    changes list of file-change = list
+    changes.append; (instance file-change; 'guard.rs', 2, 1, 1, 0)
+    reasons = impact-reasons; contract, previous, changes, true
+    assert; (has-string; reasons, 'guard.rs: enforcement region changed')
+
+function test-dependency-evidence-and-record-changes-report-review throws throwable;
+    contract = instance security-contract; 'sample.contract', 'docs/security/sample.yaml', 'Sample'
+    contract.files.append; (instance security-file; 'Cargo.lock', 'dependency', 'Native resolution')
+    contract.files.append; (instance security-file; 'tests/guard.trn', 'evidence', 'Escape rejection')
+    snapshot = instance security-snapshot;
+    changes list of file-change = list
+    changes.append; (instance file-change; 'Cargo.lock', 0, 0, 0, 0)
+    changes.append; (instance file-change; 'tests/guard.trn', 1, 1, 1, 1)
+    changes.append; (instance file-change; 'docs/security/sample.yaml', 1, 1, 1, 1)
+    reasons = impact-reasons; contract, snapshot, changes, false
+    assert-equal-int; reasons.length, 3
+    assert; (has-string; reasons, 'Cargo.lock: dependency file changed')
+    assert; (has-string; reasons, 'tests/guard.trn: evidence file changed')
+    assert; (has-string; reasons, 'docs/security/sample.yaml: contract record changed')

@@ -1,0 +1,170 @@
+namespace security-contracts
+
+from /core/collections import list, range
+from /core/documents import document-value, document-map-entries, make-document-map, make-document-list, make-document-string, make-document-integer
+from /core/encodings import utf8
+from /core/errors import throwable
+from /core/process import arguments, exit, make-exit-status
+from /core/streams import stderr as standard-error
+
+function string-list document-value; values list of string
+    items list of document-value = list
+    for value in values
+        items.append; (make-document-string; value)
+    return (make-document-list; items).value
+
+function region-document document-value; region source-region
+    entries = instance document-map-entries;
+    entries.append; 'path', (make-document-string; region.path)
+    entries.append; 'start', (make-document-integer; (region.start.to-string;)).value
+    entries.append; 'end', (make-document-integer; (region.end.to-string;)).value
+    return (make-document-map; entries).value
+
+function impact-reasons list of string; contract security-contract, snapshot security-snapshot, changes list of file-change, old bool
+    reasons list of string = list
+    for change in changes
+        // Each snapshot uses its own hunk coordinates, including removed tags.
+        start = change.new-start
+        count = change.new-count
+        if old
+            start = change.old-start
+            count = change.old-count
+        reason string = ''
+        if change.path == contract.path
+            reason = change.path.concat; ': contract record changed'
+        for entry in contract.files
+            if entry.path == change.path
+                if entry.role != 'enforcement'
+                    reason = change.path.concat; ': ', entry.role, ' file changed'
+                else
+                    for region in snapshot.regions
+                        if region.identity == contract.identity and region.path == change.path
+                            if touches-region; region, start, count
+                                reason = change.path.concat; ': enforcement region changed'
+        if reason != '' and not (has-string; reasons, reason)
+            reasons.append; reason
+    return reasons
+
+function report-contract document-value; contract security-contract, snapshot security-snapshot, reasons list of string
+    entries = instance document-map-entries;
+    entries.append; 'id', (make-document-string; contract.identity)
+    entries.append; 'record', (make-document-string; contract.path)
+    entries.append; 'title', (make-document-string; contract.title)
+    entries.append; 'audiences', (string-list; contract.audiences)
+    regions list of document-value = list
+    for region in snapshot.regions
+        if region.identity == contract.identity
+            regions.append; (region-document; region)
+    entries.append; 'regions', (make-document-list; regions).value
+    entries.append; 'reasons', (string-list; reasons)
+    return (make-document-map; entries).value
+
+function emit-report; command string, base string, reports list of document-value, json bool
+    if json
+        entries = instance document-map-entries;
+        entries.append; 'format', (make-document-integer; '1').value
+        entries.append; 'command', (make-document-string; command)
+        entries.append; 'base', (make-document-string; base)
+        entries.append; 'contracts', (make-document-list; reports).value
+        print; (make-document-map; entries).value.encoded
+    else
+        if command == 'check'
+            print; 'Validated ', reports.length, ' security contract(s).'
+        else
+            print; 'Security impact against ', base, ': ', reports.length, ' contract(s).'
+        for report in reports
+            print; (field; report, 'id').scalar, ' — ', (field; report, 'title').scalar
+            locations = field; report, 'regions'
+            for location-index in (range; 0, (locations.length;))
+                location = item; locations, location-index
+                print; '  ', (field; location, 'path').scalar, ':', (field; location, 'start').scalar, '-', (field; location, 'end').scalar
+            reasons = field; report, 'reasons'
+            for reason-index in (range; 0, (reasons.length;))
+                print; '  review: ', (item; reasons, reason-index).scalar
+        if command == 'impact'
+            print; 'This reports known contracts, not security approval or complete impact coverage.'
+
+function help;
+    print; 'Security contracts: validate paired Rust/Terrane markers and manual-format records.'
+    print; '  check [--root DIRECTORY] [--json]'
+    print; '  impact --base REVISION [--root DIRECTORY] [--json] [--fail-on-impact]'
+
+function run int throws security-error;
+    args = arguments;
+    if args.length == 0
+        help;
+        return 0
+    command = args[0].text
+    if command == '--help'
+        help;
+        return 0
+    require; command == 'check' or command == 'impact', 'arguments', 'expected check or impact'
+    root string = '.'
+    base string = ''
+    json bool = false
+    fail-on-impact bool = false
+    seen list of string = list
+    index int = 1
+    while index < args.length
+        require; args[index].is-text, 'arguments', 'arguments must be UTF-8'
+        option = args[index].text
+        require; not (has-string; seen, option), 'arguments', ('duplicate option '.concat; option)
+        seen.append; option
+        if option == '--json'
+            json = true
+        else if option == '--fail-on-impact'
+            fail-on-impact = true
+        else if option == '--root' or option == '--base'
+            index = index + 1
+            require; index < args.length, 'arguments', ('missing value for '.concat; option)
+            require; args[index].is-text and args[index].text != '', 'arguments', 'option value must be nonempty UTF-8'
+            if option == '--root'
+                root = args[index].text
+            else
+                base = args[index].text
+        else
+            throw instance security-error; ('arguments: unknown option '.concat; option)
+        index = index + 1
+    require; command == 'impact' or (base == '' and not fail-on-impact), 'arguments', '--base and --fail-on-impact belong to impact'
+    if command == 'impact'
+        require; base != '', 'arguments', 'impact requires an explicit --base revision'
+        base = resolve-revision; root, base
+    current = load-snapshot; root
+    reports list of document-value = list
+    if command == 'check'
+        empty-reasons list of string = list
+        for contract in current.contracts
+            reports.append; (report-contract; contract, current, empty-reasons)
+    else
+        previous = load-snapshot; root, base
+        changes = repository-changes; root, base
+        reported list of string = list
+        for contract in current.contracts
+            reasons = impact-reasons; contract, current, changes, false
+            for old-contract in previous.contracts
+                if old-contract.identity == contract.identity
+                    for reason in (impact-reasons; old-contract, previous, changes, true)
+                        if not (has-string; reasons, reason)
+                            reasons.append; reason
+            if reasons.length > 0
+                reports.append; (report-contract; contract, current, reasons)
+                reported.append; contract.identity
+        for contract in previous.contracts
+            if not (has-string; reported, contract.identity)
+                reasons = impact-reasons; contract, previous, changes, true
+                if reasons.length > 0
+                    reports.append; (report-contract; contract, previous, reasons)
+    emit-report; command, base, reports, json
+    if fail-on-impact and reports.length > 0
+        return 2
+    return 0
+
+function main;
+    try
+        status = run;
+        exit; (make-exit-status; status)
+    catch throwable as error
+        output = standard-error;
+        encoded = ((error.render;).concat; "\n").encode; utf8
+        output.write; encoded
+        exit; (make-exit-status; 1)

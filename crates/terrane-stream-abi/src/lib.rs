@@ -311,6 +311,9 @@ pub fn open_file(path: &str, request: FileOpenOptions) -> io::Result<StreamHandl
         cross_filesystem: false,
     })))
 }
+// SECURITY-BEGIN[filesystem.beneath-open]
+// Constrain the open itself, not a preceding lexical/canonical path check.
+// Preserve no-follow resolution and fail closed when unavailable.
 #[cfg(target_os = "linux")]
 fn linux_open_beneath(
     directory: impl std::os::fd::AsFd,
@@ -436,6 +439,7 @@ pub fn open_file_beneath(_: StreamHandle, _: &str, _: FileOpenOptions) -> io::Re
         "handle-relative traversal is unavailable in this target profile",
     ))
 }
+// SECURITY-END[filesystem.beneath-open]
 
 /// Performs at most one host read through a registered process-stream handle.
 ///

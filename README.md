@@ -109,6 +109,10 @@ For an irreducible host boundary, a package may use an explicit authored Rust mo
 | `terrane debug-adapter --stdio` | Serve the debugger translation layer to DAP clients. |
 | `terrane toolchains` | Report Rust toolchains previously requested by Terrane. |
 
+### Security contracts
+
+Security-sensitive Rust and Terrane regions use the same paired `SECURITY-BEGIN[id]` / `SECURITY-END[id]` comments. Their canonical manual-format records live in [`docs/security/`](docs/security/README.md), versioned with the implementation. Run `terrane run tools/security-contracts -- check` to validate them, or `terrane run tools/security-contracts -- impact --base main` to report known contracts affected by a change. Registration identifies a review boundary, not an audit or security certification.
+
 ### Testing
 
 `terrane test` discovers parameterless top-level `test-*` functions returning `none` under `tests/unit`, `tests/integration`, and `tests/end-to-end`. `/core/testing` supplies assertions, expected-error checks, deterministic context, and structured failures. Each selected test runs in an isolated process with bounded output and a deadline.

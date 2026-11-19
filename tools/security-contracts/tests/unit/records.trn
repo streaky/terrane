@@ -1,0 +1,100 @@
+namespace security-contracts
+
+from /core/collections import list
+from /core/errors import throwable
+from /core/testing import assert, assert-equal-string, assert-equal-int
+
+function sample-contract string;
+    return >>
+        format: 1
+        id: sample.contract
+        kind: topic
+        surface: null
+        lifecycle:
+          status: current
+          stability: experimental
+          since: "0.1"
+          deprecated-since: null
+          removed-in: null
+          replacement: null
+        documentation:
+          status: complete
+          title: Sample boundary
+          title-style: text
+          summary: Protect the sample boundary.
+          tags: [security-contract, security-core, security-application]
+          sections:
+            - id: invariant
+              title: Invariant
+              blocks: [{type: markdown, markdown: Preserve authority.}]
+            - id: threats
+              title: Threats
+              blocks: [{type: markdown, markdown: Unauthorized access.}]
+            - id: assumptions
+              title: Assumptions
+              blocks: [{type: markdown, markdown: Trusted kernel.}]
+            - id: limitations
+              title: Limitations
+              blocks: [{type: markdown, markdown: Not a sandbox.}]
+            - id: guidance
+              title: Guidance
+              blocks: [{type: markdown, markdown: Check failures.}]
+            - id: review
+              title: Review
+              blocks: [{type: markdown, markdown: Review resolution changes.}]
+            - id: files
+              title: Files
+              blocks:
+                - type: table
+                  id: security-files
+                  title: Files
+                  show-header: true
+                  columns:
+                    - {id: path, title: Path, cell: code}
+                    - {id: role, title: Role, cell: code}
+                    - {id: detail, title: Detail, cell: text}
+                  rows:
+                    - {path: src/guard.rs, role: enforcement, detail: Enforce confinement.}
+                    - {path: tests/guard.trn, role: evidence, detail: Reject escapes.}
+          see-also: []
+        provenance:
+          specification: []
+          conformance: []
+          compiler: null
+
+function test-record-retains-both-audiences-and-file-roles throws throwable;
+    contract = parse-contract; 'docs/security/sample.yaml', (sample-contract;)
+    assert-equal-string; contract.identity, 'sample.contract'
+    assert-equal-int; contract.audiences.length, 2
+    assert; (has-string; contract.audiences, 'core') and (has-string; contract.audiences, 'application')
+    assert-equal-string; contract.files[0].path, 'src/guard.rs'
+    assert-equal-string; contract.files[0].role, 'enforcement'
+    assert-equal-string; contract.files[1].role, 'evidence'
+
+function test-record-rejects-ambiguous-or-incomplete-contracts throws throwable;
+    original = sample-contract;
+    cases list of string = list
+    cases.append; (original.replace; 'id: sample.contract', "id: sample.contract\nid: another.contract")
+    cases.append; (original.replace; 'format: 1', 'format: 2')
+    cases.append; (original.replace; 'id: sample.contract', 'id: Bad.contract')
+    cases.append; (original.replace; 'role: enforcement', 'role: unknown')
+    cases.append; (original.replace; 'role: evidence', 'role: dependency')
+    cases.append; (original.replace; 'src/guard.rs', '../guard.rs')
+    cases.append; (original.replace; 'id: threats', 'id: invariant')
+    cases.append; (original.replace; 'security-core, security-application', 'security-core-typo')
+    cases.append; (original.replace; 'summary: Protect the sample boundary.', 'unknown: ignored')
+    cases.append; (original.replace; 'markdown: Preserve authority.', 'markdown: "```source"')
+    for source in cases
+        rejected bool = false
+        try
+            parse-contract; 'docs/security/sample.yaml', source
+        catch security-error
+            rejected = true
+        assert; rejected
+
+function test-identities-and-record-paths-cannot-escape throws throwable;
+    assert; (valid-identity; 'filesystem.beneath-open')
+    for identity in (list; '', 'a..b', 'A.b', 'a/b', '.a', 'a.')
+        assert; not (valid-identity; identity)
+    for path in (list; '/absolute', '../outside', 'a/../outside', './relative', 'a//b')
+        assert; not (valid-source-path; path)

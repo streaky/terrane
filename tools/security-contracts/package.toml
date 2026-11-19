@@ -1,0 +1,9 @@
+package = "security-contracts"
+artifact = "executable"
+
+[profile]
+capabilities = ["filesystem", "process", "build"]
+panic = "unwind"
+
+[namespaces]
+security-contracts = "src"

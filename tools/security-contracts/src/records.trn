@@ -1,0 +1,193 @@
+namespace security-contracts
+
+from /core/collections import list, range
+from /core/documents import document-value, make-document-none
+from /core/documents/yaml import parse-yaml, make-yaml-options
+
+function field document-value; value document-value, name string
+    found = value.field; name
+    if found.failed
+        return make-document-none;
+    return found.value
+
+function item document-value; value document-value, index int
+    found = value.item; index
+    if found.failed
+        return make-document-none;
+    return found.value
+
+function require bool throws security-error; condition bool, context string, message string
+    if not condition
+        throw instance security-error; (context.concat; ': ', message)
+    return true
+
+function exact-keys throws security-error; value document-value, keys list of string, context string
+    require; value.kind == 'map', context, 'expected a mapping'
+    require; (value.length;) == keys.length, context, 'missing or unknown fields'
+    for index in (range; 0, (value.length;))
+        require; (has-string; keys, (value.key; index)), context, ('unknown field '.concat; (value.key; index))
+
+function text-field string throws security-error; value document-value, name string, context string
+    found = field; value, name
+    require; found.kind == 'string' and (found.scalar.trim;) != '', context, ('expected nonempty text in '.concat; name)
+    return found.scalar
+
+function prose throws security-error; block document-value, context string
+    exact-keys; block, (list; 'type', 'markdown'), context
+    require; (field; block, 'type').scalar == 'markdown', context, 'expected a prose-only markdown block'
+    text = text-field; block, 'markdown', context
+    for line in (text.split; "\n")
+        stripped = line.trim.start;
+        require; not (stripped.contains.start; '```') and not (stripped.contains.start; '~~~') and not (line.contains.start; '    ') and not (line.contains.start; "\t") and not (stripped.contains.start; '<pre') and not (stripped.contains.start; '<code'), context, 'preformatted examples do not belong in markdown prose'
+
+function validate-lifecycle throws security-error; value document-value, context string
+    exact-keys; value, (list; 'status', 'stability', 'since', 'deprecated-since', 'removed-in', 'replacement'), context
+    require; (field; value, 'status').scalar == 'current', context, 'security contracts must describe current behavior'
+    require; (field; value, 'stability').scalar == 'experimental', context, 'expected experimental stability'
+    text-field; value, 'since', context
+    for name in (list; 'deprecated-since', 'removed-in', 'replacement')
+        require; (field; value, name).kind == 'none', context, 'unexpected lifecycle migration'
+
+function parse-files list of security-file throws security-error; block document-value, context string
+    exact-keys; block, (list; 'type', 'id', 'title', 'show-header', 'columns', 'rows'), context
+    require; (field; block, 'type').scalar == 'table' and (field; block, 'id').scalar == 'security-files', context, 'expected security-files table'
+    text-field; block, 'title', context
+    header = field; block, 'show-header'
+    require; header.kind == 'bool' and header.scalar == 'true', context, 'file table must show headers'
+    columns = field; block, 'columns'
+    require; columns.kind == 'list' and (columns.length;) == 3, context, 'expected path, role, detail columns'
+    names list of string = list; 'path', 'role', 'detail'
+    for index in (range; 0, 3)
+        column = item; columns, index
+        exact-keys; column, (list; 'id', 'title', 'cell'), context
+        require; (field; column, 'id').scalar == names[index], context, 'unexpected file column'
+        text-field; column, 'title', context
+        expected = 'code'
+        if index == 2
+            expected = 'text'
+        require; (field; column, 'cell').scalar == expected, context, 'unexpected file column representation'
+    rows = field; block, 'rows'
+    require; rows.kind == 'list' and (rows.length;) > 0, context, 'file table must not be empty'
+    result list of security-file = list
+    paths list of string = list
+    enforcement bool = false
+    evidence bool = false
+    for index in (range; 0, (rows.length;))
+        row = item; rows, index
+        exact-keys; row, names, context
+        path = text-field; row, 'path', context
+        role = text-field; row, 'role', context
+        detail = text-field; row, 'detail', context
+        require; (valid-source-path; path), context, ('unsafe repository-relative path '.concat; path)
+        require; not (has-string; paths, path), context, ('duplicate file '.concat; path)
+        paths.append; path
+        require; role == 'enforcement' or role == 'dependency' or role == 'evidence', context, 'unknown file role'
+        if role == 'enforcement'
+            require; (is-source; path), context, 'enforcement files must be Rust or Terrane source'
+            enforcement = true
+        if role == 'evidence'
+            evidence = true
+        result.append; (instance security-file; path, role, detail)
+    require; enforcement and evidence, context, 'contract needs enforcement and evidence files'
+    return result
+
+function parse-contract security-contract throws security-error; path string, source string
+    parsed = parse-yaml; source, (make-yaml-options; 64, 1048576, 0)
+    require; not parsed.failed, path, parsed.message
+    record = parsed.value
+    exact-keys; record, (list; 'format', 'id', 'kind', 'surface', 'lifecycle', 'documentation', 'provenance'), path
+    version = field; record, 'format'
+    require; version.kind == 'integer' and version.scalar == '1', path, 'expected manual format 1'
+    identity = text-field; record, 'id', path
+    require; (valid-identity; identity), path, 'invalid contract identity'
+    require; (field; record, 'kind').scalar == 'topic' and (field; record, 'surface').kind == 'none', path, 'expected a conceptual topic with null surface'
+    validate-lifecycle; (field; record, 'lifecycle'), path
+    documentation = field; record, 'documentation'
+    exact-keys; documentation, (list; 'status', 'title', 'title-style', 'summary', 'tags', 'sections', 'see-also'), path
+    require; (field; documentation, 'status').scalar == 'complete' and (field; documentation, 'title-style').scalar == 'text', path, 'expected complete documentation with text title'
+    title = text-field; documentation, 'title', path
+    text-field; documentation, 'summary', path
+    result = instance security-contract; identity, path, title
+    tags = field; documentation, 'tags'
+    require; tags.kind == 'list', path, 'expected documentation tags'
+    tag-values list of string = list
+    for index in (range; 0, (tags.length;))
+        tag = item; tags, index
+        require; tag.kind == 'string' and (tag.scalar.trim;) != '', path, 'expected nonempty tag'
+        require; not (has-string; tag-values, tag.scalar), path, 'duplicate documentation tag'
+        tag-values.append; tag.scalar
+        if tag.scalar == 'security-core'
+            result.audiences.append; 'core'
+        else if tag.scalar == 'security-application'
+            result.audiences.append; 'application'
+    require; (has-string; tag-values, 'security-contract') and result.audiences.length > 0, path, 'expected security-contract tag and security-core and/or security-application audience'
+    related = field; documentation, 'see-also'
+    require; related.kind == 'list' and (related.length;) == 0, path, 'standalone records use prose links until manual assembly'
+    sections = field; documentation, 'sections'
+    expected list of string = list; 'invariant', 'threats', 'assumptions', 'limitations', 'guidance', 'review', 'files'
+    require; sections.kind == 'list' and (sections.length;) == expected.length, path, 'missing or unknown contract sections'
+    seen list of string = list
+    for index in (range; 0, (sections.length;))
+        section = item; sections, index
+        exact-keys; section, (list; 'id', 'title', 'blocks'), path
+        section-id = text-field; section, 'id', path
+        require; (has-string; expected, section-id) and not (has-string; seen, section-id), path, 'unknown or duplicate contract section'
+        seen.append; section-id
+        text-field; section, 'title', path
+        blocks = field; section, 'blocks'
+        require; blocks.kind == 'list' and (blocks.length;) == 1, path, 'each contract section needs exactly one block'
+        block = item; blocks, 0
+        if section-id == 'files'
+            result.files = parse-files; block, path
+        else
+            prose; block, path
+    provenance = field; record, 'provenance'
+    exact-keys; provenance, (list; 'specification', 'conformance', 'compiler'), path
+    for name in (list; 'specification', 'conformance')
+        entries = field; provenance, name
+        require; entries.kind == 'list' and (entries.length;) == 0, path, 'evidence is recorded in the security-files table'
+    require; (field; provenance, 'compiler').kind == 'none', path, 'security records do not claim compiler-generated provenance'
+    return result
+
+function load-snapshot security-snapshot throws security-error; root string, revision string = ''
+    paths list of string = list
+    if revision == ''
+        paths = repository-files; root
+    else
+        paths = revision-files; root, revision
+    snapshot = instance security-snapshot;
+    identities list of string = list
+    for path in paths
+        if (is-record; path) or (is-source; path)
+            source string = ''
+            if revision == ''
+                source = read-working; root, path
+            else
+                source = read-revision; root, revision, path
+            if is-record; path
+                contract = parse-contract; path, source
+                require; not (has-string; identities, contract.identity), path, 'duplicate contract identity'
+                identities.append; contract.identity
+                snapshot.contracts.append; contract
+            else
+                for region in (scan-regions; path, source)
+                    snapshot.regions.append; region
+    for region in snapshot.regions
+        require; (has-string; identities, region.identity), region.path, ('unknown contract '.concat; region.identity)
+        listed bool = false
+        for contract in snapshot.contracts
+            if contract.identity == region.identity
+                for entry in contract.files
+                    if entry.path == region.path and entry.role == 'enforcement'
+                        listed = true
+        require; listed, region.path, ('region must be listed as enforcement for '.concat; region.identity)
+    for contract in snapshot.contracts
+        for entry in contract.files
+            require; (has-string; paths, entry.path), contract.path, ('missing referenced file '.concat; entry.path)
+            if entry.role == 'enforcement'
+                marked bool = false
+                for region in snapshot.regions
+                    if region.identity == contract.identity and region.path == entry.path
+                        marked = true
+                require; marked, entry.path, ('missing enforcement region for '.concat; contract.identity)
+    return snapshot

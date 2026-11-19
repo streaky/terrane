@@ -1,0 +1,226 @@
+namespace security-contracts
+
+from /core/collections import list, range
+from /core/encodings import utf8
+from /core/filesystem import filesystem-capability, filesystem-read-bounded
+from /core/filesystem/paths import path as filesystem-path
+from /core/errors import decode-error
+
+class file-change
+    path string
+    old-start int
+    old-count int
+    new-start int
+    new-count int
+
+    function construct; path string, old-start int, old-count int, new-start int, new-count int
+        this.path = path
+        this.old-start = old-start
+        this.old-count = old-count
+        this.new-start = new-start
+        this.new-count = new-count
+
+private class command-result
+    status int
+    stdout string
+    stderr string
+
+    function construct; status int, stdout string, stderr string
+        this.status = status
+        this.stdout = stdout
+        this.stderr = stderr
+
+# Terrane has no argv-safe spawn/output API yet. Keep only this process boundary
+# native; remove it when /core/process supports spawn with argv and captured output.
+private function capture-git int32; root string, args list of string, output mutable ref string, errors mutable ref string, failure mutable ref string
+    return rust
+        use std::process::Command;
+        match Command::new("git").arg("-C").arg(&root).args(args.as_slice()).output() {
+            Ok(result) => {
+                match String::from_utf8(result.stdout) {
+                    Ok(value) => *output = value,
+                    Err(_) => *failure = "git returned non-UTF-8 stdout".to_string(),
+                }
+                match String::from_utf8(result.stderr) {
+                    Ok(value) => *errors = value,
+                    Err(_) => *failure = "git returned non-UTF-8 stderr".to_string(),
+                }
+                result.status.code().unwrap_or(128)
+            }
+            Err(error) => {
+                *failure = error.to_string();
+                127
+            }
+        }
+
+private function run-command command-result throws security-error; root string, args list of string
+    output string = ''
+    errors string = ''
+    failure string = ''
+    status = capture-git; root, args, output, errors, failure
+    if failure != ''
+        throw instance security-error; failure
+    if output.length > 67108864
+        throw instance security-error; 'git output exceeds 64 MiB limit'
+    return instance command-result; status, output, errors
+
+public function git string throws security-error; root string, args list of string
+    result = run-command; root, args
+    if result.status != 0
+        throw instance security-error; ('git failed: '.concat; result.stderr)
+    return result.stdout
+
+private function nul-fields list of string throws security-error; data string
+    encoded = data.encode; utf8
+    fields list of string = list
+    start int = 0
+    index int = 0
+    count = encoded.length
+    while index < count
+        if encoded[index] == 0
+            try
+                path-text = encoded[(range; start, index)].decode; utf8
+            catch decode-error
+                throw instance security-error; 'git path is not valid UTF-8'
+            fields.append; path-text
+            start = index + 1
+        index = index + 1
+    if start != count
+        throw instance security-error; 'malformed NUL-delimited git output'
+    return fields
+
+private function git-nul-list list of string throws security-error; root string, args list of string
+    result = run-command; root, args
+    if result.status != 0
+        throw instance security-error; ('git failed: '.concat; result.stderr)
+    return nul-fields; result.stdout
+
+public function repository-files list of string throws security-error; root string
+    args list of string = list; '--literal-pathspecs', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'
+    deleted-args list of string = list; '--literal-pathspecs', 'ls-files', '-z', '--deleted'
+    paths = git-nul-list; root, args
+    deleted = git-nul-list; root, deleted-args
+    existing list of string = list
+    for file-path in paths
+        if not (has-string; deleted, file-path)
+            existing.append; file-path
+    return existing
+
+public function revision-files list of string throws security-error; root string, revision string
+    args list of string = list; '--literal-pathspecs', 'ls-tree', '-rz', '--name-only', revision
+    return git-nul-list; root, args
+
+private function valid-path bool; value string
+    if value == '' or (value.contains; "\0") or (value.contains.start; '/') or (value.contains; '\\')
+        return false
+    for component in (value.split; '/')
+        if component == '' or component == '.' or component == '..'
+            return false
+    return true
+
+public function read-working string throws security-error; root string, path string
+    if not (valid-path; path)
+        throw instance security-error; 'invalid working path'
+    authority = filesystem-capability;
+    loaded = filesystem-read-bounded; authority, (instance filesystem-path; (root.concat; '/', path)), 16777217
+    if loaded.failed or loaded.completed > 16777216
+        throw instance security-error; ('unable to read working file within 16 MiB limit: '.concat; path)
+    try
+        return loaded.data.decode; utf8
+    catch decode-error
+        throw instance security-error; ('working file is not valid UTF-8: '.concat; path)
+
+public function resolve-revision string throws security-error; root string, revision string
+    args list of string = list; 'rev-parse', '--verify', '--end-of-options', (revision.concat; '^{commit}')
+    result = run-command; root, args
+    if result.status != 0
+        throw instance security-error; ('invalid revision: '.concat; result.stderr)
+    return result.stdout.trim;
+
+public function read-revision string throws security-error; root string, revision string, path string
+    if not (valid-path; path)
+        throw instance security-error; 'invalid revision path'
+    args list of string = list; 'show', (revision.concat; ':', path)
+    result = run-command; root, args
+    if result.status != 0
+        throw instance security-error; ('unable to read revision file: '.concat; result.stderr)
+    if result.stdout.length > 16777216
+        throw instance security-error; ('revision file exceeds 16 MiB limit: '.concat; path)
+    return result.stdout
+
+private function parse-number int throws security-error; text string
+    encoded = text.encode; utf8
+    if encoded.length == 0
+        throw instance security-error; 'malformed diff line number'
+    value int = 0
+    count = encoded.length
+    index int = 0
+    while index < count
+        digit = encoded[index]
+        if digit < 48 or digit > 57
+            throw instance security-error; 'malformed diff line number'
+        value = value * 10 + digit - 48
+        index = index + 1
+    return value
+
+private function parse-range list of int throws security-error; token string
+    clean = token.trim.start; '-'
+    clean = clean.trim.start; '+'
+    fields = clean.split; ','
+    values list of int = list; (parse-number; fields[0])
+    if fields.length > 1
+        values.append; (parse-number; fields[1])
+    else
+        values.append; 1
+    return values
+
+private function parse-hunk file-change throws security-error; path string, header string
+    parts = header.split; ' '
+    if parts.length < 3 or not (parts[0].contains.start; '@@')
+        throw instance security-error; 'malformed unified diff hunk header'
+    old-range = parse-range; parts[1]
+    new-range = parse-range; parts[2]
+    return instance file-change; path, old-range[0], old-range[1], new-range[0], new-range[1]
+
+private function collect-diff-hunks list of file-change throws security-error; root string, args list of string, file-path string
+    result = run-command; root, args
+    if result.status != 0 and result.status != 1
+        throw instance security-error; ('git diff failed: '.concat; result.stderr)
+    changes list of file-change = list
+    for line in (result.stdout.split; "\n")
+        if line.contains.start; '@@ '
+            changes.append; (parse-hunk; file-path, line)
+    if result.stdout != '' and changes.length == 0
+        changes.append; (instance file-change; file-path, 1, 2147483647, 1, 2147483647)
+    return changes
+
+public function repository-changes list of file-change throws security-error; root string, revision string
+    base = resolve-revision; root, revision
+    names list of string = list
+    staged-args list of string = list; '--literal-pathspecs', 'diff', '--cached', '--name-only', '-z', '--no-renames', base
+    staged = git-nul-list; root, staged-args
+    for file-path in staged
+        if not (has-string; names, file-path)
+            names.append; file-path
+    working-args list of string = list; '--literal-pathspecs', 'diff', '--name-only', '-z', '--no-renames'
+    working = git-nul-list; root, working-args
+    for file-path in working
+        if not (has-string; names, file-path)
+            names.append; file-path
+    untracked-args list of string = list; '--literal-pathspecs', 'ls-files', '-z', '--others', '--exclude-standard'
+    untracked = git-nul-list; root, untracked-args
+    changes list of file-change = list
+    for file-path in names
+        diff-args list of string = list; '--literal-pathspecs', 'diff', '--no-ext-diff', '--no-textconv', '--no-color', '--no-renames', '--unified=0', base, '--', file-path
+        for change in (collect-diff-hunks; root, diff-args, file-path)
+            changes.append; change
+    for file-path in untracked
+        diff-args list of string = list; '--literal-pathspecs', 'diff', '--no-index', '--no-ext-diff', '--no-textconv', '--no-color', '--unified=0', '--', '/dev/null', file-path
+        for change in (collect-diff-hunks; root, diff-args, file-path)
+            changes.append; change
+    return changes
+
+public function touches-region bool; region source-region, start int, count int
+    if count == 0
+        return start >= region.start and start < region.end
+    return start <= region.end and start + count - 1 >= region.start
