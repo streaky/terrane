@@ -347,6 +347,35 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
     );
     add_private_host_bindings(
         &mut namespaces,
+        "/core/process/child",
+        "child",
+        [
+            "platform-capability",
+            "platform-result",
+            "child-spawn",
+            "child-capture",
+            "child-capture-async",
+            "child-poll",
+            "child-wait",
+            "child-terminate",
+            "child-write",
+            "child-close-input",
+            "child-read-stdout",
+            "child-read-stderr",
+            "child-release",
+            "child-result-failed",
+            "child-result-message",
+            "child-result-number",
+            "child-result-flag",
+            "child-result-secondary-flag",
+            "child-result-deadline-exceeded",
+            "child-result-data",
+            "child-result-capture",
+            "child-result-capability",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
         "/core/random",
         "capabilities",
         [

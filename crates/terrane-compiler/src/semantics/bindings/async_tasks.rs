@@ -659,6 +659,13 @@ pub(in crate::semantics) fn synchronize_execution_requirements(package: &mut Sem
             "host-tls-shutdown-async",
             "host-time-sleep-until",
             "host-process-signal-next",
+            "host-child-spawn",
+            "host-child-capture-async",
+            "host-child-wait",
+            "host-child-write",
+            "host-child-close-input",
+            "host-child-read-stdout",
+            "host-child-read-stderr",
         ]
         .iter()
         .any(|name| unit.source.text().contains(name))

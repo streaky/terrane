@@ -1,0 +1,190 @@
+namespace core/process/child
+
+from /core/collections import list
+from /core/errors import throwable
+from /core/process import native-string, environment-entry, encode-native-string
+
+class process-error implements throwable
+    message string = ''
+
+    private function construct; detail string
+        this.message = detail
+
+    function render string;
+        return this.message
+
+class process-options
+    directory string = ''
+    inherit-environment bool = true
+    environment list of environment-entry
+    remove-environment list of native-string
+
+class process-observation
+    exited bool = false
+    exit-code int|none = none
+    abnormal bool = false
+    timed-out bool = false
+
+    private function construct; exited bool, code int, abnormal bool, timed-out bool
+        this.exited = exited
+        if exited and not abnormal
+            this.exit-code = code
+        this.abnormal = abnormal
+        this.timed-out = timed-out
+
+class process-output
+    data bytes = b''
+    end bool = false
+
+    private function construct; data bytes, end bool
+        this.data = data
+        this.end = end
+
+class process-capture
+    status process-observation
+    stdout bytes = b''
+    stderr bytes = b''
+    stdout-truncated bool = false
+    stderr-truncated bool = false
+
+    private function construct; status process-observation, stdout bytes, stderr bytes, stdout-truncated bool, stderr-truncated bool
+        this.status = status
+        this.stdout = stdout
+        this.stderr = stderr
+        this.stdout-truncated = stdout-truncated
+        this.stderr-truncated = stderr-truncated
+
+class child-input-stream
+    private handle host-platform-capability
+
+    private function construct; handle host-platform-capability
+        this.handle = handle
+
+    async function write int throws process-error; data bytes
+        raw = await host-child-write; this.handle, data
+        check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+        return host-child-result-number; raw
+
+    async function close throws process-error;
+        raw = await host-child-close-input; this.handle
+        check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+
+class child-output-stream
+    private handle host-platform-capability
+    private errors bool = false
+
+    private function construct; handle host-platform-capability, errors bool
+        this.handle = handle
+        this.errors = errors
+
+    async function read process-output throws process-error; limit int = 8192
+        if this.errors
+            raw = await host-child-read-stderr; this.handle, limit
+            return read-output; raw
+        raw = await host-child-read-stdout; this.handle, limit
+        return read-output; raw
+
+class child-process
+    private handle host-platform-capability
+
+    private function construct; handle host-platform-capability
+        this.handle = handle
+
+    consuming function destruct;
+        host-child-release; this.handle
+
+    function poll process-observation throws process-error;
+        return observe; (host-child-poll; this.handle)
+
+    async function wait process-observation throws process-error; timeout-ms int = 30000
+        raw = await host-child-wait; this.handle, timeout-ms
+        return observe; raw
+
+    function terminate throws process-error;
+        raw = host-child-terminate; this.handle
+        check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+
+    function input child-input-stream;
+        return instance child-input-stream; this.handle
+
+    function output child-output-stream;
+        return instance child-output-stream; this.handle, false
+
+    function errors child-output-stream;
+        return instance child-output-stream; this.handle, true
+
+    async function write-input int throws process-error; data bytes
+        raw = await host-child-write; this.handle, data
+        check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+        return host-child-result-number; raw
+
+    async function close-input throws process-error;
+        raw = await host-child-close-input; this.handle
+        check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+
+    async function read-stdout process-output throws process-error; limit int = 8192
+        raw = await host-child-read-stdout; this.handle, limit
+        return read-output; raw
+
+    async function read-stderr process-output throws process-error; limit int = 8192
+        raw = await host-child-read-stderr; this.handle, limit
+        return read-output; raw
+
+private function check-process-result throws process-error; failed bool, detail string
+    if failed
+        throw instance process-error; detail
+
+private function observe process-observation throws process-error; raw host-platform-result
+    check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+    return instance process-observation; (host-child-result-flag; raw), (host-child-result-number; raw), (host-child-result-secondary-flag; raw), (host-child-result-deadline-exceeded; raw)
+
+private function read-output process-output throws process-error; raw host-platform-result
+    check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+    end = host-child-result-flag; raw
+    data = host-child-result-data; move raw
+    return instance process-output; data, end
+
+private function capture-output process-capture throws process-error; raw host-platform-result
+    check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+    status = instance process-observation; true, (host-child-result-number; raw), (host-child-result-flag; raw), (host-child-result-deadline-exceeded; raw)
+    return host-child-result-capture; status, move raw
+
+private function capture-options process-options; options process-options|none
+    if options != none
+        return options
+    return instance process-options;
+
+private function process-arguments list of string; args (list of string)|none
+    if args != none
+        return args
+    empty list of string = list
+    return empty
+
+private function encode-environment list of string; entries list of environment-entry
+    encoded list of string = list
+    for entry in entries
+        encoded.append; (encode-native-string; entry.name)
+        encoded.append; (encode-native-string; entry.value)
+    return encoded
+
+private function encode-removals list of string; names list of native-string
+    encoded list of string = list
+    for name in names
+        encoded.append; (encode-native-string; name)
+    return encoded
+
+async function spawn-process child-process throws process-error; program string, args (list of string)|none = none, options process-options|none = none
+    settings = capture-options; options
+    raw = await host-child-spawn; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment
+    check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+    return instance child-process; (host-child-result-capability; raw)
+
+function run-process process-capture throws process-error; program string, args (list of string)|none = none, options process-options|none = none, input bytes = b'', timeout-ms int = 30000, stdout-limit int = 1048576, stderr-limit int = 1048576
+    settings = capture-options; options
+    raw = host-child-capture; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment, input, timeout-ms, stdout-limit, stderr-limit
+    return capture-output; raw
+
+async function run-process-async process-capture throws process-error; program string, args (list of string)|none = none, options process-options|none = none, input bytes = b'', timeout-ms int = 30000, stdout-limit int = 1048576, stderr-limit int = 1048576
+    settings = capture-options; options
+    raw = await host-child-capture-async; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment, input, timeout-ms, stdout-limit, stderr-limit
+    return capture-output; raw

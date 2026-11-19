@@ -175,6 +175,11 @@ Terrane package
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
     │   ├── exit-status / make-exit-status / exit explicit validated termination
     │   └── process-host-name-result / process-host-name lossless platform host name or translated host failure
+    ├── /core/process/child                    direct subprocesses; requires `process`
+    │   ├── spawn-process                     owning async child with piped standard I/O
+    │   ├── child-process                      poll / wait / terminate; stdin, stdout, and stderr views
+    │   ├── process-options                    cwd, environment inheritance, overrides and removals
+    │   └── run-process / run-process-async   bounded byte capture, deadline, and exit observation
     ├── /core/documents                        structured document values and mappings
     │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
     │   ├── document-decimal                   coefficient / exponent / canonical exact text value

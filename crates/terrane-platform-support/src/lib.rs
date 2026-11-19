@@ -10,12 +10,18 @@
     clippy::semicolon_if_nothing_returned,
     clippy::struct_excessive_bools
 )]
+mod child_process;
 mod networking_buffers;
 mod networking_native;
 #[cfg(test)]
 mod networking_review_tests;
 mod networking_state;
 mod networking_transport;
+pub use child_process::{
+    ChildCapture, ChildLaunch, child_capture, child_capture_async, child_close_input, child_poll,
+    child_read_stderr, child_read_stdout, child_release, child_spawn, child_terminate, child_wait,
+    child_write,
+};
 pub use networking_native::{
     NativeTcpListener, NativeTcpStream, into_native_tcp_listener, into_native_tcp_stream,
 };
@@ -61,11 +67,13 @@ pub struct ResultValue {
     pub text: String,
     pub detail: String,
     pub data: Vec<u8>,
+    pub secondary_data: Vec<u8>,
     pub number: i128,
     pub secondary_number: i128,
     pub exact_number: String,
     pub secondary_exact_number: String,
     pub flag: bool,
+    pub secondary_flag: bool,
     pub entries: Vec<String>,
     pub capability: Option<Capability>,
 }
@@ -150,6 +158,7 @@ enum CapabilityInner {
     Udp(UdpState),
     Tls(Mutex<Option<rustls::StreamOwned<rustls::ClientConnection, TcpStream>>>),
     Buffer(tokio::sync::Mutex<ReadBuffer>),
+    ChildProcess(Box<child_process::ChildState>),
     #[cfg(unix)]
     SignalSubscription(Arc<signals::Subscription>),
 }

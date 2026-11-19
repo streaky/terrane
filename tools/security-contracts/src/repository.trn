@@ -5,6 +5,8 @@ from /core/encodings import utf8
 from /core/filesystem import filesystem-capability, filesystem-symlink-metadata, filesystem-read-bounded
 from /core/filesystem/paths import path as filesystem-path
 from /core/errors import decode-error
+from /core/process import native-text, environment-pair
+from /core/process/child import process-error, process-options, run-process
 
 class file-change
     path string
@@ -30,55 +32,39 @@ private class command-result
         this.stdout = stdout
         this.stderr = stderr
 
-// Terrane has no argv-safe spawn/capture API yet. Keep that boundary native
-// until /core/process supports it; parse Git output in Terrane.
-private function capture-git int32; root string, args list of string, output mutable ref bytes, errors mutable ref string, failure mutable ref string
-    return rust
-        use std::process::Command;
-        let mut command = Command::new("git");
-        command.arg("-C").arg(&root).args(args.as_slice()).env("LC_ALL", "C");
-        for key in [
-            "GIT_DIR",
-            "GIT_WORK_TREE",
-            "GIT_INDEX_FILE",
-            "GIT_OBJECT_DIRECTORY",
-            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-            "GIT_COMMON_DIR",
-            "GIT_NAMESPACE",
-            "GIT_PREFIX",
-            "GIT_LITERAL_PATHSPECS",
-            "GIT_GLOB_PATHSPECS",
-            "GIT_NOGLOB_PATHSPECS",
-            "GIT_ICASE_PATHSPECS",
-        ] {
-            command.env_remove(key);
-        }
-        match command.output() {
-            Ok(result) => {
-                *output = result.stdout;
-                match String::from_utf8(result.stderr) {
-                    Ok(value) => *errors = value,
-                    Err(_) => *failure = "git returned non-UTF-8 stderr".to_string(),
-                }
-                result.status.code().unwrap_or(128)
-            }
-            Err(error) => {
-                *failure = error.to_string();
-                127
-            }
-        }
+private function git-options process-options;
+    options = instance process-options;
+    options.environment.append; (environment-pair; (native-text; 'LC_ALL'), (native-text; 'C'))
+    for key in (list; 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY',
+        'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_COMMON_DIR', 'GIT_NAMESPACE', 'GIT_PREFIX',
+        'GIT_LITERAL_PATHSPECS', 'GIT_GLOB_PATHSPECS', 'GIT_NOGLOB_PATHSPECS', 'GIT_ICASE_PATHSPECS')
+        options.remove-environment.append; (native-text; key)
+    return options
 
 private function run-command command-result throws security-error; root string, args list of string, limit int = 67108864
-    output bytes = b''
-    errors string = ''
-    failure string = ''
-    status = capture-git; root, args, output, errors, failure
-    if failure != ''
-        throw instance security-error; failure
-    // This rejects oversized output after capture; Command::output is buffered.
-    if output.length > limit
-        throw instance security-error; 'captured git stdout exceeds byte limit'
-    return instance command-result; status, output, errors
+    argv list of string = list; '-C', root
+    for argument in args
+        argv.append; argument
+    try
+        captured = run-process; 'git', argv, (git-options;), stdout-limit = limit
+        if captured.status.timed-out
+            throw instance security-error; 'git did not finish before the process deadline'
+        if captured.stdout-truncated
+            throw instance security-error; 'captured git stdout exceeds byte limit'
+        if captured.stderr-truncated
+            throw instance security-error; 'captured git stderr exceeds byte limit'
+        code = captured.status.exit-code
+        status int = 128
+        if code != none
+            status = code
+        errors string = ''
+        try
+            errors = captured.stderr.decode; utf8
+        catch decode-error
+            throw instance security-error; 'git returned non-UTF-8 stderr'
+        return instance command-result; status, captured.stdout, errors
+    catch process-error as failure
+        throw instance security-error; failure.message
 
 private function git-text string throws security-error; data bytes
     try

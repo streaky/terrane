@@ -1,0 +1,49 @@
+format: 1
+id: process.direct-execution
+kind: security-contract
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Direct subprocess execution preserves argument boundaries
+  title-style: text
+  summary: Child process APIs pass separate arguments to a host executable without constructing a shell command line.
+  tags: [security, process]
+  sections: []
+  see-also: []
+security:
+  audiences: [application]
+  invariant: |-
+    Child launch uses the executable and argument vector separately. The implementation does not concatenate arguments into a command string, apply shell expansion, or invoke a shell intermediary. On Windows, explicit executable extensions other than exe and ambiguous suffix spellings are rejected to avoid implicit batch dispatch.
+  threats:
+    - Untrusted argument text must not be reinterpreted as shell syntax by the launch API.
+  assumptions:
+    - The caller selects a trusted executable and controls the executable lookup environment when necessary. Argument preservation on Windows requires the executable to follow the host's standard argument parsing convention.
+  limitations:
+    - The API is not a sandbox and does not vet the requested program, environment, or program-specific option injection. A caller deliberately selecting a command interpreter gets that interpreter's behavior.
+    - Source-level execution evidence exercises literal arguments on the test host, not every Windows argument parser.
+  guidance: |-
+    Pass each argument as its own list element without shell quotes or escapes. Validate application-level inputs and keep the executable selection separate from arbitrary user data.
+  review:
+    considerations:
+      - Preserve direct execution and review executable resolution, Windows batch dispatch, and environment handling. Run the child-process-facilities conformance case.
+  files:
+    - path: crates/terrane-platform-support/src/child_process.rs
+      role: enforcement
+      detail: Constructs the host command with distinct arguments and validates the requested Windows executable form.
+    - path: crates/terrane-compiler/src/core/process_child.trn
+      role: dependency
+      detail: Passes source list elements separately to the host launch boundary.
+    - path: tests/conformance/run/child-process-facilities/case.trn
+      role: evidence
+      detail: Checks reception of shell metacharacters, spaces, and an empty argument as literal argv entries.
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

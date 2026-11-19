@@ -1166,6 +1166,9 @@ host_name: /core/process process-host-name returns process-host-name-result with
 cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
 cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
 exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates
+child_process: /core/process/child requires process; executable and separate argv values, no shell; optional cwd and environment policy
+child_io: spawn returns an owning process with independent async stdin/stdout/stderr; poll, wait with timeout, terminate, and observe terminal status; dropping the owner requests termination
+child_capture: synchronous run-process and async run-process-async drain both byte streams concurrently with independent bounds and a deadline; nonzero exits are observations, not launch errors
 rust_boundary: filesystem/descriptor syscalls, lossless OS argument/environment access, process exit
 terrane_layers: paths, filesystem objects/policy/results, native-string model, CLI parser, exit validation
 ```

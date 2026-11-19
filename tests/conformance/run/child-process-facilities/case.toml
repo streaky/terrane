@@ -1,0 +1,5 @@
+phase = "run"
+status = "accept"
+canonical-rust = true
+isolated-working-directory = true
+worker-threads = "2"

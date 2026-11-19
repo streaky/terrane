@@ -72,8 +72,8 @@ When a report names a contract, read its invariant and limitations, assess the a
 
 New authority, untrusted-input handling, interpreter/query construction, native boundaries, and new safety claims also need security consideration even when no existing region is touched. The inventory marks known territory; it is not a complete call graph or a security audit. Dependency changes can affect guarantees transitively beyond the explicitly recorded file set.
 
-The tooling is Terrane in [`tools/security-contracts/`](../../tools/security-contracts/). A narrow inline Rust boundary invokes Git with explicit argv because production `/core/process` does not yet expose subprocess capture. Marker recognition, record validation, diff parsing, and review policy remain Terrane. No Python runtime or manual checkout is needed.
+The tooling is Terrane in [`tools/security-contracts/`](../../tools/security-contracts/). It invokes Git with an explicit argument vector through `/core/process/child`. Marker recognition, record validation, diff parsing, and review policy remain Terrane. No Python runtime or manual checkout is needed.
 
-The Git bridge strips repository- and pathspec-selection environment overrides. It buffers subprocess output before rejecting stdout above 64 MiB (16 MiB for a base blob); those checks are not memory bounds. Working-tree file reads use the filesystem's bounded read instead.
+The Git caller strips repository- and pathspec-selection environment overrides. Capture retains at most 64 MiB of stdout (16 MiB for a base blob) and 1 MiB of stderr, rejects truncated output, and applies a deadline. Working-tree file reads use the filesystem's bounded read.
 
 On Linux the Rust CLI integration suite runs the Terrane security-tool unit suite with the compiler built by Cargo. A focused pass is not a substitute for the repository's measured workspace evidence required before handing compiler/runtime changes over for merge review.

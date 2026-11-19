@@ -31,6 +31,11 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/process.trn"),
     },
     BundledSource {
+        namespace: "/core/process/child",
+        path: "core/process_child.trn",
+        text: include_str!("core/process_child.trn"),
+    },
+    BundledSource {
         namespace: "/core/documents",
         path: "core/documents.trn",
         text: include_str!("core/documents.trn"),

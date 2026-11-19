@@ -1,0 +1,106 @@
+namespace conformance/child-process-facilities
+
+from /core/collections import list, range
+from /core/process import arguments, environment, environment-pair, native-text, make-exit-status, exit
+from /core/process/child import process-options, process-error, spawn-process, run-process, run-process-async
+from /core/process/child import child-output-stream
+from /core/streams import stdin, stdout, stderr
+from /core/time import clock, duration
+
+async function child-mode; mode string
+    if mode == 'stall'
+        await clock::sleep; (duration::seconds; 2)
+        return
+    output = stdout;
+    errors = stderr;
+    if mode == 'stream'
+        input = stdin;
+        received = input.read-all; 100
+        echoed = output.write-all; received.data
+        warning = errors.write-all; b'warning'
+        if received.failed or echoed.failed or warning.failed
+            exit; (make-exit-status; 99)
+        exit; (make-exit-status; 7)
+    else
+        argv = arguments;
+        inherited = environment;
+        injected bool = false
+        for entry in inherited
+            if entry.name.text == 'TERRANE_CHILD_TEST_VALUE' and entry.value.text == 'a b'
+                injected = true
+        for chunk in (range; 0, 2048)
+            warning = errors.write-all; b'abcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefghabcdefgh'
+            if warning.failed
+                exit; (make-exit-status; 99)
+        print; (argv.length == 3 and argv[1].text == 'space ; $HOME *' and argv[2].text == '' and injected)
+
+function exit-is bool; code int|none, expected int
+    if code != none
+        return code == expected
+    return false
+
+async function exercise-capture throws process-error; executable string
+    options = instance process-options;
+    options.directory = '.'
+    options.environment.append; (environment-pair; (native-text; 'TOKIO_WORKER_THREADS'), (native-text; '2'))
+    options.inherit-environment = false
+    options.environment.append; (environment-pair; (native-text; 'TERRANE_CHILD_TEST_VALUE'), (native-text; 'a b'))
+    args list of string = list; 'capture', 'space ; $HOME *', ''
+    captured = await run-process-async; executable, args, options, stderr-limit = 3
+    print; ((exit-is; captured.status.exit-code, 0) and captured.stdout == b'true\n' and not captured.stdout-truncated)
+    print; (captured.stderr == b'abc' and captured.stderr-truncated and not captured.status.timed-out)
+    missing-failed bool = false
+    try
+        run-process; './no-such-terrane-child-binary'
+    catch process-error
+        missing-failed = true
+    print; missing-failed
+    copied = run-process; executable, (list; 'stream'), input = b'input'
+    print; ((exit-is; copied.status.exit-code, 7) and copied.stdout == b'input' and copied.stderr == b'warning')
+    expired = await run-process-async; executable, (list; 'stall'), timeout-ms = 5
+    print; (expired.status.timed-out and expired.status.exited)
+
+async function received-expected bool throws process-error; reader child-output-stream, expected bytes
+    first = await reader.read; 100
+    return first.data == expected
+
+async function exercise-streaming throws process-error; executable string
+    child = await spawn-process; executable, (list; 'stream')
+    initial = child.poll;
+    elapsed = await child.wait; 0
+    print; (not initial.exited and elapsed.timed-out and not elapsed.exited)
+    input-view = child.input;
+    output-view = child.output;
+    error-view = child.errors;
+    written = await input-view.write; b'abc'
+    await input-view.close;
+    scope = task-scope;
+    stdout-task = scope.spawn; (received-expected; output-view, b'abc')
+    stderr-task = scope.spawn; (received-expected; error-view, b'warning')
+    stdout-result = await scope.join; stdout-task
+    stderr-result = await scope.join; stderr-task
+    done = await child.wait;
+    stdout-matched = stdout-result.value
+    stderr-matched = stderr-result.value
+    matched bool = false
+    if stdout-matched != none
+        if stderr-matched != none
+            matched = stdout-matched and stderr-matched
+    stdout-end = await child.read-stdout; 100
+    stderr-end = await child.read-stderr; 100
+    print; (written == 3 and matched and stdout-end.end and stderr-end.end)
+    print; (done.exited and not done.timed-out and (exit-is; done.exit-code, 7))
+    another = await spawn-process; executable, (list; 'stream')
+    another.terminate;
+    terminated = await another.wait;
+    print; (terminated.exited and not terminated.timed-out and not (exit-is; terminated.exit-code, 7))
+
+async function main throws process-error;
+    argv = arguments;
+    if argv.length > 0
+        await child-mode; argv[0].text
+    else
+        executable string = rust
+            std::env::current_exe().expect("fixture executable").into_os_string().into_string().expect("Unicode fixture path")
+        await exercise-capture; executable
+        await exercise-streaming; executable
