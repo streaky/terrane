@@ -89,14 +89,10 @@ function interpolation-end int throws security-error; input ref bytes, count int
         if byte == 34 or byte == 39
             index = quoted-literal-end; input, count, index, byte == 34
         else if byte == 47 and (byte-at; input, count, index + 1, 42)
-            end = block-end; input, count, index, false
-            require; not (comment-has-marker; input, index + 2, end - 2), 'interpolation', 'security marker cannot appear in an interpolation comment'
-            index = end
+            index = block-end; input, count, index, false
         else if (byte == 47 and (byte-at; input, count, index + 1, 47)) or byte == 35
-            start = index
             while index < count and input[index] != 10
                 index = index + 1
-            require; not (comment-has-marker; input, start, index), 'interpolation', 'security marker cannot appear in an interpolation comment'
         else if byte == 123
             depth = depth + 1
             index = index + 1
@@ -127,24 +123,10 @@ function quoted-literal-end int throws security-error; input ref bytes, count in
             index = index + 1
     throw instance security-error; 'unterminated quoted literal'
 
-function security-prefix-at bool; input ref bytes, index int
-    return (input[index] == 83 or input[index] == 115) and (input[index + 1] == 69 or input[index + 1] == 101) and (input[index + 2] == 67 or input[index + 2] == 99) and (input[index + 3] == 85 or input[index + 3] == 117) and (input[index + 4] == 82 or input[index + 4] == 114) and (input[index + 5] == 73 or input[index + 5] == 105) and (input[index + 6] == 84 or input[index + 6] == 116) and (input[index + 7] == 89 or input[index + 7] == 121) and input[index + 8] == 45
-
-// Check the start of comment content, not prose mentioning the syntax.
-function comment-has-marker bool; input ref bytes, start int, end int
-    index = start
-    while index < end
-        while index < end and (input[index] == 32 or input[index] == 9 or input[index] == 13 or input[index] == 47 or input[index] == 42 or input[index] == 33 or input[index] == 35)
-            index = index + 1
-        if index + 9 <= end and (security-prefix-at; input, index)
-            return true
-        while index < end and input[index] != 10
-            index = index + 1
-        index = index + 1
-    return false
-
 function scan-regions list of source-region throws security-error; path string, source string
-    if not ((source.lower;).contains; 'security-')
+    begin-prefix = '//# SECURITY-BEGIN ['
+    end-prefix = '//# SECURITY-END ['
+    if not (source.contains; begin-prefix) and not (source.contains; end-prefix)
         return list
     input = source.encode; utf8
     count = input.length
@@ -187,20 +169,16 @@ function scan-regions list of source-region throws security-error; path string, 
                 after = after + 1
         else if byte == 47 and (byte-at; input, count, index + 1, 42)
             after = block-end; input, count, index, native
-            require; not (comment-has-marker; input, index + 2, after - 2), path, 'malformed security marker in block comment'
         else if byte == 47 and (byte-at; input, count, index + 1, 47)
             after = index + 2
             while after < count and input[after] != 10
                 after = after + 1
-            if comment-has-marker; input, index + 2, after
-                comment = decode-source; input[(range; index, after)]
+            comment = decode-source; input[(range; index, after)]
+            begin = comment.contains.start; begin-prefix
+            end = comment.contains.start; end-prefix
+            if begin or end
                 prefix = decode-source; input[(range; line-start, index)]
                 require; (prefix.trim;) == '', path, 'security markers must occupy their own line'
-                begin-prefix = '//# SECURITY-BEGIN ['
-                end-prefix = '//# SECURITY-END ['
-                begin = comment.contains.start; begin-prefix
-                end = comment.contains.start; end-prefix
-                require; begin or end, path, 'malformed security marker: expected //# SECURITY-BEGIN [id] or //# SECURITY-END [id]'
                 cleaned = comment.trim.end;
                 require; (cleaned.contains.end; ']'), path, 'malformed security marker'
                 identity = cleaned.trim.start; begin-prefix
@@ -225,7 +203,6 @@ function scan-regions list of source-region throws security-error; path string, 
         else if terrane and not native and byte == 35
             while after < count and input[after] != 10
                 after = after + 1
-            require; not (comment-has-marker; input, index + 1, after), path, 'malformed security marker in hash comment'
         else if native and (byte == 114 or byte == 98 or byte == 99) and (index == 0 or not (word-byte; input[index - 1]))
             quote = raw-quote; input, count, index
             if quote >= 0

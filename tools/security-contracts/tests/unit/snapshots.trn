@@ -64,9 +64,17 @@ function test-snapshot-rejects-missing-evidence-file throws throwable;
         message = error.render;
     assert; (message.contains; 'missing referenced file tests/missing.trn')
 
-function test-base-snapshot-checks-mixed-case-markers throws throwable;
+function test-base-snapshot-ignores-marker-lookalikes throws throwable;
     root = security-fixture;
-    fixture-write; root, 'src/other.rs', '//# security-begin [sample.contract]'
+    fixture-write; root, 'src/other.rs', "//# security-begin [sample.contract]\n// SECURITY-END[sample.contract]"
+    fixture-commit; root
+    base = resolve-revision; root, 'HEAD'
+    snapshot = load-snapshot; root, base
+    assert-equal-int; snapshot.regions.length, 1
+
+function test-base-snapshot-rejects-an-end-directive-without-a-begin throws throwable;
+    root = security-fixture;
+    fixture-write; root, 'src/other.rs', '//# SECURITY-END [sample.contract]'
     fixture-commit; root
     base = resolve-revision; root, 'HEAD'
     message string = ''
@@ -74,4 +82,4 @@ function test-base-snapshot-checks-mixed-case-markers throws throwable;
         load-snapshot; root, base
     catch security-error as error
         message = error.render;
-    assert; (message.contains; 'malformed security marker')
+    assert; (message.contains; 'security end marker without begin')

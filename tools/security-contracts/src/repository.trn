@@ -134,7 +134,7 @@ public function revision-files list of string throws security-error; root string
     return git-nul-list; root, args
 
 function revision-marker-files list of string throws security-error; root string, revision string
-    args list of string = list; 'grep', '--no-textconv', '--full-name', '-l', '-z', '-i', '-F', '-e', 'SECURITY-', revision, '--', '*.rs', '*.trn'
+    args list of string = list; 'grep', '--no-textconv', '--full-name', '-l', '-z', '-F', '-e', '//# SECURITY-BEGIN [', '-e', '//# SECURITY-END [', revision, '--', '*.rs', '*.trn'
     result = run-command; root, args
     if result.status == 1
         return list

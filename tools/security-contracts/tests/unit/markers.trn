@@ -64,18 +64,9 @@ function test-marker-errors-do-not-silently-drop-coverage throws throwable;
     cases.append; "//# SECURITY-BEGIN [x]"
     cases.append; "//# SECURITY-BEGIN [a]\n//# SECURITY-BEGIN [b]\n//# SECURITY-END [a]\n//# SECURITY-END [b]"
     cases.append; "//# SECURITY-BEGIN [bad id]\n//# SECURITY-END [bad id]"
-    cases.append; "//#SECURITY-BEGIN [x]\n//#SECURITY-END [x]"
-    cases.append; "//# SECURITY-BEGIN[x]\n//# SECURITY-END[x]"
     cases.append; "//# SECURITY-BEGIN [x] trailing prose\n//# SECURITY-END [x]"
     cases.append; "fn f() {{}} //# SECURITY-BEGIN [x]\n//# SECURITY-END [x]"
     cases.append; "/* unterminated //# SECURITY-BEGIN [x]"
-    cases.append; "/// SECURITY-BEGIN [x]\n/// SECURITY-END [x]"
-    cases.append; "//! SECURITY-BEGIN [x]\n//! SECURITY-END [x]"
-    cases.append; "/* SECURITY-BEGIN [x] */"
-    cases.append; "/**\n * security-end [x]\n */"
-    cases.append; "//# security-begin [x]\n//# security-end [x]"
-    cases.append; "// SECURITY-BEGIN[x]\n// SECURITY-END[x]"
-    cases.append; "// SECURITY-BEGIN [x]\n// SECURITY-END [x]"
     for source in cases
         rejected bool = false
         try
@@ -83,6 +74,29 @@ function test-marker-errors-do-not-silently-drop-coverage throws throwable;
         catch security-error
             rejected = true
         assert; rejected
+
+function test-marker-lookalikes-are-ordinary-comments throws throwable;
+    source = >>
+        // Security-sensitive: validate untrusted input.
+        /// Security-relevant helper.
+        /* Security-related notes. */
+        // SECURITY-BEGIN[legacy]
+        /// SECURITY-BEGIN [doc]
+        //! SECURITY-END [doc]
+        //# security-begin [lowercase]
+        //#SECURITY-BEGIN [spacing]
+        //# SECURITY-END[spacing]
+        /* //# SECURITY-BEGIN [block] */
+        //# SECURITY-BEGIN [real]
+        // Security-sensitive implementation.
+        //# SECURITY-END [real]
+    regions = scan-regions; 'sample.rs', source
+    assert-equal-int; regions.length, 1
+    assert-equal-int; regions[0].start, 11
+    assert-equal-int; regions[0].end, 13
+    terrane-source = "# security-review: done\n# SECURITY-BEGIN [hash]\n//# SECURITY-BEGIN [real]\n//# SECURITY-END [real]"
+    terrane-regions = scan-regions; 'sample.trn', terrane-source
+    assert-equal-int; terrane-regions.length, 1
 
 function test-indentation-crlf-and-adjacent-regions throws throwable;
     source = "    //# SECURITY-BEGIN [first] \r\n    //# SECURITY-END [first]\r\n//# SECURITY-BEGIN [second]\n//# SECURITY-END [second]"
@@ -100,14 +114,6 @@ function test-terrane-block-comments-end-at-first-terminator throws throwable;
     assert-equal-int; regions.length, 1
     assert-equal-int; regions[0].start, 2
     assert-equal-int; regions[0].end, 4
-
-function test-terrane-hash-comment-marker-is-rejected throws throwable;
-    rejected bool = false
-    try
-        scan-regions; 'sample.trn', '# SECURITY-BEGIN [x]'
-    catch security-error as failure
-        rejected = (failure.message.contains; 'hash comment')
-    assert; rejected
 
 function test-ordinary-rust-identifier-does-not-open-native-block throws throwable;
     source = >>

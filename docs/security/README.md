@@ -15,7 +15,7 @@ Use exactly the same paired standalone line comments in authored Rust and Terran
 //# SECURITY-END [filesystem.beneath-open]
 ```
 
-Only standalone `//# SECURITY-BEGIN [id]` and `//# SECURITY-END [id]` comments are accepted. Indentation and trailing whitespace are allowed, but the comment prefix, capitalization, and spaces shown above are required. Marker declarations in plain `//`, doc, hash, or block comments are errors, as is trailing prose. A case-insensitive `SECURITY-` prefix at the start of comment content is checked for a declaration; an ordinary prose mention elsewhere is not. Marker-like text in literals and text blocks is ignored. Rust block comments nest; Terrane block comments end at the first terminator. The checker does not replace the compiler.
+Only `//# SECURITY-BEGIN [` and `//# SECURITY-END [` open marker declarations. The prefix is case- and space-sensitive. Other comments and lookalikes, including the retired spelling, are ignored. An exact declaration must occupy its own line and include a valid ID and closing bracket; indentation and trailing whitespace are allowed. Marker-like text in literals and text blocks is ignored. Rust block comments nest; Terrane block comments end at the first terminator. The checker does not replace the compiler.
 
 Include relevant documentation comments, attributes, signatures, platform branches, and fail-closed alternatives inside the region. Pair markers in the same file with the same ID. Regions may nest but cannot cross; use several cohesive regions when a guarantee depends on noncontiguous code.
 
@@ -37,7 +37,7 @@ terrane test tools/security-contracts
 
 `check` validates record structure, duplicate IDs, referenced file existence, marker pairing, unknown contracts, and the correspondence between enforcement files and marked regions. It prints the contract inventory and inclusive marker locations. `impact` validates both snapshots and reports affected contracts using both old and new region coordinates. Removing a contract and all its markers still reports the old contract. Removing only one side of a declaration fails validation. Marker changes themselves count as changes to a region. Whole-file dependency and evidence changes conservatively flag their associated contracts; these files need not have source markers. JSON output has `format: 1`, `command`, resolved `base` (empty for check), and a `contracts` sequence with IDs, record paths, titles, audiences, regions, and review reasons. For a removed contract, locations refer to the base snapshot.
 
-Base source discovery uses an ASCII case-insensitive Git content search before fetching candidate blobs, so malformed lowercase markers are still checked. Current source files are scanned directly, including untracked files.
+Base source discovery uses a case-sensitive Git content search for the two exact marker prefixes before fetching candidate blobs. The scanner then checks whether a candidate is an actual line comment. Current source files are checked directly, including untracked files.
 
 Exit status is 0 for a successful report, 1 for invalid input or validation failure, and 2 when `--fail-on-impact` finds affected contracts. Errors go to stderr. These commands do not execute the evidence commands, grant security approval, enforce reviewer identity, or modify Git state. A CI/review workflow can use exit 2 to request the recorded review; it must not treat an empty report as proof that a change has no security consequences.
 
@@ -64,7 +64,7 @@ Generated page-local section IDs are `security-overview`, `security-invariant`, 
 
 The standalone checker validates the security schema, complete common metadata for active contracts, and code/evidence associations. The docs converter independently validates ordinary documentation blocks, prose safety, anchors, and reference resolution when converting a publication that includes the record. The local active registry requires current lifecycle status, a quoted `since` version, null migration fields, and empty specification/conformance provenance plus null compiler provenance; evidence lives in `security.files`. Unknown security fields, duplicate YAML keys, empty required content, invalid audiences/roles, and malformed paths are errors.
 
-Both snapshots used by `impact` must use a record format and marker spelling understood by the current checker. A baseline predating security records is valid; one containing the retired `// SECURITY-BEGIN[id]` spelling is not. Format migration does not introduce automatic manual imports or version selection.
+Both snapshots used by `impact` must use a record format understood by the current checker and have valid regions for every listed enforcement file. A baseline predating security records is valid; a baseline whose enforcement files use only the retired marker spelling fails the missing-region check. Format migration does not introduce automatic manual imports or version selection.
 
 ## Review discipline
 
