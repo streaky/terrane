@@ -1,5 +1,0 @@
-package = "terrane/annotation-consumer-protocol"
-artifact = "library"
-
-[namespaces]
-"terrane/annotation-consumer-protocol" = "src"

@@ -468,6 +468,8 @@ pub(crate) fn namespace_capabilities(namespace: &str) -> &'static [&'static str]
             &["process"]
         }
         "/core/filesystem" => &["filesystem"],
+        "/core/build/consumer" => &["process"],
+        "/core/build/consumer/cache" => &["filesystem", "process"],
         "/core/random" | "/core/random/uuid" => &["entropy"],
         "/core/networking" => &["networking"],
         "/core/logging" => &["logging"],
