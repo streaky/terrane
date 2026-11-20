@@ -1139,9 +1139,14 @@ Deliver:
   fields. Define cloning, drop, cause, and rethrow behavior; today's generated error carries
   diagnostic data, not the original object. Recover only descriptor-compatible payloads, with
   no unchecked or `unsafe` access, and avoid payload cost when clauses need only the envelope.
-- Remove `static origin`, `error-origin` and the explanatory comment from the protocol package.
-  Both reference consumers read the origin from the caught `consumer-error` itself, and their
+- Remove `static origin`, `error-origin` and the explanatory comment from the bundled
+  `/core/build/consumer` source (`crates/terrane-compiler/src/core/build_consumer.trn`). Both
+  reference consumers read the origin from the caught `consumer-error` itself, and their
   conformance cases still produce identical diagnostics.
+- Recheck the bundled helper surface for anything shaped by the static-origin workaround,
+  including `consumer-error` and `emit-error`'s declaration argument, and update its
+  `tool.build-time-tools` documentation. Visibility and naming of the other helpers are
+  settled when the helpers are bundled, not deferred to this milestone.
 
 Evidence:
 
