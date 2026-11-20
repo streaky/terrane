@@ -9,7 +9,7 @@ private function changed-entity document-value throws sync-error;
 
 function test-refresh-preserves-authored-blocks none throws throwable;
     before = "id: api.example.find\nkind: function\nsurface:\n  symbol: /example::previous\n\n# Keep this note and the prose below.\nprovenance:\n  specification: []\ndocumentation:\n  compiler: not-a-provenance-child\n  summary: |-\n    Review this result.\n"
-    authored-tail = "\n\n# Keep this note and the prose below.\nprovenance:\n  compiler:\n    profile: \"test\"\n  specification: []\ndocumentation:\n  compiler: not-a-provenance-child\n  summary: |-\n    Review this result.\n"
+    authored-tail = "\n\n# Keep this note and the prose below.\nprovenance:\n  compiler:\n    profile: test\n  specification: []\ndocumentation:\n  compiler: not-a-provenance-child\n  summary: |-\n    Review this result.\n"
     record = yaml-value; before, 'manual fixture'
     entity = yaml-value; "id: api.example.find\nkind: function\nsurface:\n  signatures:\n    - id: default\n      parameters: []\n      display: 'function find;'\n      form: 'true'\n      extension: 'value: with # punctuation'\n  symbol: /example::find\n", 'snapshot fixture'
     after = refresh-record; before, record, entity, 'test'
@@ -29,7 +29,7 @@ function test-refresh-adds-compiler-to-empty-provenance none throws throwable;
     record = yaml-value; before, 'manual fixture'
     entity = changed-entity;
     after = refresh-record; before, record, entity, 'test'
-    expected = before.replace; 'provenance: {}', "provenance:\n  compiler:\n    profile: \"test\""
+    expected = before.replace; 'provenance: {}', "provenance:\n  compiler:\n    profile: test"
     assert; after == expected
     return none
 
@@ -52,3 +52,13 @@ function test-retirement-inserts-or-replaces-only-lifecycle-fields none throws t
         after = retire-record; before, record, '0.2.0'
         assert; after == "lifecycle:\n  status: removed\n  removed-in: \"0.2.0\"\n  stability: experimental\ndocumentation:\n  status: complete\n  summary: Keep this.\n"
     return none
+
+function test-scaffold-keeps-profile-a-string throws throwable;
+    entity = changed-entity;
+    source = make-scaffold; entity, 'bundled-core'
+    assert; (source.contains.start; "format: 1\nid: api.example.find\nkind: function\n")
+    assert; (source.contains.end; "    profile: bundled-core\n")
+    record = yaml-value; (make-scaffold; entity, 'true'), 'scaffold fixture'
+    provenance = field; record, 'provenance'
+    compiler = field; provenance, 'compiler'
+    assert; (text; compiler, 'profile') == 'true'

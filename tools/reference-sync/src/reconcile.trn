@@ -187,11 +187,14 @@ private function replace-retirement string throws throwable; source string, rele
     return result
 
 
+private function compiler-provenance string; profile string
+    return "  compiler:\n    profile: " + (yaml-word; profile, false)
+
 function make-scaffold string; entity ref document-value, profile string
     id = text; entity, 'id'
     kind = text; entity, 'kind'
     surface = surface-yaml; entity
-    return "format: 1\nid: " + (quoted; id) + "\nkind: " + (quoted; kind) + "\n\n" + surface + "\n\nlifecycle:\n  status: planned\n  stability: experimental\n  since: null\n  deprecated-since: null\n  removed-in: null\n  replacement: null\n\ndocumentation:\n  status: missing\n  title: null\n  title-style: text\n  summary: null\n  tags: []\n  sections: []\n  see-also: []\n\nprovenance:\n  specification: []\n  conformance: []\n  compiler:\n    profile: " + (quoted; profile) + "\n"
+    return "format: 1\nid: " + (yaml-word; id, false) + "\nkind: " + (yaml-word; kind, false) + "\n\n" + surface + "\n\nlifecycle:\n  status: planned\n  stability: experimental\n  since: null\n  deprecated-since: null\n  removed-in: null\n  replacement: null\n\ndocumentation:\n  status: missing\n  title: null\n  title-style: text\n  summary: null\n  tags: []\n  sections: []\n  see-also: []\n\nprovenance:\n  specification: []\n  conformance: []\n" + (compiler-provenance; profile) + "\n"
 
 function refresh-record string throws throwable; source string, record ref document-value, entity ref document-value, profile string
     id = text; entity, 'id'
@@ -207,7 +210,7 @@ function refresh-record string throws throwable; source string, record ref docum
     provenance = field; record, 'provenance'
     compiler = field; provenance, 'compiler'
     if (text; compiler, 'profile') != profile
-        compiler-block = "  compiler:\n    profile: " + (quoted; profile)
+        compiler-block = compiler-provenance; profile
         if provenance.kind == 'map' and (provenance.length;) == 0
             updated = replace-block; updated, 'provenance', ("provenance:\n" + compiler-block)
         else
