@@ -113,6 +113,42 @@ fn bundled_consumer_helpers_require_host_capabilities() {
 }
 
 #[test]
+fn bundled_source_cache_compiles_without_manifest_dependencies() {
+    let fixture = Fixture::new();
+    fixture.write(
+        "app/package.toml",
+        r#"package = "app"
+prelude = false
+[profile]
+capabilities = ["filesystem", "process"]
+[namespaces]
+app = "src"
+"#,
+    );
+    fixture.write(
+        "app/src/main.trn",
+        r#"namespace app
+from /core/build/consumer import emit-source, read-request
+from /core/build/consumer/cache import source-cache
+from /core/collections import list
+function main;
+    request = read-request;
+    inputs list of string = list; 'template contents'
+    cache = instance source-cache; request, inputs
+    source = cache.load;
+    if source != none
+        emit-source; 'output', source
+    else
+        fresh = "namespace generated\n"
+        cache.store; fresh
+        emit-source; 'output', fresh
+main
+"#,
+    );
+    compile_package(&fixture.caller()).unwrap();
+}
+
+#[test]
 fn transitive_tools_refresh_contracts_and_reject_action_cycles() {
     let fixture = Fixture::new();
     fixture.write(

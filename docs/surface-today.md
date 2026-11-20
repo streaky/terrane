@@ -180,6 +180,8 @@ Terrane package
     │   ├── child-process                      poll / wait / terminate; stdin, stdout, and stderr views
     │   ├── process-options                    cwd, environment inheritance, overrides and removals
     │   └── run-process / run-process-async   bounded byte capture, deadline, and exit observation
+    ├── /core/build/consumer                   declaration-consumer protocol helpers; requires `process`
+    ├── /core/build/consumer/cache             optional generated-source cache; requires `filesystem`, `process`
     ├── /core/documents                        structured document values and mappings
     │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
     │   ├── document-decimal                   coefficient / exponent / canonical exact text value

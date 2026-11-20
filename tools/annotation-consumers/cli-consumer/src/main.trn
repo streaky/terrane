@@ -1,10 +1,34 @@
 namespace annotation-cli-consumer
 
 from /core/build/consumer import
-    get, at, text, truth, scalar, annotation, quote, option, read-request,
+    get, at, text, truth, scalar, annotation-payload, quote-terrane-string as quote, read-request,
     emit-source, emit-error, error-origin, consumer-error
 from /core/documents import document-value, make-document-none
 from /core/collections import range
+from /core/process import arguments
+
+private function option string|none throws consumer-error; name string
+    args = arguments;
+    result string|none = none
+    index int = 0
+    while index < args.length
+        argument = args[index].text
+        if argument == name
+            if index + 1 >= args.length
+                throw (instance consumer-error; (make-document-none;), ('missing value for '.concat; name))
+            result = args[index + 1].text
+            index = index + 1
+        else
+            parts = argument.split; '='
+            if parts.length > 1 and parts[0] == name
+                value = parts[1]
+                part-index int = 2
+                while part-index < parts.length
+                    value = value.concat; '=', parts[part-index]
+                    part-index = part-index + 1
+                result = value
+        index = index + 1
+    return result
 
 function raise; declaration document-value, message string
     throw (instance consumer-error; declaration, message)
@@ -56,7 +80,7 @@ function validate-flag string throws consumer-error; record document-value, para
     return flag
 
 function selected-flag string throws consumer-error; record document-value, parameter-name string
-    metadata = annotation; record, 'command-option', '/annotation-cli'
+    metadata = annotation-payload; record, 'command-option', '/annotation-cli'
     raw = scalar; (get; metadata, 'long-name')
     if raw.kind == 'none'
         return validate-flag; record, parameter-name, ('--'.concat; (parameter-name.replace; '_', '-'))
@@ -65,7 +89,7 @@ function selected-flag string throws consumer-error; record document-value, para
     return validate-flag; record, parameter-name, (text; raw)
 
 function parameter-help string throws consumer-error; record document-value, name string, declaration document-value
-    metadata = annotation; record, 'command-option', '/annotation-cli'
+    metadata = annotation-payload; record, 'command-option', '/annotation-cli'
     raw = scalar; (get; metadata, 'help')
     if raw.kind != 'none'
         if raw.kind != 'string'
@@ -93,7 +117,7 @@ function generate string throws consumer-error; request document-value
     while declaration-index < declaration-count
         candidate = at; declarations, declaration-index
         if (text; (get; candidate, 'kind')) == 'callable'
-            candidate-command = annotation; candidate, 'command', '/annotation-cli'
+            candidate-command = annotation-payload; candidate, 'command', '/annotation-cli'
             if candidate-command.kind != 'none'
                 if callable-count == 0
                     function-declaration = candidate

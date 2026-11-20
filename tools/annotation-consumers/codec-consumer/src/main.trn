@@ -1,12 +1,47 @@
 namespace annotation-codec-consumer
 
 from /core/build/consumer import
-    get, at, text, truth, scalar, annotation, quote, json-quote, selected, option,
-    flag, read-request, emit-source, emit-error, error-origin, consumer-error
+    get, at, text, truth, scalar, annotation-payload, quote-terrane-string as quote, selected,
+    read-request, emit-source, emit-error, error-origin, consumer-error
 from /core/collections import list, range
-from /core/documents import document-value, document-map-entries, make-document-none, make-document-bool, make-document-integer
+from /core/documents import document-value, document-map-entries, make-document-none, make-document-bool, make-document-integer, make-document-string
 from /core/errors import coercion-error, integer-conversion-overflow
 from /core/documents/json import parse-json, default-json-options, canonical-json
+from /core/process import arguments
+
+private function option string|none throws consumer-error; name string
+    args = arguments;
+    result string|none = none
+    index int = 0
+    while index < args.length
+        argument = args[index].text
+        if argument == name
+            if index + 1 >= args.length
+                throw (instance consumer-error; (make-document-none;), ('missing value for '.concat; name))
+            result = args[index + 1].text
+            index = index + 1
+        else
+            parts = argument.split; '='
+            if parts.length > 1 and parts[0] == name
+                value = parts[1]
+                part-index int = 2
+                while part-index < parts.length
+                    value = value.concat; '=', parts[part-index]
+                    part-index = part-index + 1
+                result = value
+        index = index + 1
+    return result
+
+private function flag bool; name string
+    args = arguments;
+    for argument in args
+        if argument.text == name
+            return true
+    return false
+
+private function json-quote string; value string
+    encoded = make-document-string; value
+    return encoded.encoded
 
 class codec-source
     identity string
@@ -20,7 +55,7 @@ function raise; declaration document-value, message string
     throw (instance consumer-error; declaration, message)
 
 function annotation-of document-value throws consumer-error; declaration document-value, suffix string
-    return annotation; declaration, suffix, '/annotation-codec'
+    return annotation-payload; declaration, suffix, '/annotation-codec'
 
 function field-record document-value throws consumer-error; declarations document-value, field document-value
     origin = get; field, 'origin'
