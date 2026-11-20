@@ -335,6 +335,7 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
         executable_path
     );
 }
+
 #[test]
 fn reference_snapshot_all_includes_imported_authored_namespaces() {
     let package = TempPackage::new();

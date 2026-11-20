@@ -77,8 +77,8 @@ function renamed-entities map of string, string throws throwable; root string
 
 function record-profile string; entity ref document-value, profile string
     surface = field; entity, 'surface'
-    symbol = text; surface, 'symbol'
-    if (symbol.contains.start; '/core/')
+    origin = field; surface, 'origin'
+    if (text; origin, 'category') == 'compiler' and (text; origin, 'package') == 'core'
         return 'bundled-core'
     return profile
 

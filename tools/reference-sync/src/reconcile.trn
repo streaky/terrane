@@ -8,30 +8,75 @@ from /core/errors import throwable
 private function quoted string; value string
     return (make-document-string; value).encoded
 
-private function yaml-key string; key string
-    spelling = key.encode; utf8
-    if spelling.length == 0 or spelling[0] < 97 or spelling[0] > 122 or key == 'true' or key == 'false' or key == 'null'
-        return quoted; key
-    for character in spelling
-        if not ((character >= 97 and character <= 122) or (character >= 48 and character <= 57) or character == 45 or character == 95)
-            return quoted; key
-    return key
+private function ascii-letter bool; byte-value uint8
+    return (byte-value >= 65 and byte-value <= 90) or (byte-value >= 97 and byte-value <= 122)
+
+private function yaml-word string; value string, mapping-key bool
+    spelling = value.encode; utf8
+    if spelling.length == 0 or not ((ascii-letter; spelling[0]) or spelling[0] == 47)
+        return quoted; value
+    lowered = value.lower;
+    for reserved in (list; 'true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n')
+        if lowered == reserved
+            return quoted; value
+    for index in (range; 0, spelling.length)
+        byte-value = spelling[index]
+        if (ascii-letter; byte-value) or (byte-value >= 48 and byte-value <= 57) or byte-value == 45 or byte-value == 95 or byte-value == 46 or byte-value == 47
+            continue
+        if not mapping-key
+            if byte-value == 59 or (byte-value == 32 and index + 1 < spelling.length)
+                continue
+            if byte-value == 58 and index + 1 < spelling.length and spelling[index + 1] != 32
+                continue
+        return quoted; value
+    return value
+
+# Presentation order only. Unknown fields still round-trip in document key order.
+private function surface-keys list of string; value ref document-value
+    order = list; 'symbol', 'aliases', 'namespace', 'owner', 'visibility', 'availability', 'origin',
+        'targets', 'feature', 'category', 'package', 'upstream',
+        'extends', 'implements', 'uses', 'construct-signature', 'ownership', 'signatures',
+        'id', 'form', 'display', 'receiver', 'parameters', 'returns', 'throws', 'contracts',
+        'name', 'type', 'entity', 'arguments', 'nullable', 'mode', 'default', 'passing',
+        'asynchronous', 'receiver-mutation', 'value-type', 'readable', 'writable', 'static'
+    keys list of string = list;
+    for key in order
+        if not (value.field; key).failed
+            keys.append; key
+    known = keys.length
+    for index in (range; 0, (value.length;))
+        key = value.key; index
+        listed bool = false
+        for prior in (range; 0, known)
+            if keys[prior] == key
+                listed = true
+                break
+        if not listed
+            keys.append; key
+    return keys
 
 private function yaml-entry string; label string, value ref document-value, indent string
     kind = value.kind
     count = value.length;
+    if kind == 'string'
+        return label + ' ' + (yaml-word; value.scalar, false)
     if count == 0 or (kind != 'map' and kind != 'list')
         return label + ' ' + value.encoded
     result = label
     child-indent = indent + '  '
-    for index in (range; 0, count)
-        if kind == 'map'
-            key = value.key; index
+    if kind == 'map'
+        index = 0
+        for key in (surface-keys; value)
             child = field; value, key
-            result = result + "\n" + (yaml-entry; (child-indent + (yaml-key; key) + ':'), child, child-indent)
-        else
+            prefix = "\n" + child-indent
+            if index == 0 and (label.contains.end; '-')
+                prefix = ' '
+            result = result + prefix + (yaml-entry; ((yaml-word; key, true) + ':'), child, child-indent)
+            index = index + 1
+    else
+        for index in (range; 0, count)
             child = (value.item; index).value
-            result = result + "\n" + (yaml-entry; (child-indent + '-'), child, child-indent)
+            result = result + "\n" + child-indent + (yaml-entry; '-', child, child-indent)
     return result
 
 private function surface-yaml string; entity ref document-value

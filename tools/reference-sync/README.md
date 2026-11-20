@@ -19,6 +19,8 @@ For bundled core records, `sync` writes a stable `bundled-core` provenance marke
 
 `sync` previews updates and additions. Pass `--write` to apply them. Existing YAML records retain their authored bytes outside `surface` and `provenance.compiler`; new records remain unlisted with `documentation.status: missing` and `lifecycle.status: planned`. Review a scaffold before adding it to navigation. The YAML splice supports the manual's conventional block layout and rejects unrecognized layouts rather than reserializing the whole record. The manual-wide catalogue refresh remains separate.
 
+When regenerating a surface, sync puts known fields in manual schema order, writes nonempty collections in block style, and quotes strings conservatively so they keep their type on reload. It does not reformat semantically unchanged surfaces or preserve custom formatting inside a regenerated block.
+
 All planned changes are validated before writing. Each file is replaced atomically, but the batch is not transactional: if a write fails partway through, earlier files stay updated. Fix the error and run the preview again to see what remains.
 
 ## Release removal tracking

@@ -11,10 +11,10 @@ function test-refresh-preserves-authored-blocks none throws throwable;
     before = "id: api.example.find\nkind: function\nsurface:\n  symbol: /example::previous\n\n# Keep this note and the prose below.\nprovenance:\n  specification: []\ndocumentation:\n  compiler: not-a-provenance-child\n  summary: |-\n    Review this result.\n"
     authored-tail = "\n\n# Keep this note and the prose below.\nprovenance:\n  compiler:\n    profile: \"test\"\n  specification: []\ndocumentation:\n  compiler: not-a-provenance-child\n  summary: |-\n    Review this result.\n"
     record = yaml-value; before, 'manual fixture'
-    entity = changed-entity;
+    entity = yaml-value; "id: api.example.find\nkind: function\nsurface:\n  signatures:\n    - id: default\n      parameters: []\n      display: 'function find;'\n      form: 'true'\n      extension: 'value: with # punctuation'\n  symbol: /example::find\n", 'snapshot fixture'
     after = refresh-record; before, record, entity, 'test'
-    assert; (after.contains.start; "id: api.example.find\nkind: function\nsurface:\n")
-    assert; (after.contains; "\n  signatures:\n    -")
+    assert; (after.contains.start; "id: api.example.find\nkind: function\nsurface:\n  symbol: /example::find\n  signatures:\n    - id: default\n")
+    assert; (after.contains; "      display: function find;\n")
     assert; (after.contains.end; authored-tail)
     refreshed = yaml-value; after, 'refreshed manual fixture'
     actual-surface = field; refreshed, 'surface'
