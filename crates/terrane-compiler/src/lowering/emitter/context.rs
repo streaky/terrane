@@ -1336,17 +1336,21 @@ impl<'unit> Emitter<'unit> {
     pub(super) fn mutable_reference_address_expression(&mut self, operand: &SyntaxNode) -> String {
         if let [receiver, index] = operand.children.as_slice()
             && operand.kind == SyntaxKind::IndexExpression
-            && let Some(ValueType::List(item)) = self.receiver_value_type(receiver)
+            && let Some(collection_type @ ValueType::List(item)) =
+                &self.receiver_value_type(receiver)
         {
-            let accessor = if crate::semantics::value_type_is_cloneable(
-                self.package,
-                self.unit,
-                item.value_type_ref(),
-            ) {
-                "get_mut"
-            } else {
-                "get_mut_unique"
-            };
+            let accessor =
+                if crate::semantics::collection_uses_unique_storage(self.package, collection_type)
+                    || !crate::semantics::value_type_is_cloneable(
+                        self.package,
+                        self.unit,
+                        item.value_type_ref(),
+                    )
+                {
+                    "get_mut_unique"
+                } else {
+                    "get_mut"
+                };
             let (setup, receiver) = self.live_receiver_parts(receiver);
             let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
             let index = self.fallible(
@@ -1361,18 +1365,23 @@ impl<'unit> Emitter<'unit> {
         }
         if let [receiver, key] = operand.children.as_slice()
             && operand.kind == SyntaxKind::IndexExpression
-            && let Some(ValueType::Map(key_type, item) | ValueType::UnorderedMap(key_type, item)) =
-                self.receiver_value_type(receiver)
+            && let Some(
+                collection_type @ (ValueType::Map(key_type, item)
+                | ValueType::UnorderedMap(key_type, item)),
+            ) = &self.receiver_value_type(receiver)
         {
-            let accessor = if crate::semantics::value_type_is_cloneable(
-                self.package,
-                self.unit,
-                item.value_type_ref(),
-            ) {
-                "get_mut"
-            } else {
-                "get_mut_unique"
-            };
+            let accessor =
+                if crate::semantics::collection_uses_unique_storage(self.package, collection_type)
+                    || !crate::semantics::value_type_is_cloneable(
+                        self.package,
+                        self.unit,
+                        item.value_type_ref(),
+                    )
+                {
+                    "get_mut_unique"
+                } else {
+                    "get_mut"
+                };
             let key = self.expression_as(key, key_type.value_type());
             let (setup, receiver) = self.live_receiver_parts(receiver);
             let item = self.fallible(
@@ -1466,6 +1475,16 @@ impl<'unit> Emitter<'unit> {
             } else {
                 format!("{{ {setup}{address} }}")
             };
+        }
+        if operand.kind == SyntaxKind::IndexExpression
+            && operand.children.first().is_some_and(|collection| {
+                self.receiver_value_type(collection).is_some_and(|ty| {
+                    crate::semantics::collection_uses_unique_storage(self.package, &ty)
+                })
+            })
+            && let Some((setup, place)) = self.borrowed_index_place_parts(operand)
+        {
+            return format!("{{ {setup}{place} }}");
         }
         if operand.kind == SyntaxKind::IndexExpression
             && let [receiver, index] = operand.children.as_slice()

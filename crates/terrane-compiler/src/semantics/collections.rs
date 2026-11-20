@@ -1,3 +1,4 @@
+use super::objects::collection_uses_unique_storage;
 use super::prelude::*;
 
 pub(super) fn retain_appended_native_origins(
@@ -1286,16 +1287,149 @@ pub(super) fn validate_copy_requirements(
         Ok(())
     }
 
+    fn collect_borrowed_indices(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        indices: &mut BTreeSet<Span>,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && arguments.children.iter().any(|argument| {
+                argument.children.last().is_some_and(|value| {
+                    ungrouped_expression(value).kind == SyntaxKind::IndexExpression
+                })
+            })
+            && let Some(contract) =
+                super::namespaces::function_contract_for_call(package, unit, callee)
+        {
+            let mut positional = 0;
+            let mut named_seen = false;
+            for argument in &arguments.children {
+                let name = argument
+                    .children
+                    .first()
+                    .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+                let (_, parameter) = super::calls::resolve_call_parameter(
+                    unit,
+                    argument,
+                    name,
+                    contract,
+                    &mut positional,
+                    &mut named_seen,
+                )?;
+                if matches!(
+                    &parameter.value_type,
+                    Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+                ) {
+                    let value = argument.children.last().map(ungrouped_expression);
+                    if let Some(value) =
+                        value.filter(|value| value.kind == SyntaxKind::IndexExpression)
+                    {
+                        indices.insert(value.span);
+                    }
+                }
+            }
+        }
+        for child in &node.children {
+            collect_borrowed_indices(package, unit, child, indices)?;
+        }
+        Ok(())
+    }
     fn visit(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
+        inside_ref: bool,
+        write_place: bool,
+        borrowed_indices: &BTreeSet<Span>,
+        statement_position: bool,
     ) -> Result<(), SemanticFailure> {
+        let borrow_place = inside_ref || borrowed_indices.contains(&node.span);
+        if node.kind == SyntaxKind::IndexExpression
+            && !borrow_place
+            && !write_place
+            && let Some(receiver) = node.children.first()
+            && let Some(ty) = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
+            && collection_uses_unique_storage(package, &ty)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "resource collection indexing cannot produce an owned value; use `ref collection[index]`",
+                node.span,
+            ));
+        }
+        if node.kind == SyntaxKind::ForStatement
+            && let Some(collection) = node.children.get(1)
+            && let Some(mut ty) = infer_value_type(unit, collection, &unit.typed_bindings)?
+        {
+            let borrowed = matches!(
+                &ty,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            ) || (collection.kind == SyntaxKind::UnaryExpression
+                && matches!(
+                    unary_operator_text(unit, collection).as_deref(),
+                    Some("ref" | "mutable ref")
+                ));
+            while let ValueType::Reference(item)
+            | ValueType::MutableReference(item)
+            | ValueType::SharedReference(item) = ty
+            {
+                ty = item.value_type();
+            }
+            if collection_uses_unique_storage(package, &ty) {
+                let is_map = matches!(ty, ValueType::Map(_, _) | ValueType::UnorderedMap(_, _));
+                if is_map && borrowed {
+                    return Err(failure(
+                        &unit.source,
+                        "T0135",
+                        "resource maps do not support reference iteration; use borrowed indexing or iterate over `keys`",
+                        collection.span,
+                    ));
+                }
+                if !borrowed {
+                    return Err(failure(
+                        &unit.source,
+                        "T0135",
+                        "resource collections cannot be iterated by value; use `for` over `ref collection`",
+                        collection.span,
+                    ));
+                }
+            }
+        }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
             && let Some((_, ty, member)) =
                 collection_member_call(unit, callee, &unit.typed_bindings)?
         {
+            let unique = collection_uses_unique_storage(package, &ty);
+            if unique
+                && !statement_position
+                && matches!(member.as_str(), "append" | "set" | "clear")
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0135",
+                    "resource collection mutation must be a standalone statement because its result would copy the collection",
+                    node.span,
+                ));
+            }
+            if unique
+                && matches!(
+                    member.as_str(),
+                    "get" | "get.checked" | "values" | "entries" | "iterator"
+                )
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0135",
+                    "resource collection values cannot be copied; use borrowed indexing or reference iteration",
+                    node.span,
+                ));
+            }
             let copied = match (&ty, member.as_str()) {
                 (
                     ValueType::List(item),
@@ -1310,12 +1444,12 @@ pub(super) fn validate_copy_requirements(
                 ) => Some(item),
                 _ => None,
             };
-            if let Some(item) = copied {
+            if !unique && let Some(item) = copied {
                 validate_item(package, unit, item, node.span)?;
             }
         }
         if node.kind == SyntaxKind::Assignment
-            && let Some(target) = node.children.first()
+            && let Some(target) = node.assignment_target().map(ungrouped_expression)
             && target.kind == SyntaxKind::IndexExpression
             && let Some(receiver) = target.children.first()
             && let Some(ty) = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
@@ -1326,14 +1460,56 @@ pub(super) fn validate_copy_requirements(
                 | ValueType::UnorderedMap(_, item) => Some(item),
                 _ => None,
             };
-            if let Some(item) = copied {
+            if let Some(item) = copied
+                && !collection_uses_unique_storage(package, &ty)
+            {
                 validate_item(package, unit, item, target.span)?;
             }
         }
-        for child in &node.children {
-            visit(package, unit, child)?;
+        for (index, child) in node.children.iter().enumerate() {
+            let ref_operand = node.kind == SyntaxKind::UnaryExpression
+                && matches!(
+                    unary_operator_text(unit, node).as_deref(),
+                    Some("ref" | "mutable ref")
+                )
+                && node
+                    .children
+                    .last()
+                    .is_some_and(|operand| operand.span == child.span);
+            let receiver_place = index == 0
+                && matches!(
+                    node.kind,
+                    SyntaxKind::GroupExpression
+                        | SyntaxKind::IndexExpression
+                        | SyntaxKind::MemberExpression
+                );
+            let assignment_target = (write_place && receiver_place)
+                || node.kind == SyntaxKind::Assignment
+                    && node
+                        .assignment_target()
+                        .is_some_and(|target| target.span == child.span);
+            visit(
+                package,
+                unit,
+                child,
+                ref_operand || borrow_place && receiver_place,
+                assignment_target,
+                borrowed_indices,
+                node.kind == SyntaxKind::Block
+                    || statement_position && node.kind == SyntaxKind::GroupExpression,
+            )?;
         }
         Ok(())
     }
-    visit(package, unit, &unit.tree.root)
+    let mut borrowed_indices = BTreeSet::new();
+    collect_borrowed_indices(package, unit, &unit.tree.root, &mut borrowed_indices)?;
+    visit(
+        package,
+        unit,
+        &unit.tree.root,
+        false,
+        false,
+        &borrowed_indices,
+        false,
+    )
 }

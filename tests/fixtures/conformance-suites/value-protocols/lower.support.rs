@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-document-support, terrane-platform-support
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-document-support, terrane-stream-abi, terrane-platform-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -495,7 +495,7 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 57] = [
+    pub static FILES: [&str; 59] = [
         "tests/integration/bounded-arithmetic-families/case.trn",
         "tests/integration/byte-index-and-slice/case.trn",
         "tests/integration/bytes-and-legacy-digests/case.trn",
@@ -536,6 +536,7 @@ mod __terrane_trace {
         "tests/integration/pipeline-borrowed-callbacks/case.trn",
         "tests/integration/quoted-interpolation/case.trn",
         "tests/integration/required-throwing-callable-field/case.trn",
+        "tests/integration/resource-owning-collections/case.trn",
         "tests/integration/scalar-reference-transparency/case.trn",
         "tests/integration/sequential-pipeline/case.trn",
         "tests/integration/stable-list-sorting/case.trn",
@@ -549,12 +550,13 @@ mod __terrane_trace {
         "tests/integration/typed-serialization-matrix/case.trn",
         "tests/integration/typed-tuple-decode-shapes/case.trn",
         "core/testing.trn",
+        "core/streams.trn",
         "core/documents.trn",
         "core/urls.trn",
         "core/process.trn",
         "core/time.trn",
     ];
-    pub static FUNCTIONS: [&str; 123] = [
+    pub static FUNCTIONS: [&str; 128] = [
         "/bounded-arithmetic-families::test-scenario",
         "/byte-index-and-slice::test-scenario",
         "/bytes-and-legacy-digests::test-scenario",
@@ -611,6 +613,7 @@ mod __terrane_trace {
         "/quoted-interpolation::test-renderer-bindings",
         "/required-throwing-callable-field::bad",
         "/required-throwing-callable-field::test-scenario",
+        "/resource-owning-collections::test-scenario",
         "/scalar-reference-transparency::test-scenario",
         "/sequential-pipeline::large-source",
         "/sequential-pipeline::failing-map",
@@ -661,6 +664,10 @@ mod __terrane_trace {
         "/core/testing::test-arguments",
         "/core/testing::test-deadline",
         "/core/testing::advance-time",
+        "/core/streams::read",
+        "/core/streams::read-exact",
+        "/core/streams::read-all",
+        "/core/streams::read-async",
         "/core/documents::make-document-list",
         "/core/documents::mapping-required-fields",
         "/core/documents::decode-document",
@@ -679,7 +686,7 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 448] = [
+    pub static SITES: [Site; 462] = [
         /* terrane-site-row: site 0: /bounded-arithmetic-families::test-scenario (tests/integration/bounded-arithmetic-families/case.trn:8:10-8:26) */
         { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 26 } },
         /* terrane-site-row: site 1: /bounded-arithmetic-families::test-scenario (tests/integration/bounded-arithmetic-families/case.trn:14:11-14:26) */
@@ -1170,412 +1177,440 @@ mod __terrane_trace {
         { Site { function: 55, file: 39, line: 16, column: 17, end_line: 16, end_column: 21 } },
         /* terrane-site-row: site 244: /required-throwing-callable-field::test-scenario (tests/integration/required-throwing-callable-field/case.trn:21:17-21:23) */
         { Site { function: 55, file: 39, line: 21, column: 17, end_line: 21, end_column: 23 } },
-        /* terrane-site-row: site 245: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:12:13-12:33) */
-        { Site { function: 56, file: 40, line: 12, column: 13, end_line: 12, end_column: 33 } },
-        /* terrane-site-row: site 246: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:17:13-17:28) */
-        { Site { function: 56, file: 40, line: 17, column: 13, end_line: 17, end_column: 28 } },
-        /* terrane-site-row: site 247: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:18:12-18:24) */
-        { Site { function: 56, file: 40, line: 18, column: 12, end_line: 18, end_column: 24 } },
-        /* terrane-site-row: site 248: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:22:12-22:21) */
-        { Site { function: 56, file: 40, line: 22, column: 12, end_line: 22, end_column: 21 } },
-        /* terrane-site-row: site 249: /sequential-pipeline::large-source (tests/integration/sequential-pipeline/case.trn:16:17-16:31) */
-        { Site { function: 57, file: 41, line: 16, column: 17, end_line: 16, end_column: 31 } },
-        /* terrane-site-row: site 250: /sequential-pipeline::failing-map (tests/integration/sequential-pipeline/case.trn:22:5-22:30) */
-        { Site { function: 58, file: 41, line: 22, column: 5, end_line: 22, end_column: 30 } },
-        /* terrane-site-row: site 251: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:49:12-49:21) */
-        { Site { function: 59, file: 41, line: 49, column: 12, end_line: 49, end_column: 21 } },
-        /* terrane-site-row: site 252: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:53:39-55:1) */
-        { Site { function: 59, file: 41, line: 53, column: 39, end_line: 55, end_column: 1 } },
-        /* terrane-site-row: site 253: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:59:10-59:21) */
-        { Site { function: 59, file: 41, line: 59, column: 10, end_line: 59, end_column: 21 } },
-        /* terrane-site-row: site 254: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:60:10-60:21) */
-        { Site { function: 59, file: 41, line: 60, column: 10, end_line: 60, end_column: 21 } },
-        /* terrane-site-row: site 255: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:61:10-61:21) */
-        { Site { function: 59, file: 41, line: 61, column: 10, end_line: 61, end_column: 21 } },
-        /* terrane-site-row: site 256: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:85:12-85:21) */
-        { Site { function: 59, file: 41, line: 85, column: 12, end_line: 85, end_column: 21 } },
-        /* terrane-site-row: site 257: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:86:37-89:1) */
-        { Site { function: 59, file: 41, line: 86, column: 37, end_line: 89, end_column: 1 } },
-        /* terrane-site-row: site 258: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:91:10-91:19) */
-        { Site { function: 59, file: 41, line: 91, column: 10, end_line: 91, end_column: 19 } },
-        /* terrane-site-row: site 259: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:100:10-100:25) */
-        { Site { function: 59, file: 41, line: 100, column: 10, end_line: 100, end_column: 25 } },
-        /* terrane-site-row: site 260: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:118:10-118:27) */
-        { Site { function: 59, file: 41, line: 118, column: 10, end_line: 118, end_column: 27 } },
-        /* terrane-site-row: site 261: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:124:12-124:21) */
-        { Site { function: 59, file: 41, line: 124, column: 12, end_line: 124, end_column: 21 } },
-        /* terrane-site-row: site 262: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:128:38-130:1) */
-        { Site { function: 59, file: 41, line: 128, column: 38, end_line: 130, end_column: 1 } },
-        /* terrane-site-row: site 263: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:143:33-145:1) */
-        { Site { function: 59, file: 41, line: 143, column: 33, end_line: 145, end_column: 1 } },
-        /* terrane-site-row: site 264: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:147:10-147:24) */
-        { Site { function: 59, file: 41, line: 147, column: 10, end_line: 147, end_column: 24 } },
-        /* terrane-site-row: site 265: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:149:30-151:1) */
-        { Site { function: 59, file: 41, line: 149, column: 30, end_line: 151, end_column: 1 } },
-        /* terrane-site-row: site 266: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:156:30-158:1) */
-        { Site { function: 59, file: 41, line: 156, column: 30, end_line: 158, end_column: 1 } },
-        /* terrane-site-row: site 267: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:170:10-170:18) */
-        { Site { function: 59, file: 41, line: 170, column: 10, end_line: 170, end_column: 18 } },
-        /* terrane-site-row: site 268: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:170:26-170:34) */
-        { Site { function: 59, file: 41, line: 170, column: 26, end_line: 170, end_column: 34 } },
-        /* terrane-site-row: site 269: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:187:10-187:19) */
-        { Site { function: 60, file: 41, line: 187, column: 10, end_line: 187, end_column: 19 } },
-        /* terrane-site-row: site 270: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:187:27-187:36) */
-        { Site { function: 60, file: 41, line: 187, column: 27, end_line: 187, end_column: 36 } },
-        /* terrane-site-row: site 271: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:187:63-187:72) */
-        { Site { function: 60, file: 41, line: 187, column: 63, end_line: 187, end_column: 72 } },
-        /* terrane-site-row: site 272: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:193:21-193:32) */
-        { Site { function: 60, file: 41, line: 193, column: 21, end_line: 193, end_column: 32 } },
-        /* terrane-site-row: site 273: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:198:12-198:23) */
-        { Site { function: 60, file: 41, line: 198, column: 12, end_line: 198, end_column: 23 } },
-        /* terrane-site-row: site 274: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:198:31-198:42) */
-        { Site { function: 60, file: 41, line: 198, column: 31, end_line: 198, end_column: 42 } },
-        /* terrane-site-row: site 275: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:205:12-205:23) */
-        { Site { function: 60, file: 41, line: 205, column: 12, end_line: 205, end_column: 23 } },
-        /* terrane-site-row: site 276: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:214:10-214:19) */
-        { Site { function: 60, file: 41, line: 214, column: 10, end_line: 214, end_column: 19 } },
-        /* terrane-site-row: site 277: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:214:46-214:55) */
-        { Site { function: 60, file: 41, line: 214, column: 46, end_line: 214, end_column: 55 } },
-        /* terrane-site-row: site 278: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:239:31-239:40) */
-        { Site { function: 60, file: 41, line: 239, column: 31, end_line: 239, end_column: 40 } },
-        /* terrane-site-row: site 279: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:239:48-239:57) */
-        { Site { function: 60, file: 41, line: 239, column: 48, end_line: 239, end_column: 57 } },
-        /* terrane-site-row: site 280: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:10-7:21) */
-        { Site { function: 61, file: 42, line: 7, column: 10, end_line: 7, end_column: 21 } },
-        /* terrane-site-row: site 281: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:23-7:34) */
-        { Site { function: 61, file: 42, line: 7, column: 23, end_line: 7, end_column: 34 } },
-        /* terrane-site-row: site 282: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:10-9:21) */
-        { Site { function: 61, file: 42, line: 9, column: 10, end_line: 9, end_column: 21 } },
-        /* terrane-site-row: site 283: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:23-9:34) */
-        { Site { function: 61, file: 42, line: 9, column: 23, end_line: 9, end_column: 34 } },
-        /* terrane-site-row: site 284: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:10-31:18) */
-        { Site { function: 61, file: 42, line: 31, column: 10, end_line: 31, end_column: 18 } },
-        /* terrane-site-row: site 285: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:20-31:29) */
-        { Site { function: 61, file: 42, line: 31, column: 20, end_line: 31, end_column: 29 } },
-        /* terrane-site-row: site 286: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:31-31:40) */
-        { Site { function: 61, file: 42, line: 31, column: 31, end_line: 31, end_column: 40 } },
-        /* terrane-site-row: site 287: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:42-31:51) */
-        { Site { function: 61, file: 42, line: 31, column: 42, end_line: 31, end_column: 51 } },
-        /* terrane-site-row: site 288: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:53-31:63) */
-        { Site { function: 61, file: 42, line: 31, column: 53, end_line: 31, end_column: 63 } },
-        /* terrane-site-row: site 289: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:10-32:19) */
-        { Site { function: 61, file: 42, line: 32, column: 10, end_line: 32, end_column: 19 } },
-        /* terrane-site-row: site 290: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:21-32:31) */
-        { Site { function: 61, file: 42, line: 32, column: 21, end_line: 32, end_column: 31 } },
-        /* terrane-site-row: site 291: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:33-32:43) */
-        { Site { function: 61, file: 42, line: 32, column: 33, end_line: 32, end_column: 43 } },
-        /* terrane-site-row: site 292: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:45-32:55) */
-        { Site { function: 61, file: 42, line: 32, column: 45, end_line: 32, end_column: 55 } },
-        /* terrane-site-row: site 293: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:57-32:68) */
-        { Site { function: 61, file: 42, line: 32, column: 57, end_line: 32, end_column: 68 } },
-        /* terrane-site-row: site 294: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:10-36:18) */
-        { Site { function: 61, file: 42, line: 36, column: 10, end_line: 36, end_column: 18 } },
-        /* terrane-site-row: site 295: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:20-36:28) */
-        { Site { function: 61, file: 42, line: 36, column: 20, end_line: 36, end_column: 28 } },
-        /* terrane-site-row: site 296: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:30-36:38) */
-        { Site { function: 61, file: 42, line: 36, column: 30, end_line: 36, end_column: 38 } },
-        /* terrane-site-row: site 297: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:10-38:18) */
-        { Site { function: 61, file: 42, line: 38, column: 10, end_line: 38, end_column: 18 } },
-        /* terrane-site-row: site 298: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:20-38:28) */
-        { Site { function: 61, file: 42, line: 38, column: 20, end_line: 38, end_column: 28 } },
-        /* terrane-site-row: site 299: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:30-38:38) */
-        { Site { function: 61, file: 42, line: 38, column: 30, end_line: 38, end_column: 38 } },
-        /* terrane-site-row: site 300: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:10-50:19) */
-        { Site { function: 61, file: 42, line: 50, column: 10, end_line: 50, end_column: 19 } },
-        /* terrane-site-row: site 301: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:30-50:39) */
-        { Site { function: 61, file: 42, line: 50, column: 30, end_line: 50, end_column: 39 } },
-        /* terrane-site-row: site 302: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:55-50:64) */
-        { Site { function: 61, file: 42, line: 50, column: 55, end_line: 50, end_column: 64 } },
-        /* terrane-site-row: site 303: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:80-50:89) */
-        { Site { function: 61, file: 42, line: 50, column: 80, end_line: 50, end_column: 89 } },
-        /* terrane-site-row: site 304: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:105-50:114) */
-        { Site { function: 61, file: 42, line: 50, column: 105, end_line: 50, end_column: 114 } },
-        /* terrane-site-row: site 305: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:125-50:134) */
-        { Site { function: 61, file: 42, line: 50, column: 125, end_line: 50, end_column: 134 } },
-        /* terrane-site-row: site 306: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:149-50:158) */
-        { Site { function: 61, file: 42, line: 50, column: 149, end_line: 50, end_column: 158 } },
-        /* terrane-site-row: site 307: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:10-52:19) */
-        { Site { function: 61, file: 42, line: 52, column: 10, end_line: 52, end_column: 19 } },
-        /* terrane-site-row: site 308: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:30-52:39) */
-        { Site { function: 61, file: 42, line: 52, column: 30, end_line: 52, end_column: 39 } },
-        /* terrane-site-row: site 309: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:55-52:64) */
-        { Site { function: 61, file: 42, line: 52, column: 55, end_line: 52, end_column: 64 } },
-        /* terrane-site-row: site 310: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:80-52:89) */
-        { Site { function: 61, file: 42, line: 52, column: 80, end_line: 52, end_column: 89 } },
-        /* terrane-site-row: site 311: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:105-52:114) */
-        { Site { function: 61, file: 42, line: 52, column: 105, end_line: 52, end_column: 114 } },
-        /* terrane-site-row: site 312: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:125-52:134) */
-        { Site { function: 61, file: 42, line: 52, column: 125, end_line: 52, end_column: 134 } },
-        /* terrane-site-row: site 313: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:150-52:159) */
-        { Site { function: 61, file: 42, line: 52, column: 150, end_line: 52, end_column: 159 } },
-        /* terrane-site-row: site 314: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:174-52:183) */
-        { Site { function: 61, file: 42, line: 52, column: 174, end_line: 52, end_column: 183 } },
-        /* terrane-site-row: site 315: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:10-56:19) */
-        { Site { function: 61, file: 42, line: 56, column: 10, end_line: 56, end_column: 19 } },
-        /* terrane-site-row: site 316: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:21-56:30) */
-        { Site { function: 61, file: 42, line: 56, column: 21, end_line: 56, end_column: 30 } },
-        /* terrane-site-row: site 317: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:10-61:22) */
-        { Site { function: 61, file: 42, line: 61, column: 10, end_line: 61, end_column: 22 } },
-        /* terrane-site-row: site 318: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:24-61:33) */
-        { Site { function: 61, file: 42, line: 61, column: 24, end_line: 61, end_column: 33 } },
-        /* terrane-site-row: site 319: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:35-61:46) */
-        { Site { function: 61, file: 42, line: 61, column: 35, end_line: 61, end_column: 46 } },
-        /* terrane-site-row: site 320: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:69:17-69:29) */
-        { Site { function: 61, file: 42, line: 69, column: 17, end_line: 69, end_column: 29 } },
-        /* terrane-site-row: site 321: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:72:17-72:29) */
-        { Site { function: 61, file: 42, line: 72, column: 17, end_line: 72, end_column: 29 } },
-        /* terrane-site-row: site 322: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:78:24-78:33) */
-        { Site { function: 61, file: 42, line: 78, column: 24, end_line: 78, end_column: 33 } },
-        /* terrane-site-row: site 323: /string-display-composition::to-string (tests/integration/string-display-composition/case.trn:23:9-23:37) */
-        { Site { function: 62, file: 43, line: 23, column: 9, end_line: 23, end_column: 37 } },
-        /* terrane-site-row: site 324: /string-display-composition::render-generic (tests/integration/string-display-composition/case.trn:34:25-34:30) */
-        { Site { function: 63, file: 43, line: 34, column: 25, end_line: 34, end_column: 30 } },
-        /* terrane-site-row: site 325: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:50:29-50:45) */
-        { Site { function: 64, file: 43, line: 50, column: 29, end_line: 50, end_column: 45 } },
-        /* terrane-site-row: site 326: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:54:17-54:33) */
-        { Site { function: 64, file: 43, line: 54, column: 17, end_line: 54, end_column: 33 } },
-        /* terrane-site-row: site 327: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:58:25-58:41) */
-        { Site { function: 64, file: 43, line: 58, column: 25, end_line: 58, end_column: 41 } },
-        /* terrane-site-row: site 328: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:62:24-62:40) */
-        { Site { function: 64, file: 43, line: 62, column: 24, end_line: 62, end_column: 40 } },
-        /* terrane-site-row: site 329: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:66:17-66:51) */
-        { Site { function: 64, file: 43, line: 66, column: 17, end_line: 66, end_column: 51 } },
-        /* terrane-site-row: site 330: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:69:13-69:45) */
-        { Site { function: 64, file: 43, line: 69, column: 13, end_line: 69, end_column: 45 } },
-        /* terrane-site-row: site 331: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:71:27-71:33) */
-        { Site { function: 64, file: 43, line: 71, column: 27, end_line: 71, end_column: 33 } },
-        /* terrane-site-row: site 332: /text-families::test-scenario (tests/integration/text-families/case.trn:29:11-29:52) */
-        { Site { function: 65, file: 44, line: 29, column: 11, end_line: 29, end_column: 52 } },
-        /* terrane-site-row: site 333: /text-families::test-scenario (tests/integration/text-families/case.trn:32:11-32:65) */
-        { Site { function: 65, file: 44, line: 32, column: 11, end_line: 32, end_column: 65 } },
-        /* terrane-site-row: site 334: /text-families::test-scenario (tests/integration/text-families/case.trn:37:11-37:65) */
-        { Site { function: 65, file: 44, line: 37, column: 11, end_line: 37, end_column: 65 } },
-        /* terrane-site-row: site 335: /text-families::test-scenario (tests/integration/text-families/case.trn:38:11-38:52) */
-        { Site { function: 65, file: 44, line: 38, column: 11, end_line: 38, end_column: 52 } },
-        /* terrane-site-row: site 336: /text-families::test-scenario (tests/integration/text-families/case.trn:41:11-41:55) */
-        { Site { function: 65, file: 44, line: 41, column: 11, end_line: 41, end_column: 55 } },
-        /* terrane-site-row: site 337: /text-families::test-scenario (tests/integration/text-families/case.trn:42:11-42:54) */
-        { Site { function: 65, file: 44, line: 42, column: 11, end_line: 42, end_column: 54 } },
-        /* terrane-site-row: site 338: /text-families::test-scenario (tests/integration/text-families/case.trn:45:13-45:60) */
-        { Site { function: 65, file: 44, line: 45, column: 13, end_line: 45, end_column: 60 } },
-        /* terrane-site-row: site 339: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:27-13:38) */
-        { Site { function: 66, file: 45, line: 13, column: 27, end_line: 13, end_column: 38 } },
-        /* terrane-site-row: site 340: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:40-13:51) */
-        { Site { function: 66, file: 45, line: 13, column: 40, end_line: 13, end_column: 51 } },
-        /* terrane-site-row: site 341: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:34) */
-        { Site { function: 66, file: 45, line: 18, column: 25, end_line: 18, end_column: 34 } },
-        /* terrane-site-row: site 342: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:37) */
-        { Site { function: 66, file: 45, line: 18, column: 25, end_line: 18, end_column: 37 } },
-        /* terrane-site-row: site 343: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:48) */
-        { Site { function: 66, file: 45, line: 18, column: 39, end_line: 18, end_column: 48 } },
-        /* terrane-site-row: site 344: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:51) */
-        { Site { function: 66, file: 45, line: 18, column: 39, end_line: 18, end_column: 51 } },
-        /* terrane-site-row: site 345: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:7:7-7:27) */
-        { Site { function: 67, file: 46, line: 7, column: 7, end_line: 7, end_column: 27 } },
-        /* terrane-site-row: site 346: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:11:7-11:32) */
-        { Site { function: 67, file: 46, line: 11, column: 7, end_line: 11, end_column: 32 } },
-        /* terrane-site-row: site 347: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:17:7-17:27) */
-        { Site { function: 67, file: 46, line: 17, column: 7, end_line: 17, end_column: 27 } },
-        /* terrane-site-row: site 348: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:19:7-19:19) */
-        { Site { function: 67, file: 46, line: 19, column: 7, end_line: 19, end_column: 19 } },
-        /* terrane-site-row: site 349: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:24:5-24:30) */
-        { Site { function: 67, file: 46, line: 24, column: 5, end_line: 24, end_column: 30 } },
-        /* terrane-site-row: site 350: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:12-38:34) */
-        { Site { function: 68, file: 47, line: 38, column: 12, end_line: 38, end_column: 34 } },
-        /* terrane-site-row: site 351: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:36-38:64) */
-        { Site { function: 68, file: 47, line: 38, column: 36, end_line: 38, end_column: 64 } },
-        /* terrane-site-row: site 352: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:66-38:94) */
-        { Site { function: 68, file: 47, line: 38, column: 66, end_line: 38, end_column: 94 } },
-        /* terrane-site-row: site 353: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:13-44:37) */
-        { Site { function: 68, file: 47, line: 44, column: 13, end_line: 44, end_column: 37 } },
-        /* terrane-site-row: site 354: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:69-44:93) */
-        { Site { function: 68, file: 47, line: 44, column: 69, end_line: 44, end_column: 93 } },
-        /* terrane-site-row: site 355: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:28-47:50) */
-        { Site { function: 68, file: 47, line: 47, column: 28, end_line: 47, end_column: 50 } },
-        /* terrane-site-row: site 356: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:59-47:81) */
-        { Site { function: 68, file: 47, line: 47, column: 59, end_line: 47, end_column: 81 } },
-        /* terrane-site-row: site 357: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:56:48-56:71) */
-        { Site { function: 68, file: 47, line: 56, column: 48, end_line: 56, end_column: 71 } },
-        /* terrane-site-row: site 358: /typed-json-boundaries::unknown-policy (tests/integration/typed-json-boundaries/case.trn:13:5-13:33) */
-        { Site { function: 69, file: 48, line: 13, column: 5, end_line: 13, end_column: 33 } },
-        /* terrane-site-row: site 359: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:33-52:57) */
-        { Site { function: 70, file: 48, line: 52, column: 33, end_line: 52, end_column: 57 } },
-        /* terrane-site-row: site 360: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:100-52:123) */
-        { Site { function: 70, file: 48, line: 52, column: 100, end_line: 52, end_column: 123 } },
-        /* terrane-site-row: site 361: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:166-52:189) */
-        { Site { function: 70, file: 48, line: 52, column: 166, end_line: 52, end_column: 189 } },
-        /* terrane-site-row: site 362: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:233-52:257) */
-        { Site { function: 70, file: 48, line: 52, column: 233, end_line: 52, end_column: 257 } },
-        /* terrane-site-row: site 363: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:59:69-59:84) */
-        { Site { function: 70, file: 48, line: 59, column: 69, end_line: 59, end_column: 84 } },
-        /* terrane-site-row: site 364: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:60:16-60:38) */
-        { Site { function: 70, file: 48, line: 60, column: 16, end_line: 60, end_column: 38 } },
-        /* terrane-site-row: site 365: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:33-11:49) */
-        { Site { function: 71, file: 49, line: 11, column: 33, end_line: 11, end_column: 49 } },
-        /* terrane-site-row: site 366: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:56-11:72) */
-        { Site { function: 71, file: 49, line: 11, column: 56, end_line: 11, end_column: 72 } },
-        /* terrane-site-row: site 367: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:13:30-13:48) */
-        { Site { function: 71, file: 49, line: 13, column: 30, end_line: 13, end_column: 48 } },
-        /* terrane-site-row: site 368: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:30-15:43) */
-        { Site { function: 71, file: 49, line: 15, column: 30, end_line: 15, end_column: 43 } },
-        /* terrane-site-row: site 369: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:50-15:63) */
-        { Site { function: 71, file: 49, line: 15, column: 50, end_line: 15, end_column: 63 } },
-        /* terrane-site-row: site 370: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:31-17:45) */
-        { Site { function: 71, file: 49, line: 17, column: 31, end_line: 17, end_column: 45 } },
-        /* terrane-site-row: site 371: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:52-17:66) */
-        { Site { function: 71, file: 49, line: 17, column: 52, end_line: 17, end_column: 66 } },
-        /* terrane-site-row: site 372: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:91-39:115) */
-        { Site { function: 72, file: 50, line: 39, column: 91, end_line: 39, end_column: 115 } },
-        /* terrane-site-row: site 373: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:122-39:149) */
-        { Site { function: 72, file: 50, line: 39, column: 122, end_line: 39, end_column: 149 } },
-        /* terrane-site-row: site 374: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:156-39:177) */
-        { Site { function: 72, file: 50, line: 39, column: 156, end_line: 39, end_column: 177 } },
-        /* terrane-site-row: site 375: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:43:90-43:112) */
-        { Site { function: 72, file: 50, line: 43, column: 90, end_line: 43, end_column: 112 } },
-        /* terrane-site-row: site 376: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54) */
-        { Site { function: 73, file: 51, line: 11, column: 33, end_line: 11, end_column: 54 } },
-        /* terrane-site-row: site 377: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82) */
-        { Site { function: 73, file: 51, line: 11, column: 61, end_line: 11, end_column: 82 } },
-        /* terrane-site-row: site 378: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85) */
-        { Site { function: 73, file: 51, line: 11, column: 61, end_line: 11, end_column: 85 } },
-        /* terrane-site-row: site 379: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80) */
-        { Site { function: 73, file: 51, line: 14, column: 61, end_line: 14, end_column: 80 } },
-        /* terrane-site-row: site 380: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47) */
-        { Site { function: 73, file: 51, line: 17, column: 32, end_line: 17, end_column: 47 } },
-        /* terrane-site-row: site 381: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51) */
-        { Site { function: 73, file: 51, line: 19, column: 31, end_line: 19, end_column: 51 } },
-        /* terrane-site-row: site 382: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83) */
-        { Site { function: 73, file: 51, line: 19, column: 63, end_line: 19, end_column: 83 } },
-        /* terrane-site-row: site 383: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51) */
-        { Site { function: 73, file: 51, line: 21, column: 34, end_line: 21, end_column: 51 } },
-        /* terrane-site-row: site 384: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54) */
-        { Site { function: 73, file: 51, line: 21, column: 34, end_line: 21, end_column: 54 } },
-        /* terrane-site-row: site 385: /core/testing::fail (core/testing.trn:43:5-43:41) */
-        { Site { function: 74, file: 52, line: 43, column: 5, end_line: 43, end_column: 41 } },
-        /* terrane-site-row: site 386: /core/testing::skip (core/testing.trn:46:5-46:37) */
-        { Site { function: 75, file: 52, line: 46, column: 5, end_line: 46, end_column: 37 } },
-        /* terrane-site-row: site 387: /core/testing::assert (core/testing.trn:50:9-50:36) */
-        { Site { function: 76, file: 52, line: 50, column: 9, end_line: 50, end_column: 36 } },
-        /* terrane-site-row: site 388: /core/testing::deny (core/testing.trn:55:9-55:42) */
-        { Site { function: 77, file: 52, line: 55, column: 9, end_line: 55, end_column: 42 } },
-        /* terrane-site-row: site 389: /core/testing::fail-comparison (core/testing.trn:64:5-64:18) */
-        { Site { function: 78, file: 52, line: 64, column: 5, end_line: 64, end_column: 18 } },
-        /* terrane-site-row: site 390: /core/testing::fail-values (core/testing.trn:67:5-67:75) */
-        { Site { function: 79, file: 52, line: 67, column: 5, end_line: 67, end_column: 75 } },
-        /* terrane-site-row: site 391: /core/testing::fail-near (core/testing.trn:77:5-77:18) */
-        { Site { function: 80, file: 52, line: 77, column: 5, end_line: 77, end_column: 18 } },
-        /* terrane-site-row: site 392: /core/testing::assert-equal-int (core/testing.trn:81:9-81:115) */
-        { Site { function: 81, file: 52, line: 81, column: 9, end_line: 81, end_column: 115 } },
-        /* terrane-site-row: site 393: /core/testing::assert-not-equal-int (core/testing.trn:86:9-86:127) */
-        { Site { function: 82, file: 52, line: 86, column: 9, end_line: 86, end_column: 127 } },
-        /* terrane-site-row: site 394: /core/testing::assert-equal-string (core/testing.trn:91:9-91:66) */
-        { Site { function: 83, file: 52, line: 91, column: 9, end_line: 91, end_column: 66 } },
-        /* terrane-site-row: site 395: /core/testing::assert-not-equal-string (core/testing.trn:96:9-96:78) */
-        { Site { function: 84, file: 52, line: 96, column: 9, end_line: 96, end_column: 78 } },
-        /* terrane-site-row: site 396: /core/testing::assert-equal-bool (core/testing.trn:101:9-101:117) */
-        { Site { function: 85, file: 52, line: 101, column: 9, end_line: 101, end_column: 117 } },
-        /* terrane-site-row: site 397: /core/testing::assert-not-equal-bool (core/testing.trn:106:9-106:129) */
-        { Site { function: 86, file: 52, line: 106, column: 9, end_line: 106, end_column: 129 } },
-        /* terrane-site-row: site 398: /core/testing::assert-equal-float64 (core/testing.trn:111:9-111:124) */
-        { Site { function: 87, file: 52, line: 111, column: 9, end_line: 111, end_column: 124 } },
-        /* terrane-site-row: site 399: /core/testing::assert-not-equal-float64 (core/testing.trn:116:9-116:136) */
-        { Site { function: 88, file: 52, line: 116, column: 9, end_line: 116, end_column: 136 } },
-        /* terrane-site-row: site 400: /core/testing::assert-equal-bytes (core/testing.trn:121:9-121:116) */
-        { Site { function: 89, file: 52, line: 121, column: 9, end_line: 121, end_column: 116 } },
-        /* terrane-site-row: site 401: /core/testing::assert-not-equal-bytes (core/testing.trn:126:9-126:128) */
-        { Site { function: 90, file: 52, line: 126, column: 9, end_line: 126, end_column: 128 } },
-        /* terrane-site-row: site 402: /core/testing::assert-present-int (core/testing.trn:131:9-131:43) */
-        { Site { function: 91, file: 52, line: 131, column: 9, end_line: 131, end_column: 43 } },
-        /* terrane-site-row: site 403: /core/testing::assert-none-int (core/testing.trn:136:9-136:36) */
-        { Site { function: 92, file: 52, line: 136, column: 9, end_line: 136, end_column: 36 } },
-        /* terrane-site-row: site 404: /core/testing::assert-present-string (core/testing.trn:141:9-141:42) */
-        { Site { function: 93, file: 52, line: 141, column: 9, end_line: 141, end_column: 42 } },
-        /* terrane-site-row: site 405: /core/testing::assert-none-string (core/testing.trn:146:9-146:35) */
-        { Site { function: 94, file: 52, line: 146, column: 9, end_line: 146, end_column: 35 } },
-        /* terrane-site-row: site 406: /core/testing::assert-present-bool (core/testing.trn:151:9-151:43) */
-        { Site { function: 95, file: 52, line: 151, column: 9, end_line: 151, end_column: 43 } },
-        /* terrane-site-row: site 407: /core/testing::assert-none-bool (core/testing.trn:156:9-156:36) */
-        { Site { function: 96, file: 52, line: 156, column: 9, end_line: 156, end_column: 36 } },
-        /* terrane-site-row: site 408: /core/testing::assert-present-float64 (core/testing.trn:161:9-161:50) */
-        { Site { function: 97, file: 52, line: 161, column: 9, end_line: 161, end_column: 50 } },
-        /* terrane-site-row: site 409: /core/testing::assert-none-float64 (core/testing.trn:166:9-166:43) */
-        { Site { function: 98, file: 52, line: 166, column: 9, end_line: 166, end_column: 43 } },
-        /* terrane-site-row: site 410: /core/testing::assert-present-bytes (core/testing.trn:171:9-171:39) */
-        { Site { function: 99, file: 52, line: 171, column: 9, end_line: 171, end_column: 39 } },
-        /* terrane-site-row: site 411: /core/testing::assert-none-bytes (core/testing.trn:176:9-176:34) */
-        { Site { function: 100, file: 52, line: 176, column: 9, end_line: 176, end_column: 34 } },
-        /* terrane-site-row: site 412: /core/testing::assert-near (core/testing.trn:181:9-181:111) */
-        { Site { function: 101, file: 52, line: 181, column: 9, end_line: 181, end_column: 111 } },
-        /* terrane-site-row: site 413: /core/testing::assert-near (core/testing.trn:186:9-186:47) */
-        { Site { function: 101, file: 52, line: 186, column: 9, end_line: 186, end_column: 47 } },
-        /* terrane-site-row: site 414: /core/testing::assert-throws (core/testing.trn:191:9-191:19) */
-        { Site { function: 102, file: 52, line: 191, column: 9, end_line: 191, end_column: 19 } },
-        /* terrane-site-row: site 415: /core/testing::assert-throws (core/testing.trn:195:9-195:113) */
-        { Site { function: 102, file: 52, line: 195, column: 9, end_line: 195, end_column: 113 } },
-        /* terrane-site-row: site 416: /core/testing::assert-throws (core/testing.trn:196:5-196:70) */
-        { Site { function: 102, file: 52, line: 196, column: 5, end_line: 196, end_column: 70 } },
-        /* terrane-site-row: site 417: /core/testing::test-arguments (core/testing.trn:210:28-210:43) */
-        { Site { function: 103, file: 52, line: 210, column: 28, end_line: 210, end_column: 43 } },
-        /* terrane-site-row: site 418: /core/testing::test-deadline (core/testing.trn:215:12-215:68) */
-        { Site { function: 104, file: 52, line: 215, column: 12, end_line: 215, end_column: 68 } },
-        /* terrane-site-row: site 419: /core/testing::advance-time (core/testing.trn:235:9-235:49) */
-        { Site { function: 105, file: 52, line: 235, column: 9, end_line: 235, end_column: 49 } },
-        /* terrane-site-row: site 420: /core/testing::advance-time (core/testing.trn:237:9-237:69) */
-        { Site { function: 105, file: 52, line: 237, column: 9, end_line: 237, end_column: 69 } },
-        /* terrane-site-row: site 421: /core/documents::make-document-list (core/documents.trn:141:47-141:60) */
-        { Site { function: 106, file: 53, line: 141, column: 47, end_line: 141, end_column: 60 } },
-        /* terrane-site-row: site 422: /core/documents::mapping-required-fields (core/documents.trn:154:17-154:30) */
-        { Site { function: 107, file: 53, line: 154, column: 17, end_line: 154, end_column: 30 } },
-        /* terrane-site-row: site 423: /core/documents::mapping-required-fields (core/documents.trn:158:16-158:47) */
-        { Site { function: 107, file: 53, line: 158, column: 16, end_line: 158, end_column: 47 } },
-        /* terrane-site-row: site 424: /core/documents::mapping-required-fields (core/documents.trn:164:16-164:45) */
-        { Site { function: 107, file: 53, line: 164, column: 16, end_line: 164, end_column: 45 } },
-        /* terrane-site-row: site 425: /core/documents::decode-document (core/documents.trn:177:12-177:44) */
-        { Site { function: 108, file: 53, line: 177, column: 12, end_line: 177, end_column: 44 } },
-        /* terrane-site-row: site 426: /core/documents::decode-document (core/documents.trn:178:37-178:69) */
-        { Site { function: 108, file: 53, line: 178, column: 37, end_line: 178, end_column: 69 } },
-        /* terrane-site-row: site 427: /core/documents::decode-document (core/documents.trn:184:12-184:49) */
-        { Site { function: 108, file: 53, line: 184, column: 12, end_line: 184, end_column: 49 } },
-        /* terrane-site-row: site 428: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
-        { Site { function: 108, file: 53, line: 185, column: 36, end_line: 185, end_column: 73 } },
-        /* terrane-site-row: site 429: /core/documents::decode-document (core/documents.trn:186:36-186:73) */
-        { Site { function: 108, file: 53, line: 186, column: 36, end_line: 186, end_column: 73 } },
-        /* terrane-site-row: site 430: /core/urls::get (core/urls.trn:23:16-23:32) */
-        { Site { function: 109, file: 54, line: 23, column: 16, end_line: 23, end_column: 32 } },
-        /* terrane-site-row: site 431: /core/urls::get (core/urls.trn:24:24-24:42) */
-        { Site { function: 109, file: 54, line: 24, column: 24, end_line: 24, end_column: 42 } },
-        /* terrane-site-row: site 432: /core/urls::get-all (core/urls.trn:32:16-32:32) */
-        { Site { function: 110, file: 54, line: 32, column: 16, end_line: 32, end_column: 32 } },
-        /* terrane-site-row: site 433: /core/urls::get-all (core/urls.trn:33:32-33:50) */
-        { Site { function: 110, file: 54, line: 33, column: 32, end_line: 33, end_column: 50 } },
-        /* terrane-site-row: site 434: /core/process::arguments (core/process.trn:45:49-45:63) */
-        { Site { function: 111, file: 55, line: 45, column: 49, end_line: 45, end_column: 63 } },
-        /* terrane-site-row: site 435: /core/process::environment (core/process.trn:54:40-54:54) */
-        { Site { function: 112, file: 55, line: 54, column: 40, end_line: 54, end_column: 54 } },
-        /* terrane-site-row: site 436: /core/process::environment (core/process.trn:55:41-55:59) */
-        { Site { function: 112, file: 55, line: 55, column: 41, end_line: 55, end_column: 59 } },
-        /* terrane-site-row: site 437: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
-        { Site { function: 113, file: 55, line: 90, column: 20, end_line: 90, end_column: 35 } },
-        /* terrane-site-row: site 438: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
-        { Site { function: 113, file: 55, line: 105, column: 43, end_line: 105, end_column: 62 } },
-        /* terrane-site-row: site 439: /core/time::multiply (core/time.trn:62:13-62:45) */
-        { Site { function: 114, file: 56, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 440: /core/time::seconds (core/time.trn:38:13-38:45) */
-        { Site { function: 115, file: 56, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 441: /core/time::milliseconds (core/time.trn:43:13-43:45) */
-        { Site { function: 116, file: 56, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 442: /core/time::microseconds (core/time.trn:48:13-48:45) */
-        { Site { function: 117, file: 56, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 443: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
-        { Site { function: 118, file: 56, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 444: /core/time::duration-until (core/time.trn:76:13-76:45) */
-        { Site { function: 119, file: 56, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 445: /core/time::at (core/time.trn:105:13-105:45) */
-        { Site { function: 120, file: 56, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 446: /core/time::sleep-until (core/time.trn:161:13-161:45) */
-        { Site { function: 121, file: 56, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 447: /core/time::interval (core/time.trn:172:13-172:45) */
-        { Site { function: 122, file: 56, line: 172, column: 13, end_line: 172, end_column: 45 } },
+        /* terrane-site-row: site 245: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:33:3-33:38) */
+        { Site { function: 56, file: 40, line: 33, column: 3, end_line: 33, end_column: 38 } },
+        /* terrane-site-row: site 246: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:36:12-36:20) */
+        { Site { function: 56, file: 40, line: 36, column: 12, end_line: 36, end_column: 20 } },
+        /* terrane-site-row: site 247: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:38:5-38:20) */
+        { Site { function: 56, file: 40, line: 38, column: 5, end_line: 38, end_column: 20 } },
+        /* terrane-site-row: site 248: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:41:13-41:28) */
+        { Site { function: 56, file: 40, line: 41, column: 13, end_line: 41, end_column: 28 } },
+        /* terrane-site-row: site 249: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:48:12-48:24) */
+        { Site { function: 56, file: 40, line: 48, column: 12, end_line: 48, end_column: 24 } },
+        /* terrane-site-row: site 250: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:53:3-53:22) */
+        { Site { function: 56, file: 40, line: 53, column: 3, end_line: 53, end_column: 22 } },
+        /* terrane-site-row: site 251: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:55:5-55:29) */
+        { Site { function: 56, file: 40, line: 55, column: 5, end_line: 55, end_column: 29 } },
+        /* terrane-site-row: site 252: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:65:12-65:26) */
+        { Site { function: 56, file: 40, line: 65, column: 12, end_line: 65, end_column: 26 } },
+        /* terrane-site-row: site 253: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:66:3-66:24) */
+        { Site { function: 56, file: 40, line: 66, column: 3, end_line: 66, end_column: 24 } },
+        /* terrane-site-row: site 254: /resource-owning-collections::test-scenario (tests/integration/resource-owning-collections/case.trn:67:3-67:24) */
+        { Site { function: 56, file: 40, line: 67, column: 3, end_line: 67, end_column: 24 } },
+        /* terrane-site-row: site 255: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:12:13-12:33) */
+        { Site { function: 57, file: 41, line: 12, column: 13, end_line: 12, end_column: 33 } },
+        /* terrane-site-row: site 256: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:17:13-17:28) */
+        { Site { function: 57, file: 41, line: 17, column: 13, end_line: 17, end_column: 28 } },
+        /* terrane-site-row: site 257: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:18:12-18:24) */
+        { Site { function: 57, file: 41, line: 18, column: 12, end_line: 18, end_column: 24 } },
+        /* terrane-site-row: site 258: /scalar-reference-transparency::test-scenario (tests/integration/scalar-reference-transparency/case.trn:22:12-22:21) */
+        { Site { function: 57, file: 41, line: 22, column: 12, end_line: 22, end_column: 21 } },
+        /* terrane-site-row: site 259: /sequential-pipeline::large-source (tests/integration/sequential-pipeline/case.trn:16:17-16:31) */
+        { Site { function: 58, file: 42, line: 16, column: 17, end_line: 16, end_column: 31 } },
+        /* terrane-site-row: site 260: /sequential-pipeline::failing-map (tests/integration/sequential-pipeline/case.trn:22:5-22:30) */
+        { Site { function: 59, file: 42, line: 22, column: 5, end_line: 22, end_column: 30 } },
+        /* terrane-site-row: site 261: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:49:12-49:21) */
+        { Site { function: 60, file: 42, line: 49, column: 12, end_line: 49, end_column: 21 } },
+        /* terrane-site-row: site 262: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:53:39-55:1) */
+        { Site { function: 60, file: 42, line: 53, column: 39, end_line: 55, end_column: 1 } },
+        /* terrane-site-row: site 263: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:59:10-59:21) */
+        { Site { function: 60, file: 42, line: 59, column: 10, end_line: 59, end_column: 21 } },
+        /* terrane-site-row: site 264: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:60:10-60:21) */
+        { Site { function: 60, file: 42, line: 60, column: 10, end_line: 60, end_column: 21 } },
+        /* terrane-site-row: site 265: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:61:10-61:21) */
+        { Site { function: 60, file: 42, line: 61, column: 10, end_line: 61, end_column: 21 } },
+        /* terrane-site-row: site 266: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:85:12-85:21) */
+        { Site { function: 60, file: 42, line: 85, column: 12, end_line: 85, end_column: 21 } },
+        /* terrane-site-row: site 267: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:86:37-89:1) */
+        { Site { function: 60, file: 42, line: 86, column: 37, end_line: 89, end_column: 1 } },
+        /* terrane-site-row: site 268: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:91:10-91:19) */
+        { Site { function: 60, file: 42, line: 91, column: 10, end_line: 91, end_column: 19 } },
+        /* terrane-site-row: site 269: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:100:10-100:25) */
+        { Site { function: 60, file: 42, line: 100, column: 10, end_line: 100, end_column: 25 } },
+        /* terrane-site-row: site 270: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:118:10-118:27) */
+        { Site { function: 60, file: 42, line: 118, column: 10, end_line: 118, end_column: 27 } },
+        /* terrane-site-row: site 271: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:124:12-124:21) */
+        { Site { function: 60, file: 42, line: 124, column: 12, end_line: 124, end_column: 21 } },
+        /* terrane-site-row: site 272: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:128:38-130:1) */
+        { Site { function: 60, file: 42, line: 128, column: 38, end_line: 130, end_column: 1 } },
+        /* terrane-site-row: site 273: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:143:33-145:1) */
+        { Site { function: 60, file: 42, line: 143, column: 33, end_line: 145, end_column: 1 } },
+        /* terrane-site-row: site 274: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:147:10-147:24) */
+        { Site { function: 60, file: 42, line: 147, column: 10, end_line: 147, end_column: 24 } },
+        /* terrane-site-row: site 275: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:149:30-151:1) */
+        { Site { function: 60, file: 42, line: 149, column: 30, end_line: 151, end_column: 1 } },
+        /* terrane-site-row: site 276: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:156:30-158:1) */
+        { Site { function: 60, file: 42, line: 156, column: 30, end_line: 158, end_column: 1 } },
+        /* terrane-site-row: site 277: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:170:10-170:18) */
+        { Site { function: 60, file: 42, line: 170, column: 10, end_line: 170, end_column: 18 } },
+        /* terrane-site-row: site 278: /sequential-pipeline::test-scenario (tests/integration/sequential-pipeline/case.trn:170:26-170:34) */
+        { Site { function: 60, file: 42, line: 170, column: 26, end_line: 170, end_column: 34 } },
+        /* terrane-site-row: site 279: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:187:10-187:19) */
+        { Site { function: 61, file: 42, line: 187, column: 10, end_line: 187, end_column: 19 } },
+        /* terrane-site-row: site 280: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:187:27-187:36) */
+        { Site { function: 61, file: 42, line: 187, column: 27, end_line: 187, end_column: 36 } },
+        /* terrane-site-row: site 281: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:187:63-187:72) */
+        { Site { function: 61, file: 42, line: 187, column: 63, end_line: 187, end_column: 72 } },
+        /* terrane-site-row: site 282: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:193:21-193:32) */
+        { Site { function: 61, file: 42, line: 193, column: 21, end_line: 193, end_column: 32 } },
+        /* terrane-site-row: site 283: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:198:12-198:23) */
+        { Site { function: 61, file: 42, line: 198, column: 12, end_line: 198, end_column: 23 } },
+        /* terrane-site-row: site 284: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:198:31-198:42) */
+        { Site { function: 61, file: 42, line: 198, column: 31, end_line: 198, end_column: 42 } },
+        /* terrane-site-row: site 285: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:205:12-205:23) */
+        { Site { function: 61, file: 42, line: 205, column: 12, end_line: 205, end_column: 23 } },
+        /* terrane-site-row: site 286: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:214:10-214:19) */
+        { Site { function: 61, file: 42, line: 214, column: 10, end_line: 214, end_column: 19 } },
+        /* terrane-site-row: site 287: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:214:46-214:55) */
+        { Site { function: 61, file: 42, line: 214, column: 46, end_line: 214, end_column: 55 } },
+        /* terrane-site-row: site 288: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:239:31-239:40) */
+        { Site { function: 61, file: 42, line: 239, column: 31, end_line: 239, end_column: 40 } },
+        /* terrane-site-row: site 289: /sequential-pipeline::inspect-copy-contracts (tests/integration/sequential-pipeline/case.trn:239:48-239:57) */
+        { Site { function: 61, file: 42, line: 239, column: 48, end_line: 239, end_column: 57 } },
+        /* terrane-site-row: site 290: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:10-7:21) */
+        { Site { function: 62, file: 43, line: 7, column: 10, end_line: 7, end_column: 21 } },
+        /* terrane-site-row: site 291: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:7:23-7:34) */
+        { Site { function: 62, file: 43, line: 7, column: 23, end_line: 7, end_column: 34 } },
+        /* terrane-site-row: site 292: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:10-9:21) */
+        { Site { function: 62, file: 43, line: 9, column: 10, end_line: 9, end_column: 21 } },
+        /* terrane-site-row: site 293: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:9:23-9:34) */
+        { Site { function: 62, file: 43, line: 9, column: 23, end_line: 9, end_column: 34 } },
+        /* terrane-site-row: site 294: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:10-31:18) */
+        { Site { function: 62, file: 43, line: 31, column: 10, end_line: 31, end_column: 18 } },
+        /* terrane-site-row: site 295: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:20-31:29) */
+        { Site { function: 62, file: 43, line: 31, column: 20, end_line: 31, end_column: 29 } },
+        /* terrane-site-row: site 296: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:31-31:40) */
+        { Site { function: 62, file: 43, line: 31, column: 31, end_line: 31, end_column: 40 } },
+        /* terrane-site-row: site 297: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:42-31:51) */
+        { Site { function: 62, file: 43, line: 31, column: 42, end_line: 31, end_column: 51 } },
+        /* terrane-site-row: site 298: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:31:53-31:63) */
+        { Site { function: 62, file: 43, line: 31, column: 53, end_line: 31, end_column: 63 } },
+        /* terrane-site-row: site 299: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:10-32:19) */
+        { Site { function: 62, file: 43, line: 32, column: 10, end_line: 32, end_column: 19 } },
+        /* terrane-site-row: site 300: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:21-32:31) */
+        { Site { function: 62, file: 43, line: 32, column: 21, end_line: 32, end_column: 31 } },
+        /* terrane-site-row: site 301: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:33-32:43) */
+        { Site { function: 62, file: 43, line: 32, column: 33, end_line: 32, end_column: 43 } },
+        /* terrane-site-row: site 302: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:45-32:55) */
+        { Site { function: 62, file: 43, line: 32, column: 45, end_line: 32, end_column: 55 } },
+        /* terrane-site-row: site 303: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:32:57-32:68) */
+        { Site { function: 62, file: 43, line: 32, column: 57, end_line: 32, end_column: 68 } },
+        /* terrane-site-row: site 304: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:10-36:18) */
+        { Site { function: 62, file: 43, line: 36, column: 10, end_line: 36, end_column: 18 } },
+        /* terrane-site-row: site 305: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:20-36:28) */
+        { Site { function: 62, file: 43, line: 36, column: 20, end_line: 36, end_column: 28 } },
+        /* terrane-site-row: site 306: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:36:30-36:38) */
+        { Site { function: 62, file: 43, line: 36, column: 30, end_line: 36, end_column: 38 } },
+        /* terrane-site-row: site 307: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:10-38:18) */
+        { Site { function: 62, file: 43, line: 38, column: 10, end_line: 38, end_column: 18 } },
+        /* terrane-site-row: site 308: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:20-38:28) */
+        { Site { function: 62, file: 43, line: 38, column: 20, end_line: 38, end_column: 28 } },
+        /* terrane-site-row: site 309: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:38:30-38:38) */
+        { Site { function: 62, file: 43, line: 38, column: 30, end_line: 38, end_column: 38 } },
+        /* terrane-site-row: site 310: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:10-50:19) */
+        { Site { function: 62, file: 43, line: 50, column: 10, end_line: 50, end_column: 19 } },
+        /* terrane-site-row: site 311: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:30-50:39) */
+        { Site { function: 62, file: 43, line: 50, column: 30, end_line: 50, end_column: 39 } },
+        /* terrane-site-row: site 312: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:55-50:64) */
+        { Site { function: 62, file: 43, line: 50, column: 55, end_line: 50, end_column: 64 } },
+        /* terrane-site-row: site 313: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:80-50:89) */
+        { Site { function: 62, file: 43, line: 50, column: 80, end_line: 50, end_column: 89 } },
+        /* terrane-site-row: site 314: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:105-50:114) */
+        { Site { function: 62, file: 43, line: 50, column: 105, end_line: 50, end_column: 114 } },
+        /* terrane-site-row: site 315: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:125-50:134) */
+        { Site { function: 62, file: 43, line: 50, column: 125, end_line: 50, end_column: 134 } },
+        /* terrane-site-row: site 316: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:50:149-50:158) */
+        { Site { function: 62, file: 43, line: 50, column: 149, end_line: 50, end_column: 158 } },
+        /* terrane-site-row: site 317: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:10-52:19) */
+        { Site { function: 62, file: 43, line: 52, column: 10, end_line: 52, end_column: 19 } },
+        /* terrane-site-row: site 318: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:30-52:39) */
+        { Site { function: 62, file: 43, line: 52, column: 30, end_line: 52, end_column: 39 } },
+        /* terrane-site-row: site 319: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:55-52:64) */
+        { Site { function: 62, file: 43, line: 52, column: 55, end_line: 52, end_column: 64 } },
+        /* terrane-site-row: site 320: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:80-52:89) */
+        { Site { function: 62, file: 43, line: 52, column: 80, end_line: 52, end_column: 89 } },
+        /* terrane-site-row: site 321: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:105-52:114) */
+        { Site { function: 62, file: 43, line: 52, column: 105, end_line: 52, end_column: 114 } },
+        /* terrane-site-row: site 322: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:125-52:134) */
+        { Site { function: 62, file: 43, line: 52, column: 125, end_line: 52, end_column: 134 } },
+        /* terrane-site-row: site 323: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:150-52:159) */
+        { Site { function: 62, file: 43, line: 52, column: 150, end_line: 52, end_column: 159 } },
+        /* terrane-site-row: site 324: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:52:174-52:183) */
+        { Site { function: 62, file: 43, line: 52, column: 174, end_line: 52, end_column: 183 } },
+        /* terrane-site-row: site 325: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:10-56:19) */
+        { Site { function: 62, file: 43, line: 56, column: 10, end_line: 56, end_column: 19 } },
+        /* terrane-site-row: site 326: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:56:21-56:30) */
+        { Site { function: 62, file: 43, line: 56, column: 21, end_line: 56, end_column: 30 } },
+        /* terrane-site-row: site 327: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:10-61:22) */
+        { Site { function: 62, file: 43, line: 61, column: 10, end_line: 61, end_column: 22 } },
+        /* terrane-site-row: site 328: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:24-61:33) */
+        { Site { function: 62, file: 43, line: 61, column: 24, end_line: 61, end_column: 33 } },
+        /* terrane-site-row: site 329: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:61:35-61:46) */
+        { Site { function: 62, file: 43, line: 61, column: 35, end_line: 61, end_column: 46 } },
+        /* terrane-site-row: site 330: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:69:17-69:29) */
+        { Site { function: 62, file: 43, line: 69, column: 17, end_line: 69, end_column: 29 } },
+        /* terrane-site-row: site 331: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:72:17-72:29) */
+        { Site { function: 62, file: 43, line: 72, column: 17, end_line: 72, end_column: 29 } },
+        /* terrane-site-row: site 332: /stable-list-sorting::test-scenario (tests/integration/stable-list-sorting/case.trn:78:24-78:33) */
+        { Site { function: 62, file: 43, line: 78, column: 24, end_line: 78, end_column: 33 } },
+        /* terrane-site-row: site 333: /string-display-composition::to-string (tests/integration/string-display-composition/case.trn:23:9-23:37) */
+        { Site { function: 63, file: 44, line: 23, column: 9, end_line: 23, end_column: 37 } },
+        /* terrane-site-row: site 334: /string-display-composition::render-generic (tests/integration/string-display-composition/case.trn:34:25-34:30) */
+        { Site { function: 64, file: 44, line: 34, column: 25, end_line: 34, end_column: 30 } },
+        /* terrane-site-row: site 335: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:50:29-50:45) */
+        { Site { function: 65, file: 44, line: 50, column: 29, end_line: 50, end_column: 45 } },
+        /* terrane-site-row: site 336: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:54:17-54:33) */
+        { Site { function: 65, file: 44, line: 54, column: 17, end_line: 54, end_column: 33 } },
+        /* terrane-site-row: site 337: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:58:25-58:41) */
+        { Site { function: 65, file: 44, line: 58, column: 25, end_line: 58, end_column: 41 } },
+        /* terrane-site-row: site 338: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:62:24-62:40) */
+        { Site { function: 65, file: 44, line: 62, column: 24, end_line: 62, end_column: 40 } },
+        /* terrane-site-row: site 339: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:66:17-66:51) */
+        { Site { function: 65, file: 44, line: 66, column: 17, end_line: 66, end_column: 51 } },
+        /* terrane-site-row: site 340: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:69:13-69:45) */
+        { Site { function: 65, file: 44, line: 69, column: 13, end_line: 69, end_column: 45 } },
+        /* terrane-site-row: site 341: /string-display-composition::test-composition (tests/integration/string-display-composition/case.trn:71:27-71:33) */
+        { Site { function: 65, file: 44, line: 71, column: 27, end_line: 71, end_column: 33 } },
+        /* terrane-site-row: site 342: /text-families::test-scenario (tests/integration/text-families/case.trn:29:11-29:52) */
+        { Site { function: 66, file: 45, line: 29, column: 11, end_line: 29, end_column: 52 } },
+        /* terrane-site-row: site 343: /text-families::test-scenario (tests/integration/text-families/case.trn:32:11-32:65) */
+        { Site { function: 66, file: 45, line: 32, column: 11, end_line: 32, end_column: 65 } },
+        /* terrane-site-row: site 344: /text-families::test-scenario (tests/integration/text-families/case.trn:37:11-37:65) */
+        { Site { function: 66, file: 45, line: 37, column: 11, end_line: 37, end_column: 65 } },
+        /* terrane-site-row: site 345: /text-families::test-scenario (tests/integration/text-families/case.trn:38:11-38:52) */
+        { Site { function: 66, file: 45, line: 38, column: 11, end_line: 38, end_column: 52 } },
+        /* terrane-site-row: site 346: /text-families::test-scenario (tests/integration/text-families/case.trn:41:11-41:55) */
+        { Site { function: 66, file: 45, line: 41, column: 11, end_line: 41, end_column: 55 } },
+        /* terrane-site-row: site 347: /text-families::test-scenario (tests/integration/text-families/case.trn:42:11-42:54) */
+        { Site { function: 66, file: 45, line: 42, column: 11, end_line: 42, end_column: 54 } },
+        /* terrane-site-row: site 348: /text-families::test-scenario (tests/integration/text-families/case.trn:45:13-45:60) */
+        { Site { function: 66, file: 45, line: 45, column: 13, end_line: 45, end_column: 60 } },
+        /* terrane-site-row: site 349: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:27-13:38) */
+        { Site { function: 67, file: 46, line: 13, column: 27, end_line: 13, end_column: 38 } },
+        /* terrane-site-row: site 350: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:13:40-13:51) */
+        { Site { function: 67, file: 46, line: 13, column: 40, end_line: 13, end_column: 51 } },
+        /* terrane-site-row: site 351: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:34) */
+        { Site { function: 67, file: 46, line: 18, column: 25, end_line: 18, end_column: 34 } },
+        /* terrane-site-row: site 352: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:25-18:37) */
+        { Site { function: 67, file: 46, line: 18, column: 25, end_line: 18, end_column: 37 } },
+        /* terrane-site-row: site 353: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:48) */
+        { Site { function: 67, file: 46, line: 18, column: 39, end_line: 18, end_column: 48 } },
+        /* terrane-site-row: site 354: /tuple-type-boundaries::test-scenario (tests/integration/tuple-type-boundaries/case.trn:18:39-18:51) */
+        { Site { function: 67, file: 46, line: 18, column: 39, end_line: 18, end_column: 51 } },
+        /* terrane-site-row: site 355: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:7:7-7:27) */
+        { Site { function: 68, file: 47, line: 7, column: 7, end_line: 7, end_column: 27 } },
+        /* terrane-site-row: site 356: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:11:7-11:32) */
+        { Site { function: 68, file: 47, line: 11, column: 7, end_line: 11, end_column: 32 } },
+        /* terrane-site-row: site 357: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:17:7-17:27) */
+        { Site { function: 68, file: 47, line: 17, column: 7, end_line: 17, end_column: 27 } },
+        /* terrane-site-row: site 358: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:19:7-19:19) */
+        { Site { function: 68, file: 47, line: 19, column: 7, end_line: 19, end_column: 19 } },
+        /* terrane-site-row: site 359: /typed-catch-bindings::test-scenario (tests/integration/typed-catch-bindings/case.trn:24:5-24:30) */
+        { Site { function: 68, file: 47, line: 24, column: 5, end_line: 24, end_column: 30 } },
+        /* terrane-site-row: site 360: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:12-38:34) */
+        { Site { function: 69, file: 48, line: 38, column: 12, end_line: 38, end_column: 34 } },
+        /* terrane-site-row: site 361: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:36-38:64) */
+        { Site { function: 69, file: 48, line: 38, column: 36, end_line: 38, end_column: 64 } },
+        /* terrane-site-row: site 362: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:38:66-38:94) */
+        { Site { function: 69, file: 48, line: 38, column: 66, end_line: 38, end_column: 94 } },
+        /* terrane-site-row: site 363: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:13-44:37) */
+        { Site { function: 69, file: 48, line: 44, column: 13, end_line: 44, end_column: 37 } },
+        /* terrane-site-row: site 364: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:44:69-44:93) */
+        { Site { function: 69, file: 48, line: 44, column: 69, end_line: 44, end_column: 93 } },
+        /* terrane-site-row: site 365: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:28-47:50) */
+        { Site { function: 69, file: 48, line: 47, column: 28, end_line: 47, end_column: 50 } },
+        /* terrane-site-row: site 366: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:47:59-47:81) */
+        { Site { function: 69, file: 48, line: 47, column: 59, end_line: 47, end_column: 81 } },
+        /* terrane-site-row: site 367: /typed-document-decoding::test-scenario (tests/integration/typed-document-decoding/case.trn:56:48-56:71) */
+        { Site { function: 69, file: 48, line: 56, column: 48, end_line: 56, end_column: 71 } },
+        /* terrane-site-row: site 368: /typed-json-boundaries::unknown-policy (tests/integration/typed-json-boundaries/case.trn:13:5-13:33) */
+        { Site { function: 70, file: 49, line: 13, column: 5, end_line: 13, end_column: 33 } },
+        /* terrane-site-row: site 369: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:33-52:57) */
+        { Site { function: 71, file: 49, line: 52, column: 33, end_line: 52, end_column: 57 } },
+        /* terrane-site-row: site 370: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:100-52:123) */
+        { Site { function: 71, file: 49, line: 52, column: 100, end_line: 52, end_column: 123 } },
+        /* terrane-site-row: site 371: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:166-52:189) */
+        { Site { function: 71, file: 49, line: 52, column: 166, end_line: 52, end_column: 189 } },
+        /* terrane-site-row: site 372: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:52:233-52:257) */
+        { Site { function: 71, file: 49, line: 52, column: 233, end_line: 52, end_column: 257 } },
+        /* terrane-site-row: site 373: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:59:69-59:84) */
+        { Site { function: 71, file: 49, line: 59, column: 69, end_line: 59, end_column: 84 } },
+        /* terrane-site-row: site 374: /typed-json-boundaries::test-scenario (tests/integration/typed-json-boundaries/case.trn:60:16-60:38) */
+        { Site { function: 71, file: 49, line: 60, column: 16, end_line: 60, end_column: 38 } },
+        /* terrane-site-row: site 375: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:33-11:49) */
+        { Site { function: 72, file: 50, line: 11, column: 33, end_line: 11, end_column: 49 } },
+        /* terrane-site-row: site 376: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:11:56-11:72) */
+        { Site { function: 72, file: 50, line: 11, column: 56, end_line: 11, end_column: 72 } },
+        /* terrane-site-row: site 377: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:13:30-13:48) */
+        { Site { function: 72, file: 50, line: 13, column: 30, end_line: 13, end_column: 48 } },
+        /* terrane-site-row: site 378: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:30-15:43) */
+        { Site { function: 72, file: 50, line: 15, column: 30, end_line: 15, end_column: 43 } },
+        /* terrane-site-row: site 379: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:15:50-15:63) */
+        { Site { function: 72, file: 50, line: 15, column: 50, end_line: 15, end_column: 63 } },
+        /* terrane-site-row: site 380: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:31-17:45) */
+        { Site { function: 72, file: 50, line: 17, column: 31, end_line: 17, end_column: 45 } },
+        /* terrane-site-row: site 381: /typed-serialization-destinations::test-destinations (tests/integration/typed-serialization-destinations/case.trn:17:52-17:66) */
+        { Site { function: 72, file: 50, line: 17, column: 52, end_line: 17, end_column: 66 } },
+        /* terrane-site-row: site 382: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:91-39:115) */
+        { Site { function: 73, file: 51, line: 39, column: 91, end_line: 39, end_column: 115 } },
+        /* terrane-site-row: site 383: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:122-39:149) */
+        { Site { function: 73, file: 51, line: 39, column: 122, end_line: 39, end_column: 149 } },
+        /* terrane-site-row: site 384: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:39:156-39:177) */
+        { Site { function: 73, file: 51, line: 39, column: 156, end_line: 39, end_column: 177 } },
+        /* terrane-site-row: site 385: /typed-serialization-matrix::test-matrix (tests/integration/typed-serialization-matrix/case.trn:43:90-43:112) */
+        { Site { function: 73, file: 51, line: 43, column: 90, end_line: 43, end_column: 112 } },
+        /* terrane-site-row: site 386: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54) */
+        { Site { function: 74, file: 52, line: 11, column: 33, end_line: 11, end_column: 54 } },
+        /* terrane-site-row: site 387: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82) */
+        { Site { function: 74, file: 52, line: 11, column: 61, end_line: 11, end_column: 82 } },
+        /* terrane-site-row: site 388: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85) */
+        { Site { function: 74, file: 52, line: 11, column: 61, end_line: 11, end_column: 85 } },
+        /* terrane-site-row: site 389: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80) */
+        { Site { function: 74, file: 52, line: 14, column: 61, end_line: 14, end_column: 80 } },
+        /* terrane-site-row: site 390: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47) */
+        { Site { function: 74, file: 52, line: 17, column: 32, end_line: 17, end_column: 47 } },
+        /* terrane-site-row: site 391: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51) */
+        { Site { function: 74, file: 52, line: 19, column: 31, end_line: 19, end_column: 51 } },
+        /* terrane-site-row: site 392: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83) */
+        { Site { function: 74, file: 52, line: 19, column: 63, end_line: 19, end_column: 83 } },
+        /* terrane-site-row: site 393: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51) */
+        { Site { function: 74, file: 52, line: 21, column: 34, end_line: 21, end_column: 51 } },
+        /* terrane-site-row: site 394: /typed-tuple-decode-shapes::test-scenario (tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54) */
+        { Site { function: 74, file: 52, line: 21, column: 34, end_line: 21, end_column: 54 } },
+        /* terrane-site-row: site 395: /core/testing::fail (core/testing.trn:43:5-43:41) */
+        { Site { function: 75, file: 53, line: 43, column: 5, end_line: 43, end_column: 41 } },
+        /* terrane-site-row: site 396: /core/testing::skip (core/testing.trn:46:5-46:37) */
+        { Site { function: 76, file: 53, line: 46, column: 5, end_line: 46, end_column: 37 } },
+        /* terrane-site-row: site 397: /core/testing::assert (core/testing.trn:50:9-50:36) */
+        { Site { function: 77, file: 53, line: 50, column: 9, end_line: 50, end_column: 36 } },
+        /* terrane-site-row: site 398: /core/testing::deny (core/testing.trn:55:9-55:42) */
+        { Site { function: 78, file: 53, line: 55, column: 9, end_line: 55, end_column: 42 } },
+        /* terrane-site-row: site 399: /core/testing::fail-comparison (core/testing.trn:64:5-64:18) */
+        { Site { function: 79, file: 53, line: 64, column: 5, end_line: 64, end_column: 18 } },
+        /* terrane-site-row: site 400: /core/testing::fail-values (core/testing.trn:67:5-67:75) */
+        { Site { function: 80, file: 53, line: 67, column: 5, end_line: 67, end_column: 75 } },
+        /* terrane-site-row: site 401: /core/testing::fail-near (core/testing.trn:77:5-77:18) */
+        { Site { function: 81, file: 53, line: 77, column: 5, end_line: 77, end_column: 18 } },
+        /* terrane-site-row: site 402: /core/testing::assert-equal-int (core/testing.trn:81:9-81:115) */
+        { Site { function: 82, file: 53, line: 81, column: 9, end_line: 81, end_column: 115 } },
+        /* terrane-site-row: site 403: /core/testing::assert-not-equal-int (core/testing.trn:86:9-86:127) */
+        { Site { function: 83, file: 53, line: 86, column: 9, end_line: 86, end_column: 127 } },
+        /* terrane-site-row: site 404: /core/testing::assert-equal-string (core/testing.trn:91:9-91:66) */
+        { Site { function: 84, file: 53, line: 91, column: 9, end_line: 91, end_column: 66 } },
+        /* terrane-site-row: site 405: /core/testing::assert-not-equal-string (core/testing.trn:96:9-96:78) */
+        { Site { function: 85, file: 53, line: 96, column: 9, end_line: 96, end_column: 78 } },
+        /* terrane-site-row: site 406: /core/testing::assert-equal-bool (core/testing.trn:101:9-101:117) */
+        { Site { function: 86, file: 53, line: 101, column: 9, end_line: 101, end_column: 117 } },
+        /* terrane-site-row: site 407: /core/testing::assert-not-equal-bool (core/testing.trn:106:9-106:129) */
+        { Site { function: 87, file: 53, line: 106, column: 9, end_line: 106, end_column: 129 } },
+        /* terrane-site-row: site 408: /core/testing::assert-equal-float64 (core/testing.trn:111:9-111:124) */
+        { Site { function: 88, file: 53, line: 111, column: 9, end_line: 111, end_column: 124 } },
+        /* terrane-site-row: site 409: /core/testing::assert-not-equal-float64 (core/testing.trn:116:9-116:136) */
+        { Site { function: 89, file: 53, line: 116, column: 9, end_line: 116, end_column: 136 } },
+        /* terrane-site-row: site 410: /core/testing::assert-equal-bytes (core/testing.trn:121:9-121:116) */
+        { Site { function: 90, file: 53, line: 121, column: 9, end_line: 121, end_column: 116 } },
+        /* terrane-site-row: site 411: /core/testing::assert-not-equal-bytes (core/testing.trn:126:9-126:128) */
+        { Site { function: 91, file: 53, line: 126, column: 9, end_line: 126, end_column: 128 } },
+        /* terrane-site-row: site 412: /core/testing::assert-present-int (core/testing.trn:131:9-131:43) */
+        { Site { function: 92, file: 53, line: 131, column: 9, end_line: 131, end_column: 43 } },
+        /* terrane-site-row: site 413: /core/testing::assert-none-int (core/testing.trn:136:9-136:36) */
+        { Site { function: 93, file: 53, line: 136, column: 9, end_line: 136, end_column: 36 } },
+        /* terrane-site-row: site 414: /core/testing::assert-present-string (core/testing.trn:141:9-141:42) */
+        { Site { function: 94, file: 53, line: 141, column: 9, end_line: 141, end_column: 42 } },
+        /* terrane-site-row: site 415: /core/testing::assert-none-string (core/testing.trn:146:9-146:35) */
+        { Site { function: 95, file: 53, line: 146, column: 9, end_line: 146, end_column: 35 } },
+        /* terrane-site-row: site 416: /core/testing::assert-present-bool (core/testing.trn:151:9-151:43) */
+        { Site { function: 96, file: 53, line: 151, column: 9, end_line: 151, end_column: 43 } },
+        /* terrane-site-row: site 417: /core/testing::assert-none-bool (core/testing.trn:156:9-156:36) */
+        { Site { function: 97, file: 53, line: 156, column: 9, end_line: 156, end_column: 36 } },
+        /* terrane-site-row: site 418: /core/testing::assert-present-float64 (core/testing.trn:161:9-161:50) */
+        { Site { function: 98, file: 53, line: 161, column: 9, end_line: 161, end_column: 50 } },
+        /* terrane-site-row: site 419: /core/testing::assert-none-float64 (core/testing.trn:166:9-166:43) */
+        { Site { function: 99, file: 53, line: 166, column: 9, end_line: 166, end_column: 43 } },
+        /* terrane-site-row: site 420: /core/testing::assert-present-bytes (core/testing.trn:171:9-171:39) */
+        { Site { function: 100, file: 53, line: 171, column: 9, end_line: 171, end_column: 39 } },
+        /* terrane-site-row: site 421: /core/testing::assert-none-bytes (core/testing.trn:176:9-176:34) */
+        { Site { function: 101, file: 53, line: 176, column: 9, end_line: 176, end_column: 34 } },
+        /* terrane-site-row: site 422: /core/testing::assert-near (core/testing.trn:181:9-181:111) */
+        { Site { function: 102, file: 53, line: 181, column: 9, end_line: 181, end_column: 111 } },
+        /* terrane-site-row: site 423: /core/testing::assert-near (core/testing.trn:186:9-186:47) */
+        { Site { function: 102, file: 53, line: 186, column: 9, end_line: 186, end_column: 47 } },
+        /* terrane-site-row: site 424: /core/testing::assert-throws (core/testing.trn:191:9-191:19) */
+        { Site { function: 103, file: 53, line: 191, column: 9, end_line: 191, end_column: 19 } },
+        /* terrane-site-row: site 425: /core/testing::assert-throws (core/testing.trn:195:9-195:113) */
+        { Site { function: 103, file: 53, line: 195, column: 9, end_line: 195, end_column: 113 } },
+        /* terrane-site-row: site 426: /core/testing::assert-throws (core/testing.trn:196:5-196:70) */
+        { Site { function: 103, file: 53, line: 196, column: 5, end_line: 196, end_column: 70 } },
+        /* terrane-site-row: site 427: /core/testing::test-arguments (core/testing.trn:210:28-210:43) */
+        { Site { function: 104, file: 53, line: 210, column: 28, end_line: 210, end_column: 43 } },
+        /* terrane-site-row: site 428: /core/testing::test-deadline (core/testing.trn:215:12-215:68) */
+        { Site { function: 105, file: 53, line: 215, column: 12, end_line: 215, end_column: 68 } },
+        /* terrane-site-row: site 429: /core/testing::advance-time (core/testing.trn:235:9-235:49) */
+        { Site { function: 106, file: 53, line: 235, column: 9, end_line: 235, end_column: 49 } },
+        /* terrane-site-row: site 430: /core/testing::advance-time (core/testing.trn:237:9-237:69) */
+        { Site { function: 106, file: 53, line: 237, column: 9, end_line: 237, end_column: 69 } },
+        /* terrane-site-row: site 431: /core/streams::read (core/streams.trn:381:23-381:50) */
+        { Site { function: 107, file: 54, line: 381, column: 23, end_line: 381, end_column: 50 } },
+        /* terrane-site-row: site 432: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
+        { Site { function: 108, file: 54, line: 403, column: 23, end_line: 403, end_column: 46 } },
+        /* terrane-site-row: site 433: /core/streams::read-all (core/streams.trn:422:23-422:46) */
+        { Site { function: 109, file: 54, line: 422, column: 23, end_line: 422, end_column: 46 } },
+        /* terrane-site-row: site 434: /core/streams::read-async (core/streams.trn:427:23-427:50) */
+        { Site { function: 110, file: 54, line: 427, column: 23, end_line: 427, end_column: 50 } },
+        /* terrane-site-row: site 435: /core/documents::make-document-list (core/documents.trn:141:47-141:60) */
+        { Site { function: 111, file: 55, line: 141, column: 47, end_line: 141, end_column: 60 } },
+        /* terrane-site-row: site 436: /core/documents::mapping-required-fields (core/documents.trn:154:17-154:30) */
+        { Site { function: 112, file: 55, line: 154, column: 17, end_line: 154, end_column: 30 } },
+        /* terrane-site-row: site 437: /core/documents::mapping-required-fields (core/documents.trn:158:16-158:47) */
+        { Site { function: 112, file: 55, line: 158, column: 16, end_line: 158, end_column: 47 } },
+        /* terrane-site-row: site 438: /core/documents::mapping-required-fields (core/documents.trn:164:16-164:45) */
+        { Site { function: 112, file: 55, line: 164, column: 16, end_line: 164, end_column: 45 } },
+        /* terrane-site-row: site 439: /core/documents::decode-document (core/documents.trn:177:12-177:44) */
+        { Site { function: 113, file: 55, line: 177, column: 12, end_line: 177, end_column: 44 } },
+        /* terrane-site-row: site 440: /core/documents::decode-document (core/documents.trn:178:37-178:69) */
+        { Site { function: 113, file: 55, line: 178, column: 37, end_line: 178, end_column: 69 } },
+        /* terrane-site-row: site 441: /core/documents::decode-document (core/documents.trn:184:12-184:49) */
+        { Site { function: 113, file: 55, line: 184, column: 12, end_line: 184, end_column: 49 } },
+        /* terrane-site-row: site 442: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
+        { Site { function: 113, file: 55, line: 185, column: 36, end_line: 185, end_column: 73 } },
+        /* terrane-site-row: site 443: /core/documents::decode-document (core/documents.trn:186:36-186:73) */
+        { Site { function: 113, file: 55, line: 186, column: 36, end_line: 186, end_column: 73 } },
+        /* terrane-site-row: site 444: /core/urls::get (core/urls.trn:23:16-23:32) */
+        { Site { function: 114, file: 56, line: 23, column: 16, end_line: 23, end_column: 32 } },
+        /* terrane-site-row: site 445: /core/urls::get (core/urls.trn:24:24-24:42) */
+        { Site { function: 114, file: 56, line: 24, column: 24, end_line: 24, end_column: 42 } },
+        /* terrane-site-row: site 446: /core/urls::get-all (core/urls.trn:32:16-32:32) */
+        { Site { function: 115, file: 56, line: 32, column: 16, end_line: 32, end_column: 32 } },
+        /* terrane-site-row: site 447: /core/urls::get-all (core/urls.trn:33:32-33:50) */
+        { Site { function: 115, file: 56, line: 33, column: 32, end_line: 33, end_column: 50 } },
+        /* terrane-site-row: site 448: /core/process::arguments (core/process.trn:45:49-45:63) */
+        { Site { function: 116, file: 57, line: 45, column: 49, end_line: 45, end_column: 63 } },
+        /* terrane-site-row: site 449: /core/process::environment (core/process.trn:54:40-54:54) */
+        { Site { function: 117, file: 57, line: 54, column: 40, end_line: 54, end_column: 54 } },
+        /* terrane-site-row: site 450: /core/process::environment (core/process.trn:55:41-55:59) */
+        { Site { function: 117, file: 57, line: 55, column: 41, end_line: 55, end_column: 59 } },
+        /* terrane-site-row: site 451: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
+        { Site { function: 118, file: 57, line: 90, column: 20, end_line: 90, end_column: 35 } },
+        /* terrane-site-row: site 452: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
+        { Site { function: 118, file: 57, line: 105, column: 43, end_line: 105, end_column: 62 } },
+        /* terrane-site-row: site 453: /core/time::multiply (core/time.trn:62:13-62:45) */
+        { Site { function: 119, file: 58, line: 62, column: 13, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 454: /core/time::seconds (core/time.trn:38:13-38:45) */
+        { Site { function: 120, file: 58, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 455: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        { Site { function: 121, file: 58, line: 43, column: 13, end_line: 43, end_column: 45 } },
+        /* terrane-site-row: site 456: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        { Site { function: 122, file: 58, line: 48, column: 13, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 457: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        { Site { function: 123, file: 58, line: 53, column: 13, end_line: 53, end_column: 45 } },
+        /* terrane-site-row: site 458: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        { Site { function: 124, file: 58, line: 76, column: 13, end_line: 76, end_column: 45 } },
+        /* terrane-site-row: site 459: /core/time::at (core/time.trn:105:13-105:45) */
+        { Site { function: 125, file: 58, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 460: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        { Site { function: 126, file: 58, line: 161, column: 13, end_line: 161, end_column: 45 } },
+        /* terrane-site-row: site 461: /core/time::interval (core/time.trn:172:13-172:45) */
+        { Site { function: 127, file: 58, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1796,6 +1831,473 @@ impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
         }
     }
 }
+use std::future::Future;
+#[derive(Clone)]
+struct TerraneCancellation {
+    state: std::sync::Arc<TerraneCancellationState>,
+}
+struct TerraneCancellationState {
+    cancelled: std::sync::atomic::AtomicBool,
+    notification: tokio::sync::Notify,
+}
+impl TerraneCancellation {
+    fn new() -> Self {
+        Self {
+            state: std::sync::Arc::new(TerraneCancellationState {
+                cancelled: std::sync::atomic::AtomicBool::new(false),
+                notification: tokio::sync::Notify::new(),
+            }),
+        }
+    }
+    fn cancel(&self) {
+        if !self.state.cancelled.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            self.state.notification.notify_waiters();
+        }
+    }
+    fn is_cancelled(&self) -> bool {
+        self.state.cancelled.load(std::sync::atomic::Ordering::Acquire)
+    }
+    async fn cancelled(&self) {
+        let notified = self.state.notification.notified();
+        if !self.is_cancelled() {
+            notified.await;
+        }
+    }
+}
+trait TerraneTaskCleanup: Send + Sync {
+    fn cancel(&self);
+    fn cleanup(
+        self: std::sync::Arc<Self>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+}
+struct TerraneFinalizerState {
+    depth: std::sync::atomic::AtomicUsize,
+    wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+    task_groups: parking_lot::Mutex<Vec<std::sync::Weak<dyn TerraneTaskCleanup>>>,
+    pending_groups: parking_lot::Mutex<Vec<std::sync::Arc<dyn TerraneTaskCleanup>>>,
+}
+impl TerraneFinalizerState {
+    fn new() -> Self {
+        Self {
+            depth: std::sync::atomic::AtomicUsize::new(0),
+            wakers: std::sync::Mutex::new(Vec::new()),
+            task_groups: parking_lot::Mutex::new(Vec::new()),
+            pending_groups: parking_lot::Mutex::new(Vec::new()),
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "native scope support is shared by packages without asynchronous finally"
+    )]
+    fn register(self: &std::sync::Arc<Self>) -> TerraneFinallyGuard {
+        let depth = self.depth.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
+        TerraneFinallyGuard {
+            state: Some(self.clone()),
+            depth,
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "group registration is shared by native async packages without groups"
+    )]
+    fn register_task_group<T: TerraneTaskCleanup + Send + Sync + 'static>(
+        &self,
+        group: std::sync::Weak<T>,
+    ) {
+        let group: std::sync::Weak<dyn TerraneTaskCleanup> = group;
+        let mut groups = self.task_groups.lock();
+        groups.retain(|group| group.strong_count() != 0);
+        groups.push(group);
+    }
+    #[allow(
+        dead_code,
+        reason = "group cleanup is shared by native async packages without groups"
+    )]
+    fn retain_task_group(&self, group: std::sync::Arc<dyn TerraneTaskCleanup>) {
+        self.task_groups
+            .lock()
+            .retain(|weak| {
+                !std::ptr::addr_eq(weak.as_ptr(), std::sync::Arc::as_ptr(&group))
+            });
+        self.pending_groups.lock().push(group);
+    }
+    async fn drain_task_groups(&self) {
+        let mut groups = std::mem::take(&mut *self.pending_groups.lock());
+        {
+            let mut registry = self.task_groups.lock();
+            groups.extend(registry.iter().filter_map(std::sync::Weak::upgrade));
+            registry.retain(|group| group.strong_count() != 0);
+        }
+        for group in &groups {
+            group.cancel();
+        }
+        for group in groups {
+            group.cleanup().await;
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "native scope support is shared by packages without asynchronous finally"
+    )]
+    fn unregister(&self, depth: usize) {
+        let current = self.depth.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+        debug_assert_eq!(current, depth, "finally regions must leave innermost first");
+        let wakers = std::mem::take(
+            &mut *self.wakers.lock().expect("finalizer waker lock poisoned"),
+        );
+        for waker in wakers {
+            waker.wake();
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "projected cleanup tracking is shared by packages without projected entries"
+    )]
+    async fn reaches(&self, depth: usize) {
+        std::future::poll_fn(|context| {
+                if self.depth.load(std::sync::atomic::Ordering::Acquire) == depth {
+                    return std::task::Poll::Ready(());
+                }
+                let mut wakers = self
+                    .wakers
+                    .lock()
+                    .expect("finalizer waker lock poisoned");
+                if self.depth.load(std::sync::atomic::Ordering::Acquire) == depth {
+                    return std::task::Poll::Ready(());
+                }
+                if !wakers.iter().any(|waker| waker.will_wake(context.waker())) {
+                    wakers.push(context.waker().clone());
+                }
+                std::task::Poll::Pending
+            })
+            .await;
+    }
+    fn depth(&self) -> usize {
+        self.depth.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+struct TerraneCancellationContext {
+    cancellation: TerraneCancellation,
+    deadline: Option<terrane_int_support::Int>,
+    finalizers: std::sync::Arc<TerraneFinalizerState>,
+}
+tokio::task_local! {
+    static TERRANE_CANCELLATION_CONTEXT : TerraneCancellationContext;
+}
+static TERRANE_PROJECTED_CLEANUPS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
+    0,
+);
+static TERRANE_PROJECTED_CLEANUPS_CHANGED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+#[allow(
+    dead_code,
+    reason = "projected asynchronous entry support is shared by asynchronous packages"
+)]
+struct TerraneProjectedEntryGuard<T: Send + 'static> {
+    cancellation: TerraneCancellation,
+    finalizers: std::sync::Arc<TerraneFinalizerState>,
+    task: Option<tokio::task::JoinHandle<T>>,
+    armed: bool,
+}
+impl<T: Send + 'static> Drop for TerraneProjectedEntryGuard<T> {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        TERRANE_PROJECTED_CLEANUPS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.cancellation.cancel();
+        let finalizers = self.finalizers.clone();
+        let task = self
+            .task
+            .take()
+            .expect("armed projected entry guard must own its task");
+        tokio::spawn(async move {
+            finalizers.reaches(0).await;
+            task.abort();
+            let _ = task.await;
+            if TERRANE_PROJECTED_CLEANUPS
+                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst) == 1
+            {
+                TERRANE_PROJECTED_CLEANUPS_CHANGED.notify_waiters();
+            }
+        });
+    }
+}
+#[allow(
+    dead_code,
+    reason = "projected asynchronous entry support is shared by asynchronous packages"
+)]
+async fn __terrane_projected_async_entry<F, T>(future: F) -> T
+where
+    F: Future<Output = T> + Send + 'static,
+    T: Send + 'static,
+{
+    let cancellation = TerraneCancellation::new();
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: cancellation.clone(),
+        deadline: None,
+        finalizers: finalizers.clone(),
+    };
+    let mut future = Box::pin(TERRANE_CANCELLATION_CONTEXT.scope(context, future));
+    let first_poll = std::future::poll_fn(|cx| std::task::Poll::Ready(
+            future.as_mut().poll(cx),
+        ))
+        .await;
+    if let std::task::Poll::Ready(output) = first_poll {
+        return output;
+    }
+    let task = tokio::spawn(future);
+    let mut guard = TerraneProjectedEntryGuard {
+        cancellation,
+        finalizers,
+        task: Some(task),
+        armed: true,
+    };
+    let output = guard
+        .task
+        .as_mut()
+        .expect("projected entry guard owns its task")
+        .await
+        .expect("projected asynchronous dependency entry task failed");
+    guard.armed = false;
+    output
+}
+#[allow(
+    dead_code,
+    reason = "projected asynchronous entry support is shared by asynchronous packages"
+)]
+async fn __terrane_wait_projected_cleanups() {
+    loop {
+        let changed = TERRANE_PROJECTED_CLEANUPS_CHANGED.notified();
+        if TERRANE_PROJECTED_CLEANUPS.load(std::sync::atomic::Ordering::SeqCst) == 0 {
+            return;
+        }
+        changed.await;
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+struct TerraneFinallyGuard {
+    state: Option<std::sync::Arc<TerraneFinalizerState>>,
+    depth: usize,
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+impl TerraneFinallyGuard {
+    fn finish(&mut self) {
+        if let Some(state) = self.state.take() {
+            state.unregister(self.depth);
+        }
+    }
+}
+impl Drop for TerraneFinallyGuard {
+    fn drop(&mut self) {
+        self.finish();
+    }
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+#[derive(Clone)]
+struct TerraneSelectControl {
+    requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    waker: std::sync::Arc<std::sync::Mutex<Option<std::task::Waker>>>,
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+impl TerraneSelectControl {
+    fn request_cancel(&self) {
+        self.requested.store(true, std::sync::atomic::Ordering::Release);
+        if let Some(waker) = self
+            .waker
+            .lock()
+            .expect("select cancellation waker lock poisoned")
+            .take()
+        {
+            waker.wake();
+        }
+    }
+    fn is_cancelled(&self) -> bool {
+        self.requested.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+fn __terrane_select_control() -> TerraneSelectControl {
+    TerraneSelectControl {
+        requested: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        waker: std::sync::Arc::new(std::sync::Mutex::new(None)),
+    }
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+async fn __terrane_select_operation<F: Future>(
+    control: TerraneSelectControl,
+    future: F,
+) -> Option<F::Output> {
+    let deadline = TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| context.deadline.clone())
+        .ok()
+        .flatten();
+    let cancellation = TerraneCancellation::new();
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: cancellation.clone(),
+        deadline,
+        finalizers: finalizers.clone(),
+    };
+    TERRANE_CANCELLATION_CONTEXT
+        .scope(
+            context,
+            async move {
+                let mut future = std::pin::pin!(future);
+                let cleanup = finalizers.clone();
+                let output = std::future::poll_fn(move |cx| {
+                        if control.is_cancelled() {
+                            cancellation.cancel();
+                            let mut stored_waker = control
+                                .waker
+                                .lock()
+                                .expect("select cancellation waker lock poisoned");
+                            if stored_waker
+                                .as_ref()
+                                .is_none_or(|waker| !waker.will_wake(cx.waker()))
+                            {
+                                *stored_waker = Some(cx.waker().clone());
+                            }
+                            drop(stored_waker);
+                            return match Future::poll(future.as_mut(), cx) {
+                                std::task::Poll::Ready(output) => {
+                                    std::task::Poll::Ready(Some(output))
+                                }
+                                std::task::Poll::Pending if finalizers.depth() == 0 => {
+                                    std::task::Poll::Ready(None)
+                                }
+                                std::task::Poll::Pending => std::task::Poll::Pending,
+                            };
+                        }
+                        Future::poll(future.as_mut(), cx).map(Some)
+                    })
+                    .await;
+                if output.is_none() {
+                    cleanup.drain_task_groups().await;
+                }
+                output
+            },
+        )
+        .await
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+fn __terrane_finally_guard() -> TerraneFinallyGuard {
+    TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| context.finalizers.register())
+        .unwrap_or(TerraneFinallyGuard {
+            state: None,
+            depth: 0,
+        })
+}
+async fn __terrane_cancellation_requested(
+    cancellation: TerraneCancellation,
+    deadline: Option<terrane_int_support::Int>,
+) {
+    if let Some(deadline) = deadline {
+        tokio::select! {
+            () = cancellation.cancelled() => {} () = terrane_time_sleep_until(deadline)
+            => { cancellation.cancel(); }
+        }
+    } else {
+        cancellation.cancelled().await;
+    }
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+fn __terrane_cancellation_is_requested() -> bool {
+    TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| {
+            if context.deadline.as_ref().is_some_and(terrane_time_deadline_expired) {
+                context.cancellation.cancel();
+            }
+            context.cancellation.is_cancelled()
+        })
+        .unwrap_or(false)
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+fn __terrane_cancel_operation<'a, F: Future + 'a>(
+    guard: &'a TerraneFinallyGuard,
+    future: F,
+) -> impl Future<Output = Option<F::Output>> + 'a {
+    let mut future = Box::pin(future);
+    async move {
+        let cancellation = TERRANE_CANCELLATION_CONTEXT
+            .try_with(|context| {
+                guard
+                    .state
+                    .as_ref()
+                    .map(|state| {
+                        (
+                            context.cancellation.clone(),
+                            context.deadline.clone(),
+                            state.clone(),
+                        )
+                    })
+            })
+            .ok()
+            .flatten();
+        if let Some((cancellation, deadline, finalizers)) = cancellation {
+            tokio::select! {
+                biased; output = future.as_mut() => Some(output), () =
+                __terrane_cancellation_requested(cancellation, deadline) => { let output
+                = std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx) {
+                std::task::Poll::Ready(output) => std::task::Poll::Ready(Some(output)),
+                std::task::Poll::Pending if finalizers.depth() == guard.depth => {
+                std::task::Poll::Ready(None) } std::task::Poll::Pending =>
+                std::task::Poll::Pending, } }). await; if output.is_none() { finalizers
+                .drain_task_groups(). await; } output },
+            }
+        } else {
+            Some(future.await)
+        }
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+async fn __terrane_finish_cancelled_finally(mut guard: TerraneFinallyGuard) -> ! {
+    guard.finish();
+    std::future::pending().await
+}
+#[allow(
+    dead_code,
+    reason = "selection support is shared by native async packages without select statements"
+)]
+async fn __terrane_finish_cancelled_select(mut guard: TerraneFinallyGuard) -> ! {
+    guard.finish();
+    std::future::pending().await
+}
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
     impl Future for YieldOnce {
@@ -1818,18 +2320,62 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-#[allow(
-    dead_code,
-    clippy::unused_async,
-    reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
-)]
-async fn __terrane_wait_projected_cleanups() {}
+fn __terrane_cancellable<F: Future>(
+    future: F,
+    cancellation: TerraneCancellation,
+    deadline: Option<terrane_int_support::Int>,
+) -> impl Future<Output = Option<F::Output>> {
+    let mut future = Box::pin(future);
+    async move {
+        let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+        let context = TerraneCancellationContext {
+            cancellation: cancellation.clone(),
+            deadline: deadline.clone(),
+            finalizers: finalizers.clone(),
+        };
+        TERRANE_CANCELLATION_CONTEXT
+            .scope(
+                context,
+                async move {
+                    let output = tokio::select! {
+                        biased; output = future.as_mut() => Some(output), () =
+                        __terrane_cancellation_requested(cancellation, deadline.clone())
+                        => { finalizers.drain_task_groups(). await;
+                        std::future::poll_fn(| cx | { match Future::poll(future.as_mut(),
+                        cx) { std::task::Poll::Ready(output) =>
+                        std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
+                        finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
+                        std::task::Poll::Pending => std::task::Poll::Pending, } }). await
+                        },
+                    };
+                    finalizers.drain_task_groups().await;
+                    output
+                },
+            )
+            .await
+    }
+}
 #[allow(
     dead_code,
     reason = "async entry support is emitted for libraries without an entrypoint"
 )]
 async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
-    future.await
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: TerraneCancellation::new(),
+        deadline: None,
+        finalizers: finalizers.clone(),
+    };
+    TERRANE_CANCELLATION_CONTEXT
+        .scope(
+            context,
+            async {
+                let output = future.await;
+                finalizers.drain_task_groups().await;
+                output
+            },
+        )
+        .await
 }
 #[allow(
     dead_code,
@@ -2023,6 +2569,408 @@ fn terrane_time_sleep_after(
     async move {
         terrane_time_sleep_until(target).await;
     }
+}
+#[derive(Clone)]
+pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
+impl Default for TerranePlatformStreamHandle {
+    fn default() -> Self {
+        Self(std::sync::Arc::new(0))
+    }
+}
+impl TerranePlatformStreamHandle {
+    fn new(handle: terrane_stream_abi::StreamHandle) -> Self {
+        Self(std::sync::Arc::new(handle.id()))
+    }
+    fn abi_handle(&self) -> terrane_stream_abi::StreamHandle {
+        terrane_stream_abi::StreamHandle::from_id(*self.0)
+    }
+}
+#[derive(Clone)]
+pub struct TerranePlatformReadResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
+    pub error_kind: &'static str,
+    pub deadline_exceeded: bool,
+}
+#[derive(Clone)]
+pub struct TerranePlatformWriteResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub failed: bool,
+    pub message: String,
+    pub error_kind: &'static str,
+    pub deadline_exceeded: bool,
+}
+#[derive(Clone)]
+pub struct TerranePlatformUnitResult {
+    pub failed: bool,
+    pub message: String,
+    pub error_kind: &'static str,
+}
+pub fn terrane_platform_read(
+    handle: &TerranePlatformStreamHandle,
+    limit: terrane_int_support::Int,
+) -> TerranePlatformReadResult {
+    let Some(limit) = limit.as_usize() else {
+        return TerranePlatformReadResult {
+            data: Vec::new(),
+            completed: terrane_int_support::Int::from(0_i64),
+            end: false,
+            failed: true,
+            message: "stream read count is outside the supported size range".to_owned(),
+            error_kind: "invalid-input",
+            deadline_exceeded: false,
+        };
+    };
+    match terrane_stream_abi::read(handle.abi_handle(), limit) {
+        Ok(outcome) => {
+            TerranePlatformReadResult {
+                completed: terrane_int_support::Int::from(outcome.data.len() as i128),
+                data: outcome.data,
+                end: outcome.end,
+                failed: false,
+                message: String::new(),
+                error_kind: "none",
+                deadline_exceeded: false,
+            }
+        }
+        Err(error) => {
+            TerranePlatformReadResult {
+                data: Vec::new(),
+                completed: terrane_int_support::Int::from(0_i64),
+                end: false,
+                failed: true,
+                message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
+                deadline_exceeded: false,
+            }
+        }
+    }
+}
+pub fn terrane_platform_write(
+    handle: &TerranePlatformStreamHandle,
+    data: &[u8],
+    offset: terrane_int_support::Int,
+) -> TerranePlatformWriteResult {
+    let Some(offset) = offset.as_usize().filter(|offset| *offset <= data.len()) else {
+        return TerranePlatformWriteResult {
+            data: Vec::new(),
+            completed: terrane_int_support::Int::from(0_i64),
+            failed: true,
+            message: "stream write offset is outside the buffer".to_owned(),
+            error_kind: "invalid-input",
+            deadline_exceeded: false,
+        };
+    };
+    match terrane_stream_abi::write(handle.abi_handle(), &data[offset..]) {
+        Ok(completed) => {
+            TerranePlatformWriteResult {
+                data: Vec::new(),
+                completed: terrane_int_support::Int::from(completed as i128),
+                failed: false,
+                message: String::new(),
+                error_kind: "none",
+                deadline_exceeded: false,
+            }
+        }
+        Err(error) => {
+            TerranePlatformWriteResult {
+                data: Vec::new(),
+                completed: terrane_int_support::Int::from(0_i64),
+                failed: true,
+                message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
+                deadline_exceeded: false,
+            }
+        }
+    }
+}
+pub fn terrane_platform_flush(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::flush(handle.abi_handle()))
+}
+pub fn terrane_platform_sync_data(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::sync_data(handle.abi_handle()))
+}
+pub fn terrane_platform_sync_all(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::sync_all(handle.abi_handle()))
+}
+pub fn terrane_platform_close(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::close(handle.abi_handle()))
+}
+pub fn terrane_platform_release(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    if std::sync::Arc::strong_count(&handle.0) == 1 {
+        terrane_platform_unit(terrane_stream_abi::release(handle.abi_handle()))
+    } else {
+        TerranePlatformUnitResult {
+            failed: false,
+            message: String::new(),
+            error_kind: "none",
+        }
+    }
+}
+pub fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResult {
+    match result {
+        Ok(()) => {
+            TerranePlatformUnitResult {
+                failed: false,
+                message: String::new(),
+                error_kind: "none",
+            }
+        }
+        Err(error) => {
+            TerranePlatformUnitResult {
+                failed: true,
+                message: error.to_string(),
+                error_kind: terrane_stream_abi::io_error_kind(error.kind()),
+            }
+        }
+    }
+}
+pub async fn terrane_platform_read_async(
+    handle: &TerranePlatformStreamHandle,
+    limit: terrane_int_support::Int,
+    deadline: terrane_int_support::Int,
+    cancellation: Option<&TerranePlatformCapability>,
+) -> TerranePlatformReadResult {
+    if let Some(error) = terrane_platform_stream_options(&deadline, cancellation) {
+        let error_kind = terrane_platform_stream_option_error_kind(&error);
+        return TerranePlatformReadResult {
+            data: Vec::new(),
+            completed: 0_i64.into(),
+            end: false,
+            failed: error.failed,
+            message: error.message,
+            error_kind,
+            deadline_exceeded: error.deadline_exceeded,
+        };
+    }
+    let handle = handle.clone();
+    let _wait = __terrane_finally_guard();
+    tokio::task::spawn_blocking(move || terrane_platform_read(&handle, limit))
+        .await
+        .expect("delegated stream read must not panic")
+}
+pub fn terrane_platform_buffer_create(
+    capacity: &terrane_int_support::Int,
+) -> TerranePlatformResult {
+    let capacity = match terrane_platform_i128(capacity, "read buffer capacity") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    terrane_platform_support::buffer_create(capacity)
+}
+pub fn terrane_platform_buffer_clear(
+    buffer: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::buffer_clear(buffer)
+}
+pub fn terrane_platform_buffer_capacity(
+    buffer: &TerranePlatformCapability,
+) -> terrane_int_support::Int {
+    terrane_int_support::Int::from(
+        terrane_platform_support::platform_buffer_capacity(buffer).number,
+    )
+}
+pub fn terrane_platform_buffer_completed(
+    buffer: &TerranePlatformCapability,
+) -> terrane_int_support::Int {
+    terrane_int_support::Int::from(
+        terrane_platform_support::platform_buffer_completed(buffer).number,
+    )
+}
+pub fn terrane_platform_buffer_filled_bytes(
+    buffer: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::buffer_filled_bytes(buffer)
+}
+pub fn terrane_platform_buffer_filled_text(
+    buffer: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::buffer_filled_text(buffer)
+}
+pub async fn terrane_platform_tcp_read_into_async(
+    stream: &TerranePlatformCapability,
+    buffer: &TerranePlatformCapability,
+    limit: terrane_int_support::Int,
+    deadline: terrane_int_support::Int,
+    cancellation: Option<&TerranePlatformCapability>,
+) -> TerranePlatformResult {
+    let limit = match terrane_platform_i128(&limit, "TCP read limit") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    terrane_platform_support::tcp_read_into_async(
+            stream,
+            buffer,
+            limit,
+            terrane_platform_timeout_nanos(deadline),
+            cancellation,
+        )
+        .await
+}
+pub async fn terrane_platform_tls_read_into_async(
+    stream: &TerranePlatformCapability,
+    buffer: &TerranePlatformCapability,
+    limit: terrane_int_support::Int,
+    deadline: terrane_int_support::Int,
+    cancellation: Option<&TerranePlatformCapability>,
+) -> TerranePlatformResult {
+    let limit = match terrane_platform_i128(&limit, "TLS read limit") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    terrane_platform_support::tls_read_into_async(
+            stream,
+            buffer,
+            limit,
+            terrane_platform_timeout_nanos(deadline),
+            cancellation,
+        )
+        .await
+}
+pub async fn terrane_platform_stream_read_into_async(
+    handle: &TerranePlatformStreamHandle,
+    buffer: &TerranePlatformCapability,
+    limit: terrane_int_support::Int,
+    deadline: terrane_int_support::Int,
+    cancellation: Option<&TerranePlatformCapability>,
+) -> TerranePlatformResult {
+    if let Some(error) = terrane_platform_stream_options(&deadline, cancellation) {
+        return error;
+    }
+    let Some(limit) = limit.as_usize() else {
+        return TerranePlatformResult::error(
+            "stream read count is outside the supported size range",
+        );
+    };
+    let handle = handle.clone();
+    let buffer = buffer.clone();
+    let _wait = __terrane_finally_guard();
+    tokio::task::spawn_blocking(move || {
+            let mut result = terrane_platform_support::buffer_read_with(
+                &buffer,
+                |storage| {
+                    if limit > storage.len() {
+                        return Err(
+                            std::io::Error::new(
+                                std::io::ErrorKind::InvalidInput,
+                                "stream read count exceeds read buffer capacity",
+                            ),
+                        );
+                    }
+                    if limit == 0 {
+                        return Ok(0);
+                    }
+                    terrane_stream_abi::read_into(
+                        handle.abi_handle(),
+                        &mut storage[..limit],
+                    )
+                },
+            );
+            if limit == 0 && !result.failed {
+                result.flag = false;
+            }
+            result
+        })
+        .await
+        .expect("delegated stream buffer read must not panic")
+}
+pub async fn terrane_platform_write_async(
+    handle: &TerranePlatformStreamHandle,
+    data: Vec<u8>,
+    offset: terrane_int_support::Int,
+    deadline: terrane_int_support::Int,
+    cancellation: Option<&TerranePlatformCapability>,
+) -> TerranePlatformWriteResult {
+    if let Some(error) = terrane_platform_stream_options(&deadline, cancellation) {
+        let error_kind = terrane_platform_stream_option_error_kind(&error);
+        return TerranePlatformWriteResult {
+            data,
+            completed: 0_i64.into(),
+            failed: error.failed,
+            message: error.message,
+            error_kind,
+            deadline_exceeded: error.deadline_exceeded,
+        };
+    }
+    let handle = handle.clone();
+    let _wait = __terrane_finally_guard();
+    tokio::task::spawn_blocking(move || {
+            let mut result = terrane_platform_write(&handle, &data, offset);
+            result.data = data;
+            result
+        })
+        .await
+        .expect("delegated stream write must not panic")
+}
+pub fn terrane_platform_buffer_close(
+    buffer: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::close(buffer)
+}
+fn terrane_platform_stream_option_error_kind(
+    error: &TerranePlatformResult,
+) -> &'static str {
+    if error.deadline_exceeded {
+        "timed-out"
+    } else if error.flag {
+        "interrupted"
+    } else {
+        "invalid-input"
+    }
+}
+fn terrane_platform_stream_options(
+    deadline: &terrane_int_support::Int,
+    cancellation: Option<&TerranePlatformCapability>,
+) -> Option<TerranePlatformResult> {
+    if let Some(token) = cancellation {
+        let result = terrane_platform_support::check_cancellation(Some(token));
+        if result.failed {
+            return Some(result);
+        }
+    }
+    match terrane_platform_i128(deadline, "stream deadline") {
+        Ok(-1) => None,
+        Ok(0) => {
+            Some(TerranePlatformResult {
+                failed: true,
+                deadline_exceeded: true,
+                message: "stream deadline exceeded".to_owned(),
+                ..TerranePlatformResult::default()
+            })
+        }
+        Ok(value) if value < -1 => {
+            Some(
+                TerranePlatformResult::error(
+                    "stream deadline is outside the supported range",
+                ),
+            )
+        }
+        Ok(_) => None,
+        Err(error) => Some(error),
+    }
+}
+pub fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
+}
+pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
+}
+pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
 }
 pub fn terrane_unhex(text: &str) -> Vec<u8> {
     fn digit(byte: u8) -> Option<u8> {
@@ -4334,7 +5282,7 @@ pub fn fail_terrane_core_testing(message: String) -> Result<(), TerraneError> {
                 TerraneErrorKind::Custom(DescriptorId(6)),
                 message,
                 rendered,
-                385 /* terrane-site: core/testing.trn:43:5-43:41 */,
+                395 /* terrane-site: core/testing.trn:43:5-43:41 */,
             )
             .with_structured_details(details)
     });
@@ -4353,7 +5301,7 @@ pub fn skip(reason: String) -> Result<(), TerraneError> {
             TerraneErrorKind::Custom(DescriptorId(7)),
             message,
             rendered,
-            386 /* terrane-site: core/testing.trn:46:5-46:37 */,
+            396 /* terrane-site: core/testing.trn:46:5-46:37 */,
         )
     });
 }
@@ -4361,7 +5309,7 @@ pub fn assert(condition: bool) -> Result<(), TerraneError> {
     if !condition {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("assertion was false")),
-            387 /* terrane-site: core/testing.trn:50:9-50:36 */,
+            397 /* terrane-site: core/testing.trn:50:9-50:36 */,
         )?;
     }
     return Ok(());
@@ -4370,7 +5318,7 @@ pub fn deny(condition: bool) -> Result<(), TerraneError> {
     if condition {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("denied condition was true")),
-            388 /* terrane-site: core/testing.trn:55:9-55:42 */,
+            398 /* terrane-site: core/testing.trn:55:9-55:42 */,
         )?;
     }
     return Ok(());
@@ -4426,7 +5374,7 @@ pub fn fail_comparison(
                 TerraneErrorKind::Custom(DescriptorId(6)),
                 message,
                 rendered,
-                389 /* terrane-site: core/testing.trn:64:5-64:18 */,
+                399 /* terrane-site: core/testing.trn:64:5-64:18 */,
             )
             .with_structured_details(details)
     });
@@ -4438,7 +5386,7 @@ pub fn fail_values(
 ) -> Result<(), TerraneError> {
     __terrane_traced_err(
         fail_comparison(failure_message, actual.render(), expected.render()),
-        390 /* terrane-site: core/testing.trn:67:5-67:75 */,
+        400 /* terrane-site: core/testing.trn:67:5-67:75 */,
     )?;
     return Ok(());
 }
@@ -4507,7 +5455,7 @@ pub fn fail_near(
                 TerraneErrorKind::Custom(DescriptorId(6)),
                 message,
                 rendered,
-                391 /* terrane-site: core/testing.trn:77:5-77:18 */,
+                401 /* terrane-site: core/testing.trn:77:5-77:18 */,
             )
             .with_structured_details(details)
     });
@@ -4523,7 +5471,7 @@ pub fn assert_equal_int(
                 terrane_test_render_int(actual.clone()),
                 terrane_test_render_int(expected.clone()),
             ),
-            392 /* terrane-site: core/testing.trn:81:9-81:115 */,
+            402 /* terrane-site: core/testing.trn:81:9-81:115 */,
         )?;
     }
     return Ok(());
@@ -4539,7 +5487,7 @@ pub fn assert_not_equal_int(
                 terrane_test_render_int(actual.clone()),
                 terrane_test_render_int(expected.clone()),
             ),
-            393 /* terrane-site: core/testing.trn:86:9-86:127 */,
+            403 /* terrane-site: core/testing.trn:86:9-86:127 */,
         )?;
     }
     return Ok(());
@@ -4551,7 +5499,7 @@ pub fn assert_equal_string(
     if actual.as_str() != expected.as_str() {
         __terrane_traced_err(
             fail_comparison(String::from("string values differ"), actual, expected),
-            394 /* terrane-site: core/testing.trn:91:9-91:66 */,
+            404 /* terrane-site: core/testing.trn:91:9-91:66 */,
         )?;
     }
     return Ok(());
@@ -4567,7 +5515,7 @@ pub fn assert_not_equal_string(
                 actual,
                 expected,
             ),
-            395 /* terrane-site: core/testing.trn:96:9-96:78 */,
+            405 /* terrane-site: core/testing.trn:96:9-96:78 */,
         )?;
     }
     return Ok(());
@@ -4580,7 +5528,7 @@ pub fn assert_equal_bool(actual: bool, expected: bool) -> Result<(), TerraneErro
                 terrane_test_render_bool(actual),
                 terrane_test_render_bool(expected),
             ),
-            396 /* terrane-site: core/testing.trn:101:9-101:117 */,
+            406 /* terrane-site: core/testing.trn:101:9-101:117 */,
         )?;
     }
     return Ok(());
@@ -4593,7 +5541,7 @@ pub fn assert_not_equal_bool(actual: bool, expected: bool) -> Result<(), Terrane
                 terrane_test_render_bool(actual),
                 terrane_test_render_bool(expected),
             ),
-            397 /* terrane-site: core/testing.trn:106:9-106:129 */,
+            407 /* terrane-site: core/testing.trn:106:9-106:129 */,
         )?;
     }
     return Ok(());
@@ -4606,7 +5554,7 @@ pub fn assert_equal_float64(actual: f64, expected: f64) -> Result<(), TerraneErr
                 terrane_test_render_float64(actual),
                 terrane_test_render_float64(expected),
             ),
-            398 /* terrane-site: core/testing.trn:111:9-111:124 */,
+            408 /* terrane-site: core/testing.trn:111:9-111:124 */,
         )?;
     }
     return Ok(());
@@ -4619,7 +5567,7 @@ pub fn assert_not_equal_float64(actual: f64, expected: f64) -> Result<(), Terran
                 terrane_test_render_float64(actual),
                 terrane_test_render_float64(expected),
             ),
-            399 /* terrane-site: core/testing.trn:116:9-116:136 */,
+            409 /* terrane-site: core/testing.trn:116:9-116:136 */,
         )?;
     }
     return Ok(());
@@ -4635,7 +5583,7 @@ pub fn assert_equal_bytes(
                 terrane_test_render_bytes(actual),
                 terrane_test_render_bytes(expected),
             ),
-            400 /* terrane-site: core/testing.trn:121:9-121:116 */,
+            410 /* terrane-site: core/testing.trn:121:9-121:116 */,
         )?;
     }
     return Ok(());
@@ -4651,7 +5599,7 @@ pub fn assert_not_equal_bytes(
                 terrane_test_render_bytes(actual),
                 terrane_test_render_bytes(expected),
             ),
-            401 /* terrane-site: core/testing.trn:126:9-126:128 */,
+            411 /* terrane-site: core/testing.trn:126:9-126:128 */,
         )?;
     }
     return Ok(());
@@ -4662,7 +5610,7 @@ pub fn assert_present_int(
     if (&actual).is_none() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected a present integer")),
-            402 /* terrane-site: core/testing.trn:131:9-131:43 */,
+            412 /* terrane-site: core/testing.trn:131:9-131:43 */,
         )?;
     }
     return Ok(());
@@ -4673,7 +5621,7 @@ pub fn assert_none_int(
     if (&actual).is_some() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected no integer")),
-            403 /* terrane-site: core/testing.trn:136:9-136:36 */,
+            413 /* terrane-site: core/testing.trn:136:9-136:36 */,
         )?;
     }
     return Ok(());
@@ -4682,7 +5630,7 @@ pub fn assert_present_string(actual: Option<String>) -> Result<(), TerraneError>
     if (&actual).is_none() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected a present string")),
-            404 /* terrane-site: core/testing.trn:141:9-141:42 */,
+            414 /* terrane-site: core/testing.trn:141:9-141:42 */,
         )?;
     }
     return Ok(());
@@ -4691,7 +5639,7 @@ pub fn assert_none_string(actual: Option<String>) -> Result<(), TerraneError> {
     if (&actual).is_some() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected no string")),
-            405 /* terrane-site: core/testing.trn:146:9-146:35 */,
+            415 /* terrane-site: core/testing.trn:146:9-146:35 */,
         )?;
     }
     return Ok(());
@@ -4700,7 +5648,7 @@ pub fn assert_present_bool(actual: Option<bool>) -> Result<(), TerraneError> {
     if (&actual).is_none() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected a present boolean")),
-            406 /* terrane-site: core/testing.trn:151:9-151:43 */,
+            416 /* terrane-site: core/testing.trn:151:9-151:43 */,
         )?;
     }
     return Ok(());
@@ -4709,7 +5657,7 @@ pub fn assert_none_bool(actual: Option<bool>) -> Result<(), TerraneError> {
     if (&actual).is_some() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected no boolean")),
-            407 /* terrane-site: core/testing.trn:156:9-156:36 */,
+            417 /* terrane-site: core/testing.trn:156:9-156:36 */,
         )?;
     }
     return Ok(());
@@ -4718,7 +5666,7 @@ pub fn assert_present_float64(actual: Option<f64>) -> Result<(), TerraneError> {
     if (&actual).is_none() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected a present floating value")),
-            408 /* terrane-site: core/testing.trn:161:9-161:50 */,
+            418 /* terrane-site: core/testing.trn:161:9-161:50 */,
         )?;
     }
     return Ok(());
@@ -4727,7 +5675,7 @@ pub fn assert_none_float64(actual: Option<f64>) -> Result<(), TerraneError> {
     if (&actual).is_some() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected no floating value")),
-            409 /* terrane-site: core/testing.trn:166:9-166:43 */,
+            419 /* terrane-site: core/testing.trn:166:9-166:43 */,
         )?;
     }
     return Ok(());
@@ -4736,7 +5684,7 @@ pub fn assert_present_bytes(actual: Option<Vec<u8>>) -> Result<(), TerraneError>
     if (&actual).is_none() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected present bytes")),
-            410 /* terrane-site: core/testing.trn:171:9-171:39 */,
+            420 /* terrane-site: core/testing.trn:171:9-171:39 */,
         )?;
     }
     return Ok(());
@@ -4745,7 +5693,7 @@ pub fn assert_none_bytes(actual: Option<Vec<u8>>) -> Result<(), TerraneError> {
     if (&actual).is_some() {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("expected no bytes")),
-            411 /* terrane-site: core/testing.trn:176:9-176:34 */,
+            421 /* terrane-site: core/testing.trn:176:9-176:34 */,
         )?;
     }
     return Ok(());
@@ -4768,7 +5716,7 @@ pub fn assert_near(
                 );
                 __terrane_text
             }),
-            412 /* terrane-site: core/testing.trn:181:9-181:111 */,
+            422 /* terrane-site: core/testing.trn:181:9-181:111 */,
         )?;
     }
     difference = actual - expected;
@@ -4778,7 +5726,7 @@ pub fn assert_near(
     if difference > tolerance {
         __terrane_traced_err(
             fail_near(actual, expected, tolerance),
-            413 /* terrane-site: core/testing.trn:186:9-186:47 */,
+            423 /* terrane-site: core/testing.trn:186:9-186:47 */,
         )?;
     }
     return Ok(());
@@ -4791,7 +5739,7 @@ pub fn assert_throws(
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
-                operation(), 414 /* terrane-site: core/testing.trn:191:9-191:19 */
+                operation(), 424 /* terrane-site: core/testing.trn:191:9-191:19 */
             );
             TerraneCompletion::Normal
         })();
@@ -4824,7 +5772,7 @@ pub fn assert_throws(
                         { let __terrane_error_text_2 = error.as_ref()
                         .expect("flow-proven available binding").descriptor_name();
                         __terrane_text.push_str(__terrane_error_text_2); } __terrane_text
-                        }), 415 /* terrane-site: core/testing.trn:195:9-195:113 */
+                        }), 425 /* terrane-site: core/testing.trn:195:9-195:113 */
                     );
                 }
                 if !__terrane_handled_0 {
@@ -4852,7 +5800,7 @@ pub fn assert_throws(
             );
             __terrane_text
         }),
-        416 /* terrane-site: core/testing.trn:196:5-196:70 */,
+        426 /* terrane-site: core/testing.trn:196:5-196:70 */,
     )?;
     return Ok(());
 }
@@ -4891,10 +5839,10 @@ pub fn test_arguments() -> terrane_collection_support::List<NativeString> {
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                417 /* terrane-site: core/testing.trn:210:28-210:43 */,
+                                427 /* terrane-site: core/testing.trn:210:28-210:43 */,
                             ),
                         ),
-                    417 /* terrane-site: core/testing.trn:210:28-210:43 */,
+                    427 /* terrane-site: core/testing.trn:210:28-210:43 */,
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
             };
@@ -4907,7 +5855,7 @@ pub fn test_deadline() -> Result<Duration, TerraneError> {
     return Ok(
         __terrane_traced_err(
             Duration::terrane_static_nanoseconds(terrane_test_deadline_nanoseconds()),
-            418 /* terrane-site: core/testing.trn:215:12-215:68 */,
+            428 /* terrane-site: core/testing.trn:215:12-215:68 */,
         )?,
     );
 }
@@ -4930,7 +5878,7 @@ pub fn advance_time(nanoseconds: terrane_int_support::Int) -> Result<(), Terrane
     if nanoseconds < terrane_int_support::Int::from(0_i128) {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("controlled time may only advance")),
-            419 /* terrane-site: core/testing.trn:235:9-235:49 */,
+            429 /* terrane-site: core/testing.trn:235:9-235:49 */,
         )?;
     }
     if !terrane_test_time_advance(nanoseconds.clone()) {
@@ -4938,7 +5886,7 @@ pub fn advance_time(nanoseconds: terrane_int_support::Int) -> Result<(), Terrane
             fail_terrane_core_testing(
                 String::from("controlled time advance exceeds the host clock range"),
             ),
-            420 /* terrane-site: core/testing.trn:237:9-237:69 */,
+            430 /* terrane-site: core/testing.trn:237:9-237:69 */,
         )?;
     }
     return Ok(());
@@ -5431,6 +6379,2035 @@ impl Interpolatable {
         self.0.interpolate(key)
     }
 }
+// Source: core/streams.trn
+// Namespace: core/streams
+#[derive(Clone)]
+pub struct StreamOperationResult {
+    pub failed: bool,
+    pub message: String,
+    pub deadline_exceeded: bool,
+}
+impl StreamOperationResult {
+    pub fn terrane_construct(
+        failed: bool,
+        message: String,
+        deadline_exceeded: bool,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            failed: false,
+            message: String::from(""),
+            deadline_exceeded: false,
+        };
+        __terrane_constructed_value.construct(failed, message, deadline_exceeded);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, failed: bool, message: String, deadline_exceeded: bool) {
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct BufferBytesResult {
+    pub failed: bool,
+    pub message: String,
+    pub value: Vec<u8>,
+}
+impl BufferBytesResult {
+    pub fn terrane_construct(failed: bool, message: String, data: Vec<u8>) -> Self {
+        let mut __terrane_constructed_value = Self {
+            failed: false,
+            message: String::from(""),
+            value: Vec::<u8>::from([]),
+        };
+        __terrane_constructed_value.construct(failed, message, data);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: Vec<u8> = data;
+            self.value = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct BufferTextResult {
+    pub failed: bool,
+    pub message: String,
+    pub value: String,
+}
+impl BufferTextResult {
+    pub fn terrane_construct(failed: bool, message: String, text: String) -> Self {
+        let mut __terrane_constructed_value = Self {
+            failed: false,
+            message: String::from(""),
+            value: String::from(""),
+        };
+        __terrane_constructed_value.construct(failed, message, text);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, failed: bool, message: String, text: String) {
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: String = text;
+            self.value = __terrane_value;
+        }
+    }
+}
+pub struct ReadBufferResult {
+    pub failed: bool,
+    pub message: String,
+    pub value: OwnedReadBuffer,
+}
+impl ReadBufferResult {
+    pub fn terrane_construct(
+        failed: bool,
+        message: String,
+        buffer: OwnedReadBuffer,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            failed: false,
+            message: String::from(""),
+            value: OwnedReadBuffer::terrane_construct(terrane_platform_no_resource()),
+        };
+        __terrane_constructed_value.construct(failed, message, buffer);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, failed: bool, message: String, buffer: OwnedReadBuffer) {
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: OwnedReadBuffer = buffer;
+            self.value = __terrane_value;
+        }
+    }
+}
+pub struct OwnedReadBuffer {
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformCapability>,
+}
+impl OwnedReadBuffer {
+    pub fn terrane_construct(handle: TerranePlatformCapability) -> Self {
+        let mut __terrane_constructed_value = Self {
+            __terrane_constructed: false,
+            handle: None,
+        };
+        __terrane_constructed_value.construct(handle);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, handle: TerranePlatformCapability) {
+        {
+            let __terrane_value: TerranePlatformCapability = handle;
+            self.handle = Some(__terrane_value);
+        }
+    }
+    pub fn capacity(&self) -> terrane_int_support::Int {
+        return terrane_platform_buffer_capacity(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+    }
+    pub fn completed(&self) -> terrane_int_support::Int {
+        return terrane_platform_buffer_completed(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+    }
+    pub fn clear(&mut self) -> StreamOperationResult {
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_buffer_clear(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            false,
+        );
+    }
+    pub fn filled_bytes(&self) -> BufferBytesResult {
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_buffer_filled_bytes(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return BufferBytesResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_bytes(&raw),
+        );
+    }
+    pub fn filled_text(&self) -> BufferTextResult {
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_buffer_filled_text(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return BufferTextResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_text(&raw),
+        );
+    }
+    pub fn destruct(&mut self) {
+        terrane_platform_buffer_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+    }
+}
+impl Drop for OwnedReadBuffer {
+    fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
+        self.destruct();
+    }
+}
+pub struct BufferedReadResult {
+    pub buffer: Option<OwnedReadBuffer>,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
+    pub deadline_exceeded: bool,
+}
+impl BufferedReadResult {
+    pub fn terrane_construct(
+        buffer: OwnedReadBuffer,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+        deadline_exceeded: bool,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            buffer: None,
+            completed: terrane_int_support::Int::from(0_i128),
+            end: false,
+            failed: false,
+            message: String::from(""),
+            deadline_exceeded: false,
+        };
+        __terrane_constructed_value
+            .construct(buffer, completed, end, failed, message, deadline_exceeded);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        buffer: OwnedReadBuffer,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+        deadline_exceeded: bool,
+    ) {
+        {
+            let __terrane_value: OwnedReadBuffer = buffer;
+            self.buffer = Some(__terrane_value);
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+    }
+}
+pub fn make_read_buffer(capacity: terrane_int_support::Int) -> ReadBufferResult {
+    let raw: TerranePlatformResult;
+    let buffer: OwnedReadBuffer;
+    raw = terrane_platform_buffer_create(&capacity);
+    buffer = OwnedReadBuffer::terrane_construct(
+        terrane_platform_result_capability(&raw),
+    );
+    return ReadBufferResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        buffer,
+    );
+}
+#[derive(Clone)]
+pub struct ReadResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
+    pub deadline_exceeded: bool,
+}
+impl ReadResult {
+    pub fn terrane_construct(
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+        deadline_exceeded: bool,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            data: Vec::<u8>::from([]),
+            completed: terrane_int_support::Int::from(0_i128),
+            end: false,
+            failed: false,
+            message: String::from(""),
+            deadline_exceeded: false,
+        };
+        __terrane_constructed_value
+            .construct(data, completed, end, failed, message, deadline_exceeded);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+        deadline_exceeded: bool,
+    ) {
+        {
+            let __terrane_value: Vec<u8> = data;
+            self.data = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct TextReadResult {
+    pub text: String,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
+}
+impl TextReadResult {
+    pub fn terrane_construct(
+        text: String,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            text: String::from(""),
+            completed: terrane_int_support::Int::from(0_i128),
+            end: false,
+            failed: false,
+            message: String::from(""),
+        };
+        __terrane_constructed_value.construct(text, completed, end, failed, message);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        text: String,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+    ) {
+        {
+            let __terrane_value: String = text;
+            self.text = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct WriteResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub failed: bool,
+    pub message: String,
+    pub deadline_exceeded: bool,
+}
+impl WriteResult {
+    pub fn terrane_construct(
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        failed: bool,
+        message: String,
+        deadline_exceeded: bool,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            data: Vec::<u8>::from([]),
+            completed: terrane_int_support::Int::from(0_i128),
+            failed: false,
+            message: String::from(""),
+            deadline_exceeded: false,
+        };
+        __terrane_constructed_value
+            .construct(data, completed, failed, message, deadline_exceeded);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        failed: bool,
+        message: String,
+        deadline_exceeded: bool,
+    ) {
+        if completed == terrane_int_support::Int::from(data.len() as i128) && !failed {
+            {
+                let __terrane_value: Vec<u8> = Vec::<u8>::from([]);
+                self.data = __terrane_value;
+            }
+        } else {
+            {
+                let __terrane_value: Vec<u8> = data;
+                self.data = __terrane_value;
+            }
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct ExactReadProgress {
+    pub target: terrane_int_support::Int,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub deadline_exceeded: bool,
+    pub message: String,
+}
+impl ExactReadProgress {
+    pub fn terrane_construct(count: terrane_int_support::Int) -> Self {
+        let mut __terrane_constructed_value = Self {
+            target: terrane_int_support::Int::from(0_i128),
+            completed: terrane_int_support::Int::from(0_i128),
+            end: false,
+            failed: false,
+            deadline_exceeded: false,
+            message: String::from(""),
+        };
+        __terrane_constructed_value.construct(count);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, count: terrane_int_support::Int) {
+        {
+            let __terrane_value: terrane_int_support::Int = count.clone();
+            self.target = __terrane_value;
+        }
+    }
+    pub fn pending(&self) -> bool {
+        return self.completed.clone() < self.target.clone() && !self.end && !self.failed
+            && !self.deadline_exceeded;
+    }
+    pub fn remaining(&self) -> terrane_int_support::Int {
+        return self.target.clone() - self.completed.clone();
+    }
+    pub fn advance(
+        &mut self,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+    ) {
+        {
+            let __terrane_value: terrane_int_support::Int = self.completed.clone()
+                + completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        if completed == terrane_int_support::Int::from(0_i128) && !end && !failed
+            && !deadline_exceeded
+        {
+            {
+                let __terrane_value: bool = true;
+                self.failed = __terrane_value;
+            }
+            {
+                let __terrane_value: String = String::from(
+                    "stream read made no progress",
+                );
+                self.message = __terrane_value;
+            }
+        }
+        return ();
+    }
+    pub fn result(&self, data: Vec<u8>) -> ReadResult {
+        let mut failed: bool;
+        let mut message: String;
+        failed = self.failed;
+        message = self.message.clone();
+        if self.end && self.completed.clone() < self.target.clone() && !failed
+            && !self.deadline_exceeded
+        {
+            failed = true;
+            message = String::from("stream ended before exact byte count");
+        }
+        return ReadResult::terrane_construct(
+            data,
+            self.completed.clone(),
+            self.end,
+            failed,
+            message,
+            self.deadline_exceeded,
+        );
+    }
+}
+#[derive(Clone)]
+pub struct WriteProgress {
+    pub completed: terrane_int_support::Int,
+    pub failed: bool,
+    pub deadline_exceeded: bool,
+    pub message: String,
+}
+impl WriteProgress {
+    pub fn terrane_construct() -> Self {
+        Self {
+            completed: terrane_int_support::Int::from(0_i128),
+            failed: false,
+            deadline_exceeded: false,
+            message: String::from(""),
+        }
+    }
+    pub fn pending(&self, count: terrane_int_support::Int) -> bool {
+        return self.completed.clone() < count && !self.failed && !self.deadline_exceeded;
+    }
+    pub fn advance(
+        &mut self,
+        completed: terrane_int_support::Int,
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+    ) {
+        {
+            let __terrane_value: terrane_int_support::Int = self.completed.clone()
+                + completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+        if completed == terrane_int_support::Int::from(0_i128) && !failed
+            && !deadline_exceeded
+        {
+            {
+                let __terrane_value: bool = true;
+                self.failed = __terrane_value;
+            }
+            {
+                let __terrane_value: String = String::from(
+                    "stream write made no progress",
+                );
+                self.message = __terrane_value;
+            }
+        }
+        return ();
+    }
+    pub fn result(&self, data: Vec<u8>) -> WriteResult {
+        return WriteResult::terrane_construct(
+            data,
+            self.completed.clone(),
+            self.failed,
+            self.message.clone(),
+            self.deadline_exceeded,
+        );
+    }
+}
+pub trait AsyncByteReaderProtocol: Send + Sync {
+    fn read_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>>;
+    fn read_exact_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>>;
+    fn read_into_async(
+        &self,
+        buffer: OwnedReadBuffer,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = BufferedReadResult> + Send + '_>,
+    >;
+    fn close(self: Box<Self>) -> StreamOperationResult;
+}
+pub struct AsyncByteReader(Box<dyn AsyncByteReaderProtocol>);
+impl AsyncByteReader {
+    pub async fn read_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        self.0.read_async(count, options).await
+    }
+    pub async fn read_exact_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        self.0.read_exact_async(count, options).await
+    }
+    pub async fn read_into_async(
+        &self,
+        buffer: OwnedReadBuffer,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> BufferedReadResult {
+        self.0.read_into_async(buffer, count, options).await
+    }
+    pub fn close(self) -> StreamOperationResult {
+        self.0.close()
+    }
+}
+pub trait AsyncByteWriterProtocol: Send + Sync {
+    fn write_async(
+        &self,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>>;
+    fn write_all_async(
+        &self,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>>;
+    fn close(self: Box<Self>) -> StreamOperationResult;
+}
+pub struct AsyncByteWriter(Box<dyn AsyncByteWriterProtocol>);
+impl AsyncByteWriter {
+    pub async fn write_async(
+        &self,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        self.0.write_async(data, options).await
+    }
+    pub async fn write_all_async(
+        &self,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        self.0.write_all_async(data, options).await
+    }
+    pub fn close(self) -> StreamOperationResult {
+        self.0.close()
+    }
+}
+pub struct ByteReader {
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
+}
+impl ByteReader {
+    pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
+        let mut __terrane_constructed_value = Self {
+            __terrane_constructed: false,
+            handle: None,
+        };
+        __terrane_constructed_value.construct(handle);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
+    }
+    pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
+        let raw: TerranePlatformReadResult;
+        raw = terrane_platform_read(
+            &self.handle.as_ref().expect("required field initialized"),
+            count,
+        );
+        return ReadResult::terrane_construct(
+            raw.data.clone(),
+            raw.completed.clone(),
+            raw.end,
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn read_exact(&self, count: terrane_int_support::Int) -> ReadResult {
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        data = Vec::<u8>::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
+        while completed < count && !end && !failed {
+            part = terrane_platform_read(
+                &self.handle.as_ref().expect("required field initialized"),
+                count.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        if end && completed < count && !failed {
+            failed = true;
+            message = String::from("stream ended before exact byte count");
+        }
+        return ReadResult::terrane_construct(
+            data,
+            completed.clone(),
+            end,
+            failed,
+            message,
+            false,
+        );
+    }
+    pub fn read_all(&self, count: terrane_int_support::Int) -> ReadResult {
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        data = Vec::<u8>::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
+        while completed < count && !end && !failed {
+            part = terrane_platform_read(
+                &self.handle.as_ref().expect("required field initialized"),
+                count.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        return ReadResult::terrane_construct(
+            data,
+            completed.clone(),
+            end,
+            failed,
+            message,
+            false,
+        );
+    }
+    pub async fn read_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformReadResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_read_async(
+                    &self.handle.as_ref().expect("required field initialized"),
+                    count,
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return ReadResult::terrane_construct(
+            raw.data.clone(),
+            raw.completed.clone(),
+            raw.end,
+            raw.failed,
+            raw.message.clone(),
+            raw.deadline_exceeded,
+        );
+    }
+    pub async fn __terrane_shared_async_read_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformReadResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_read_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    count,
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return ReadResult::terrane_construct(
+            raw.data.clone(),
+            raw.completed.clone(),
+            raw.end,
+            raw.failed,
+            raw.message.clone(),
+            raw.deadline_exceeded,
+        );
+    }
+    pub async fn read_exact_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let mut progress: ExactReadProgress;
+        let mut data: Vec<u8>;
+        let mut part: ReadResult;
+        if count < terrane_int_support::Int::from(0_i128) {
+            return __terrane_await(self.read_async(count.clone(), options)).await;
+        }
+        progress = ExactReadProgress::terrane_construct(count.clone());
+        data = Vec::<u8>::from([]);
+        while progress.pending() {
+            part = __terrane_await(
+                    self.read_async(progress.remaining(), options.clone()),
+                )
+                .await;
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data;
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            progress
+                .advance(
+                    part.completed.clone(),
+                    part.end,
+                    part.failed,
+                    part.deadline_exceeded,
+                    part.message.clone(),
+                );
+        }
+        return progress.result(data);
+    }
+    pub async fn __terrane_shared_async_read_exact_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> ReadResult {
+        let mut progress: ExactReadProgress;
+        let mut data: Vec<u8>;
+        let mut part: ReadResult;
+        if count < terrane_int_support::Int::from(0_i128) {
+            return __terrane_await({
+                    let __terrane_shared_call_handle = __terrane_shared_handle.clone();
+                    let __terrane_shared_argument_0 = count.clone();
+                    let __terrane_shared_argument_1 = options;
+                    let __terrane_shared_argument_2 = __terrane_shared_argument_0;
+                    let __terrane_shared_argument_3 = __terrane_shared_argument_1;
+                    ByteReader::__terrane_shared_async_read_async(
+                        __terrane_shared_call_handle,
+                        __terrane_shared_argument_2,
+                        __terrane_shared_argument_3,
+                    )
+                })
+                .await;
+        }
+        progress = ExactReadProgress::terrane_construct(count.clone());
+        data = Vec::<u8>::from([]);
+        while progress.pending() {
+            part = __terrane_await({
+                    let __terrane_shared_call_handle = __terrane_shared_handle.clone();
+                    let __terrane_shared_argument_0 = progress.remaining();
+                    let __terrane_shared_argument_1 = options.clone();
+                    let __terrane_shared_argument_2 = __terrane_shared_argument_0;
+                    let __terrane_shared_argument_3 = __terrane_shared_argument_1;
+                    ByteReader::__terrane_shared_async_read_async(
+                        __terrane_shared_call_handle,
+                        __terrane_shared_argument_2,
+                        __terrane_shared_argument_3,
+                    )
+                })
+                .await;
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data;
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            progress
+                .advance(
+                    part.completed.clone(),
+                    part.end,
+                    part.failed,
+                    part.deadline_exceeded,
+                    part.message.clone(),
+                );
+        }
+        return progress.result(data);
+    }
+    pub async fn read_into_async(
+        &self,
+        buffer: OwnedReadBuffer,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> BufferedReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        let completed: terrane_int_support::Int;
+        let end: bool;
+        let failed: bool;
+        let message: String;
+        let deadline_exceeded: bool;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_stream_read_into_async(
+                    &self.handle.as_ref().expect("required field initialized"),
+                    &buffer.handle.as_ref().expect("required field initialized"),
+                    count.clone(),
+                    operation_timeout.clone(),
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        completed = terrane_platform_result_int(&raw);
+        end = terrane_platform_result_bool(&raw);
+        failed = terrane_platform_result_failed(&raw);
+        message = terrane_platform_result_message(&raw);
+        deadline_exceeded = terrane_platform_result_deadline_exceeded(&raw);
+        return BufferedReadResult::terrane_construct(
+            buffer,
+            completed.clone(),
+            end,
+            failed,
+            message,
+            deadline_exceeded,
+        );
+    }
+    pub async fn __terrane_shared_async_read_into_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        buffer: OwnedReadBuffer,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> BufferedReadResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformResult;
+        let completed: terrane_int_support::Int;
+        let end: bool;
+        let failed: bool;
+        let message: String;
+        let deadline_exceeded: bool;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_stream_read_into_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    &buffer.handle.as_ref().expect("required field initialized"),
+                    count.clone(),
+                    operation_timeout.clone(),
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        completed = terrane_platform_result_int(&raw);
+        end = terrane_platform_result_bool(&raw);
+        failed = terrane_platform_result_failed(&raw);
+        message = terrane_platform_result_message(&raw);
+        deadline_exceeded = terrane_platform_result_deadline_exceeded(&raw);
+        return BufferedReadResult::terrane_construct(
+            buffer,
+            completed.clone(),
+            end,
+            failed,
+            message,
+            deadline_exceeded,
+        );
+    }
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextReader {
+        return TextReader::terrane_construct(
+            self.handle.as_ref().expect("required field initialized").clone(),
+            codec,
+        );
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn destruct(&mut self) {
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+    }
+}
+impl AsyncByteReaderProtocol for ByteReader {
+    fn read_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>> {
+        Box::pin(async move { ByteReader::read_async(&*self, count, options).await })
+    }
+    fn read_exact_async(
+        &self,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>> {
+        Box::pin(async move {
+            ByteReader::read_exact_async(&*self, count, options).await
+        })
+    }
+    fn read_into_async(
+        &self,
+        buffer: OwnedReadBuffer,
+        count: terrane_int_support::Int,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = BufferedReadResult> + Send + '_>,
+    > {
+        Box::pin(async move {
+            ByteReader::read_into_async(&*self, buffer, count, options).await
+        })
+    }
+    fn close(self: Box<Self>) -> StreamOperationResult {
+        ByteReader::close(*self)
+    }
+}
+impl From<ByteReader> for AsyncByteReader {
+    fn from(value: ByteReader) -> Self {
+        Self(Box::new(value))
+    }
+}
+impl Drop for ByteReader {
+    fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
+        self.destruct();
+    }
+}
+pub struct ByteWriter {
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
+}
+impl ByteWriter {
+    pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
+        let mut __terrane_constructed_value = Self {
+            __terrane_constructed: false,
+            handle: None,
+        };
+        __terrane_constructed_value.construct(handle);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
+    }
+    pub fn write(&self, data: Vec<u8>) -> WriteResult {
+        let offset: i64;
+        let raw: TerranePlatformWriteResult;
+        offset = 0;
+        raw = terrane_platform_write(
+            &self.handle.as_ref().expect("required field initialized"),
+            &data,
+            terrane_int_support::Int::from(offset.clone()),
+        );
+        return WriteResult::terrane_construct(
+            data,
+            raw.completed.clone(),
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn write_all(&self, data: Vec<u8>) -> WriteResult {
+        let mut completed: terrane_int_support::Int;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformWriteResult;
+        completed = terrane_int_support::Int::from(0_i128);
+        failed = false;
+        message = String::from("");
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
+            part = terrane_platform_write(
+                &self.handle.as_ref().expect("required field initialized"),
+                &data,
+                terrane_int_support::Int::from(completed.clone()),
+            );
+            completed = completed.clone() + part.completed.clone();
+            failed = part.failed;
+            message = part.message.clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.failed
+            {
+                failed = true;
+                message = String::from("stream write made no progress");
+            }
+        }
+        return WriteResult::terrane_construct(
+            data,
+            completed.clone(),
+            failed,
+            message,
+            false,
+        );
+    }
+    pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        let raw: TerranePlatformWriteResult;
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior;
+        }
+        raw = terrane_platform_write(
+            &self.handle.as_ref().expect("required field initialized"),
+            &prior.data,
+            terrane_int_support::Int::from(prior.completed.clone()),
+        );
+        return WriteResult::terrane_construct(
+            prior.data.clone(),
+            prior.completed.clone() + raw.completed.clone(),
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub async fn write_async(
+        &self,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformWriteResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_write_async(
+                    &self.handle.as_ref().expect("required field initialized"),
+                    data,
+                    terrane_int_support::Int::from(0_i128),
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return WriteResult::terrane_construct(
+            raw.data.clone(),
+            raw.completed.clone(),
+            raw.failed,
+            raw.message.clone(),
+            raw.deadline_exceeded,
+        );
+    }
+    pub async fn __terrane_shared_async_write_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let operation_timeout: terrane_int_support::Int;
+        let operation_token: Option<TerranePlatformCapability>;
+        let raw: TerranePlatformWriteResult;
+        operation_timeout = operation_deadline(options.clone());
+        operation_token = operation_cancellation(options);
+        raw = __terrane_await(
+                terrane_platform_write_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    data,
+                    terrane_int_support::Int::from(0_i128),
+                    operation_timeout,
+                    operation_token.as_ref(),
+                ),
+            )
+            .await;
+        return WriteResult::terrane_construct(
+            raw.data.clone(),
+            raw.completed.clone(),
+            raw.failed,
+            raw.message.clone(),
+            raw.deadline_exceeded,
+        );
+    }
+    pub async fn write_all_async(
+        &self,
+        mut data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let mut progress: WriteProgress;
+        let mut operation_timeout: terrane_int_support::Int;
+        let mut operation_token: Option<TerranePlatformCapability>;
+        let mut part: TerranePlatformWriteResult;
+        progress = WriteProgress::terrane_construct();
+        while progress.pending(terrane_int_support::Int::from(data.len() as i128)) {
+            operation_timeout = operation_deadline(options.clone());
+            operation_token = operation_cancellation(options.clone());
+            part = __terrane_await(
+                    terrane_platform_write_async(
+                        &self.handle.as_ref().expect("required field initialized"),
+                        data,
+                        progress.completed.clone(),
+                        operation_timeout,
+                        operation_token.as_ref(),
+                    ),
+                )
+                .await;
+            progress
+                .advance(
+                    part.completed.clone(),
+                    part.failed,
+                    part.deadline_exceeded,
+                    part.message.clone(),
+                );
+            data = part.data.clone();
+        }
+        return progress.result(data);
+    }
+    pub async fn __terrane_shared_async_write_all_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        mut data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> WriteResult {
+        let mut progress: WriteProgress;
+        let mut operation_timeout: terrane_int_support::Int;
+        let mut operation_token: Option<TerranePlatformCapability>;
+        let mut part: TerranePlatformWriteResult;
+        progress = WriteProgress::terrane_construct();
+        while progress.pending(terrane_int_support::Int::from(data.len() as i128)) {
+            operation_timeout = operation_deadline(options.clone());
+            operation_token = operation_cancellation(options.clone());
+            part = __terrane_await(
+                    terrane_platform_write_async(
+                        &{
+                            let __terrane_snapshot = __terrane_shared_handle
+                                .lock()
+                                .expect("shared async receiver lock poisoned")
+                                .handle
+                                .as_ref()
+                                .expect("required field initialized")
+                                .clone();
+                            __terrane_snapshot
+                        },
+                        data,
+                        progress.completed.clone(),
+                        operation_timeout,
+                        operation_token.as_ref(),
+                    ),
+                )
+                .await;
+            progress
+                .advance(
+                    part.completed.clone(),
+                    part.failed,
+                    part.deadline_exceeded,
+                    part.message.clone(),
+                );
+            data = part.data.clone();
+        }
+        return progress.result(data);
+    }
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextWriter {
+        return TextWriter::terrane_construct(
+            self.handle.as_ref().expect("required field initialized").clone(),
+            codec,
+        );
+    }
+    pub fn flush(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_flush(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn sync_data(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_data(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn sync_all(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_all(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn destruct(&mut self) {
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+    }
+}
+impl AsyncByteWriterProtocol for ByteWriter {
+    fn write_async(
+        &self,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>> {
+        Box::pin(async move { ByteWriter::write_async(&*self, data, options).await })
+    }
+    fn write_all_async(
+        &self,
+        data: Vec<u8>,
+        options: Option<IoOperationOptions>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>> {
+        Box::pin(async move { ByteWriter::write_all_async(&*self, data, options).await })
+    }
+    fn close(self: Box<Self>) -> StreamOperationResult {
+        ByteWriter::close(*self)
+    }
+}
+impl From<ByteWriter> for AsyncByteWriter {
+    fn from(value: ByteWriter) -> Self {
+        Self(Box::new(value))
+    }
+}
+impl Drop for ByteWriter {
+    fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
+        self.destruct();
+    }
+}
+pub struct TextReader {
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
+    pub codec: terrane_string_support::Encoding,
+}
+impl TextReader {
+    pub fn terrane_construct(
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            __terrane_constructed: false,
+            handle: None,
+            codec: terrane_string_support::Encoding::Utf8,
+        };
+        __terrane_constructed_value.construct(handle, codec);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) {
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value: terrane_string_support::Encoding = codec;
+            self.codec = __terrane_value;
+        }
+    }
+    pub fn read(
+        &self,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let raw: TerranePlatformReadResult;
+        let text: String;
+        raw = terrane_platform_read(
+            &self.handle.as_ref().expect("required field initialized"),
+            count,
+        );
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
+                431 /* terrane-site: core/streams.trn:381:23-381:50 */,
+            )?
+        };
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                raw.completed.clone(),
+                raw.end,
+                raw.failed,
+                raw.message.clone(),
+            ),
+        );
+    }
+    pub fn read_exact(
+        &self,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        let text: String;
+        data = Vec::<u8>::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
+        while completed < count && !end && !failed {
+            part = terrane_platform_read(
+                &self.handle.as_ref().expect("required field initialized"),
+                count.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        if end && completed < count && !failed {
+            failed = true;
+            message = String::from("stream ended before exact byte count");
+        }
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&data, __terrane_string_argument_0),
+                432 /* terrane-site: core/streams.trn:403:23-403:46 */,
+            )?
+        };
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                completed.clone(),
+                end,
+                failed,
+                message,
+            ),
+        );
+    }
+    pub fn read_all(
+        &self,
+        limit: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        let text: String;
+        data = Vec::<u8>::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
+        while completed < limit && !end && !failed {
+            part = terrane_platform_read(
+                &self.handle.as_ref().expect("required field initialized"),
+                limit.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                let part_0: Vec<u8> = part.data.clone();
+                let additional = match [part_0.len()]
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                {
+                    Some(length) => length,
+                    None => std::process::abort(),
+                };
+                if bytes.try_reserve(additional).is_err() {
+                    std::process::abort();
+                }
+                bytes.extend(part_0);
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&data, __terrane_string_argument_0),
+                433 /* terrane-site: core/streams.trn:422:23-422:46 */,
+            )?
+        };
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                completed.clone(),
+                end,
+                failed,
+                message,
+            ),
+        );
+    }
+    pub async fn read_async(
+        &self,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let raw: TerranePlatformReadResult;
+        let text: String;
+        raw = __terrane_await(
+                terrane_platform_read_async(
+                    &self.handle.as_ref().expect("required field initialized"),
+                    count,
+                    -terrane_int_support::Int::from(1_i128),
+                    None.as_ref(),
+                ),
+            )
+            .await;
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
+                434 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            )?
+        };
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                raw.completed.clone(),
+                raw.end,
+                raw.failed,
+                raw.message.clone(),
+            ),
+        );
+    }
+    pub async fn __terrane_shared_async_read_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let raw: TerranePlatformReadResult;
+        let text: String;
+        raw = __terrane_await(
+                terrane_platform_read_async(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .as_ref()
+                            .expect("required field initialized")
+                            .clone();
+                        __terrane_snapshot
+                    },
+                    count,
+                    -terrane_int_support::Int::from(1_i128),
+                    None.as_ref(),
+                ),
+            )
+            .await;
+        text = {
+            let __terrane_string_argument_0 = {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .codec
+                    .clone();
+                __terrane_snapshot
+            };
+            __terrane_raised_err(
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
+                434 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            )?
+        };
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                raw.completed.clone(),
+                raw.end,
+                raw.failed,
+                raw.message.clone(),
+            ),
+        );
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn destruct(&mut self) {
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+    }
+}
+impl Drop for TextReader {
+    fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
+        self.destruct();
+    }
+}
+pub struct TextWriter {
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
+    pub codec: terrane_string_support::Encoding,
+}
+impl TextWriter {
+    pub fn terrane_construct(
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            __terrane_constructed: false,
+            handle: None,
+            codec: terrane_string_support::Encoding::Utf8,
+        };
+        __terrane_constructed_value.construct(handle, codec);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) {
+        {
+            let __terrane_value: TerranePlatformStreamHandle = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value: terrane_string_support::Encoding = codec;
+            self.codec = __terrane_value;
+        }
+    }
+    pub fn write(&self, text: String) -> WriteResult {
+        let data: Vec<u8>;
+        let offset: i64;
+        let raw: TerranePlatformWriteResult;
+        data = {
+            let __terrane_string_argument_0 = self.codec;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
+        offset = 0;
+        raw = terrane_platform_write(
+            &self.handle.as_ref().expect("required field initialized"),
+            &data,
+            terrane_int_support::Int::from(offset.clone()),
+        );
+        return WriteResult::terrane_construct(
+            data,
+            raw.completed.clone(),
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn write_all(&self, text: String) -> WriteResult {
+        let data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformWriteResult;
+        data = {
+            let __terrane_string_argument_0 = self.codec;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
+        completed = terrane_int_support::Int::from(0_i128);
+        failed = false;
+        message = String::from("");
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
+            part = terrane_platform_write(
+                &self.handle.as_ref().expect("required field initialized"),
+                &data,
+                terrane_int_support::Int::from(completed.clone()),
+            );
+            completed = completed.clone() + part.completed.clone();
+            failed = part.failed;
+            message = part.message.clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.failed
+            {
+                failed = true;
+                message = String::from("stream write made no progress");
+            }
+        }
+        return WriteResult::terrane_construct(
+            data,
+            completed.clone(),
+            failed,
+            message,
+            false,
+        );
+    }
+    pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        let raw: TerranePlatformWriteResult;
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior;
+        }
+        raw = terrane_platform_write(
+            &self.handle.as_ref().expect("required field initialized"),
+            &prior.data,
+            terrane_int_support::Int::from(prior.completed.clone()),
+        );
+        return WriteResult::terrane_construct(
+            prior.data.clone(),
+            prior.completed.clone() + raw.completed.clone(),
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn line(&self, text: String) -> WriteResult {
+        return self
+            .write_all({
+                let mut __terrane_text = String::with_capacity(1);
+                terrane_scalar_support::ScalarDisplay::write_scalar(
+                    &text,
+                    &mut __terrane_text,
+                );
+                __terrane_text.push_str("\n");
+                __terrane_text
+            });
+    }
+    pub async fn write_async(&self, text: String) -> WriteResult {
+        return self.write(text);
+    }
+    pub async fn __terrane_shared_async_write_async(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        text: String,
+    ) -> WriteResult {
+        return {
+            let __terrane_shared_argument_0 = text;
+            let __terrane_shared_argument_1 = __terrane_shared_argument_0;
+            let __terrane_call_result = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .write(__terrane_shared_argument_1);
+            __terrane_call_result
+        };
+    }
+    pub fn flush(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_flush(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn sync_data(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_data(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn sync_all(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_all(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone(),
+            false,
+        );
+    }
+    pub fn destruct(&mut self) {
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+    }
+}
+impl Drop for TextWriter {
+    fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
+        self.destruct();
+    }
+}
+pub fn stdin() -> ByteReader {
+    return ByteReader::terrane_construct(terrane_platform_acquire_stdin());
+}
+pub fn stdout() -> ByteWriter {
+    return ByteWriter::terrane_construct(terrane_platform_acquire_stdout());
+}
+pub fn stderr() -> ByteWriter {
+    return ByteWriter::terrane_construct(terrane_platform_acquire_stderr());
+}
 // Source: core/documents.trn
 // Namespace: core/documents
 #[derive(Clone)]
@@ -5918,10 +8895,10 @@ pub fn make_document_list(
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                421 /* terrane-site: core/documents.trn:141:47-141:60 */,
+                                435 /* terrane-site: core/documents.trn:141:47-141:60 */,
                             ),
                         ),
-                    421 /* terrane-site: core/documents.trn:141:47-141:60 */,
+                    435 /* terrane-site: core/documents.trn:141:47-141:60 */,
                 )
                 .raw,
         );
@@ -5958,10 +8935,10 @@ pub fn mapping_required_fields(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            422 /* terrane-site: core/documents.trn:154:17-154:30 */,
+                            436 /* terrane-site: core/documents.trn:154:17-154:30 */,
                         ),
                     ),
-                422 /* terrane-site: core/documents.trn:154:17-154:30 */,
+                436 /* terrane-site: core/documents.trn:154:17-154:30 */,
             );
             optional = false;
             optional_index = terrane_int_support::Int::from(0_i128);
@@ -5975,10 +8952,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &optional_index.clone(),
                                     ),
-                                    423 /* terrane-site: core/documents.trn:158:16-158:47 */,
+                                    437 /* terrane-site: core/documents.trn:158:16-158:47 */,
                                 ),
                             ),
-                        423 /* terrane-site: core/documents.trn:158:16-158:47 */,
+                        437 /* terrane-site: core/documents.trn:158:16-158:47 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -5998,10 +8975,10 @@ pub fn mapping_required_fields(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    424 /* terrane-site: core/documents.trn:164:16-164:45 */,
+                                    438 /* terrane-site: core/documents.trn:164:16-164:45 */,
                                 ),
                             ),
-                        424 /* terrane-site: core/documents.trn:164:16-164:45 */,
+                        438 /* terrane-site: core/documents.trn:164:16-164:45 */,
                     )
                     .as_str() == field.as_str()
                 {
@@ -6048,10 +9025,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &field_index.clone(),
                                 ),
-                                425 /* terrane-site: core/documents.trn:177:12-177:44 */,
+                                439 /* terrane-site: core/documents.trn:177:12-177:44 */,
                             ),
                         ),
-                    425 /* terrane-site: core/documents.trn:177:12-177:44 */,
+                    439 /* terrane-site: core/documents.trn:177:12-177:44 */,
                 )
                 .as_str() != ""
             {
@@ -6064,10 +9041,10 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &field_index.clone(),
                                     ),
-                                    426 /* terrane-site: core/documents.trn:178:37-178:69 */,
+                                    440 /* terrane-site: core/documents.trn:178:37-178:69 */,
                                 ),
                             ),
-                        426 /* terrane-site: core/documents.trn:178:37-178:69 */,
+                        440 /* terrane-site: core/documents.trn:178:37-178:69 */,
                     );
                     __terrane_list_append_1.push(__terrane_collection_argument_0);
                 };
@@ -6090,10 +9067,10 @@ pub fn decode_document(
                             terrane_collection_support::index_from_int(
                                 &default_index.clone(),
                             ),
-                            427 /* terrane-site: core/documents.trn:184:12-184:49 */,
+                            441 /* terrane-site: core/documents.trn:184:12-184:49 */,
                         ),
                     ),
-                427 /* terrane-site: core/documents.trn:184:12-184:49 */,
+                441 /* terrane-site: core/documents.trn:184:12-184:49 */,
             )
             .as_str() != ""
         {
@@ -6106,10 +9083,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &default_index.clone(),
                                 ),
-                                428 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                                442 /* terrane-site: core/documents.trn:185:36-185:73 */,
                             ),
                         ),
-                    428 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                    442 /* terrane-site: core/documents.trn:185:36-185:73 */,
                 );
                 default_fields.append(__terrane_collection_argument_0);
             };
@@ -6122,10 +9099,10 @@ pub fn decode_document(
                                 terrane_collection_support::index_from_int(
                                     &default_index.clone(),
                                 ),
-                                429 /* terrane-site: core/documents.trn:186:36-186:73 */,
+                                443 /* terrane-site: core/documents.trn:186:36-186:73 */,
                             ),
                         ),
-                    429 /* terrane-site: core/documents.trn:186:36-186:73 */,
+                    443 /* terrane-site: core/documents.trn:186:36-186:73 */,
                 );
                 default_values.append(__terrane_collection_argument_0);
             };
@@ -6377,10 +9354,10 @@ impl UrlQuery {
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                430 /* terrane-site: core/urls.trn:23:16-23:32 */,
+                                444 /* terrane-site: core/urls.trn:23:16-23:32 */,
                             ),
                         ),
-                    430 /* terrane-site: core/urls.trn:23:16-23:32 */,
+                    444 /* terrane-site: core/urls.trn:23:16-23:32 */,
                 )
                 .as_str() == name.as_str()
             {
@@ -6390,10 +9367,10 @@ impl UrlQuery {
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                431 /* terrane-site: core/urls.trn:24:24-24:42 */,
+                                445 /* terrane-site: core/urls.trn:24:24-24:42 */,
                             ),
                         ),
-                    431 /* terrane-site: core/urls.trn:24:24-24:42 */,
+                    445 /* terrane-site: core/urls.trn:24:24-24:42 */,
                 );
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -6414,10 +9391,10 @@ impl UrlQuery {
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    432 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                                    446 /* terrane-site: core/urls.trn:32:16-32:32 */,
                                 ),
                             ),
-                        432 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                        446 /* terrane-site: core/urls.trn:32:16-32:32 */,
                     )
                     .as_str() == name.as_str()
                 {
@@ -6428,10 +9405,10 @@ impl UrlQuery {
                                 .get_or_error(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(&index.clone()),
-                                        433 /* terrane-site: core/urls.trn:33:32-33:50 */,
+                                        447 /* terrane-site: core/urls.trn:33:32-33:50 */,
                                     ),
                                 ),
-                            433 /* terrane-site: core/urls.trn:33:32-33:50 */,
+                            447 /* terrane-site: core/urls.trn:33:32-33:50 */,
                         );
                         __terrane_list_append_0.push(__terrane_collection_argument_0);
                     };
@@ -6851,7 +9828,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                             let __terrane_receiver = &encoded;
                             let __terrane_index = __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                434 /* terrane-site: core/process.trn:45:49-45:63 */,
+                                448 /* terrane-site: core/process.trn:45:49-45:63 */,
                             );
                             __terrane_receiver
                                 .get(__terrane_index)
@@ -6860,7 +9837,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                     __terrane_index,
                                 ))
                         },
-                        434 /* terrane-site: core/process.trn:45:49-45:63 */,
+                        448 /* terrane-site: core/process.trn:45:49-45:63 */,
                     ),
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
@@ -6890,7 +9867,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         let __terrane_receiver = &encoded;
                         let __terrane_index = __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            435 /* terrane-site: core/process.trn:54:40-54:54 */,
+                            449 /* terrane-site: core/process.trn:54:40-54:54 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -6899,7 +9876,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    435 /* terrane-site: core/process.trn:54:40-54:54 */,
+                    449 /* terrane-site: core/process.trn:54:40-54:54 */,
                 ),
             );
             value = NativeString::terrane_construct(
@@ -6910,7 +9887,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            436 /* terrane-site: core/process.trn:55:41-55:59 */,
+                            450 /* terrane-site: core/process.trn:55:41-55:59 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -6919,7 +9896,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    436 /* terrane-site: core/process.trn:55:41-55:59 */,
+                    450 /* terrane-site: core/process.trn:55:41-55:59 */,
                 ),
             );
             {
@@ -7040,10 +10017,10 @@ pub fn parse_command_line(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            437 /* terrane-site: core/process.trn:90:20-90:35 */,
+                            451 /* terrane-site: core/process.trn:90:20-90:35 */,
                         ),
                     ),
-                437 /* terrane-site: core/process.trn:90:20-90:35 */,
+                451 /* terrane-site: core/process.trn:90:20-90:35 */,
             );
             if !argument.is_text {
                 {
@@ -7110,10 +10087,10 @@ pub fn parse_command_line(
                                             terrane_collection_support::index_from_int(
                                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                             ),
-                                            438 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                            452 /* terrane-site: core/process.trn:105:43-105:62 */,
                                         ),
                                     ),
-                                438 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                452 /* terrane-site: core/process.trn:105:43-105:62 */,
                             );
                             __terrane_list_append_6
                                 .push(__terrane_collection_argument_0);
@@ -7373,7 +10350,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    439 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    453 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -7402,7 +10379,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    440 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    454 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -7430,7 +10407,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    441 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    455 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -7459,7 +10436,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    442 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    456 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -7488,7 +10465,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    443 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    457 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -7559,7 +10536,7 @@ impl MonotonicInstant {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    444 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    458 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -7666,7 +10643,7 @@ impl Deadline {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    445 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    459 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -7968,7 +10945,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    446 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    460 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -8004,10 +10981,154 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(8)),
                     message,
                     rendered,
-                    447 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    461 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }
         return Ok(Ticker::terrane_construct(period));
     }
+}
+// Source: core/io.trn
+// Namespace: core/io
+#[derive(Clone)]
+pub struct CancellationToken {
+    pub handle: TerranePlatformCapability,
+}
+impl CancellationToken {
+    pub fn terrane_construct() -> Self {
+        Self {
+            handle: terrane_platform_cancellation_token(),
+        }
+    }
+}
+#[derive(Clone)]
+pub struct IoOperationResult {
+    pub failed: bool,
+    pub deadline_exceeded: bool,
+    pub message: String,
+}
+impl IoOperationResult {
+    pub fn terrane_construct(
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            failed: false,
+            deadline_exceeded: false,
+            message: String::from(""),
+        };
+        __terrane_constructed_value.construct(failed, deadline_exceeded, message);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, failed: bool, deadline_exceeded: bool, message: String) {
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+    }
+}
+pub fn cancel_operation(cancellation: CancellationToken) -> IoOperationResult {
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_cancel(&cancellation.handle);
+    return IoOperationResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_deadline_exceeded(&raw),
+        terrane_platform_result_message(&raw),
+    );
+}
+#[derive(Clone)]
+pub struct IoOperationOptions {
+    pub deadline: Option<Deadline>,
+    pub cancellation: Option<CancellationToken>,
+}
+impl IoOperationOptions {
+    pub fn terrane_construct(
+        requested: Option<Deadline>,
+        cancellation: Option<CancellationToken>,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            deadline: None,
+            cancellation: None,
+        };
+        __terrane_constructed_value.construct(requested, cancellation);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        requested: Option<Deadline>,
+        cancellation: Option<CancellationToken>,
+    ) {
+        {
+            let __terrane_value: Option<Deadline> = requested;
+            self.deadline = __terrane_value;
+        }
+        {
+            let __terrane_value: Option<CancellationToken> = cancellation;
+            self.cancellation = __terrane_value;
+        }
+    }
+}
+pub fn operation_cancellation(
+    options: Option<IoOperationOptions>,
+) -> Option<TerranePlatformCapability> {
+    let selected: Option<CancellationToken>;
+    if (&options).is_some() {
+        selected = match &options {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        }
+            .cancellation
+            .clone();
+        if (&selected).is_some() {
+            return Some(
+                match &selected {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                }
+                    .handle
+                    .clone(),
+            );
+        }
+    }
+    return None;
+}
+pub fn operation_deadline(
+    options: Option<IoOperationOptions>,
+) -> terrane_int_support::Int {
+    let selected: Option<Deadline>;
+    let remaining: Option<Duration>;
+    if (&options).is_some() {
+        selected = match &options {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        }
+            .deadline
+            .clone();
+        if (&selected).is_some() {
+            remaining = match &selected {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            }
+                .remaining();
+            if (&remaining).is_some() {
+                return match &remaining {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                }
+                    .total_nanoseconds
+                    .clone();
+            }
+            return terrane_int_support::Int::from(0_i128);
+        }
+    }
+    return terrane_int_support::Int::from(-1_i128);
 }

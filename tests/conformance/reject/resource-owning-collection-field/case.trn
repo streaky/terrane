@@ -6,3 +6,6 @@ class outputs
     values list of byte-writer = list; (stdout;)
 
 function main;
+    owner = instance outputs;
+    snapshot = owner.values
+    print; snapshot.length

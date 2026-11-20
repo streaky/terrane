@@ -1,0 +1,8 @@
+namespace resource-owning-mutation-result
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+function main;
+    outputs list of byte-writer = list
+    updated = outputs.append; (stdout;)
+    print; updated.length

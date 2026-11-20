@@ -610,6 +610,8 @@ impl Emitter<'_> {
                 } else {
                     (String::new(), self.receiver_expression(receiver))
                 };
+                let unique =
+                    crate::semantics::collection_uses_unique_storage(self.package, &receiver_type);
                 let call = match receiver_type {
                     ValueType::List(_) | ValueType::Tuple(_, _) => {
                         let index =
@@ -628,8 +630,13 @@ impl Emitter<'_> {
                     ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
                         let key = self.expression_as(argument, key.value_type());
                         if remove {
+                            let method = if unique {
+                                "remove_checked_unique"
+                            } else {
+                                "remove_checked"
+                            };
                             format!(
-                                "{{ let __terrane_key = {key}; ({receiver_value}).remove_checked(&__terrane_key) }}"
+                                "{{ let __terrane_key = {key}; ({receiver_value}).{method}(&__terrane_key) }}"
                             )
                         } else if checked {
                             format!("({receiver_value}).get(&({key})).cloned()")
@@ -696,6 +703,8 @@ impl Emitter<'_> {
                 .iter()
                 .map(|argument| argument.children.last().unwrap_or(argument))
                 .collect::<Vec<_>>();
+            let unique =
+                crate::semantics::collection_uses_unique_storage(self.package, &receiver_type);
             let call = match (receiver_type, member_name.as_str()) {
                 (
                     ValueType::Scalar(receiver_type @ (ScalarType::Float32 | ScalarType::Float64)),
@@ -728,10 +737,12 @@ impl Emitter<'_> {
                         call
                     })
                 }
-                (ValueType::List(item), "append") => Some(format!(
-                    "({{ let __terrane_value = {}; let collection = &mut ({receiver_value}); collection.append(__terrane_value); collection.clone() }})",
-                    self.expression_as(values[0], item.value_type())
-                )),
+                (ValueType::List(item), "append") => {
+                    let value = self.expression_as(values[0], item.value_type());
+                    Some(format!(
+                        "({{ let __terrane_value = {value}; let collection = &mut ({receiver_value}); collection.append(__terrane_value); collection.clone() }})"
+                    ))
+                }
                 (ValueType::List(item), "set") => {
                     let index = self.expression_as(values[0], ValueType::Scalar(ScalarType::Int));
                     let index = self.fallible(
@@ -739,8 +750,10 @@ impl Emitter<'_> {
                         node,
                     );
                     let value = self.expression_as(values[1], item.value_type());
-                    let mutation =
-                        self.fallible("collection.set(__terrane_index, __terrane_value)", node);
+                    let mutation = self.fallible(
+                        format!("collection.set(__terrane_index, __terrane_value)"),
+                        node,
+                    );
                     Some(format!(
                         "({{ let __terrane_index = {index}; let __terrane_value = {value}; let collection = &mut ({receiver_value}); {mutation}; collection.clone() }})"
                     ))
@@ -760,21 +773,25 @@ impl Emitter<'_> {
                         format!("terrane_collection_support::index_from_int(&({index}))"),
                         node,
                     );
-                    let mutation =
-                        self.fallible(format!("({receiver_value}).remove(__terrane_index)"), node);
+                    let method = if unique { "remove_unique" } else { "remove" };
+                    let mutation = self.fallible(
+                        format!("({receiver_value}).{method}(__terrane_index)"),
+                        node,
+                    );
                     Some(format!("{{ let __terrane_index = {index}; {mutation} }}"))
                 }
                 (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
+                    let key = self.expression_as(values[0], key.value_type());
+                    let value = self.expression_as(values[1], value.value_type());
                     Some(format!(
-                        "({{ let __terrane_key = {}; let __terrane_value = {}; let collection = &mut ({receiver_value}); collection.set(__terrane_key, __terrane_value); collection.clone() }})",
-                        self.expression_as(values[0], key.value_type()),
-                        self.expression_as(values[1], value.value_type())
+                        "({{ let __terrane_key = {key}; let __terrane_value = {value}; let collection = &mut ({receiver_value}); collection.set(__terrane_key, __terrane_value); collection.clone() }})"
                     ))
                 }
                 (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove") => {
                     let key = self.expression_as(values[0], key.value_type());
+                    let method = if unique { "remove_unique" } else { "remove" };
                     let mutation =
-                        self.fallible(format!("({receiver_value}).remove(&__terrane_key)"), node);
+                        self.fallible(format!("({receiver_value}).{method}(&__terrane_key)"), node);
                     Some(format!("{{ let __terrane_key = {key}; {mutation} }}"))
                 }
                 (ValueType::Set(item) | ValueType::UnorderedSet(item), "contains") => {

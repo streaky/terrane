@@ -794,19 +794,42 @@ fn value_type_contains_nonclone_foreign(package: &SemanticPackage, value_type: &
     }
 }
 
-pub(super) fn value_type_is_resource_container(
+fn value_type_is_unsupported_resource_container(
     value_type: &ValueType,
     resource_identities: &BTreeSet<String>,
 ) -> bool {
     matches!(
         value_type,
-        ValueType::List(_)
-            | ValueType::Map(_, _)
-            | ValueType::Set(_)
-            | ValueType::Tuple(_, _)
-            | ValueType::UnorderedMap(_, _)
-            | ValueType::UnorderedSet(_)
+        ValueType::Set(_) | ValueType::Tuple(_, _) | ValueType::UnorderedSet(_)
     ) && value_type_owns_resource(value_type, resource_identities)
+}
+
+/// Selects noncopying storage operations for lists and maps known to own a resource.
+/// An unconstrained parameter alone is not proof: the generic body must remain valid
+/// for copyable instantiations that can have shared COW storage.
+pub(crate) fn collection_uses_unique_storage(package: &SemanticPackage, ty: &ValueType) -> bool {
+    let item = match ty {
+        ValueType::List(item) | ValueType::Map(_, item) | ValueType::UnorderedMap(_, item) => {
+            item.value_type_ref()
+        }
+        _ => return false,
+    };
+    if matches!(
+        item,
+        ValueType::Scalar(_)
+            | ValueType::Reference(_)
+            | ValueType::MutableReference(_)
+            | ValueType::SharedReference(_)
+    ) {
+        return false;
+    }
+    let mut parameters = BTreeSet::new();
+    super::capabilities::walk_value_type(item, &mut |ty| {
+        if let ValueType::TypeParameter(name) = ty {
+            parameters.insert(name.clone());
+        }
+    });
+    application_is_resource_owning_assuming_parameters(package, item, &parameters)
 }
 fn value_type_has_nonclone_scoped_map_storage(
     package: &SemanticPackage,
@@ -1355,8 +1378,10 @@ pub(super) fn propagate_resource_ownership(
                 ));
             }
             if let Some(field) = object.fields.iter().find(|field| {
-                value_type_is_resource_container(&field.value_type, &resource_identities)
-                    || value_type_has_nonclone_scoped_map_storage(package, unit, &field.value_type)
+                value_type_is_unsupported_resource_container(
+                    &field.value_type,
+                    &resource_identities,
+                ) || value_type_has_nonclone_scoped_map_storage(package, unit, &field.value_type)
             }) {
                 return Err(failure(
                     &unit.source,
@@ -1388,7 +1413,7 @@ pub(super) fn validate_resource_collection_types(
         .collect::<BTreeSet<_>>();
     for unit in &package.units {
         if let Some(binding) = unit.typed_bindings.iter().find(|binding| {
-            value_type_is_resource_container(&binding.value_type, &resource_identities)
+            value_type_is_unsupported_resource_container(&binding.value_type, &resource_identities)
                 || value_type_has_nonclone_scoped_map_storage(package, unit, &binding.value_type)
         }) {
             return Err(failure(
@@ -1401,7 +1426,7 @@ pub(super) fn validate_resource_collection_types(
         for function in &unit.functions {
             if let Some(parameter) = function.parameters.iter().find(|parameter| {
                 parameter.value_type.as_ref().is_some_and(|value_type| {
-                    value_type_is_resource_container(value_type, &resource_identities)
+                    value_type_is_unsupported_resource_container(value_type, &resource_identities)
                         || value_type_has_nonclone_scoped_map_storage(package, unit, value_type)
                 })
             }) {
@@ -1413,7 +1438,7 @@ pub(super) fn validate_resource_collection_types(
                 ));
             }
             if function.return_type.as_ref().is_some_and(|value_type| {
-                value_type_is_resource_container(value_type, &resource_identities)
+                value_type_is_unsupported_resource_container(value_type, &resource_identities)
                     || value_type_has_nonclone_scoped_map_storage(package, unit, value_type)
             }) {
                 return Err(failure(

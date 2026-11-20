@@ -4374,10 +4374,9 @@ map. The `checked` child removes and returns the value when present and returns 
 mutation when absent. Neither form performs a separate source-visible lookup. A successful removal
 transfers the removed value to the caller; discarding the result releases it at that site.
 
-The existing collection admissibility boundary remains: a collection whose item graph is
-resource-owning is rejected before lowering, so this milestone does not create copyable/COW aliases
-of linear resources. Removal transfers an admitted stored logical value under the existing
-collection release rules; lifting the resource-owning collection restriction is separate work.
+Resource-owning map values use move-only storage, so removal transfers the sole owner
+of the stored resource under the same collection release rules. Copyable map values
+retain the existing copy-on-write semantics.
 
 An ordered `map` retains the relative insertion order of every remaining entry. Removing and later
 reinserting the same key is a new insertion at the end. An `unordered-map` retains its existing

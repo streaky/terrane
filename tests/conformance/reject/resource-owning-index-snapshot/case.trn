@@ -1,0 +1,7 @@
+namespace resource-owning-index-snapshot
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+function main;
+    outputs list of byte-writer = list; (stdout;)
+    copy byte-writer = outputs[0]
