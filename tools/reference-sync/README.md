@@ -15,7 +15,11 @@ terrane run tools/reference-sync -- sync --snapshot codecs.json --manual-root ma
 
 `export` writes a versioned semantic snapshot and a Terrane declaration view of the input package's native dependency projection. The latter is for inspection, not a parser input to `sync`. A namespace scope exports what is loaded and resolved by the input; it is not evidence that a symbol missing from the output has been removed. Unsupported declarations are identified under `omissions`. The projection view can contain more than the declarations loaded by semantic analysis for the selected namespace.
 
+For bundled core records, `sync` writes a stable `bundled-core` provenance marker; which package imported the namespace does not change that provenance. The snapshot still records the host and package profile for release comparison. Relationship IDs are exported for supported classes; generic and applied relationship shapes can be omitted. Implicit construction is reported only where the compiler facts establish a simple default constructor. Field initializers and general write authority, especially for projections, are not a published snapshot contract.
+
 `sync` previews updates and additions. Pass `--write` to apply them. Existing YAML records retain their authored bytes outside `surface` and `provenance.compiler`; new records remain unlisted with `documentation.status: missing` and `lifecycle.status: planned`. Review a scaffold before adding it to navigation. The YAML splice supports the manual's conventional block layout and rejects unrecognized layouts rather than reserializing the whole record. The manual-wide catalogue refresh remains separate.
+
+All planned changes are validated before writing. Each file is replaced atomically, but the batch is not transactional: if a write fails partway through, earlier files stay updated. Fix the error and run the preview again to see what remains.
 
 ## Release removal tracking
 

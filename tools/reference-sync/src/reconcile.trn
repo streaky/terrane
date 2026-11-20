@@ -2,14 +2,41 @@ namespace reference-sync
 
 from /core/collections import range
 from /core/documents import document-value, make-document-string
+from /core/encodings import utf8
 from /core/errors import throwable
 
 private function quoted string; value string
     return (make-document-string; value).encoded
 
+private function yaml-key string; key string
+    spelling = key.encode; utf8
+    if spelling.length == 0 or spelling[0] < 97 or spelling[0] > 122 or key == 'true' or key == 'false' or key == 'null'
+        return quoted; key
+    for character in spelling
+        if not ((character >= 97 and character <= 122) or (character >= 48 and character <= 57) or character == 45 or character == 95)
+            return quoted; key
+    return key
+
+private function yaml-entry string; label string, value ref document-value, indent string
+    kind = value.kind
+    count = value.length;
+    if count == 0 or (kind != 'map' and kind != 'list')
+        return label + ' ' + value.encoded
+    result = label
+    child-indent = indent + '  '
+    for index in (range; 0, count)
+        if kind == 'map'
+            key = value.key; index
+            child = field; value, key
+            result = result + "\n" + (yaml-entry; (child-indent + (yaml-key; key) + ':'), child, child-indent)
+        else
+            child = (value.item; index).value
+            result = result + "\n" + (yaml-entry; (child-indent + '-'), child, child-indent)
+    return result
+
 private function surface-yaml string; entity ref document-value
     surface = field; entity, 'surface'
-    return surface.encoded
+    return yaml-entry; 'surface:', surface, ''
 
 // Insert or replace a top-level YAML block while retaining every unrelated source line.
 // Only the repository's ordinary top-level block layout is accepted; ambiguous syntax is
@@ -56,16 +83,18 @@ private function replace-child string throws throwable; source string, parent st
             require; parent-index < 0, 'duplicate parent block in YAML source'
             parent-index = index
         else if parent-index >= 0 and line != '' and not (line.contains.start; ' ') and not (line.contains.start; '#')
-            if child-index >= 0
-                child-end = index
-                break
+            child-end = index
+            break
         else if parent-index >= 0 and (line.contains.start; '  ' + key + ':')
             require; child-index < 0, 'duplicate child key in YAML source'
             child-index = index
         else if child-index >= 0 and line != '' and (line.contains.start; '  ') and not (line.contains.start; '    ') and not (line.contains.start; '  #')
             child-end = index
             break
-    require; child-index >= 0, ('unsupported YAML structure for ' + parent + '.' + key)
+    require; parent-index >= 0, ('unsupported YAML structure for ' + parent + '.' + key)
+    if child-index < 0
+        child-index = parent-index + 1
+        child-end = child-index
     while child-end > child-index + 1 and (lines[child-end - 1] == '' or (lines[child-end - 1].contains.start; '#') or (lines[child-end - 1].contains.start; '  #'))
         child-end = child-end - 1
     result string = ''
@@ -117,7 +146,7 @@ function make-scaffold string; entity ref document-value, profile string
     id = text; entity, 'id'
     kind = text; entity, 'kind'
     surface = surface-yaml; entity
-    return "format: 1\nid: " + (quoted; id) + "\nkind: " + (quoted; kind) + "\n\nsurface: " + surface + "\n\nlifecycle:\n  status: planned\n  stability: experimental\n  since: null\n  deprecated-since: null\n  removed-in: null\n  replacement: null\n\ndocumentation:\n  status: missing\n  title: null\n  title-style: text\n  summary: null\n  tags: []\n  sections: []\n  see-also: []\n\nprovenance:\n  specification: []\n  conformance: null\n  compiler:\n    profile: " + (quoted; profile) + "\n"
+    return "format: 1\nid: " + (quoted; id) + "\nkind: " + (quoted; kind) + "\n\n" + surface + "\n\nlifecycle:\n  status: planned\n  stability: experimental\n  since: null\n  deprecated-since: null\n  removed-in: null\n  replacement: null\n\ndocumentation:\n  status: missing\n  title: null\n  title-style: text\n  summary: null\n  tags: []\n  sections: []\n  see-also: []\n\nprovenance:\n  specification: []\n  conformance: []\n  compiler:\n    profile: " + (quoted; profile) + "\n"
 
 function refresh-record string throws throwable; source string, record ref document-value, entity ref document-value, profile string
     id = text; entity, 'id'
@@ -129,11 +158,15 @@ function refresh-record string throws throwable; source string, record ref docum
     old-surface = field; record, 'surface'
     new-surface = field; entity, 'surface'
     if not (same-value; old-surface, new-surface)
-        updated = replace-block; source, 'surface', 'surface: ' + (surface-yaml; entity)
+        updated = replace-block; source, 'surface', (surface-yaml; entity)
     provenance = field; record, 'provenance'
     compiler = field; provenance, 'compiler'
     if (text; compiler, 'profile') != profile
-        updated = replace-child; updated, 'provenance', 'compiler', "  compiler:\n    profile: " + (quoted; profile)
+        compiler-block = "  compiler:\n    profile: " + (quoted; profile)
+        if provenance.kind == 'map' and (provenance.length;) == 0
+            updated = replace-block; updated, 'provenance', ("provenance:\n" + compiler-block)
+        else
+            updated = replace-child; updated, 'provenance', 'compiler', compiler-block
     return updated
 
 function retire-record string throws throwable; source string, record ref document-value, release string

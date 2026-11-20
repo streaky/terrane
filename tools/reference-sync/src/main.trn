@@ -75,6 +75,13 @@ function renamed-entities map of string, string throws throwable; root string
         renamed.set; previous, next
     return renamed
 
+function record-profile string; entity ref document-value, profile string
+    surface = field; entity, 'surface'
+    symbol = text; surface, 'symbol'
+    if (symbol.contains.start; '/core/')
+        return 'bundled-core'
+    return profile
+
 function reconcile-reference throws throwable; snapshot ref document-value, root string, previous-file string, release string, write bool
     entities = snapshot-entities; snapshot
     profile = text; snapshot, 'profile'
@@ -106,7 +113,7 @@ function reconcile-reference throws throwable; snapshot ref document-value, root
             if status == 'removed'
                 print; 'review ', id, ': removed entity reappeared'
             else
-                updated = refresh-record; source, record, candidate, profile
+                updated = refresh-record; source, record, candidate, (record-profile; candidate, profile)
                 if updated != source
                     print; 'update ', id
                     report-surface-change; record, candidate
@@ -146,7 +153,7 @@ function reconcile-reference throws throwable; snapshot ref document-value, root
             authority = filesystem-capability;
             metadata = filesystem-symlink-metadata; authority, (instance path; location)
             require; metadata.failed and metadata.error-kind == 'not-found', (location + ': cannot create scaffold over an existing path')
-            content = make-scaffold; entity, profile
+            content = make-scaffold; entity, (record-profile; entity, profile)
             validated = yaml-value; content, location
             require; (text; validated, 'id') == id, (location + ': invalid scaffold identity')
             print; 'add ', id, ' (documentation missing)'
@@ -172,6 +179,10 @@ function report-surface-change; record ref document-value, candidate ref documen
     new-signatures = field; new-surface, 'signatures'
     documentation = field; record, 'documentation'
     callables = field; documentation, 'callables'
+    old-symbol = text; old-surface, 'symbol'
+    new-symbol = text; new-surface, 'symbol'
+    if old-symbol != new-symbol
+        print; '  symbol: ', old-symbol, ' -> ', new-symbol
     for index in (range; 0, (old-signatures.length;))
         old = (old-signatures.item; index).value
         id = text; old, 'id'
@@ -266,6 +277,10 @@ function run throws throwable;
 function main;
     try
         run;
+    catch sync-error as failure
+        output = standard-error;
+        output.write; ((failure.message + "\n").encode; utf8)
+        exit; (make-exit-status; 1)
     catch throwable as failure
         output = standard-error;
         output.write; (((failure.render;) + "\n").encode; utf8)
