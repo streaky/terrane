@@ -188,8 +188,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     match command {
         CliCommand::Version => {
             println!(
-                "terrane {} (build rust {}, projection rustdoc {})",
+                "terrane {} ({}, build rust {}, projection rustdoc {})",
                 terrane_compiler::VERSION,
+                env!("TERRANE_BUILD_IDENTITY"),
                 terrane_compiler::BUILD_TOOLCHAIN,
                 terrane_compiler::RUSTDOC_TOOLCHAIN
             );

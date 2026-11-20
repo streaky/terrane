@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+release-build = []
+
 [[bin]]
 name = "terrane"
 path = "src/main.rs"

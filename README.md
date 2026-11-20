@@ -31,6 +31,8 @@ cargo install --path crates/terrane-cli
 terrane --version
 ```
 
+`terrane --version` (or `terrane -V`) reports the Terrane and Rust toolchain versions. Development builds also report the Git commit and branch captured at build time when Git metadata is available. Cargo's `--release` only selects an optimized profile; for distribution, use `cargo build --locked --release --bin terrane --features release-build` to label the binary `release` and omit Git details. The Terrane version comes from the workspace manifest in both modes.
+
 The [Rust 1.100 upgrade and migration notes](docs/rust-1.100-upgrade.md) describe the current toolchain and Unicode 18 text profile. The historical [Rust 1.99 notes](docs/rust-1.99-upgrade.md) cover the earlier projected-dependency and error-handling changes.
 
 Cargo builds from this checkout show a progress bar by default. Set
