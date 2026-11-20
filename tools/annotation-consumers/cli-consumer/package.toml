@@ -3,6 +3,3 @@ artifact = "executable"
 
 [namespaces]
 annotation-cli-consumer = "src"
-
-[terrane-dependencies.terrane.annotation-consumer-protocol]
-path = "../protocol"

@@ -76,6 +76,79 @@ fn leaf_source(result_type: &str, value: &str) -> String {
 }
 
 #[test]
+fn bundled_consumer_helpers_require_host_capabilities() {
+    let fixture = Fixture::new();
+    for (namespace, symbol, capabilities, missing) in [
+        ("/core/build/consumer", "read-request", "", "process"),
+        (
+            "/core/build/consumer/cache",
+            "source-cache",
+            "\"process\"",
+            "filesystem",
+        ),
+        (
+            "/core/build/consumer/cache",
+            "source-cache",
+            "\"filesystem\"",
+            "process",
+        ),
+    ] {
+        fixture.write(
+            "app/package.toml",
+            &format!(
+                "package = \"app\"\n[profile]\ncapabilities = [{capabilities}]\n[namespaces]\napp = \"src\"\n"
+            ),
+        );
+        fixture.write(
+            "app/src/main.trn",
+            &format!("namespace app\nfrom {namespace} import {symbol}\nfunction main;\n    print; 'app'\n"),
+        );
+        let failure = compile_package(&fixture.caller()).unwrap_err();
+        let diagnostic = &failure.diagnostics[0];
+        assert_eq!(diagnostic.code, "S2032");
+        assert!(diagnostic.message.contains(&format!(
+            "forbids capability `{missing}` required by `{namespace}`"
+        )));
+    }
+}
+
+#[test]
+fn bundled_source_cache_compiles_without_manifest_dependencies() {
+    let fixture = Fixture::new();
+    fixture.write(
+        "app/package.toml",
+        r#"package = "app"
+prelude = false
+[profile]
+capabilities = ["filesystem", "process"]
+[namespaces]
+app = "src"
+"#,
+    );
+    fixture.write(
+        "app/src/main.trn",
+        r#"namespace app
+from /core/build/consumer import emit-source, read-request
+from /core/build/consumer/cache import source-cache
+from /core/collections import list
+function main;
+    request = read-request;
+    inputs list of string = list; 'template contents'
+    cache = instance source-cache; request, inputs
+    source = cache.load;
+    if source != none
+        emit-source; 'output', source
+    else
+        fresh = "namespace generated\n"
+        cache.store; fresh
+        emit-source; 'output', fresh
+main
+"#,
+    );
+    compile_package(&fixture.caller()).unwrap();
+}
+
+#[test]
 fn transitive_tools_refresh_contracts_and_reject_action_cycles() {
     let fixture = Fixture::new();
     fixture.write(
@@ -181,24 +254,14 @@ generate = "consumer/package.toml"
         "namespace example/provider\npublic function marker int;\n    return 0\n",
     );
     fixture.write(
-        "protocol/package.toml",
-        include_str!("../../../tools/annotation-consumers/protocol/package.toml"),
-    );
-    fixture.write(
-        "protocol/src/main.trn",
-        include_str!("../../../tools/annotation-consumers/protocol/src/main.trn"),
-    );
-    fixture.write(
         "provider/consumer/package.toml",
         r#"package = "editor-tool"
 [namespaces]
 editor-tool = "src"
-[terrane-dependencies.terrane.annotation-consumer-protocol]
-path = "../../protocol"
 "#,
     );
     fixture.write("provider/consumer/src/main.trn", r#"namespace editor-tool
-from /terrane/annotation-consumer-protocol import read-request, get, at, text, emit-source
+from /core/build/consumer import read-request, get, at, text, emit-source
 from /core/filesystem import filesystem-capability, filesystem-read-bounded
 from /core/filesystem/paths import path
 from /core/encodings import utf8

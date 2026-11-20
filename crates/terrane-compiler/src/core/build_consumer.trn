@@ -1,4 +1,4 @@
-namespace terrane/annotation-consumer-protocol
+namespace core/build/consumer
 
 from /core/collections import list
 from /core/documents import document-value, document-map-entries, make-document-none, make-document-string, make-document-integer, make-document-decimal, make-document-list, make-document-map
@@ -6,7 +6,7 @@ from /core/documents/json import parse-json, default-json-options
 from /core/errors import throwable, decode-error
 from /core/encodings import utf8
 from /core/streams import stdin
-from /core/process import arguments
+from /core/output import print
 
 # A consumer handles one synchronous request per process. Catch bindings expose
 # the throwable interface, so preserve the diagnostic record beside the error.
@@ -43,10 +43,6 @@ function text string; value document-value
 function truth bool; value document-value
     return value.kind == 'bool' and value.scalar == 'true'
 
-function has bool; value document-value, name string
-    result = value.field; name
-    return not result.failed
-
 function scalar document-value throws consumer-error; value document-value
     if value.kind == 'none'
         return value
@@ -66,7 +62,7 @@ function scalar document-value throws consumer-error; value document-value
         return number.value
     return get; value, 'value'
 
-function annotation document-value throws consumer-error; declaration document-value, suffix string, namespace string
+function annotation-payload document-value throws consumer-error; declaration document-value, suffix string, namespace string
     annotations = get; declaration, 'annotations'
     found bool = false
     result = make-document-none;
@@ -105,7 +101,7 @@ function annotation document-value throws consumer-error; declaration document-v
         index = index + 1
     return result
 
-function quote string; value string
+function quote-terrane-string string; value string
     escaped = value.replace; '\\', '\\\\'
     escaped = escaped.replace; '"', '\\"'
     escaped = escaped.replace; "\n", '\\n'
@@ -130,40 +126,6 @@ function selected document-value throws consumer-error; request document-value, 
     if count != 1
         throw (instance consumer-error; result, ('consumer requires exactly one selected '.concat; kind))
     return result
-
-function option string|none throws consumer-error; name string
-    args = arguments;
-    result string|none = none
-    index int = 0
-    while index < args.length
-        argument = args[index].text
-        if argument == name
-            if index + 1 >= args.length
-                throw (instance consumer-error; (make-document-none;), ('missing value for '.concat; name))
-            result = args[index + 1].text
-            index = index + 1
-        else
-            parts = argument.split; '='
-            if parts.length > 1 and parts[0] == name
-                value = parts[1]
-                part-index int = 2
-                while part-index < parts.length
-                    value = value.concat; '=', parts[part-index]
-                    part-index = part-index + 1
-                result = value
-        index = index + 1
-    return result
-
-function flag bool; name string
-    args = arguments;
-    for argument in args
-        if argument.text == name
-            return true
-    return false
-
-function json-quote string; value string
-    encoded = make-document-string; value
-    return encoded.encoded
 
 function read-request document-value throws consumer-error;
     input = stdin;

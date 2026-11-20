@@ -131,6 +131,16 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/annotations.trn"),
     },
     BundledSource {
+        namespace: "/core/build/consumer",
+        path: "core/build_consumer.trn",
+        text: include_str!("core/build_consumer.trn"),
+    },
+    BundledSource {
+        namespace: "/core/build/consumer/cache",
+        path: "core/build_consumer_cache.trn",
+        text: include_str!("core/build_consumer_cache.trn"),
+    },
+    BundledSource {
         namespace: "/core/modifiers",
         path: "core/modifiers.trn",
         text: include_str!("core/modifiers.trn"),
