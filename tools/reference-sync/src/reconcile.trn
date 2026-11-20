@@ -1,0 +1,186 @@
+namespace reference-sync
+
+from /core/collections import range
+from /core/documents import document-value, make-document-string
+from /core/errors import throwable
+
+private function quoted string; value string
+    return (make-document-string; value).encoded
+
+private function surface-yaml string; entity ref document-value
+    surface = field; entity, 'surface'
+    return surface.encoded
+
+// Insert or replace a top-level YAML block while retaining every unrelated source line.
+// Only the repository's ordinary top-level block layout is accepted; ambiguous syntax is
+// rejected rather than risking changes to authored prose.
+private function replace-block string throws throwable; source string, key string, block string
+    lines = source.split; "\n"
+    starts list of int = list
+    keys list of string = list
+    for index in (range; 0, lines.length)
+        line = lines[index]
+        if line != '' and not (line.contains.start; ' ') and not (line.contains.start; "\t") and not (line.contains.start; '#') and (line.contains; ':')
+            starts.append; index
+            keys.append; (line.split; ':')[0]
+    target int = -1
+    for index in (range; 0, keys.length)
+        if keys[index] == key
+            require; target < 0, 'duplicate top-level key in YAML source'
+            target = index
+    require; target >= 0, 'unsupported YAML structure for top-level block splice'
+    first = starts[target]
+    finish int = lines.length
+    if target + 1 < starts.length
+        finish = starts[target + 1]
+    while finish > first + 1 and (lines[finish - 1] == '' or (lines[finish - 1].contains.start; '#'))
+        finish = finish - 1
+    result string = ''
+    for index in (range; 0, first)
+        result = result + lines[index] + "\n"
+    result = result + block + "\n"
+    for index in (range; finish, lines.length)
+        result = result + lines[index]
+        if index + 1 < lines.length
+            result = result + "\n"
+    return result
+
+private function replace-child string throws throwable; source string, parent string, key string, block string
+    lines = source.split; "\n"
+    parent-index int = -1
+    child-index int = -1
+    child-end int = lines.length
+    for index in (range; 0, lines.length)
+        line = lines[index]
+        if line == parent + ':'
+            require; parent-index < 0, 'duplicate parent block in YAML source'
+            parent-index = index
+        else if parent-index >= 0 and line != '' and not (line.contains.start; ' ') and not (line.contains.start; '#')
+            if child-index >= 0
+                child-end = index
+                break
+        else if parent-index >= 0 and (line.contains.start; '  ' + key + ':')
+            require; child-index < 0, 'duplicate child key in YAML source'
+            child-index = index
+        else if child-index >= 0 and line != '' and (line.contains.start; '  ') and not (line.contains.start; '    ') and not (line.contains.start; '  #')
+            child-end = index
+            break
+    require; child-index >= 0, ('unsupported YAML structure for ' + parent + '.' + key)
+    while child-end > child-index + 1 and (lines[child-end - 1] == '' or (lines[child-end - 1].contains.start; '#') or (lines[child-end - 1].contains.start; '  #'))
+        child-end = child-end - 1
+    result string = ''
+    for index in (range; 0, child-index)
+        result = result + lines[index] + "\n"
+    result = result + block + "\n"
+    for index in (range; child-end, lines.length)
+        result = result + lines[index]
+        if index + 1 < lines.length
+            result = result + "\n"
+    return result
+
+
+private function replace-retirement string throws throwable; source string, release string
+    lines = source.split; "\n"
+    lifecycle-start int = -1
+    lifecycle-end int = lines.length
+    status-index int = -1
+    removed-index int = -1
+    for index in (range; 0, lines.length)
+        if lines[index] == 'lifecycle:'
+            lifecycle-start = index
+        else if lifecycle-start >= 0 and lines[index] != '' and not (lines[index].contains.start; ' ') and not (lines[index].contains.start; '#')
+            lifecycle-end = index
+            break
+    require; lifecycle-start >= 0, 'unsupported lifecycle YAML structure'
+    for index in (range; lifecycle-start + 1, lifecycle-end)
+        if lines[index].contains.start; '  status:'
+            status-index = index
+        if lines[index].contains.start; '  removed-in:'
+            removed-index = index
+    require; status-index >= 0, 'unsupported lifecycle YAML structure'
+    result string = ''
+    for index in (range; 0, lines.length)
+        if index == status-index
+            result = result + '  status: removed'
+        else if index == removed-index
+            result = result + '  removed-in: ' + (quoted; release)
+        else
+            result = result + lines[index]
+        if index == status-index and removed-index < 0
+            result = result + "\n  removed-in: " + (quoted; release)
+        if index + 1 < lines.length
+            result = result + "\n"
+    return result
+
+
+function make-scaffold string; entity ref document-value, profile string
+    id = text; entity, 'id'
+    kind = text; entity, 'kind'
+    surface = surface-yaml; entity
+    return "format: 1\nid: " + (quoted; id) + "\nkind: " + (quoted; kind) + "\n\nsurface: " + surface + "\n\nlifecycle:\n  status: planned\n  stability: experimental\n  since: null\n  deprecated-since: null\n  removed-in: null\n  replacement: null\n\ndocumentation:\n  status: missing\n  title: null\n  title-style: text\n  summary: null\n  tags: []\n  sections: []\n  see-also: []\n\nprovenance:\n  specification: []\n  conformance: null\n  compiler:\n    profile: " + (quoted; profile) + "\n"
+
+function refresh-record string throws throwable; source string, record ref document-value, entity ref document-value, profile string
+    id = text; entity, 'id'
+    kind = text; entity, 'kind'
+    existing-id = text; record, 'id'
+    existing-kind = text; record, 'kind'
+    require; id == existing-id and kind == existing-kind, 'record identity or kind does not match compiler entity'
+    updated = source
+    old-surface = field; record, 'surface'
+    new-surface = field; entity, 'surface'
+    if not (same-value; old-surface, new-surface)
+        updated = replace-block; source, 'surface', 'surface: ' + (surface-yaml; entity)
+    provenance = field; record, 'provenance'
+    compiler = field; provenance, 'compiler'
+    if (text; compiler, 'profile') != profile
+        updated = replace-child; updated, 'provenance', 'compiler', "  compiler:\n    profile: " + (quoted; profile)
+    return updated
+
+function retire-record string throws throwable; source string, record ref document-value, release string
+    return replace-retirement; source, release
+
+function same-value bool; left ref document-value, right ref document-value
+    if left.kind != right.kind
+        return false
+    if left.kind == 'map'
+        if (left.length;) != (right.length;)
+            return false
+        for index in (range; 0, (left.length;))
+            key = left.key; index
+            other = right.field; key
+            member = field; left, key
+            if other.failed or not (same-value; member, other.value)
+                return false
+        return true
+    if left.kind == 'list'
+        if (left.length;) != (right.length;)
+            return false
+        for index in (range; 0, (left.length;))
+            left-item = (left.item; index).value
+            right-item = (right.item; index).value
+            if not (same-value; left-item, right-item)
+                return false
+        return true
+    return left.encoded == right.encoded
+
+function preserve-fields throws sync-error; before ref document-value, after ref document-value, except list of string
+    require; before.kind == 'map' and after.kind == 'map', 'reconciliation changed mapping shape'
+    for index in (range; 0, (before.length;))
+        key = before.key; index
+        other = after.field; key
+        keep bool = true
+        for allowed in except
+            if key == allowed
+                keep = false
+        if keep
+            require; not other.failed, ('reconciliation dropped ' + key)
+            member = field; before, key
+            require; (same-value; member, other.value), ('reconciliation changed authored ' + key)
+    for index in (range; 0, (after.length;))
+        key = after.key; index
+        if (before.field; key).failed
+            allow bool = false
+            for allowed in except
+                if key == allowed
+                    allow = true
+            require; allow, ('reconciliation added unexpected ' + key)

@@ -1,0 +1,9 @@
+package = "reference-sync"
+artifact = "executable"
+
+[profile]
+capabilities = ["filesystem", "process", "build"]
+panic = "unwind"
+
+[namespaces]
+reference-sync = "src"

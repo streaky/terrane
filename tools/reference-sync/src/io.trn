@@ -1,0 +1,95 @@
+namespace reference-sync
+
+from /core/collections import list
+from /core/documents import document-value, make-document-none
+from /core/documents/json import parse-json, default-json-options
+from /core/documents/yaml import parse-yaml, default-yaml-options
+from /core/encodings import utf8
+from /core/errors import throwable
+from /core/filesystem import filesystem-capability, filesystem-list-directory, filesystem-read-bounded, filesystem-symlink-metadata, filesystem-create-directories, filesystem-write-atomic
+from /core/filesystem/paths import path, path-parent
+
+class sync-error implements throwable
+    message string
+
+    function construct; message string
+        this.message = message
+
+    function render string;
+        return this.message
+
+function require throws sync-error; condition bool, message string
+    if not condition
+        throw instance sync-error; message
+
+function field document-value; value ref document-value, key string
+    found = value.field; key
+    if found.failed
+        return make-document-none;
+    return found.value
+
+function text string; value ref document-value, key string
+    found = field; value, key
+    if found.kind == 'string'
+        return found.scalar
+    return ''
+
+function read-text string throws throwable; source string
+    authority = filesystem-capability;
+    target = instance path; source
+    metadata = filesystem-symlink-metadata; authority, target
+    require; not metadata.failed and metadata.kind == 'regular-file', (source + ': expected a regular file')
+    loaded = filesystem-read-bounded; authority, target, 16777216
+    require; not loaded.failed, (source + ': ' + loaded.message)
+    return loaded.data.decode; utf8
+
+function yaml-value document-value throws sync-error; source string, location string
+    parsed = parse-yaml; source, (default-yaml-options;)
+    require; not parsed.failed and parsed.value.kind == 'map', (location + ': expected a YAML mapping: ' + parsed.message)
+    return parsed.value
+
+function json-value document-value throws throwable; source string
+    parsed = parse-json; (read-text; source), (default-json-options;)
+    require; not parsed.failed and parsed.value.kind == 'map', (source + ': expected a JSON mapping: ' + parsed.message)
+    return parsed.value
+
+function write-text throws sync-error; destination string, content string
+    authority = filesystem-capability;
+    target = instance path; destination
+    created = filesystem-create-directories; authority, (path-parent; target)
+    require; not created.failed, (destination + ': ' + created.message)
+    metadata = filesystem-symlink-metadata; authority, target
+    if metadata.failed
+        require; metadata.error-kind == 'not-found', (destination + ': ' + metadata.message)
+    else
+        require; metadata.kind == 'regular-file', (destination + ': expected a regular file')
+    result = filesystem-write-atomic; authority, target, (content.encode; utf8)
+    require; not result.failed, (destination + ': ' + result.message)
+
+function record-paths list of string throws sync-error; root string
+    authority = filesystem-capability;
+    top = root + '/reference/records/api'
+    pending list of string = list;
+    sources list of string = list;
+    for directory in (list; (root + '/reference'), (root + '/reference/records'), top)
+        meta = filesystem-symlink-metadata; authority, (instance path; directory)
+        if directory == top and meta.failed and meta.error-kind == 'not-found'
+            return sources
+        require; not meta.failed and meta.kind == 'directory', (directory + ': expected a real directory')
+    pending.append; top
+    index = 0
+    while index < pending.length
+        directory = pending[index]
+        index = index + 1
+        listing = filesystem-list-directory; authority, (instance path; directory), 65536
+        require; not listing.failed, (directory + ': ' + listing.message)
+        for name in listing.entries
+            candidate = directory + '/' + name
+            meta = filesystem-symlink-metadata; authority, (instance path; candidate)
+            require; not meta.failed and meta.kind != 'symlink', (candidate + ': cannot inspect record tree')
+            if meta.kind == 'directory'
+                pending.append; candidate
+            else if meta.kind == 'regular-file' and ((name.contains.end; '.yaml') or (name.contains.end; '.yml'))
+                sources.append; candidate
+    sources.sort;
+    return sources

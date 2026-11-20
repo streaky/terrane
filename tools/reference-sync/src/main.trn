@@ -1,0 +1,272 @@
+namespace reference-sync
+
+from /core/collections import list, map, range
+from /core/documents import document-value, make-document-none
+from /core/encodings import utf8
+from /core/errors import throwable
+from /core/filesystem import filesystem-capability, filesystem-symlink-metadata
+from /core/filesystem/paths import path
+from /core/process import arguments, exit, make-exit-status
+from /core/process/child import process-options, run-process
+from /core/streams import stderr as standard-error
+
+class record-change
+    destination string
+    content string
+
+    function construct; destination string, content string
+        this.destination = destination
+        this.content = content
+
+function valid-id bool; id string
+    if not (id.contains.start; 'api.')
+        return false
+    for component in (id.split; '.')
+        spelling = component.encode; utf8
+        if spelling.length == 0 or spelling[0] < 97 or spelling[0] > 122
+            return false
+        for character in spelling
+            if not ((character >= 97 and character <= 122) or (character >= 48 and character <= 57) or character == 45)
+                return false
+    return true
+
+function snapshot-entities map of string, document-value throws sync-error; snapshot ref document-value
+    require; (field; snapshot, 'format').kind == 'integer' and (field; snapshot, 'format').scalar == '1', 'unsupported snapshot format'
+    require; (text; snapshot, 'scope') != '' and (text; snapshot, 'profile') != '', 'snapshot requires scope and profile'
+    require; (field; snapshot, 'complete').kind == 'bool', 'snapshot requires a complete flag'
+    require; (field; snapshot, 'declaration_view').kind == 'string', 'snapshot requires a declaration view'
+    raw = field; snapshot, 'entities'
+    require; raw.kind == 'list', 'snapshot entities must be a list'
+    entities map of string, document-value = map;
+    for index in (range; 0, (raw.length;))
+        entity = (raw.item; index).value
+        id = text; entity, 'id'
+        kind = text; entity, 'kind'
+        surface = field; entity, 'surface'
+        require; (valid-id; id) and kind != '' and surface.kind == 'map' and (text; surface, 'symbol') != '', ('invalid snapshot entity: ' + id)
+        require; (entities.get.checked; id) == none, ('duplicate snapshot entity: ' + id)
+        entities.set; id, entity
+    return entities
+
+function complete-release bool; snapshot ref document-value
+    return (text; snapshot, 'scope') == 'all' and (field; snapshot, 'complete').scalar == 'true'
+
+function renamed-entities map of string, string throws throwable; root string
+    renamed map of string, string = map;
+    authority = filesystem-capability;
+    directory = root + '/reference/lifecycle'
+    dir-meta = filesystem-symlink-metadata; authority, (instance path; directory)
+    if dir-meta.failed and dir-meta.error-kind == 'not-found'
+        return renamed
+    require; not dir-meta.failed and dir-meta.kind == 'directory', (directory + ': expected a real directory')
+    location = directory + '/renames.yaml'
+    metadata = filesystem-symlink-metadata; authority, (instance path; location)
+    if metadata.failed and metadata.error-kind == 'not-found'
+        return renamed
+    registry = yaml-value; (read-text; location), location
+    raw = field; registry, 'renames'
+    require; (field; registry, 'format').scalar == '1' and raw.kind == 'list', (location + ': invalid rename registry')
+    for index in (range; 0, (raw.length;))
+        entry = (raw.item; index).value
+        previous = text; entry, 'from'
+        next = text; entry, 'to'
+        require; (valid-id; previous) and (valid-id; next) and previous != next, ('invalid rename: ' + previous + ' -> ' + next)
+        require; (renamed.get.checked; previous) == none, ('duplicate rename: ' + previous)
+        renamed.set; previous, next
+    return renamed
+
+function reconcile-reference throws throwable; snapshot ref document-value, root string, previous-file string, release string, write bool
+    entities = snapshot-entities; snapshot
+    profile = text; snapshot, 'profile'
+    previous map of string, document-value = map;
+    if release != ''
+        require; previous-file != '', '--release requires --previous with the prior complete release snapshot'
+        prior = json-value; previous-file
+        require; (complete-release; snapshot) and (complete-release; prior), 'release removal requires two complete release snapshots'
+        require; (text; prior, 'profile') == profile, 'release snapshots do not have comparable profiles'
+        previous = snapshot-entities; prior
+    else
+        require; previous-file == '', '--previous requires --release'
+    renames = renamed-entities; root
+    known map of string, bool = map;
+    changes list of record-change = list;
+    for location in (record-paths; root)
+        source = read-text; location
+        record = yaml-value; source, location
+        id = text; record, 'id'
+        require; (valid-id; id) and (field; record, 'format').scalar == '1', (location + ': invalid API record')
+        require; (known.get.checked; id) == none, ('duplicate manual ID: ' + id)
+        known.set; id, true
+        lifecycle = field; record, 'lifecycle'
+        status = text; lifecycle, 'status'
+        candidate = entities.get.checked; id
+        updated = source
+        if candidate != none
+            require; (text; record, 'kind') == (text; candidate, 'kind'), (id + ': entity kind changed; requires review')
+            if status == 'removed'
+                print; 'review ', id, ': removed entity reappeared'
+            else
+                updated = refresh-record; source, record, candidate, profile
+                if updated != source
+                    print; 'update ', id
+                    report-surface-change; record, candidate
+        else if status == 'current' or status == 'deprecated'
+            successor = renames.get.checked; id
+            if successor != none
+                print; 'rename ', id, ' -> ', successor, ' (review lifecycle and redirects)'
+            else if release != ''
+                prior-entity = previous.get.checked; id
+                if prior-entity != none
+                    require; (text; record, 'kind') == (text; prior-entity, 'kind'), (id + ': previous release kind differs from manual')
+                    updated = retire-record; source, record, release
+                    print; 'remove ', id, ' in ', release
+        if updated != source
+            validated = yaml-value; updated, location
+            require; (text; validated, 'id') == id, (location + ': reconciliation changed record identity')
+            if candidate != none
+                preserve-fields; record, validated, (list; 'surface', 'provenance')
+                old-provenance = field; record, 'provenance'
+                new-provenance = field; validated, 'provenance'
+                preserve-fields; old-provenance, new-provenance, (list; 'compiler')
+                new-surface = field; validated, 'surface'
+                expected-surface = field; candidate, 'surface'
+                require; (same-value; new-surface, expected-surface), (id + ': invalid regenerated surface')
+            else
+                preserve-fields; record, validated, (list; 'lifecycle')
+                new-lifecycle = field; validated, 'lifecycle'
+                preserve-fields; lifecycle, new-lifecycle, (list; 'status', 'removed-in')
+                require; (text; new-lifecycle, 'status') == 'removed' and (text; new-lifecycle, 'removed-in') == release, (id + ': invalid removal update')
+            changes.append; (instance record-change; location, updated)
+    raw = field; snapshot, 'entities'
+    for index in (range; 0, (raw.length;))
+        entity = (raw.item; index).value
+        id = text; entity, 'id'
+        if (known.get.checked; id) == none
+            location = root + '/reference/records/' + (id.replace; '.', '/') + '.yaml'
+            authority = filesystem-capability;
+            metadata = filesystem-symlink-metadata; authority, (instance path; location)
+            require; metadata.failed and metadata.error-kind == 'not-found', (location + ': cannot create scaffold over an existing path')
+            content = make-scaffold; entity, profile
+            validated = yaml-value; content, location
+            require; (text; validated, 'id') == id, (location + ': invalid scaffold identity')
+            print; 'add ', id, ' (documentation missing)'
+            changes.append; (instance record-change; location, content)
+    if write
+        for change in changes
+            write-text; change.destination, change.content
+        print; 'Wrote ', changes.length, ' record(s).'
+    else
+        print; changes.length, ' record(s) would change.'
+
+function signature-with-id document-value; signatures ref document-value, id string
+    for index in (range; 0, (signatures.length;))
+        entry = (signatures.item; index).value
+        if (text; entry, 'id') == id
+            return entry
+    return make-document-none;
+
+function report-surface-change; record ref document-value, candidate ref document-value
+    old-surface = field; record, 'surface'
+    new-surface = field; candidate, 'surface'
+    old-signatures = field; old-surface, 'signatures'
+    new-signatures = field; new-surface, 'signatures'
+    documentation = field; record, 'documentation'
+    callables = field; documentation, 'callables'
+    for index in (range; 0, (old-signatures.length;))
+        old = (old-signatures.item; index).value
+        id = text; old, 'id'
+        current = signature-with-id; new-signatures, id
+        prior-display = text; old, 'display'
+        if prior-display != (text; current, 'display')
+            print; '  - ', prior-display
+    for index in (range; 0, (new-signatures.length;))
+        current = (new-signatures.item; index).value
+        id = text; current, 'id'
+        old = signature-with-id; old-signatures, id
+        current-display = text; current, 'display'
+        if current-display != (text; old, 'display')
+            print; '  + ', current-display
+    if callables.kind == 'map'
+        for index in (range; 0, (callables.length;))
+            id = callables.key; index
+            current = signature-with-id; new-signatures, id
+            if current.kind != 'map'
+                print; '  review stale documentation.callables.', id
+            else
+                description = field; callables, id
+                for key in (list; 'parameters', 'throws')
+                    descriptions = field; description, key
+                    entries = field; current, key
+                    if descriptions.kind == 'map'
+                        for description-index in (range; 0, (descriptions.length;))
+                            entry-id = descriptions.key; description-index
+                            if (signature-with-id; entries, entry-id).kind != 'map'
+                                print; '  review stale documentation.callables.', id, '.', key, '.', entry-id
+
+function option string; options ref (map of string, string), key string
+    found = options.get.checked; key
+    if found != none
+        return found
+    return ''
+
+function help;
+    print; 'reference-sync export --input PACKAGE --scope NAMESPACE|all --snapshot FILE --view FILE'
+    print; 'reference-sync sync --snapshot FILE --manual-root DIR [--write] [--release VERSION --previous FILE]'
+
+function run throws throwable;
+    args = arguments;
+    if args.length == 0 or args[0].text == '--help'
+        help;
+        return
+    command = args[0].text
+    options map of string, string = map;
+    index = 1
+    write bool = false
+    while index < args.length
+        argument = args[index]
+        require; argument.is-text, 'arguments must be UTF-8'
+        key = argument.text
+        index = index + 1
+        if key == '--write' and command == 'sync' and not write
+            write = true
+        else
+            accepted = key == '--snapshot' or (command == 'export' and (key == '--view' or key == '--scope' or key == '--input')) or (command == 'sync' and (key == '--manual-root' or key == '--previous' or key == '--release'))
+            require; accepted and (options.get.checked; key) == none and index < args.length, ('invalid or duplicate option: ' + key)
+            argument = args[index]
+            require; argument.is-text and argument.text != '' and not (argument.text.contains.start; '--'), ('expected value for ' + key)
+            options.set; key, argument.text
+            index = index + 1
+    snapshot-file = option; options, '--snapshot'
+    require; snapshot-file != '', '--snapshot is required'
+    if command == 'export'
+        input = option; options, '--input'
+        scope = option; options, '--scope'
+        require; input != '' and scope != '', 'export requires --input and --scope'
+        view = option; options, '--view'
+        require; view != '' and view != snapshot-file, 'export requires a distinct --view file'
+        argv list of string = list; 'reference-snapshot', input, '--scope', scope, '--output', snapshot-file
+        result = run-process; 'terrane', argv, (instance process-options;), timeout-ms = 600000, stdout-limit = 1048576, stderr-limit = 1048576
+        code = result.status.exit-code
+        succeeded = false
+        if code != none
+            succeeded = code == 0
+        if not succeeded or result.status.timed-out or result.stderr-truncated
+            throw instance sync-error; ('snapshot export failed: ' + (result.stderr.decode; utf8))
+    snapshot = json-value; snapshot-file
+    if command == 'export'
+        snapshot-entities; snapshot
+        write-text; (option; options, '--view'), (text; snapshot, 'declaration_view')
+    else if command == 'sync'
+        root = option; options, '--manual-root'
+        require; root != '', '--manual-root is required'
+        reconcile-reference; snapshot, root, (option; options, '--previous'), (option; options, '--release'), write
+    else
+        throw instance sync-error; ('unknown command: ' + command)
+
+function main;
+    try
+        run;
+    catch throwable as failure
+        output = standard-error;
+        output.write; (((failure.render;) + "\n").encode; utf8)
+        exit; (make-exit-status; 1)
