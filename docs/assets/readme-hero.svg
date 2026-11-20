@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 236" width="960" height="236" role="img" aria-labelledby="title">
+  <title id="title">High-level source. Native output.</title>
+  <style>
+    .paper { fill: #eef4fb; stroke: #a8bfd9; }
+    .grid { stroke: #a8bfd9; opacity: .28; }
+    .frame { stroke: #a8bfd9; }
+    .ink { fill: #0b2545; }
+    .muted { fill: #33517a; }
+    .red { fill: #9d2233; }
+    .guide { fill: none; stroke: #a8bfd9; }
+    .source { fill: #f5e6ea; stroke: #c62f42; }
+    .rust { fill: #e0eef6; stroke: #2f6f8f; }
+    .native { fill: #dce7f3; stroke: #33517a; }
+    @media (prefers-color-scheme: dark) {
+      .paper { fill: #1e232b; stroke: #434c59; }
+      .grid { stroke: #434c59; }
+      .frame { stroke: #434c59; }
+      .ink { fill: #e2e6ec; }
+      .muted { fill: #a3abb8; }
+      .red { fill: #ff8b9b; }
+      .guide { stroke: #596373; }
+      .source { fill: #332832; stroke: #ff8b9b; }
+      .rust { fill: #263748; stroke: #7fb2e5; }
+      .native { fill: #2b323e; stroke: #a3abb8; }
+    }
+  </style>
+  <defs>
+    <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+      <path class="grid" d="M16 0H0V16" fill="none"/>
+    </pattern>
+    <path id="plane" d="M0 0h142l64 33H64Z"/>
+    <path id="hatch" d="M23 6h112m-97 8h112m-97 8h112"/>
+  </defs>
+  <rect class="paper" x=".5" y=".5" width="959" height="235" rx="9"/>
+  <rect x="1" y="1" width="958" height="234" rx="9" fill="url(#grid)"/>
+  <path class="frame" d="M24 23h18m-18 0v18m912-18h-18m18 0v18M24 213h18m-18 0v-18m912 18h-18m18 0v-18" fill="none"/>
+  <path class="frame" d="M552 28v180" stroke-dasharray="3 5" fill="none"/>
+  <g font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="600" letter-spacing="1.8">
+    <path class="red" d="M48 41h14v14H48Zm1.5 1.5v8.5h11v-8.5Z" fill-rule="evenodd"/>
+    <text class="red" x="73" y="53">TERRANE / THE LANGUAGE</text>
+  </g>
+  <g class="ink" font-family="Georgia, Times New Roman, serif" font-size="52" letter-spacing="-1.8">
+    <text x="46" y="114">High-level source.</text>
+    <text x="46" y="171">Native output.</text>
+  </g>
+  <g class="guide" stroke-dasharray="3 5">
+    <path d="M602 48v94m142-94v94m-78-61v94m142-94v94"/>
+  </g>
+  <g transform="translate(602 142)">
+    <use href="#plane" class="native"/>
+    <use href="#hatch" class="native" fill-opacity="0" opacity=".45"/>
+  </g>
+  <g transform="translate(602 95)">
+    <use href="#plane" class="rust"/>
+    <use href="#hatch" class="rust" fill-opacity="0" opacity=".45"/>
+  </g>
+  <g transform="translate(602 48)">
+    <use href="#plane" class="source"/>
+    <use href="#hatch" class="source" fill-opacity="0" opacity=".45"/>
+  </g>
+  <path class="guide" d="M809 81h19m-19 47h19m-19 47h19"/>
+  <g font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12" font-weight="600" letter-spacing="1.3">
+    <text class="red" x="839" y="85">TERRANE</text>
+    <text class="muted" x="839" y="132">RUST</text>
+    <text class="muted" x="839" y="179">NATIVE</text>
+  </g>
+</svg>

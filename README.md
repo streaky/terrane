@@ -1,316 +1,87 @@
 # Terrane
 
-Terrane is an experimental programming language for high-level native software. Its source focuses on values, behavior, and contracts; the compiler emits readable Rust, then uses Cargo and rustc to produce native code. There is no separate interpreter or virtual machine.
+![High-level source. Native output.](docs/assets/readme-hero.svg)
 
-Everything is an object in Terrane's semantics, but not everything becomes a heap object. Integers can use machine scalars, calls can lower directly to Rust, and independent values can share copy-on-write storage until mutation. Native representation is the compiler's responsibility, not an extra object model the programmer must manage.
+Terrane is an experimental programming language for writing native software. You write indentation-sensitive source with static types, value semantics, and explicit contracts. Terrane emits readable Rust, then Cargo and rustc build a native executable. There’s no interpreter or VM, and you can inspect the code that actually gets compiled.
 
-> **Status:** actively developed and built from source. The language, CLI, and generated-code contracts are not yet stable, and there is no finalized release distribution. See the [language scoreboard](https://streaky.github.io/terrane/published/scoreboards/language.html) for implemented features and their evidence.
+[Quick start](#quick-start) · [The Terrane Book](https://github.com/streaky/terrane-manual/tree/main/tutorial-book) · [Reference](https://github.com/streaky/terrane-manual/tree/main/reference) · [Language scoreboard](https://streaky.github.io/terrane/published/scoreboards/language.html)
 
-> **Platforms:** development and testing currently target Linux. Windows and macOS are untested and likely do not work yet; neither is currently a supported platform. The quick start below assumes Linux.
-
-For user-visible changes and migration guidance, see the reference manual's [changelog version index](https://github.com/streaky/terrane-manual/blob/main/reference/records/manual/changelog.yaml). Each version has its own page of dated changes, with Unreleased first.
-
-## What works today
-
-- **Language:** indentation-sensitive syntax, namespaces and imports, lexical scope, typed and inferred bindings, functions with named/default/variadic arguments, closures, and bound methods.
-- **Objects and types:** classes, nominal interfaces, reusable traits, authored generics, closed enums with payloads and exhaustive matching, optional/union types, descriptors, and reflection.
-- **Values and ownership:** adaptive exact integers, fixed-width numbers, floating-point math, Unicode strings, bytes, typed collections, structural iteration, copy-on-write value semantics, references, explicit moves, and deterministic destruction.
-- **Errors and concurrency:** structured throwable errors and callable `throws` contracts, async functions, structured task scopes, cancellation, deadlines, channels, heterogeneous async selection, native clocks/timers, and process-signal subscriptions.
-- **Standard library:** capability-gated filesystem and process operations, byte/text streams, document values, JSON, safe YAML, URLs, codecs, digests, compression, randomness, UUIDs, TCP, UDP, DNS, TLS, and structured logging.
-- **Native integration:** Terrane library packages, projected Rust dependencies, contextual generic specialization, concrete associated interfaces, native enums and typed dependency errors, checked ownership/borrowing crossings, and explicit authored Rust or C ABI boundaries.
-- **Tooling:** source formatting and diagnostics, native unit/integration/end-to-end testing, compiler-backed source intelligence and VS Code support, LLDB-backed source debugging, and source-attributed CPU, allocation, and process-memory profiling.
-
-These capabilities have executable coverage in [`tests/conformance/`](tests/conformance/) and the CLI integration suites. They do not mean that every Rust API or every combination of features is supported.
+> **Experimental · Linux only · Build from source.** The language, CLI, and generated-code contracts are still evolving. There’s no finalized release distribution; Windows and macOS aren’t supported.
 
 ## Quick start
 
-Install Rust and Cargo through rustup, plus a native linker for your host. The checkout selects its Rust release through [`rust-toolchain.toml`](rust-toolchain.toml). Documentation assumes `terrane` is installed and available on your shell's `PATH`. To install it from the repository root:
+On Linux, install [Rust through rustup](https://rustup.rs/) and a native linker. From the repository root, install the compiler; the checkout selects the [Rust toolchain](rust-toolchain.toml).
 
 ```sh
-cargo install --path crates/terrane-cli
+cargo install --locked --path crates/terrane-cli
 terrane --version
 ```
 
-`terrane --version` (or `terrane -V`) reports the Terrane and Rust toolchain versions. Development builds also report the Git commit and branch captured at build time when Git metadata is available. Cargo's `--release` only selects an optimized profile; for distribution, use `cargo build --locked --release --bin terrane --features release-build` to label the binary `release` and omit Git details. The Terrane version comes from the workspace manifest in both modes.
-
-The [Rust 1.100 upgrade and migration notes](docs/rust-1.100-upgrade.md) describe the current toolchain and Unicode 18 text profile. The historical [Rust 1.99 notes](docs/rust-1.99-upgrade.md) cover the earlier projected-dependency and error-handling changes.
-
-Cargo builds from this checkout show a progress bar by default. Set
-`CARGO_TERM_PROGRESS_WHEN=never` to disable it (for example, in CI); explicit
-environment settings take precedence over the repository default.
-
-Create `hello.trn`:
+Save this as `total.trn`:
 
 ```terrane
-namespace hello
+namespace example
+
+from /core/collections import list
+
+function sum int; values list of int
+  total = 0
+  for value in values
+    total = total + value
+  return total
 
 function main;
-  print; 'Hello from Terrane!'
+  values = list; 10, 12, 20
+  total = sum; values
+  print; "Total: {total}"
 ```
 
-Check it, run it, build a native executable, or inspect the generated Rust:
-
-```sh
-terrane check hello.trn
-terrane run hello.trn
-terrane build hello.trn
-terrane rust -o hello.rs hello.trn
+```console
+$ terrane run total.trn
+Total: 42
 ```
 
-The run prints `Hello from Terrane!`. `build` prints the executable path; `rust -o` writes program-owned lowering and a support sidecar. Use `--release` with `build` or `run` for an optimized program. Building the compiler itself with Cargo's `--release` is a separate choice.
+`terrane check total.trn` validates the program, `terrane build total.trn` prints the path to its native executable, and `terrane rust -o total.rs total.trn` writes the Rust for inspection, with a support sidecar when needed. Add `--release` to `build` or `run` to optimize the program.
 
-### Start a package
+<details>
+<summary>Turn this into a multi-file package</summary>
 
-For a multi-file application, put the source above in `hello/src/main.trn` and create `hello/package.toml`:
+Put the same source in `example/src/main.trn` and save this as `example/package.toml`:
 
 ```toml
-package = "hello"
+package = "example"
 
 [namespaces]
-hello = "src"
+example = "src"
 ```
 
-Run `terrane check hello`, `terrane run hello`, or `terrane build hello`. Commands accept a package directory, its manifest, or a standalone source file.
+Run `terrane run example` from the parent directory. Commands accept a package directory, manifest, or standalone source file. Ignore generated `**/.trn/` directories in Git; if the package uses Rust dependencies, commit `terrane-dependencies.lock`. See the [package manifest reference](https://github.com/streaky/terrane-manual/blob/main/reference/records/packages/package-manifest.yaml) for configuration and the [CLI reference](https://github.com/streaky/terrane-manual/blob/main/reference/records/packages/command-line.yaml) for standalone scripts and other workflows.
 
-Generated state lives in `.trn/`; add `**/.trn/` to your repository's `.gitignore`. The generated projection inventory is at `<package>/.trn/terrane-projection.generated.trn`. Commit `terrane-dependencies.lock` at the package root to preserve the exact resolved Rust dependency graph; `.trn/projection-cache.json` is disposable local projection cache/history and should not be committed.
+</details>
 
-A standalone source file can be run as `terrane hello.trn`. Adding `#!/usr/bin/env terrane` and making it executable enables direct script invocation; only shebang-bearing standalone files may omit `namespace`. Scripts still compile through the native pipeline.
+## What makes it Terrane?
 
-## Working with Rust dependencies
+**Objects without a mandatory heap model.** Everything is an object in Terrane’s semantics, but a value needn’t become a heap object. Integers can use machine scalars, calls can lower directly to Rust, and independent values can share copy-on-write storage until mutation. The compiler chooses the representation without changing what the source means.
 
-Declare an exact crate version, reviewed features, and required effects in `[rust-dependencies.<alias>]` in `package.toml`. Import its admitted declarations from `/deps/<alias>/...`, then use ordinary package commands to resolve and project the dependency.
+**Rust libraries through Terrane contracts.** Declare an exact crate version, its features, and required effects in `package.toml`, then import the supported API from `/deps/<alias>/…`. This is called *projection*: the compiler exposes Terrane declarations while retaining the native types and checking supported ownership, borrowing, and error crossings. It reports unsupported calls instead of silently substituting an adapter. See the [Rust dependency guide](https://github.com/streaky/terrane-manual/blob/main/reference/records/packages/rust-dependencies.yaml) for the workflow, Linux sandbox requirements, and explicit native escape hatches.
 
-Projection is driven by source demand. Review `.trn/terrane-projection.generated.trn` for Terrane signatures and unavailable operations, and `terrane-dependencies.lock` for the exact resolved Cargo graph. The ignored `.trn/projection-cache.json` caches projection decisions and removal/replay evidence locally; clearing it or checking out fresh regenerates current state without changing dependency identity. Unavailable demanded operations report explicit gaps rather than silently substituting an adapter.
+**Native tools that work in source terms.** `terrane test` runs unit, integration, and end-to-end tests in isolated native processes. The [VS Code extension](editors/vscode/) provides compiler-backed editing; the [LLDB-backed debugger](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/debugging.yaml) maps frames and locals back to Terrane. The [profiler](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/profiling.yaml) captures CPU samples, allocations, and process-memory timelines, with source attribution where the capture provides it.
 
-The compiler preserves exact native types and obligations through calls, generic selections, callbacks, moves, and borrows. It can specialize operations from ordinary arguments, receiver types, callable contracts, explicit selections, and result destinations. This does not imply unrestricted projection of arbitrary Rust traits, lifetimes, macros, or host registration APIs. Executable integration evidence lives in the compiler's conformance and CLI integration suites.
+## What you can use today
 
-Rust builds use the compiler-selected stable release; projection additionally uses a pinned rustdoc toolchain. Linux local dependency inspection requires `bubblewrap` (`bwrap`) and permission to create the containment sandbox. Trusted exact HTTPS projection artifacts can be configured with `TERRANE_PROJECTION_ARTIFACT_URL`; bundled, vendored, fully offline distribution is still unfinished. Compiler-owned Cargo commands use `sccache` only with the `TERRANE_SCCACHE=1` opt-in.
-
-For an irreducible host boundary, a package may use an explicit authored Rust module. This is distinct from an automatically generated integration layer; ordinary projected calls should remain the first choice. See the [manual's dependency guide](https://github.com/streaky/terrane-manual/blob/main/reference/records/packages/rust-dependencies.yaml) for declarations, effects, ownership, failure contracts, and limitations.
-
-## Commands and tools
-
-| Command | Purpose |
+| Area | Implemented |
 | --- | --- |
-| `terrane check <path>` | Validate Terrane and backend-check the generated Rust. |
-| `terrane run <path> [-- arguments]` | Build and execute a native program. |
-| `terrane build <path>` | Build the package's native artifact and print its path. |
-| `terrane rust [-o app.rs] <path>` | Inspect generated Rust, or write split program/support files. |
-| `terrane fmt [--check] <path>` | Format source, or check formatting without writing. |
-| `terrane test [options] <package>` | Discover and run isolated native Terrane tests. |
-| `terrane debug <path>` | Launch the LLDB-backed Terrane source debugger. |
-| `terrane profile record --cpu <path>` | Record optimized CPU samples with Linux `perf`. |
-| `terrane profile record --allocations <path>` | Record allocation, retention, and peak-live evidence with Heaptrack. |
-| `terrane profile record --memory-timeline <path>` | Record a bounded Linux process-memory timeline. |
-| `terrane profile show <file.trnprof>` | Present captured evidence with source attribution. |
-| `terrane package hash <directory>` | Calculate a deterministic Terrane library source hash. |
-| `terrane package install <relative-directory>` | Add a local Terrane library to the current package manifest. |
-| `terrane projection-census <package> <version> --target <triple> --root <directory>` | Compare a Rust crate's public surface with actual compiler projection admission. |
-| `terrane tooling --stdio` | Serve versioned JSON Lines source-intelligence requests. |
-| `terrane query --request <json-file>` | Execute one source-intelligence request. |
-| `terrane debug-adapter --stdio` | Serve the debugger translation layer to DAP clients. |
-| `terrane toolchains` | Report Rust toolchains previously requested by Terrane. |
+| Types and behavior | Classes, interfaces, traits, generics, closures, payload enums with exhaustive matching, optional and union types, reflection |
+| Values and ownership | Exact adaptive integers, Unicode strings, typed collections, copy-on-write values, references, explicit moves, deterministic destruction |
+| Errors and concurrency | Typed throwable errors and `throws` contracts, async functions, structured task scopes, cancellation, deadlines, channels, async selection |
+| Standard library | Capability-gated filesystem and process operations, streams, JSON and safe YAML, codecs, TLS, networking, structured logging |
+| Packages and tooling | Terrane libraries, projected Rust dependencies, authored Rust modules and C ABI boundaries, build-time source generation, formatting, native testing, debugging, profiling |
 
-### Security contracts
+The [language scoreboard](https://streaky.github.io/terrane/published/scoreboards/language.html) links features to their implementation evidence. The [current limitations](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/current-limitations.yaml) cover known gaps and workarounds. The [roadmap](docs/compiler-plan.md#7-active-milestone-roadmap) tracks broader Rust API coverage, release hardening, and offline projection distribution.
 
-Security-sensitive Rust and Terrane regions use the same paired `//# SECURITY-BEGIN [id]` / `//# SECURITY-END [id]` comments. Their canonical manual-format records live in [`docs/security/`](docs/security/README.md), versioned with the implementation. Run `terrane run tools/security-contracts -- check` to validate them, or `terrane run tools/security-contracts -- impact --base main` to report known contracts affected by a change. Registration identifies a review boundary, not an audit or security certification.
+## Where next?
 
-### Testing
-
-`terrane test` discovers parameterless top-level `test-*` functions returning `none` under `tests/unit`, `tests/integration`, and `tests/end-to-end`. `/core/testing` supplies assertions, expected-error checks, deterministic context, and structured failures. Each selected test runs in an isolated process with bounded output and a deadline.
-
-Use `--list` to inspect discovery, `--tier` to select tiers, and `--filter`, `--exact`, `--glob`, or `--regex` to select cases. `--jobs`, `--timeout`, `--fail-fast`, and `--show-output` control execution; `--report <file>` writes a structured JSON report. Test roots and capability profiles are configurable in the manifest. Frontend errors are checked before filtering; only selected tiers undergo native compilation.
-
-See [`tests/native-testing/`](tests/native-testing/) for a tracked package exercising all three tiers, and the [testing reference](https://github.com/streaky/terrane-manual/blob/main/reference/records/packages/testing.yaml) for the full contract.
-
-### Debugging, profiling, and editor support
-
-The source debugger provides breakpoints, stepping, mapped frames, scope-aware locals, bounded value inspection, secret-field redaction, and explicit generated/native views. It requires `lldb-dap`; Linux x86-64 with LLDB 22 is the exercised source-fidelity configuration. Other platforms, architectures, LLDB versions, optimized modules, and stripped modules may fall back to native fidelity. Optimized source debugging is not supported; `debug --release` is rejected.
-
-Install the Terrane VS Code extension from `editors/vscode/` and make `terrane` available on `PATH`, or set `terrane.debugger.path` to its executable. Bare executable names use `PATH`; relative executable paths resolve against the workspace folder, or the selected source file's directory without a workspace. Install `lldb-dap`; Linux x86-64 with LLDB 22 is the exercised configuration. Place a gutter breakpoint in Terrane source, then press F5. Launches build the selected source or manifest automatically before starting the adapter. The workspace must be trusted to launch builds.
-
-Add a launch configuration in `.vscode/launch.json`:
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "type": "terrane",
-      "request": "launch",
-      "name": "Debug current Terrane file",
-      "program": "${file}",
-      "args": [],
-      "stopOnEntry": false
-    }
-  ]
-}
-```
-
-Set `program` to a manifest path to debug a package instead. Saving follows VS Code's `debug.saveBeforeStart` policy; choosing not to save builds the on-disk sources, not unsaved editor buffers. `cwd` optionally sets the program's working directory, relative to the workspace folder or source-file directory. Without it, exact-build source debugging uses the package source root; native fallback without valid provenance uses the backend's inherited working directory. An explicit `cwd` is honored in both fidelity modes. Canceling a build or disposing the extension stops its build process group on POSIX. Conditional breakpoints, logpoints, restart, and Terrane expression/watch evaluation are unsupported. Stop uses DAP `disconnect`, terminating a launched program and detaching from an attached one by default.
-
-`terrane debug --build-only <file-or-manifest>` builds the normal exact debug profile and provenance without starting LLDB or the program. It writes one JSON object to stdout, `{"program":"<absolute executable path>","terraneProvenance":"<absolute sidecar path>"}`; diagnostics go to stderr.
-
-Profiling uses optimized native artifacts, not debugger builds. CPU sampling requires Linux x86-64 and host `perf` permission; allocation capture requires Heaptrack and zstd; process-memory timelines use Linux procfs. `--memory-timeline` may accompany CPU or allocation capture. Allocation reports support comparisons and allocated/retained byte thresholds. Retained-at-exit allocations are not automatically leaks, and RSS is not allocation-site evidence.
-
-Debug/profile artifacts carry exact-build identity. Authored source snapshots and profile workload arguments are included only with explicit opt-ins; paths, symbols, and other diagnostic evidence can still be sensitive. See the manual's [debugging](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/debugging.yaml) and [profiling](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/profiling.yaml) references for platform, fidelity, privacy, and collector boundaries.
-LLVM sample-profile feedback is an opt-in Rust build workflow; its helper usage
-and test command are documented in the [profiling reference](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/profiling.yaml).
-
-The [VS Code extension](editors/vscode/) uses `terrane-language-server` and compiler-owned snapshots for diagnostics, semantic highlighting, navigation, completion, and formatting. The shared source-intelligence protocol is documented in [`docs/tooling-schema.md`](docs/tooling-schema.md).
-
-Packages can export buildable declaration consumers through `[consumer-tools]` and select them with `[consumers.<id>].tool`. Normal compilation builds their host executables automatically; consumers own generation freshness. Trusted editor workspaces use the same preparation with source overlays and separate inspectable generated files—no manual consumer bootstrap is required.
-
-## What's still unfinished?
-
-The major remaining work is:
-
-- **Ecosystem-scale native integration:** broader contextual binding synthesis, declarative integration profiles, consuming native iteration/streams, and generated host registration. Existing bounded projection support is not a universal Rust binding generator.
-- **Release hardening:** stable distribution and cache behavior, supported-platform release gates, actionable backend-failure reports, fuzzing, and clean-checkout reproducibility.
-- **Offline projection distribution:** release-owned bundled artifacts, relocatable/vendored search paths, and an explicit network-disabled workflow.
-
-See the [active compiler roadmap](docs/compiler-plan.md#7-active-milestone-roadmap) for exact remaining requirements. Source generics, enum matching, callable throwable bounds, destination-directed projected results, native testing, and allocation profiling are already implemented—not pending first-version work.
-
-`no_std`, embedded/kernel targets, hot-code replacement, and unrestricted general pattern matching remain outside the current supported contract. Current compiler limitations and safe workarounds are recorded separately in the [manual](https://github.com/streaky/terrane-manual/blob/main/reference/records/tooling/current-limitations.yaml).
-
-## Documentation
-
-The [Terrane manual](https://github.com/streaky/terrane-manual) is maintained in a separate repository. It contains **The Terrane Book** (guided application development) and the **Terrane Reference** (current language, standard-library, package, tooling, and compiler contracts). An optional checkout at `manual/` is ignored by this compiler repository.
-
-- [Concise language reference](docs/language-spec-concise.md) — compact syntax and contract lookup.
-- [Language scoreboard](https://streaky.github.io/terrane/published/scoreboards/language.html) — implementation status and evidence.
-- [Test scoreboard](https://streaky.github.io/terrane/published/scoreboards/tests.html) — test results and timing evidence.
-- [Compiler plan](docs/compiler-plan.md) — active work and completed milestone records.
-- [Implemented object surface](docs/surface-today.md) — the current compiler-owned surface.
-- [Proposed version-one surface](docs/surface-v1.md) — destination design, not implementation status.
-- [Rust dependency design](docs/rust-deps.md) — projection architecture and design background.
-- [Legacy specification/architecture draft](docs/language-spec-and-compiler-architecture-draft.md) — historical inventory, **not authority over the current manual or executable conformance**.
-- [Scientific math benchmarks](benchmarks/sci-maths/) — cross-language correctness, runtime, and peak-memory evidence.
-- [Practical benchmarks](benchmarks/practical/) — HTTP/1 workloads with standalone Terrane source and attributed Go/Rust references.
-
-## Developing the compiler
-
-Use focused checks while working, such as `cargo clippy --workspace --all-targets -- -D warnings`. For a specific conformance case, set `TERRANE_CONFORMANCE_FILTER=<case-name-or-comma-separated-fragments>` and run `cargo test -p terrane-compiler --test conformance every_manifest_drives_a_conformance_case`. Debug package-shaped fixtures from disposable copies, not their tracked source directories.
-
-Keep regression programs minimal and self-contained under tracked test fixtures.
-Keep each full test name at most 80 characters, including Rust module prefixes;
-the scoreboard generator rejects longer names rather than truncating them.
-Assert result classifications and failure details through structured reports rather
-than pinning the wording of human-readable summaries.
-Combine related CLI assertions when they can share one native build without
-losing a distinct failure case. Prefer small local Rust witnesses for projection
-shapes; `projected-generated-api-reexport` generates a hidden owner API in a build
-script and executes calls through a separate facade without pulling Godot into
-ordinary conformance. The scoped-expression, document-byte, query, and framed-socket
-fixtures similarly preserve the relevant native type and runtime boundaries with local
-crates. They do not assert Iced, PDF rendering, SQLx, Axum, or Reqwest compatibility;
-real-library evidence belongs in dedicated native-survey/application checks. Cache-key
-tests similarly use tiny real Rustdoc inputs while retaining separate real-sysroot coverage.
-Host-only Rustdoc fixtures must discover the compiler host triple rather than
-hard-code a cache target: target selection also controls Cargo's `--target` and
-must not silently introduce a cross-compilation prerequisite.
-Keep profiling workloads long enough to collect meaningful samples, and inspect
-fresh-source reports before rewriting a workload for comparison.
-Fixture registries may be symlinked into related rejection cases; retain the shared
-API those cases need and exercise the whole dependent case family after reducing it.
-
-For complete workspace verification, run the timing collector from a clean tree at a commit:
-
-```sh
-python docs/measure-test-times.py -- --workspace
-```
-
-The collector returns Cargo's exit status and updates the tracked YAML/HTML test scoreboards. Review and commit both generated files together. It uses bounded parallelism; reduce `TERRANE_SCORECARD_JOBS` or `TERRANE_CONFORMANCE_JOBS` on constrained hosts, and do not run competing Cargo processes during collection.
-Name validation runs after measurement but before publishing either scoreboard file,
-including with `--no-html`; invalid names leave the existing files unchanged. This
-is not a pre-run test-discovery check.
-
-To regenerate or verify only the scoreboard view:
-
-```sh
-python docs/generate-test-scoreboard.py
-python docs/generate-test-scoreboard.py --check
-```
-
-Repository-local binaries record their build revision and compiler-input fingerprint. Rebuild if they warn that the checkout changed; installed/copied binaries do not inspect a working tree.
-
-### Rust implementation coverage
-
-Coverage is a separate diagnostic run, not a timing-scoreboard refresh. It measures
-the handwritten Rust under `crates/*/src`, including support crates executed by
-generated conformance programs and native test runners. It does not implement
-Terrane source coverage.
-
-Use the selected Rust toolchain and matching LLVM tools:
-
-```sh
-rustup component add llvm-tools-preview
-python tools/coverage.py
-```
-
-The command writes `target/coverage/index.html` by default. Open that file
-directly in a browser: the aggregate report navigates through directories to
-annotated source, with execution counts and next-uncovered-line/region navigation.
-Reports are self-contained static files; no IDE, service, or external assets are
-required. `--output <directory>` selects the exact report directory. Each run
-replaces the previous report, profiles, and executable coverage objects in that
-directory while retaining its reusable `build/` cache. Use a different output
-directory when you want to keep a separate report.
-
-For individual Rust-test attribution, run a focused selection first:
-
-```sh
-python tools/coverage.py --per-test -- -p terrane-string-support --lib
-python tools/coverage.py --filter tracked_native_testing_package_covers_all_tiers -- -p terrane-cli --test package_cli
-TERRANE_CONFORMANCE_FILTER=time-exact-values python tools/coverage.py -- -p terrane-compiler --test conformance
-```
-
-Arguments after `--` select Cargo packages/targets; `--filter` selects Rust test
-names. Without a Cargo selection the runner uses `--workspace`. Per-test mode
-runs each non-ignored Rust test in its own process and adds linked source reports,
-duration, covered-function footprint, functions unique within the selection, and
-the most overlapping test. Function identities for overlap use canonical source
-body ranges, merging generic instantiations. Broad execution or overlap is a
-review aid, not proof of redundant assertions. Conformance attribution is at the
-outer Rust harness-test level, not individual Terrane cases.
-The attribution regression checks run with `python tools/test_coverage.py` or
-`python -m unittest tools.test_coverage`.
-
-The report records revision, dirty-tree status, filters, environment overrides,
-toolchain, and failures in `run.json`. Failed test executions still produce reports
-and a nonzero exit status, including crashes that produce no execution profile:
-those tests have unavailable coverage, not zero coverage, and are excluded from
-overlap calculations. Build/report errors other than absent profiles stop the
-command. Outer workspace build-script and test-discovery profiles are retained
-separately and excluded from execution totals. Nested generated Cargo preparation
-runs inside a test's capture environment, so its instrumented build-script
-execution can contribute profiles alongside generated-program execution.
-LLVM diagnostics are retained and linked from a coverage-fidelity warning on the
-landing page; reports with mapping warnings are not clean baselines.
-LLVM may warn about dependency or fixture mappings before source filtering;
-the warning count is not a count of missed compiler/support functions.
-Coverage runs do not update the tracked scoreboards, and should not compete with
-other Cargo/suite runs. There is no outer Rust-test timeout; callers needing a
-deadline must supervise the command. Native test-runner deadlines are unchanged.
-
-Scope limits are explicit: stable doctests, integration-test source files, generated
-Rust, third-party dependencies, and `build.rs` are outside the report. Unit-test
-bodies colocated under `src` remain included. Embedded runtime fragments that only
-execute as generated Rust are not remapped to their original fragments. Source
-files absent from coverage mappings—including those fragments, unbuilt modules,
-and configuration-specific code—are listed as **unmeasured**, not silently omitted
-from the inventory or presented as covered. LLVM percentages apply to mapped
-executable code, not all Rust files. Force-killed/aborted subprocesses may not flush
-their counters, and application subprocesses that explicitly clear the coverage
-environment may not contribute profiles. No branch-coverage claim is made.
-Debugger-host code is measured, but native debuggees retain the caller's original
-Rust flags rather than coverage instrumentation: injected counters change native
-sequence points and would invalidate the source-stepping tests.
-
-The language-server protocol tests use the checked-in
-`tests/fixtures/lsp-outside-namespace` package to exercise documents outside a
-package's namespace roots. Workspace tests do not require local applications
-under `projects/`.
+- **Contribute:** See [Developing Terrane](docs/developing.md) for building the compiler, running focused tests, refreshing scoreboards, and collecting coverage.
 
 ## License
 
