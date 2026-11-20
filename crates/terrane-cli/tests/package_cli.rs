@@ -337,6 +337,120 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
 }
 
 #[test]
+fn reference_snapshot_all_includes_imported_authored_namespaces() {
+    let package = TempPackage::new();
+    fs::write(
+        package.0.join("app/main.trn"),
+        concat!(
+            "namespace cli/app\n",
+            "from /cli/support import answer\n",
+            "from /core/codecs import encode-hex\n",
+            "public function command int;\n",
+            "  encoded = encode-hex; b'a'\n",
+            "  return (answer;) + encoded.length\n",
+        ),
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("support/support.trn"),
+        "namespace cli/support\npublic function answer int;\n  return 42\n",
+    )
+    .unwrap();
+    let snapshot_path = package.0.join("snapshot.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args([
+            "reference-snapshot",
+            package.0.to_str().unwrap(),
+            "--scope",
+            "all",
+            "--output",
+        ])
+        .arg(&snapshot_path)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let snapshot: serde_json::Value =
+        serde_json::from_slice(&fs::read(snapshot_path).unwrap()).unwrap();
+    assert_eq!(snapshot["complete"], true);
+    assert_eq!(snapshot["omissions"], serde_json::json!([]));
+    let identities: Vec<_> = snapshot["entities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|entity| entity["surface"]["symbol"].as_str())
+        .collect();
+    assert!(identities.contains(&"/cli/app::command"));
+    assert!(identities.contains(&"/cli/support::answer"));
+    assert!(!identities.contains(&"/core/codecs::encode-hex"));
+}
+
+#[test]
+fn reference_snapshot_renders_no_parameter_throwable_signature() {
+    let package = TempPackage::new();
+    fs::write(
+        package.0.join("app/main.trn"),
+        concat!(
+            "namespace cli/app\n",
+            "from /core/errors import throwable\n",
+            "public class local-error implements throwable\n",
+            "  message string\n",
+            "  function render string;\n",
+            "    return this.message\n",
+            "public function command int throws local-error;\n",
+            "  return 1\n",
+        ),
+    )
+    .unwrap();
+    let snapshot_path = package.0.join("snapshot.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args([
+            "reference-snapshot",
+            package.0.to_str().unwrap(),
+            "--scope",
+            "all",
+            "--output",
+        ])
+        .arg(&snapshot_path)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let snapshot: serde_json::Value =
+        serde_json::from_slice(&fs::read(snapshot_path).unwrap()).unwrap();
+    let entities = snapshot["entities"].as_array().unwrap();
+    let command = entities
+        .iter()
+        .find(|entity| entity["surface"]["symbol"] == "/cli/app::command")
+        .unwrap();
+    let signature = &command["surface"]["signatures"][0];
+    assert_eq!(
+        signature["display"],
+        "function command int throws local-error;"
+    );
+    let throws = signature["throws"].as_array().unwrap();
+    assert!(
+        throws
+            .iter()
+            .any(|effect| effect["id"] == "api.cli.app.local-error")
+    );
+    let local_class = entities
+        .iter()
+        .find(|entity| entity["id"] == "api.cli.app.local-error")
+        .unwrap();
+    assert_eq!(
+        local_class["surface"]["signatures"][0]["display"],
+        "function construct;"
+    );
+}
+
+#[test]
 fn dynamic_library_builds_warning_free_and_rejects_execution_commands() {
     let package = TempPackage::new();
     fs::write(

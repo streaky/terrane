@@ -1,0 +1,64 @@
+namespace reference-sync
+
+from /core/documents import document-value
+from /core/errors import throwable
+from /core/testing import assert
+
+private function changed-entity document-value throws sync-error;
+    return yaml-value; "id: api.example.find\nkind: function\nsurface:\n  symbol: /example::find\n  signatures:\n    - id: default\n      parameters: []\n", 'snapshot fixture'
+
+function test-refresh-preserves-authored-blocks none throws throwable;
+    before = "id: api.example.find\nkind: function\nsurface:\n  symbol: /example::previous\n\n# Keep this note and the prose below.\nprovenance:\n  specification: []\ndocumentation:\n  compiler: not-a-provenance-child\n  summary: |-\n    Review this result.\n"
+    authored-tail = "\n\n# Keep this note and the prose below.\nprovenance:\n  compiler:\n    profile: test\n  specification: []\ndocumentation:\n  compiler: not-a-provenance-child\n  summary: |-\n    Review this result.\n"
+    record = yaml-value; before, 'manual fixture'
+    entity = yaml-value; "id: api.example.find\nkind: function\nsurface:\n  signatures:\n    - id: default\n      parameters: []\n      display: 'function find;'\n      form: 'true'\n      extension: 'value: with # punctuation'\n  symbol: /example::find\n", 'snapshot fixture'
+    after = refresh-record; before, record, entity, 'test'
+    assert; (after.contains.start; "id: api.example.find\nkind: function\nsurface:\n  symbol: /example::find\n  signatures:\n    - id: default\n")
+    assert; (after.contains; "      display: function find;\n")
+    assert; (after.contains.end; authored-tail)
+    refreshed = yaml-value; after, 'refreshed manual fixture'
+    actual-surface = field; refreshed, 'surface'
+    wanted-surface = field; entity, 'surface'
+    assert; (same-value; actual-surface, wanted-surface)
+    again = refresh-record; after, refreshed, entity, 'test'
+    assert; again == after
+    return none
+
+function test-refresh-adds-compiler-to-empty-provenance none throws throwable;
+    before = "id: api.example.find\nkind: function\nsurface:\n  symbol: /example::find\n  signatures:\n    - id: default\n      parameters: []\nprovenance: {{}}\n"
+    record = yaml-value; before, 'manual fixture'
+    entity = changed-entity;
+    after = refresh-record; before, record, entity, 'test'
+    expected = before.replace; 'provenance: {}', "provenance:\n  compiler:\n    profile: test"
+    assert; after == expected
+    return none
+
+function test-refresh-rejects-nonempty-flow-provenance none throws throwable;
+    before = 'id: api.example.find' + "\nkind: function\nsurface: {{}}\nprovenance: {{specification: []}}\n"
+    record = yaml-value; before, 'manual fixture'
+    entity = changed-entity;
+    rejected bool = false
+    try
+        refresh-record; before, record, entity, 'test'
+    catch sync-error as failure
+        rejected = failure.message == 'unsupported YAML structure for provenance.compiler'
+    assert; rejected
+    return none
+
+function test-retirement-inserts-or-replaces-only-lifecycle-fields none throws throwable;
+    for prior-removal in (list; '', "  removed-in: null\n")
+        before = "lifecycle:\n  status: current\n" + prior-removal + "  stability: experimental\ndocumentation:\n  status: complete\n  summary: Keep this.\n"
+        record = yaml-value; before, 'manual fixture'
+        after = retire-record; before, record, '0.2.0'
+        assert; after == "lifecycle:\n  status: removed\n  removed-in: \"0.2.0\"\n  stability: experimental\ndocumentation:\n  status: complete\n  summary: Keep this.\n"
+    return none
+
+function test-scaffold-keeps-profile-a-string throws throwable;
+    entity = changed-entity;
+    source = make-scaffold; entity, 'bundled-core'
+    assert; (source.contains.start; "format: 1\nid: api.example.find\nkind: function\n")
+    assert; (source.contains.end; "    profile: bundled-core\n")
+    record = yaml-value; (make-scaffold; entity, 'true'), 'scaffold fixture'
+    provenance = field; record, 'provenance'
+    compiler = field; provenance, 'compiler'
+    assert; (text; compiler, 'profile') == 'true'

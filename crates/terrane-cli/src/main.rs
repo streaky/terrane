@@ -4,6 +4,7 @@ mod debug_command;
 mod development_fingerprint;
 mod development_provenance;
 mod profile_command;
+mod reference_snapshot;
 mod test_command;
 
 use sha2::{Digest, Sha256};
@@ -99,6 +100,7 @@ enum CliCommand {
     Profile,
     Test,
     DeclarationInterface,
+    ReferenceSnapshot,
     DebugAdapter,
     Tooling,
     Query,
@@ -118,6 +120,7 @@ impl CliCommand {
             "build" => Some(Self::Build),
             "test" => Some(Self::Test),
             "declaration-interface" => Some(Self::DeclarationInterface),
+            "reference-snapshot" => Some(Self::ReferenceSnapshot),
             "run" => Some(Self::Run),
             "debug" => Some(Self::Debug),
             "profile" => Some(Self::Profile),
@@ -201,6 +204,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             return Ok(ExitCode::SUCCESS);
         }
         CliCommand::DeclarationInterface => return run_declaration_interface(arguments),
+        CliCommand::ReferenceSnapshot => return reference_snapshot::run(arguments),
         CliCommand::Tooling => return run_tooling(arguments),
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
@@ -1925,6 +1929,7 @@ fn usage() -> String {
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
      [--show-output] [--report <json-file>] <package-or-manifest>\n\
      terrane declaration-interface <package-or-source> --output <interface.json>\n\
+     terrane reference-snapshot <package-or-source> --scope <namespace|all> --output <snapshot.json>\n\
      terrane <file-or-manifest> [program arguments]\n\
      terrane tooling --stdio\n\
      terrane query --request <json-file>\n\
