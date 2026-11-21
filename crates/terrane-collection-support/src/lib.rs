@@ -242,7 +242,9 @@ impl<T> List<T> {
     /// Appends to an invocation-scoped list whose backing storage is uniquely owned.
     #[doc(hidden)]
     pub fn push_unique(&mut self, value: T) {
-        self.make_unique_storage().push(value);
+        Arc::get_mut(&mut self.0)
+            .expect("invocation-scoped list backing storage must be uniquely owned")
+            .push(value);
     }
     /// Accesses the backing vector of a statically noncopyable list.
     #[doc(hidden)]
