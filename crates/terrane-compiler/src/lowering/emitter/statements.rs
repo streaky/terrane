@@ -214,8 +214,28 @@ impl Emitter<'_> {
             .iter()
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
-        let unique = crate::semantics::collection_uses_unique_storage(self.package, &receiver_type);
-        let mutation = match (receiver_type, operation.as_str()) {
+        let mutation = self.collection_mutation_for_operation(
+            node,
+            (&receiver_type, &operation),
+            &values,
+            &mut stage_argument,
+            list_append_vector,
+            &receiver_value,
+        );
+        mutation.map(|mutation| format!("{{ {setup}{argument_setup}{mutation}; }}"))
+    }
+
+    fn collection_mutation_for_operation(
+        &mut self,
+        node: &SyntaxNode,
+        (receiver_type, operation): (&ValueType, &str),
+        values: &[&SyntaxNode],
+        stage_argument: &mut impl FnMut(String) -> String,
+        list_append_vector: Option<String>,
+        receiver_value: &str,
+    ) -> Option<String> {
+        let unique = crate::semantics::collection_uses_unique_storage(self.package, receiver_type);
+        match (receiver_type, operation) {
             (ValueType::List(item), "append") => {
                 let value = stage_argument(self.expression_as(values[0], item.value_type()));
                 if let Some(vector) = list_append_vector {
@@ -253,7 +273,7 @@ impl Emitter<'_> {
             }
             (ValueType::List(item), "sort" | "sort.descending") => {
                 let comparator =
-                    super::calls::list_sort_comparator(&item, operation == "sort.descending");
+                    super::calls::list_sort_comparator(item, operation == "sort.descending");
                 Some(format!("({receiver_value}).sort_by({comparator})"))
             }
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
@@ -286,8 +306,7 @@ impl Emitter<'_> {
                 stage_argument(self.expression_as(values[0], item.value_type()))
             )),
             _ => None,
-        };
-        mutation.map(|mutation| format!("{{ {setup}{argument_setup}{mutation}; }}"))
+        }
     }
 
     pub(super) fn assigned_binding(&self, left: &SyntaxNode) -> Option<TypedBinding> {

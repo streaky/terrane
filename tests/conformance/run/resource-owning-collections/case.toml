@@ -1,4 +1,4 @@
 phase = "run"
 status = "accept"
-suite = "value-protocols"
+suite = "object-protocols"
 test = "/resource-owning-collections::test-scenario"

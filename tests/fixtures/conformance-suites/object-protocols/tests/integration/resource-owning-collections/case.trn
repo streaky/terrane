@@ -24,6 +24,23 @@ function inspect; item ref marker
 function release; item marker
   inspect; item
 
+function remove-items; items mutable ref list of marker
+  removed = items.remove; 0
+  inspect; removed
+
+function remove-copyable; items mutable ref list of int
+  removed = items.remove; 0
+  print; 'removed-', removed
+
+function remove-ordered-map; values mutable ref map of string, marker
+  removed = values.remove.checked; 'key'
+  if removed != none
+    inspect; removed
+
+function remove-unordered-map; values mutable ref unordered-map of string, marker
+  removed = values.remove; 'key'
+  inspect; removed
+
 function test-scenario;
   owner = instance bucket;
   print; owner.items.length
@@ -66,3 +83,20 @@ function test-scenario;
   unordered.remove; 'y'
   unordered.remove; 'z'
   print; 'unordered-size-', unordered.length
+
+  resources list of marker = list; (instance marker; 'borrowed-remove')
+  remove-items; resources
+  print; 'resource-list-size-', resources.length
+
+  ordered-removal map of string, marker = map; key=(instance marker; 'ordered-remove')
+  remove-ordered-map; ordered-removal
+  print; 'ordered-removal-size-', ordered-removal.length
+
+  unordered-removal unordered-map of string, marker = unordered-map
+  unordered-removal.set; 'key', (instance marker; 'unordered-remove')
+  remove-unordered-map; unordered-removal
+  print; 'unordered-removal-size-', unordered-removal.length
+
+  numbers list of int = list; 4, 5, 6
+  remove-copyable; numbers
+  print; 'copyable-list-size-', numbers.length

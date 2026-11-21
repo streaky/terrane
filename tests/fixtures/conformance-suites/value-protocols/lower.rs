@@ -11514,409 +11514,6 @@ fn test_scenario_terrane_required_throwing_callable_field() -> Result<(), Terran
     }
     Ok(())
 }
-// Source: tests/integration/resource-owning-collections/case.trn
-// Namespace: resource-owning-collections
-pub struct TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572 {
-    pub output: ByteWriter,
-    pub name: String,
-}
-impl TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572 {
-    pub fn terrane_construct(name: String) -> Self {
-        let mut __terrane_constructed_value = Self {
-            output: stdout(),
-            name: String::new(),
-        };
-        __terrane_constructed_value.construct(name);
-        __terrane_constructed_value
-    }
-    pub fn construct(&mut self, name: String) {
-        {
-            let __terrane_value: String = name;
-            self.name = __terrane_value;
-        }
-    }
-    pub fn destruct(&mut self) {
-        println!(
-            "{}{}", String::from("drop-"), terrane_scalar_support::scalar_text(&self
-            .name)
-        );
-    }
-}
-impl Drop
-for TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572 {
-    fn drop(&mut self) {
-        self.destruct();
-    }
-}
-pub struct Bucket {
-    pub items: terrane_collection_support::List<
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >,
-}
-impl Bucket {
-    pub fn terrane_construct() -> Self {
-        Self {
-            items: terrane_collection_support::List::<
-                TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-            >::new(Vec::new()),
-        }
-    }
-}
-fn seed() -> terrane_collection_support::List<
-    TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-> {
-    let item: TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572;
-    item = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-        String::from("first"),
-    );
-    return terrane_collection_support::List::<
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >::new(vec![item]);
-}
-fn inspect(
-    item: &TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-) {
-    println!(
-        "{}{}", String::from("see-"), terrane_scalar_support::scalar_text(&{ let
-        __terrane_snapshot = item.name.clone(); __terrane_snapshot })
-    );
-}
-fn release(
-    item: TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-) {
-    inspect(&item);
-}
-fn test_scenario_terrane_resource_owning_collections() -> Result<(), TerraneError> {
-    let owner: Bucket;
-    let mut items: terrane_collection_support::List<
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >;
-    let next: TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572;
-    let mut item: &TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572;
-    let mut ordered: terrane_collection_support::Map<
-        String,
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >;
-    let absent: Option<
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >;
-    let mut key: String;
-    let mut unordered: terrane_collection_support::UnorderedMap<
-        String,
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >;
-    owner = Bucket::terrane_construct();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(owner
-        .items.length()))
-    );
-    items = seed();
-    next = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-        String::from("second"),
-    );
-    {
-        let __terrane_collection_argument_0 = next;
-        items.push_unique(__terrane_collection_argument_0);
-    };
-    {
-        let __terrane_index = __terrane_raised_err(
-            terrane_collection_support::index_from_int(
-                &terrane_int_support::Int::from(1_i128),
-            ),
-
-                245 /* terrane-site: tests/integration/resource-owning-collections/case.trn:33:3-33:38 */,
-        )?;
-        let __terrane_value = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-            String::from("third"),
-        );
-        let _ = __terrane_raised_err(
-            items.set_unique(__terrane_index, __terrane_value),
-
-                245 /* terrane-site: tests/integration/resource-owning-collections/case.trn:33:3-33:38 */,
-        )?;
-    }
-    let __terrane_iterable_0 = &items;
-    let mut __terrane_iterator_0 = __terrane_iterable_0.terrane_borrowing_iterator();
-    loop {
-        item = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        inspect(item);
-    }
-    inspect({
-        let __terrane_index_0 = __terrane_raised_err(
-            terrane_collection_support::index_from_int(
-                &terrane_int_support::Int::from(0_i128),
-            ),
-
-                246 /* terrane-site: tests/integration/resource-owning-collections/case.trn:36:12-36:20 */,
-        )?;
-        let __terrane_index_place_1 = __terrane_raised_err(
-            items
-                .get(__terrane_index_0)
-                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                    __terrane_index_0,
-                )),
-
-                246 /* terrane-site: tests/integration/resource-owning-collections/case.trn:36:12-36:20 */,
-        )?;
-        __terrane_index_place_1
-    });
-    let __terrane_completion_0: TerraneCompletion<()> = (|| {
-        let __terrane_try_0: TerraneCompletion<()> = (|| {
-            {
-                let __terrane_result = {
-                    let __terrane_index = __terrane_raised_completion!(
-                        terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
-                        247 /* terrane-site: tests/integration/resource-owning-collections/case.trn:38:5-38:20 */
-                    );
-                    __terrane_raised_completion!(
-                        items.remove_unique(__terrane_index), 247 /* terrane-site: tests/integration/resource-owning-collections/case.trn:38:5-38:20 */
-                    )
-                };
-                __terrane_result
-            };
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_0 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_0) => {
-                let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0
-                    && __terrane_error_0.kind == TerraneErrorKind::IndexError
-                {
-                    __terrane_handled_0 = true;
-                    println!("{}", String::from("bad-index"));
-                }
-                if !__terrane_handled_0 {
-                    return TerraneCompletion::Error(__terrane_error_0);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_0 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return Ok(value),
-        TerraneCompletion::Error(error) => return Err(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    release({
-        let __terrane_result = {
-            let __terrane_index = __terrane_raised_err(
-                terrane_collection_support::index_from_int(
-                    &terrane_int_support::Int::from(0_i128),
-                ),
-
-                    248 /* terrane-site: tests/integration/resource-owning-collections/case.trn:41:13-41:28 */,
-            )?;
-            __terrane_raised_err(
-                items.remove_unique(__terrane_index),
-
-                    248 /* terrane-site: tests/integration/resource-owning-collections/case.trn:41:13-41:28 */,
-            )?
-        };
-        __terrane_result
-    });
-    {
-        items.clear_unique();
-    };
-    println!(
-        "{}{}", String::from("list-size-"),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(items
-        .length()))
-    );
-    ordered = terrane_collection_support::Map::<
-        String,
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >::new(
-        vec![
-            terrane_collection_support::Entry::new(String::from("a"),
-            TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(String::from("a")))
-        ],
-    );
-    {
-        let __terrane_collection_argument_0 = String::from("b");
-        let __terrane_collection_argument_1 = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-            String::from("b"),
-        );
-        ordered
-            .set_unique(
-                __terrane_collection_argument_0,
-                __terrane_collection_argument_1,
-            );
-    };
-    {
-        let __terrane_key = String::from("b");
-        let __terrane_value = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-            String::from("replacement"),
-        );
-        ordered.set_unique(__terrane_key, __terrane_value);
-    }
-    inspect({
-        let __terrane_map_key_2 = String::from("b");
-        let __terrane_index_place_3 = __terrane_raised_err(
-            ordered
-                .get(&__terrane_map_key_2)
-                .ok_or(terrane_collection_support::MissingKey),
-
-                249 /* terrane-site: tests/integration/resource-owning-collections/case.trn:48:12-48:24 */,
-        )?;
-        __terrane_index_place_3
-    });
-    absent = {
-        let __terrane_result = {
-            let __terrane_key = String::from("absent");
-            ordered.remove_checked_unique(&__terrane_key)
-        };
-        __terrane_result
-    };
-    println!("{}", terrane_scalar_support::scalar_text(&(&absent).is_none()));
-    let __terrane_iterable_1 = {
-        let __terrane_result = ordered.keys();
-        __terrane_result
-    };
-    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
-        __terrane_iterable_1.as_slice(),
-    );
-    loop {
-        key = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        println!(
-            "{}{}", String::from("key-"), terrane_scalar_support::scalar_text(&key)
-        );
-    }
-    {
-        let __terrane_collection_argument_0 = String::from("b");
-        let _ = __terrane_raised_err(
-            ordered.remove_unique(&__terrane_collection_argument_0),
-
-                250 /* terrane-site: tests/integration/resource-owning-collections/case.trn:53:3-53:22 */,
-        )?;
-    };
-    let __terrane_completion_1: TerraneCompletion<()> = (|| {
-        let __terrane_try_1: TerraneCompletion<()> = (|| {
-            {
-                let __terrane_collection_argument_0 = String::from("absent");
-                let _ = __terrane_raised_completion!(
-                    ordered.remove_unique(&__terrane_collection_argument_0),
-                    251 /* terrane-site: tests/integration/resource-owning-collections/case.trn:55:5-55:29 */
-                );
-            };
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_1 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_1) => {
-                let mut __terrane_handled_1 = false;
-                if !__terrane_handled_1
-                    && __terrane_error_1.kind == TerraneErrorKind::MissingKey
-                {
-                    __terrane_handled_1 = true;
-                    println!("{}", String::from("bad-key"));
-                }
-                if !__terrane_handled_1 {
-                    return TerraneCompletion::Error(__terrane_error_1);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_1 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return Ok(value),
-        TerraneCompletion::Error(error) => return Err(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    println!(
-        "{}{}", String::from("map-size-"),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(ordered
-        .length()))
-    );
-    unordered = terrane_collection_support::UnorderedMap::<
-        String,
-        TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572,
-    >::new(Vec::new());
-    {
-        let __terrane_collection_argument_0 = String::from("x");
-        let __terrane_collection_argument_1 = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-            String::from("x"),
-        );
-        unordered
-            .set_unique(
-                __terrane_collection_argument_0,
-                __terrane_collection_argument_1,
-            );
-    };
-    {
-        let __terrane_collection_argument_0 = String::from("y");
-        let __terrane_collection_argument_1 = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-            String::from("y"),
-        );
-        unordered
-            .set_unique(
-                __terrane_collection_argument_0,
-                __terrane_collection_argument_1,
-            );
-    };
-    {
-        let __terrane_collection_argument_0 = String::from("x");
-        let _ = unordered.remove_checked_unique(&__terrane_collection_argument_0);
-    };
-    {
-        let __terrane_key = String::from("z");
-        let __terrane_value = TerraneNsResourceOwningCollectionsMarkerIdentity2F7265736F757263652D6F776E696E672D636F6C6C656374696F6E73006D61726B6572::terrane_construct(
-            String::from("z"),
-        );
-        unordered.set_unique(__terrane_key, __terrane_value);
-    }
-    inspect({
-        let __terrane_map_key_4 = String::from("y");
-        let __terrane_index_place_5 = __terrane_raised_err(
-            unordered
-                .get(&__terrane_map_key_4)
-                .ok_or(terrane_collection_support::MissingKey),
-
-                252 /* terrane-site: tests/integration/resource-owning-collections/case.trn:65:12-65:26 */,
-        )?;
-        __terrane_index_place_5
-    });
-    {
-        let __terrane_collection_argument_0 = String::from("y");
-        let _ = __terrane_raised_err(
-            unordered.remove_unique(&__terrane_collection_argument_0),
-
-                253 /* terrane-site: tests/integration/resource-owning-collections/case.trn:66:3-66:24 */,
-        )?;
-    };
-    {
-        let __terrane_collection_argument_0 = String::from("z");
-        let _ = __terrane_raised_err(
-            unordered.remove_unique(&__terrane_collection_argument_0),
-
-                254 /* terrane-site: tests/integration/resource-owning-collections/case.trn:67:3-67:24 */,
-        )?;
-    };
-    println!(
-        "{}{}", String::from("unordered-size-"),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(unordered
-        .length()))
-    );
-    Ok(())
-}
 // Source: tests/integration/scalar-reference-transparency/case.trn
 // Namespace: scalar-reference-transparency
 fn test_scenario_terrane_scalar_reference_transparency() -> Result<(), TerraneError> {
@@ -11954,7 +11551,7 @@ fn test_scenario_terrane_scalar_reference_transparency() -> Result<(), TerraneEr
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
         terrane_string_support::Encoding::Utf8;
         __terrane_raised_err(terrane_string_support::decode(&decoded,
-        __terrane_string_argument_0), 255 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:12:13-12:33 */) ? })
+        __terrane_string_argument_0), 245 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:12:13-12:33 */) ? })
     );
     number = std::sync::Arc::new(TerraneSharedCell::new(7));
     observed = std::sync::Arc::downgrade(&number.clone());
@@ -11974,14 +11571,14 @@ fn test_scenario_terrane_scalar_reference_transparency() -> Result<(), TerraneEr
         terrane_scalar_support::scalar_text(&__terrane_raised_err(terrane_int_support::fixed_addition({
         let __terrane_owner = observed.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }, 2), 256 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:17:13-17:28 */) ?)
+        .clone(); __terrane_value }, 2), 246 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:17:13-17:28 */) ?)
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised_err(terrane_int_support::fixed_addition({
         let __terrane_owner = observed.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }, 3), 257 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:18:12-18:24 */) ?)
+        .clone(); __terrane_value }, 3), 247 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:18:12-18:24 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&- { let __terrane_owner = observed
@@ -11997,7 +11594,7 @@ fn test_scenario_terrane_scalar_reference_transparency() -> Result<(), TerraneEr
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised_err(terrane_int_support::fixed_multiplication({
         let __terrane_value = owner.lock().expect("shared reference lock poisoned")
-        .clone(); __terrane_value }, 2), 258 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:22:12-22:21 */) ?)
+        .clone(); __terrane_value }, 2), 248 /* terrane-site: tests/integration/scalar-reference-transparency/case.trn:22:12-22:21 */) ?)
     );
     Ok(())
 }
@@ -12039,7 +11636,7 @@ fn large_source() -> terrane_collection_support::List<terrane_int_support::Int> 
             terrane_int_support::Int::from(1_i64),
         ),
 
-            259 /* terrane-site: tests/integration/sequential-pipeline/case.trn:16:17-16:31 */,
+            249 /* terrane-site: tests/integration/sequential-pipeline/case.trn:16:17-16:31 */,
     );
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
@@ -12067,7 +11664,7 @@ fn failing_map(
             TerraneError::raised(
                 TerraneErrorKind::ArithmeticOverflow,
 
-                    260 /* terrane-site: tests/integration/sequential-pipeline/case.trn:22:5-22:30 */,
+                    250 /* terrane-site: tests/integration/sequential-pipeline/case.trn:22:5-22:30 */,
             ),
         );
     }
@@ -12177,7 +11774,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                 __terrane_raised_err(
                     value.clone().modulo(&terrane_int_support::Int::from(2_i128)),
 
-                        261 /* terrane-site: tests/integration/sequential-pipeline/case.trn:49:12-49:21 */,
+                        251 /* terrane-site: tests/integration/sequential-pipeline/case.trn:49:12-49:21 */,
                 )? == terrane_int_support::Int::from(0_i128),
             );
         })
@@ -12233,7 +11830,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                         __terrane_pipeline_callback_1
                             .call(((*__terrane_pipeline_item).clone(),)),
 
-                            262 /* terrane-site: tests/integration/sequential-pipeline/case.trn:53:39-55:1 */,
+                            252 /* terrane-site: tests/integration/sequential-pipeline/case.trn:53:39-55:1 */,
                     )? {
                         break '__terrane_pipeline_candidate;
                     }
@@ -12257,20 +11854,20 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(pipeline
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        263 /* terrane-site: tests/integration/sequential-pipeline/case.trn:59:10-59:21 */) ?),
-        263 /* terrane-site: tests/integration/sequential-pipeline/case.trn:59:10-59:21 */) ?)
+        253 /* terrane-site: tests/integration/sequential-pipeline/case.trn:59:10-59:21 */) ?),
+        253 /* terrane-site: tests/integration/sequential-pipeline/case.trn:59:10-59:21 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(pipeline
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        264 /* terrane-site: tests/integration/sequential-pipeline/case.trn:60:10-60:21 */) ?),
-        264 /* terrane-site: tests/integration/sequential-pipeline/case.trn:60:10-60:21 */) ?)
+        254 /* terrane-site: tests/integration/sequential-pipeline/case.trn:60:10-60:21 */) ?),
+        254 /* terrane-site: tests/integration/sequential-pipeline/case.trn:60:10-60:21 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(pipeline
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        265 /* terrane-site: tests/integration/sequential-pipeline/case.trn:61:10-61:21 */) ?),
-        265 /* terrane-site: tests/integration/sequential-pipeline/case.trn:61:10-61:21 */) ?)
+        255 /* terrane-site: tests/integration/sequential-pipeline/case.trn:61:10-61:21 */) ?),
+        255 /* terrane-site: tests/integration/sequential-pipeline/case.trn:61:10-61:21 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = counts
@@ -12408,7 +12005,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                 __terrane_raised_err(
                     value.clone().modulo(&terrane_int_support::Int::from(2_i128)),
 
-                        266 /* terrane-site: tests/integration/sequential-pipeline/case.trn:85:12-85:21 */,
+                        256 /* terrane-site: tests/integration/sequential-pipeline/case.trn:85:12-85:21 */,
                 )? == terrane_int_support::Int::from(0_i128),
             );
         })
@@ -12433,7 +12030,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                         __terrane_pipeline_callback_2
                             .call(((*__terrane_pipeline_item).clone(),)),
 
-                            267 /* terrane-site: tests/integration/sequential-pipeline/case.trn:86:37-89:1 */,
+                            257 /* terrane-site: tests/integration/sequential-pipeline/case.trn:86:37-89:1 */,
                     )? {
                         break '__terrane_pipeline_candidate;
                     }
@@ -12453,8 +12050,8 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(before
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        268 /* terrane-site: tests/integration/sequential-pipeline/case.trn:91:10-91:19 */) ?),
-        268 /* terrane-site: tests/integration/sequential-pipeline/case.trn:91:10-91:19 */) ?)
+        258 /* terrane-site: tests/integration/sequential-pipeline/case.trn:91:10-91:19 */) ?),
+        258 /* terrane-site: tests/integration/sequential-pipeline/case.trn:91:10-91:19 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
@@ -12498,8 +12095,8 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(changed_type
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        269 /* terrane-site: tests/integration/sequential-pipeline/case.trn:100:10-100:25 */) ?),
-        269 /* terrane-site: tests/integration/sequential-pipeline/case.trn:100:10-100:25 */) ?)
+        259 /* terrane-site: tests/integration/sequential-pipeline/case.trn:100:10-100:25 */) ?),
+        259 /* terrane-site: tests/integration/sequential-pipeline/case.trn:100:10-100:25 */) ?)
     );
     empty = terrane_collection_support::List::<
         terrane_int_support::Int,
@@ -12605,8 +12202,8 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(multiple_takes
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        270 /* terrane-site: tests/integration/sequential-pipeline/case.trn:118:10-118:27 */) ?),
-        270 /* terrane-site: tests/integration/sequential-pipeline/case.trn:118:10-118:27 */) ?)
+        260 /* terrane-site: tests/integration/sequential-pipeline/case.trn:118:10-118:27 */) ?),
+        260 /* terrane-site: tests/integration/sequential-pipeline/case.trn:118:10-118:27 */) ?)
     );
     large = large_source();
     large_counts = std::sync::Arc::new(
@@ -12636,7 +12233,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                 __terrane_raised_err(
                     value.clone().modulo(&terrane_int_support::Int::from(2_i128)),
 
-                        271 /* terrane-site: tests/integration/sequential-pipeline/case.trn:124:12-124:21 */,
+                        261 /* terrane-site: tests/integration/sequential-pipeline/case.trn:124:12-124:21 */,
                 )? == terrane_int_support::Int::from(0_i128),
             );
         })
@@ -12684,7 +12281,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                         __terrane_pipeline_callback_1
                             .call(((*__terrane_pipeline_item).clone(),)),
 
-                            272 /* terrane-site: tests/integration/sequential-pipeline/case.trn:128:38-130:1 */,
+                            262 /* terrane-site: tests/integration/sequential-pipeline/case.trn:128:38-130:1 */,
                     )? {
                         break '__terrane_pipeline_candidate;
                     }
@@ -12776,7 +12373,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                             (*__terrane_pipeline_item).clone(),
                         ),
 
-                            273 /* terrane-site: tests/integration/sequential-pipeline/case.trn:143:33-145:1 */,
+                            263 /* terrane-site: tests/integration/sequential-pipeline/case.trn:143:33-145:1 */,
                     )?;
                     __terrane_pipeline_remaining_2 -= 1;
                     __terrane_pipeline_output.push(__terrane_pipeline_mapped_1);
@@ -12791,8 +12388,8 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(safe_prefix
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        274 /* terrane-site: tests/integration/sequential-pipeline/case.trn:147:10-147:24 */) ?),
-        274 /* terrane-site: tests/integration/sequential-pipeline/case.trn:147:10-147:24 */) ?)
+        264 /* terrane-site: tests/integration/sequential-pipeline/case.trn:147:10-147:24 */) ?),
+        264 /* terrane-site: tests/integration/sequential-pipeline/case.trn:147:10-147:24 */) ?)
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -12807,7 +12404,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                         {
                             let __terrane_pipeline_mapped_1 = __terrane_traced_completion!(
                                 __terrane_pipeline_callback_1((* __terrane_pipeline_item)
-                                .clone()), 275 /* terrane-site: tests/integration/sequential-pipeline/case.trn:149:30-151:1 */
+                                .clone()), 265 /* terrane-site: tests/integration/sequential-pipeline/case.trn:149:30-151:1 */
                             );
                             __terrane_pipeline_output.push(__terrane_pipeline_mapped_1);
                         }
@@ -12874,7 +12471,7 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
                             (*__terrane_pipeline_item).clone(),
                         ),
 
-                            276 /* terrane-site: tests/integration/sequential-pipeline/case.trn:156:30-158:1 */,
+                            266 /* terrane-site: tests/integration/sequential-pipeline/case.trn:156:30-158:1 */,
                     )?;
                     __terrane_pipeline_remaining_2 -= 1;
                     __terrane_pipeline_output.push(__terrane_pipeline_mapped_1);
@@ -12966,13 +12563,13 @@ fn test_scenario_terrane_sequential_pipeline() -> Result<(), TerraneError> {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised_err(twice
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        277 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:10-170:18 */) ?),
-        277 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:10-170:18 */) ?),
+        267 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:10-170:18 */) ?),
+        267 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:10-170:18 */) ?),
         String::from(", "),
         terrane_scalar_support::scalar_text(&__terrane_raised_err(twice
         .get_or_error(__terrane_raised_err(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        278 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:26-170:34 */) ?),
-        278 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:26-170:34 */) ?)
+        268 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:26-170:34 */) ?),
+        268 /* terrane-site: tests/integration/sequential-pipeline/case.trn:170:26-170:34 */) ?)
     );
     limit = 2;
     typed = {
@@ -13088,19 +12685,19 @@ fn inspect_copy_contracts(
     println!(
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(copied
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        279 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:10-187:19 */)),
-        279 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:10-187:19 */)),
+        269 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:10-187:19 */)),
+        269 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:10-187:19 */)),
         String::from(", "), terrane_scalar_support::scalar_text(&__terrane_raised(copied
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        280 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:27-187:36 */)),
-        280 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:27-187:36 */)),
+        270 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:27-187:36 */)),
+        270 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:27-187:36 */)),
         String::from("; original "), terrane_scalar_support::scalar_text(&counter.call(({
         let __terrane_index =
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        281 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:63-187:72 */);
+        271 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:63-187:72 */);
         __terrane_raised(values.get(__terrane_index).ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index)),
-        281 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:63-187:72 */) },)))
+        271 /* terrane-site: tests/integration/sequential-pipeline/case.trn:187:63-187:72 */) },)))
     );
     loop_state = terrane_int_support::Int::from(0_i128);
     loop_counter = {
@@ -13120,7 +12717,7 @@ fn inspect_copy_contracts(
             terrane_int_support::Int::from(1_i64),
         ),
 
-            282 /* terrane-site: tests/integration/sequential-pipeline/case.trn:193:21-193:32 */,
+            272 /* terrane-site: tests/integration/sequential-pipeline/case.trn:193:21-193:32 */,
     );
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,
@@ -13166,13 +12763,13 @@ fn inspect_copy_contracts(
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(repeated
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            283 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:12-198:23 */)),
-            283 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:12-198:23 */)),
+            273 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:12-198:23 */)),
+            273 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:12-198:23 */)),
             String::from(", "),
             terrane_scalar_support::scalar_text(&__terrane_raised(repeated
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-            284 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:31-198:42 */)),
-            284 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:31-198:42 */))
+            274 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:31-198:42 */)),
+            274 /* terrane-site: tests/integration/sequential-pipeline/case.trn:198:31-198:42 */))
         );
     }
     reusable = {
@@ -13224,11 +12821,11 @@ fn inspect_copy_contracts(
                                 &terrane_int_support::Int::from(0_i128),
                             ),
 
-                                285 /* terrane-site: tests/integration/sequential-pipeline/case.trn:205:12-205:23 */,
+                                275 /* terrane-site: tests/integration/sequential-pipeline/case.trn:205:12-205:23 */,
                         ),
                     ),
 
-                    285 /* terrane-site: tests/integration/sequential-pipeline/case.trn:205:12-205:23 */,
+                    275 /* terrane-site: tests/integration/sequential-pipeline/case.trn:205:12-205:23 */,
             );
         })
     };
@@ -13280,15 +12877,15 @@ fn inspect_copy_contracts(
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(shared
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        286 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:10-214:19 */)),
-        286 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:10-214:19 */)),
+        276 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:10-214:19 */)),
+        276 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:10-214:19 */)),
         String::from("; reused "), terrane_scalar_support::scalar_text(&increment({ let
         __terrane_index =
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        287 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:46-214:55 */);
+        277 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:46-214:55 */);
         __terrane_raised(values.get(__terrane_index).ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index)),
-        287 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:46-214:55 */) }))
+        277 /* terrane-site: tests/integration/sequential-pipeline/case.trn:214:46-214:55 */) }))
     );
     big_limit = terrane_int_support::Int::from_decimal(
         "340282366920938463463374607431768211456",
@@ -13403,12 +13000,12 @@ fn inspect_copy_contracts(
         .length())), String::from(": "),
         terrane_scalar_support::scalar_text(&__terrane_raised(forked
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        288 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:31-239:40 */)),
-        288 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:31-239:40 */)),
+        278 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:31-239:40 */)),
+        278 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:31-239:40 */)),
         String::from(", "), terrane_scalar_support::scalar_text(&__terrane_raised(forked
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        289 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:48-239:57 */)),
-        289 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:48-239:57 */))
+        279 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:48-239:57 */)),
+        279 /* terrane-site: tests/integration/sequential-pipeline/case.trn:239:48-239:57 */))
     );
 }
 #[derive(Clone)]
@@ -13541,12 +13138,12 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        290 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:10-7:21 */)),
-        290 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:10-7:21 */)),
+        280 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:10-7:21 */)),
+        280 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:10-7:21 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        291 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:23-7:34 */)),
-        291 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:23-7:34 */))
+        281 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:23-7:34 */)),
+        281 /* terrane-site: tests/integration/stable-list-sorting/case.trn:7:23-7:34 */))
     );
     {
         adaptive.sort_by(|left, right| right.cmp(left));
@@ -13554,12 +13151,12 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        292 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:10-9:21 */)),
-        292 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:10-9:21 */)),
+        282 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:10-9:21 */)),
+        282 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:10-9:21 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        293 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:23-9:34 */)),
-        293 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:23-9:34 */))
+        283 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:23-9:34 */)),
+        283 /* terrane-site: tests/integration/stable-list-sorting/case.trn:9:23-9:34 */))
     );
     int8s = terrane_collection_support::List::<i8>::new(vec![2, - 1]);
     int16s = terrane_collection_support::List::<i16>::new(vec![2, - 1]);
@@ -13604,46 +13201,46 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(int8s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        294 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:10-31:18 */)),
-        294 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:10-31:18 */)),
+        284 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:10-31:18 */)),
+        284 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:10-31:18 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(int16s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        295 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:20-31:29 */)),
-        295 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:20-31:29 */)),
+        285 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:20-31:29 */)),
+        285 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:20-31:29 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(int32s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        296 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:31-31:40 */)),
-        296 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:31-31:40 */)),
+        286 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:31-31:40 */)),
+        286 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:31-31:40 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(int64s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        297 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:42-31:51 */)),
-        297 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:42-31:51 */)),
+        287 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:42-31:51 */)),
+        287 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:42-31:51 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(int128s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        298 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:53-31:63 */)),
-        298 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:53-31:63 */))
+        288 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:53-31:63 */)),
+        288 /* terrane-site: tests/integration/stable-list-sorting/case.trn:31:53-31:63 */))
     );
     println!(
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(uint8s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        299 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:10-32:19 */)),
-        299 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:10-32:19 */)),
+        289 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:10-32:19 */)),
+        289 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:10-32:19 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(uint16s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        300 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:21-32:31 */)),
-        300 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:21-32:31 */)),
+        290 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:21-32:31 */)),
+        290 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:21-32:31 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(uint32s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        301 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:33-32:43 */)),
-        301 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:33-32:43 */)),
+        291 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:33-32:43 */)),
+        291 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:33-32:43 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(uint64s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        302 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:45-32:55 */)),
-        302 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:45-32:55 */)),
+        292 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:45-32:55 */)),
+        292 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:45-32:55 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(uint128s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        303 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:57-32:68 */)),
-        303 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:57-32:68 */))
+        293 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:57-32:68 */)),
+        293 /* terrane-site: tests/integration/stable-list-sorting/case.trn:32:57-32:68 */))
     );
     words = terrane_collection_support::List::<
         String,
@@ -13654,16 +13251,16 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        304 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:10-36:18 */)),
-        304 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:10-36:18 */)),
+        294 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:10-36:18 */)),
+        294 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:10-36:18 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        305 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:20-36:28 */)),
-        305 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:20-36:28 */)),
+        295 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:20-36:28 */)),
+        295 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:20-36:28 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        306 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:30-36:38 */)),
-        306 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:30-36:38 */))
+        296 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:30-36:38 */)),
+        296 /* terrane-site: tests/integration/stable-list-sorting/case.trn:36:30-36:38 */))
     );
     {
         words.sort_by(|left, right| right.cmp(left));
@@ -13671,16 +13268,16 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        307 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:10-38:18 */)),
-        307 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:10-38:18 */)),
+        297 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:10-38:18 */)),
+        297 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:10-38:18 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        308 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:20-38:28 */)),
-        308 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:20-38:28 */)),
+        298 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:20-38:28 */)),
+        298 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:20-38:28 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        309 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:30-38:38 */)),
-        309 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:30-38:38 */))
+        299 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:30-38:38 */)),
+        299 /* terrane-site: tests/integration/stable-list-sorting/case.trn:38:30-38:38 */))
     );
     zero = 0.0;
     negative_zero = -0.0_f64;
@@ -13701,35 +13298,35 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        310 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:10-50:19 */)),
-        310 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:10-50:19 */).is_infinite()),
+        300 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:10-50:19 */)),
+        300 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:10-50:19 */).is_infinite()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        311 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:30-50:39 */)),
-        311 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:30-50:39 */)
+        301 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:30-50:39 */)),
+        301 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:30-50:39 */)
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        312 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:55-50:64 */)),
-        312 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:55-50:64 */)
+        302 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:55-50:64 */)),
+        302 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:55-50:64 */)
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        313 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:80-50:89 */)),
-        313 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:80-50:89 */)
+        303 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:80-50:89 */)),
+        303 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:80-50:89 */)
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        314 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:105-50:114 */)),
-        314 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:105-50:114 */).is_infinite()),
+        304 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:105-50:114 */)),
+        304 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:105-50:114 */).is_infinite()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
-        315 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:125-50:134 */)),
-        315 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:125-50:134 */).is_nan()),
+        305 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:125-50:134 */)),
+        305 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:125-50:134 */).is_nan()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
-        316 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:149-50:158 */)),
-        316 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:149-50:158 */).is_nan())
+        306 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:149-50:158 */)),
+        306 /* terrane-site: tests/integration/stable-list-sorting/case.trn:50:149-50:158 */).is_nan())
     );
     {
         floats.sort_by(terrane_collection_support::compare_float64_descending);
@@ -13737,40 +13334,40 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        317 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:10-52:19 */)),
-        317 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:10-52:19 */).is_infinite()),
+        307 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:10-52:19 */)),
+        307 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:10-52:19 */).is_infinite()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        318 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:30-52:39 */)),
-        318 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:30-52:39 */)
+        308 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:30-52:39 */)),
+        308 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:30-52:39 */)
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        319 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:55-52:64 */)),
-        319 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:55-52:64 */)
+        309 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:55-52:64 */)),
+        309 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:55-52:64 */)
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        320 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:80-52:89 */)),
-        320 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:80-52:89 */)
+        310 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:80-52:89 */)),
+        310 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:80-52:89 */)
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        321 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:105-52:114 */)),
-        321 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:105-52:114 */).is_infinite()),
+        311 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:105-52:114 */)),
+        311 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:105-52:114 */).is_infinite()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        322 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:125-52:134 */)),
-        322 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:125-52:134 */)
+        312 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:125-52:134 */)),
+        312 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:125-52:134 */)
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
-        323 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:150-52:159 */)),
-        323 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:150-52:159 */).is_nan()),
+        313 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:150-52:159 */)),
+        313 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:150-52:159 */).is_nan()),
         terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
-        324 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:174-52:183 */)),
-        324 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:174-52:183 */).is_nan())
+        314 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:174-52:183 */)),
+        314 /* terrane-site: tests/integration/stable-list-sorting/case.trn:52:174-52:183 */).is_nan())
     );
     narrow = terrane_collection_support::List::<f32>::new(vec![2.0_f32, - 1.0_f32]);
     {
@@ -13779,12 +13376,12 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(narrow
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        325 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:10-56:19 */)),
-        325 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:10-56:19 */)),
+        315 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:10-56:19 */)),
+        315 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:10-56:19 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(narrow
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        326 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:21-56:30 */)),
-        326 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:21-56:30 */))
+        316 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:21-56:30 */)),
+        316 /* terrane-site: tests/integration/stable-list-sorting/case.trn:56:21-56:30 */))
     );
     values = terrane_collection_support::List::<
         terrane_int_support::Int,
@@ -13807,16 +13404,16 @@ fn test_scenario_terrane_stable_list_sorting() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(preserved
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        327 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:10-61:22 */)),
-        327 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:10-61:22 */)),
+        317 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:10-61:22 */)),
+        317 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:10-61:22 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        328 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:24-61:33 */)),
-        328 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:24-61:33 */)),
+        318 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:24-61:33 */)),
+        318 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:24-61:33 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(returned
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        329 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:35-61:46 */)),
-        329 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:35-61:46 */))
+        319 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:35-61:46 */)),
+        319 /* terrane-site: tests/integration/stable-list-sorting/case.trn:61:35-61:46 */))
     );
     {
         let __terrane_collection_argument_0 = terrane_int_support::Int::from(4_i128);
@@ -13866,7 +13463,7 @@ fn test_scenario_terrane_stable_list_sorting() {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key), 330 /* terrane-site: tests/integration/stable-list-sorting/case.trn:69:17-69:29 */))
+            .get_or_error(&key), 320 /* terrane-site: tests/integration/stable-list-sorting/case.trn:69:17-69:29 */))
         );
     }
     descending = {
@@ -13889,7 +13486,7 @@ fn test_scenario_terrane_stable_list_sorting() {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key.clone()), 331 /* terrane-site: tests/integration/stable-list-sorting/case.trn:72:17-72:29 */))
+            .get_or_error(&key.clone()), 321 /* terrane-site: tests/integration/stable-list-sorting/case.trn:72:17-72:29 */))
         );
     }
     empty = terrane_collection_support::List::<
@@ -13908,8 +13505,8 @@ fn test_scenario_terrane_stable_list_sorting() {
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(empty
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(single
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        332 /* terrane-site: tests/integration/stable-list-sorting/case.trn:78:24-78:33 */)),
-        332 /* terrane-site: tests/integration/stable-list-sorting/case.trn:78:24-78:33 */))
+        322 /* terrane-site: tests/integration/stable-list-sorting/case.trn:78:24-78:33 */)),
+        322 /* terrane-site: tests/integration/stable-list-sorting/case.trn:78:24-78:33 */))
     );
 }
 // Source: tests/integration/string-display-composition/case.trn
@@ -14012,7 +13609,7 @@ impl Broken {
                 message,
                 rendered,
 
-                    333 /* terrane-site: tests/integration/string-display-composition/case.trn:23:9-23:37 */,
+                    323 /* terrane-site: tests/integration/string-display-composition/case.trn:23:9-23:37 */,
             )
         });
     }
@@ -14098,7 +13695,7 @@ fn render_generic<
                 &__terrane_traced_err(
                     value.to_string(),
 
-                        334 /* terrane-site: tests/integration/string-display-composition/case.trn:34:25-34:30 */,
+                        324 /* terrane-site: tests/integration/string-display-composition/case.trn:34:25-34:30 */,
                 )?,
             );
         __terrane_text
@@ -14185,7 +13782,7 @@ fn test_composition() -> Result<(), TerraneError> {
                 String::with_capacity(7); __terrane_text.push_str("broken ");
                 __terrane_text
                 .push_str(&__terrane_traced_completion!(Broken::terrane_construct()
-                .to_string(), 335 /* terrane-site: tests/integration/string-display-composition/case.trn:50:29-50:45 */));
+                .to_string(), 325 /* terrane-site: tests/integration/string-display-composition/case.trn:50:29-50:45 */));
                 __terrane_text })
             );
             TerraneCompletion::Normal
@@ -14223,7 +13820,7 @@ fn test_composition() -> Result<(), TerraneError> {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             println!(
                 "{}", __terrane_traced_completion!(Broken::terrane_construct()
-                .to_string(), 336 /* terrane-site: tests/integration/string-display-composition/case.trn:54:17-54:33 */)
+                .to_string(), 326 /* terrane-site: tests/integration/string-display-composition/case.trn:54:17-54:33 */)
             );
             TerraneCompletion::Normal
         })();
@@ -14266,7 +13863,7 @@ fn test_composition() -> Result<(), TerraneError> {
                         .push_str(
                             &__terrane_traced_completion!(
                                 Broken::terrane_construct().to_string(),
-                                337 /* terrane-site: tests/integration/string-display-composition/case.trn:58:25-58:41 */
+                                327 /* terrane-site: tests/integration/string-display-composition/case.trn:58:25-58:41 */
                             ),
                         );
                     __terrane_text
@@ -14313,7 +13910,7 @@ fn test_composition() -> Result<(), TerraneError> {
                         .push_str(
                             &__terrane_traced_completion!(
                                 Broken::terrane_construct().to_string(),
-                                338 /* terrane-site: tests/integration/string-display-composition/case.trn:62:24-62:40 */
+                                328 /* terrane-site: tests/integration/string-display-composition/case.trn:62:24-62:40 */
                             ),
                         );
                     __terrane_text
@@ -14355,7 +13952,7 @@ fn test_composition() -> Result<(), TerraneError> {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_traced_completion!(render_generic(Broken::terrane_construct()),
-                339 /* terrane-site: tests/integration/string-display-composition/case.trn:66:17-66:51 */))
+                329 /* terrane-site: tests/integration/string-display-composition/case.trn:66:17-66:51 */))
             );
             TerraneCompletion::Normal
         })();
@@ -14391,7 +13988,7 @@ fn test_composition() -> Result<(), TerraneError> {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_traced_err(render_generic(Calm::terrane_construct()),
-        340 /* terrane-site: tests/integration/string-display-composition/case.trn:69:13-69:45 */) ?)
+        330 /* terrane-site: tests/integration/string-display-composition/case.trn:69:13-69:45 */) ?)
     );
     erased = <TerraneNsStringDisplayCompositionDisplayableIdentity2F737472696E672D646973706C61792D636F6D706F736974696F6E00646973706C617961626C65>::from(
         Calm::terrane_construct(),
@@ -14399,7 +13996,7 @@ fn test_composition() -> Result<(), TerraneError> {
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
         String::with_capacity(10); __terrane_text.push_str("interface:"); __terrane_text
-        .push_str(&__terrane_traced_err(erased.to_string(), 341 /* terrane-site: tests/integration/string-display-composition/case.trn:71:27-71:33 */) ?);
+        .push_str(&__terrane_traced_err(erased.to_string(), 331 /* terrane-site: tests/integration/string-display-composition/case.trn:71:27-71:33 */) ?);
         __terrane_text })
     );
     Ok(())
@@ -14834,7 +14431,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &html_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_6,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        342 /* terrane-site: tests/integration/text-families/case.trn:29:11-29:52 */)
+        332 /* terrane-site: tests/integration/text-families/case.trn:29:11-29:52 */)
         ? })
     );
     reversed_searches = terrane_collection_support::List::<
@@ -14849,7 +14446,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &reversed_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_7,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        343 /* terrane-site: tests/integration/text-families/case.trn:32:11-32:65 */)
+        333 /* terrane-site: tests/integration/text-families/case.trn:32:11-32:65 */)
         ? })
     );
     broadcast_searches = terrane_collection_support::List::<
@@ -14875,7 +14472,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &priority_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_9,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        344 /* terrane-site: tests/integration/text-families/case.trn:37:11-37:65 */)
+        334 /* terrane-site: tests/integration/text-families/case.trn:37:11-37:65 */)
         ? })
     );
     println!(
@@ -14886,7 +14483,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         ::new(vec![String::from("abc")]);
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_10,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        345 /* terrane-site: tests/integration/text-families/case.trn:38:11-38:52 */)
+        335 /* terrane-site: tests/integration/text-families/case.trn:38:11-38:52 */)
         ? })
     );
     no_searches = terrane_collection_support::List::<String>::new(Vec::new());
@@ -14897,7 +14494,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         __terrane_string_argument_1 = &no_replacements;
         __terrane_raised_err(terrane_string_support::replace_many(&__terrane_receiver_value_11,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        346 /* terrane-site: tests/integration/text-families/case.trn:41:11-41:55 */)
+        336 /* terrane-site: tests/integration/text-families/case.trn:41:11-41:55 */)
         ? })
     );
     println!(
@@ -14907,7 +14504,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
         ::new(vec![String::from("-")]);
         __terrane_raised_err(terrane_string_support::replace_many(&decomposed,
         __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
-        347 /* terrane-site: tests/integration/text-families/case.trn:42:11-42:54 */)
+        337 /* terrane-site: tests/integration/text-families/case.trn:42:11-42:54 */)
         ? })
     );
     mismatch_searches = terrane_collection_support::List::<
@@ -14922,7 +14519,7 @@ fn test_scenario_terrane_text_families() -> Result<(), TerraneError> {
                 __terrane_string_argument_1 = &no_replacements;
                 __terrane_raised_completion!(terrane_string_support::replace_many(&__terrane_receiver_value_12,
                 __terrane_string_argument_0.as_slice(), __terrane_string_argument_1
-                .as_slice()), 348 /* terrane-site: tests/integration/text-families/case.trn:45:13-45:60 */) })
+                .as_slice()), 338 /* terrane-site: tests/integration/text-families/case.trn:45:13-45:60 */) })
             );
             TerraneCompletion::Normal
         })();
@@ -15032,12 +14629,12 @@ fn test_scenario_terrane_tuple_type_boundaries() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(returned
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(returned
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        349 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:27-13:38 */)),
-        349 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:27-13:38 */)),
+        339 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:27-13:38 */)),
+        339 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:27-13:38 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(returned
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        350 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:40-13:51 */)),
-        350 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:40-13:51 */))
+        340 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:40-13:51 */)),
+        340 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:13:40-13:51 */))
     );
     empty = terrane_collection_support::Tuple::<
         terrane_int_support::Int,
@@ -15063,26 +14660,26 @@ fn test_scenario_terrane_tuple_type_boundaries() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(echoed
         .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index_0 =
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        351 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:34 */); let
+        341 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:34 */); let
         __terrane_index_place_1 = __terrane_raised(echoed.get(__terrane_index_0)
         .ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index_0)),
-        351 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:34 */);
+        341 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:34 */);
         __terrane_raised(__terrane_index_place_1
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        352 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:37 */)),
-        352 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:37 */) }),
+        342 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:37 */)),
+        342 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:25-18:37 */) }),
         terrane_scalar_support::scalar_text(&{ let __terrane_index_2 =
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        353 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:48 */); let
+        343 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:48 */); let
         __terrane_index_place_3 = __terrane_raised(echoed.get(__terrane_index_2)
         .ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index_2)),
-        353 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:48 */);
+        343 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:48 */);
         __terrane_raised(__terrane_index_place_3
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        354 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:51 */)),
-        354 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:51 */) })
+        344 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:51 */)),
+        344 /* terrane-site: tests/integration/tuple-type-boundaries/case.trn:18:39-18:51 */) })
     );
 }
 // Source: tests/integration/typed-catch-bindings/case.trn
@@ -15101,7 +14698,7 @@ fn test_scenario_terrane_typed_catch_bindings() -> Result<(), TerraneError> {
                         TerraneError::raised(
                             TerraneErrorKind::CoercionError,
 
-                                355 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:7:7-7:27 */,
+                                345 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:7:7-7:27 */,
                         ),
                     );
                 })();
@@ -15139,7 +14736,7 @@ fn test_scenario_terrane_typed_catch_bindings() -> Result<(), TerraneError> {
                                 TerraneError::raised(
                                         TerraneErrorKind::ArithmeticOverflow,
 
-                                            356 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:11:7-11:32 */,
+                                            346 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:11:7-11:32 */,
                                     )
                                     .with_cause(__terrane_error_1.clone()),
                             );
@@ -15204,7 +14801,7 @@ fn test_scenario_terrane_typed_catch_bindings() -> Result<(), TerraneError> {
                         TerraneError::raised(
                             TerraneErrorKind::CoercionError,
 
-                                357 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:17:7-17:27 */,
+                                347 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:17:7-17:27 */,
                         ),
                     );
                 })();
@@ -15229,7 +14826,7 @@ fn test_scenario_terrane_typed_catch_bindings() -> Result<(), TerraneError> {
                                     .clone()
                                     .at(
 
-                                            358 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:19:7-19:19 */,
+                                            348 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:19:7-19:19 */,
                                     ),
                             );
                         }
@@ -15293,7 +14890,7 @@ fn test_scenario_terrane_typed_catch_bindings() -> Result<(), TerraneError> {
                 TerraneError::raised(
                     TerraneErrorKind::ArithmeticOverflow,
 
-                        359 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:24:5-24:30 */,
+                        349 /* terrane-site: tests/integration/typed-catch-bindings/case.trn:24:5-24:30 */,
                 ),
             );
         })();
@@ -16089,16 +15686,16 @@ fn test_scenario_terrane_typed_document_decoding() {
         "{}{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_0
         = &decoded.value.clone(); __terrane_raised(__terrane_receiver_value_0.ports
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        360 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:12-38:34 */)),
-        360 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:12-38:34 */) }),
+        350 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:12-38:34 */)),
+        350 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:12-38:34 */) }),
         terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_1 = &decoded
         .value.clone(); __terrane_raised(__terrane_receiver_value_1.labels
-        .get_or_error(&String::from("tier")), 361 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:36-38:64 */) }),
+        .get_or_error(&String::from("tier")), 351 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:36-38:64 */) }),
         terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_2 = &decoded
         .value.clone(); __terrane_raised(__terrane_receiver_value_2.coordinates
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        362 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:66-38:94 */)),
-        362 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:66-38:94 */) }),
+        352 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:66-38:94 */)),
+        352 /* terrane-site: tests/integration/typed-document-decoding/case.trn:38:66-38:94 */) }),
         terrane_scalar_support::scalar_text(&decoded.value.clone().ratio)
     );
     malformed = {
@@ -16151,8 +15748,8 @@ fn test_scenario_terrane_typed_document_decoding() {
         &{ let __terrane_receiver_value_4 = &malformed.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_4
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        363 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:13-44:37 */)),
-        363 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:13-44:37 */) } .source
+        353 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:13-44:37 */)),
+        353 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:13-44:37 */) } .source
         .clone(); let __terrane_string_argument_0 = "case.trn";
         __terrane_receiver_value_3.contains(std::convert::AsRef:: < str >
         ::as_ref(&__terrane_string_argument_0)) }),
@@ -16160,8 +15757,8 @@ fn test_scenario_terrane_typed_document_decoding() {
         __terrane_receiver_value_6 = &malformed.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_6
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        364 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:69-44:93 */)),
-        364 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:69-44:93 */) }
+        354 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:69-44:93 */)),
+        354 /* terrane-site: tests/integration/typed-document-decoding/case.trn:44:69-44:93 */) }
         .field_source.clone(); let __terrane_string_argument_0 = "case.trn";
         __terrane_receiver_value_5.contains(std::convert::AsRef:: < str >
         ::as_ref(&__terrane_string_argument_0)) })
@@ -16195,14 +15792,14 @@ fn test_scenario_terrane_typed_document_decoding() {
         0)), terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_7 =
         &invalid.diagnostics.clone(); __terrane_raised(__terrane_receiver_value_7
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        365 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:28-47:50 */)),
-        365 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:28-47:50 */) } .reason
+        355 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:28-47:50 */)),
+        355 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:28-47:50 */) } .reason
         .to_owned()), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_8 = &invalid.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_8
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        366 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:59-47:81 */)),
-        366 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:59-47:81 */) } .message
+        356 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:59-47:81 */)),
+        356 /* terrane-site: tests/integration/typed-document-decoding/case.trn:47:59-47:81 */) } .message
         .clone())
     );
     permissive = {
@@ -16293,8 +15890,8 @@ fn test_scenario_terrane_typed_document_decoding() {
         terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_9 = &journey
         .value.clone(); __terrane_raised(__terrane_receiver_value_9.points
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        367 /* terrane-site: tests/integration/typed-document-decoding/case.trn:56:48-56:71 */)),
-        367 /* terrane-site: tests/integration/typed-document-decoding/case.trn:56:48-56:71 */) } .y),
+        357 /* terrane-site: tests/integration/typed-document-decoding/case.trn:56:48-56:71 */)),
+        357 /* terrane-site: tests/integration/typed-document-decoding/case.trn:56:48-56:71 */) } .y),
         terrane_scalar_support::scalar_text(&journey.value.clone().active)
     );
 }
@@ -17007,7 +16604,7 @@ fn unknown_policy() -> Result<bool, TerraneError> {
             message,
             rendered,
 
-                368 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:13:5-13:33 */,
+                358 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:13:5-13:33 */,
         )
     });
 }
@@ -17777,26 +17374,26 @@ fn test_scenario_terrane_typed_json_boundaries() {
         &&{ let __terrane_receiver_value_0 = &duplicate.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_0
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        369 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:33-52:57 */)),
-        369 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:33-52:57 */) } .reason
+        359 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:33-52:57 */)),
+        359 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:33-52:57 */) } .reason
         .to_owned().as_str() == "parse" &&trailing.diagnostics.length() != 0 &&{ let
         __terrane_receiver_value_1 = &trailing.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_1
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        370 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:100-52:123 */)),
-        370 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:100-52:123 */) } .reason
+        360 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:100-52:123 */)),
+        360 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:100-52:123 */) } .reason
         .to_owned().as_str() == "parse" &&too_deep.diagnostics.length() != 0 &&{ let
         __terrane_receiver_value_2 = &too_deep.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_2
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        371 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:166-52:189 */)),
-        371 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:166-52:189 */) } .reason
+        361 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:166-52:189 */)),
+        361 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:166-52:189 */) } .reason
         .to_owned().as_str() == "parse" &&too_large.diagnostics.length() != 0 &&{ let
         __terrane_receiver_value_3 = &too_large.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_3
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        372 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:233-52:257 */)),
-        372 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:233-52:257 */) } .reason
+        362 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:233-52:257 */)),
+        362 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:52:233-52:257 */) } .reason
         .to_owned().as_str() == "parse"))
     );
     source = true;
@@ -17856,7 +17453,7 @@ fn test_scenario_terrane_typed_json_boundaries() {
                     let __terrane_document_source = &String::from("not json");
                     let __terrane_document_options = &options;
                     let __terrane_document_allow_unknown = __terrane_traced_completion!(
-                        unknown_policy(), 373 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:59:69-59:84 */
+                        unknown_policy(), 363 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:59:69-59:84 */
                     );
                     __terrane_decode_document::<
                         Numbers,
@@ -17882,8 +17479,8 @@ fn test_scenario_terrane_typed_json_boundaries() {
                 .expect("flow-proven available binding").clone().diagnostics.clone();
                 __terrane_raised_completion!(__terrane_receiver_value_4
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                374 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:60:16-60:38 */)),
-                374 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:60:16-60:38 */) }
+                364 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:60:16-60:38 */)),
+                364 /* terrane-site: tests/integration/typed-json-boundaries/case.trn:60:16-60:38 */) }
                 .reason.to_owned())
             );
             TerraneCompletion::Normal
@@ -18510,14 +18107,14 @@ fn test_destinations() {
         __terrane_receiver_value_0 = &numbers.value.clone();
         __terrane_raised(__terrane_receiver_value_0
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        375 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:33-11:49 */)),
-        375 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:33-11:49 */) }),
+        365 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:33-11:49 */)),
+        365 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:33-11:49 */) }),
         String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_1 = &numbers.value.clone();
         __terrane_raised(__terrane_receiver_value_1
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        376 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:56-11:72 */)),
-        376 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:56-11:72 */) })
+        366 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:56-11:72 */)),
+        366 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:11:56-11:72 */) })
     );
     keys = {
         let __terrane_document_source = &String::from("left: 9");
@@ -18561,7 +18158,7 @@ fn test_destinations() {
         String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_2 = &keys.value.clone();
         __terrane_raised(__terrane_receiver_value_2.get_or_error(&String::from("left")),
-        377 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:13:30-13:48 */) })
+        367 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:13:30-13:48 */) })
     );
     pair = {
         let __terrane_document_source = &String::from("[4,6]");
@@ -18604,14 +18201,14 @@ fn test_destinations() {
         __terrane_receiver_value_3 = &pair.value.clone();
         __terrane_raised(__terrane_receiver_value_3
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        378 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:30-15:43 */)),
-        378 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:30-15:43 */) }),
+        368 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:30-15:43 */)),
+        368 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:30-15:43 */) }),
         String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_4 = &pair.value.clone();
         __terrane_raised(__terrane_receiver_value_4
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        379 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:50-15:63 */)),
-        379 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:50-15:63 */) })
+        369 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:50-15:63 */)),
+        369 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:15:50-15:63 */) })
     );
     wrong = {
         let __terrane_document_source = &String::from("[4]");
@@ -18654,14 +18251,14 @@ fn test_destinations() {
         __terrane_receiver_value_5 = &wrong.value.clone();
         __terrane_raised(__terrane_receiver_value_5
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        380 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:31-17:45 */)),
-        380 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:31-17:45 */) }),
+        370 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:31-17:45 */)),
+        370 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:31-17:45 */) }),
         String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_6 = &wrong.value.clone();
         __terrane_raised(__terrane_receiver_value_6
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        381 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:52-17:66 */)),
-        381 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:52-17:66 */) })
+        371 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:52-17:66 */)),
+        371 /* terrane-site: tests/integration/typed-serialization-destinations/case.trn:17:52-17:66 */) })
     );
     prototype = Some(String::from("fallback"));
     nulled = {
@@ -19710,18 +19307,18 @@ fn test_matrix() {
         __terrane_receiver_value_1 = &decoded.value.clone();
         __terrane_raised(__terrane_receiver_value_1.numbers
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        382 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:91-39:115 */)),
-        382 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:91-39:115 */) }),
+        372 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:91-39:115 */)),
+        372 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:91-39:115 */) }),
         String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_2 = &decoded.value.clone();
         __terrane_raised(__terrane_receiver_value_2.names
-        .get_or_error(&String::from("zone")), 383 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:122-39:149 */) }),
+        .get_or_error(&String::from("zone")), 373 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:122-39:149 */) }),
         String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_3 = &decoded.value.clone();
         __terrane_raised(__terrane_receiver_value_3.pair
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        384 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:156-39:177 */)),
-        384 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:156-39:177 */) }),
+        374 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:156-39:177 */)),
+        374 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:39:156-39:177 */) }),
         String::from("|"), { let mut __terrane_text = String::new(); match &decoded.value
         .clone().optional { Some(__terrane_present) => {
         terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_present, &mut
@@ -19794,8 +19391,8 @@ fn test_matrix() {
         __terrane_receiver_value_5 = &defaults.value.clone();
         __terrane_raised(__terrane_receiver_value_5.pair
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        385 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:43:90-43:112 */)),
-        385 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:43:90-43:112 */) })
+        375 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:43:90-43:112 */)),
+        375 /* terrane-site: tests/integration/typed-serialization-matrix/case.trn:43:90-43:112 */) })
     );
     invalid = {
         let __terrane_document_source = &String::from(
@@ -20115,20 +19712,20 @@ fn test_scenario_terrane_typed_tuple_decode_shapes() {
         __terrane_receiver_value_0 = &correct.value.clone();
         __terrane_raised(__terrane_receiver_value_0.pair
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        386 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54 */)),
-        386 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54 */) }),
+        376 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54 */)),
+        376 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:33-11:54 */) }),
         String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_1 = &correct.value.clone(); let __terrane_index_2 =
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        387 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82 */); let
+        377 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82 */); let
         __terrane_index_place_3 = __terrane_raised(__terrane_receiver_value_1.rows
         .get(__terrane_index_2).ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index_2)),
-        387 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82 */);
+        377 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:82 */);
         __terrane_raised(__terrane_index_place_3
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        388 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85 */)),
-        388 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85 */) })
+        378 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85 */)),
+        378 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:11:61-11:85 */) })
     );
     wrong = {
         let __terrane_document_source = &String::from(
@@ -20163,8 +19760,8 @@ fn test_scenario_terrane_typed_tuple_decode_shapes() {
         __terrane_receiver_value_4 = &wrong.value.clone();
         __terrane_raised(__terrane_receiver_value_4.rows
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        389 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80 */)),
-        389 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80 */) }
+        379 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80 */)),
+        379 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:14:61-14:80 */) }
         .length()))
     );
     nested = {
@@ -20217,8 +19814,8 @@ fn test_scenario_terrane_typed_tuple_decode_shapes() {
         __terrane_receiver_value_5 = &nested.value.clone();
         __terrane_raised(__terrane_receiver_value_5
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        390 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47 */)),
-        390 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47 */) }
+        380 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47 */)),
+        380 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:17:32-17:47 */) }
         .length()))
     );
     keyed = {
@@ -20275,14 +19872,14 @@ fn test_scenario_terrane_typed_tuple_decode_shapes() {
         __terrane_receiver_value_6 = &keyed.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_6
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        391 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51 */)),
-        391 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51 */) } .path
+        381 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51 */)),
+        381 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:31-19:51 */) } .path
         .clone()), String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_7 = &keyed.diagnostics.clone();
         __terrane_raised(__terrane_receiver_value_7
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        392 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83 */)),
-        392 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83 */) } .reason
+        382 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83 */)),
+        382 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:19:63-19:83 */) } .reason
         .to_owned())
     );
     accepted = {
@@ -20333,26 +19930,26 @@ fn test_scenario_terrane_typed_tuple_decode_shapes() {
         0)), String::from("|"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_8 = &accepted.value.clone(); let __terrane_index_9 =
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        393 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51 */); let
+        383 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51 */); let
         __terrane_index_place_10 = __terrane_raised(__terrane_receiver_value_8
         .get(__terrane_index_9).ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index_9)),
-        393 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51 */);
+        383 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:51 */);
         __terrane_raised(__terrane_index_place_10
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        394 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54 */)),
-        394 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54 */) })
+        384 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54 */)),
+        384 /* terrane-site: tests/integration/typed-tuple-decode-shapes/case.trn:21:34-21:54 */) })
     );
 }
 // Source: tests/integration/union-carrier-assignment/case.trn
 // Namespace: union-carrier-assignment
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF133S73 {
+enum TerraneUnionF132S73 {
     Arm0(terrane_int_support::Int),
     Arm1(String),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF133S73 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF132S73 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(value) => {
@@ -20366,11 +19963,11 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF133S73 {
 }
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF133S146 {
+enum TerraneUnionF132S146 {
     Arm0(terrane_int_support::Int),
     Arm1(String),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF133S146 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF132S146 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(value) => {
@@ -20383,38 +19980,38 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF133S146 {
     }
 }
 fn observe_terrane_union_carrier_assignment(use_number: bool) {
-    let mut original: TerraneUnionF133S73;
-    let mut destination: TerraneUnionF133S146;
-    original = TerraneUnionF133S73::Arm1(String::from("alpha"));
+    let mut original: TerraneUnionF132S73;
+    let mut destination: TerraneUnionF132S146;
+    original = TerraneUnionF132S73::Arm1(String::from("alpha"));
     if use_number {
-        original = TerraneUnionF133S73::Arm0(terrane_int_support::Int::from(7_i128));
+        original = TerraneUnionF132S73::Arm0(terrane_int_support::Int::from(7_i128));
     }
-    destination = TerraneUnionF133S146::Arm1(String::from("old"));
+    destination = TerraneUnionF132S146::Arm1(String::from("old"));
     let _ = &destination;
     destination = match (&original).clone() {
-        TerraneUnionF133S73::Arm0(value) => TerraneUnionF133S146::Arm0(value),
-        TerraneUnionF133S73::Arm1(value) => TerraneUnionF133S146::Arm1(value),
+        TerraneUnionF132S73::Arm0(value) => TerraneUnionF132S146::Arm0(value),
+        TerraneUnionF132S73::Arm1(value) => TerraneUnionF132S146::Arm1(value),
     };
-    original = TerraneUnionF133S73::Arm1(String::from("changed"));
-    if matches!(&&destination, TerraneUnionF133S146::Arm1(_)) {
+    original = TerraneUnionF132S73::Arm1(String::from("changed"));
+    if matches!(&&destination, TerraneUnionF132S146::Arm1(_)) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &destination {
-            TerraneUnionF133S146::Arm1(value) => value, _ =>
+            TerraneUnionF132S146::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") })
         );
     } else {
         println!(
             "{}", terrane_scalar_support::scalar_text(&(match destination {
-            TerraneUnionF133S146::Arm0(value) => value, _ =>
+            TerraneUnionF132S146::Arm0(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } +
             terrane_int_support::Int::from(1_i128)))
         );
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &original {
-        TerraneUnionF133S73::Arm0(__terrane_arm) => {
+        TerraneUnionF132S73::Arm0(__terrane_arm) => {
         terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
-        __terrane_text); }, TerraneUnionF133S73::Arm1(__terrane_arm) => {
+        __terrane_text); }, TerraneUnionF132S73::Arm1(__terrane_arm) => {
         terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
         __terrane_text); } } __terrane_text }
     );
@@ -20971,16 +20568,6 @@ fn main() {
             }
         }
         "106" => {
-            if let Err(error) = test_scenario_terrane_resource_owning_collections() {
-                let skipped = error.descriptor_name() == "/core/testing::test-skip";
-                __terrane_test_record(
-                    if skipped { "skipped" } else { "failed" },
-                    &error,
-                );
-                std::process::exit(if skipped { 102 } else { 101 });
-            }
-        }
-        "107" => {
             if let Err(error) = test_scenario_terrane_scalar_reference_transparency() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -20990,7 +20577,7 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "108" => {
+        "107" => {
             if let Err(error) = test_scenario_terrane_sequential_pipeline() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -21000,13 +20587,13 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "109" => {
+        "108" => {
             test_scenario_terrane_shared_reference_capture_reassign();
         }
-        "110" => {
+        "109" => {
             test_scenario_terrane_stable_list_sorting();
         }
-        "111" => {
+        "110" => {
             if let Err(error) = test_composition() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -21016,19 +20603,19 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "112" => {
+        "111" => {
             test_generic_terrane_string_display_generic();
         }
-        "113" => {
+        "112" => {
             test_scenario_terrane_string_ref_then_owned();
         }
-        "114" => {
+        "113" => {
             test_scenario_terrane_string_result_list_iteration();
         }
-        "115" => {
+        "114" => {
             test_scenario_terrane_string_value_parameter_reuse();
         }
-        "116" => {
+        "115" => {
             if let Err(error) = test_scenario_terrane_text_families() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -21038,13 +20625,13 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "117" => {
+        "116" => {
             test_scenario_terrane_truth_protocol();
         }
-        "118" => {
+        "117" => {
             test_scenario_terrane_tuple_type_boundaries();
         }
-        "119" => {
+        "118" => {
             if let Err(error) = test_scenario_terrane_typed_catch_bindings() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
@@ -21054,46 +20641,46 @@ fn main() {
                 std::process::exit(if skipped { 102 } else { 101 });
             }
         }
-        "120" => {
+        "119" => {
             test_scenario_terrane_typed_destinations();
         }
-        "121" => {
+        "120" => {
             test_scenario_terrane_typed_document_decoding();
         }
-        "122" => {
+        "121" => {
             test_scenario_terrane_typed_document_encoding();
         }
-        "123" => {
+        "122" => {
             test_scenario_terrane_typed_float_output();
         }
-        "124" => {
+        "123" => {
             test_scenario_terrane_typed_json_boundaries();
         }
-        "125" => {
+        "124" => {
             test_boundaries();
         }
-        "126" => {
+        "125" => {
             test_custom();
         }
-        "127" => {
+        "126" => {
             test_destinations();
         }
-        "128" => {
+        "127" => {
             test_generic_terrane_typed_serialization_generic();
         }
-        "129" => {
+        "128" => {
             test_matrix();
         }
-        "130" => {
+        "129" => {
             test_scenario_terrane_typed_tuple_decode_shapes();
         }
-        "131" => {
+        "130" => {
             test_scenario_terrane_union_carrier_assignment();
         }
-        "132" => {
+        "131" => {
             test_scenario_terrane_conformance_url_values();
         }
-        "133" => {
+        "132" => {
             test_scenario_terrane_value_reassignment();
         }
         _ => {

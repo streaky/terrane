@@ -3706,12 +3706,30 @@ replacement and rename; passes text and non-Unicode process arguments; checks pa
 and invalid exit-status construction; and observes process exit status 7. Compiler-supplied host
 operations are public objects in purpose-named `/core` namespaces; bundled packages import those
 namespaces explicitly. Runtime templates are split by selected core or standard facility so
-stream-only, filesystem-only, and process-only programs emit no unrelated host shims.
-Resource-owning collection types are rejected before lowering, and stream operations release the
-global registry lock before per-handle blocking I/O. Untouched generated Rust passes
-warnings-denied compilation and canonical-Rust validation. Milestone evidence:
+`filesystem-only` and `process-only` programs emit no unrelated host shims. Resource-owning
+collection types were rejected before lowering at this milestone; that historical restriction
+was later removed for lists and ordered/unordered maps, which now use move-only storage (see the
+collection rules in `docs/language-spec-concise.md` and the feature evidence below). Stream
+operations release the global registry lock before per-handle blocking I/O. Untouched generated
+Rust passes warnings-denied compilation and canonical-Rust validation. Milestone evidence:
 `RUSTFLAGS='-D warnings' cargo test --workspace --all-targets` and
 `cargo clippy --workspace --all-targets -- -D warnings`.
+
+
+### Move-only resource collections — implemented feature evidence
+
+Lists and ordered/unordered maps admit resource-owning elements using move-only storage.
+Insertion and removal transfer ownership; element borrows and list reference iteration retain
+the owner’s storage/lifetime constraints. Mutable-reference removal operates on the caller’s
+collection. Sets and tuples continue to reject resource-owning elements, and map reference-entry
+iteration and copy-requiring lookup/value views remain unsupported.
+Named call arguments participate in ownership transfer tracking just like positional arguments;
+this is general call move tracking rather than a collection-specific rule.
+
+Evidence: `tests/fixtures/conformance-suites/object-protocols/tests/integration/resource-owning-collections/case.trn`
+covers list/map insertion and removal by transfer, reference iteration/borrowing, and
+`mutable ref` removal on caller-owned storage. It is subsequent to milestone 21, not a
+retroactive change to that milestone’s acceptance history.
 
 ### Milestone 22 — Document values, JSON, YAML, and URLs
 

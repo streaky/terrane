@@ -604,8 +604,7 @@ impl Emitter<'_> {
                 let remove = member == "remove.checked";
                 let checked = member != "get";
                 let argument = argument.children.last().unwrap_or(argument);
-                let (setup, receiver_value) = if remove && self.receiver_needs_live_guard(receiver)
-                {
+                let (setup, receiver_value) = if remove {
                     self.live_receiver_parts(receiver)
                 } else {
                     (String::new(), self.receiver_expression(receiver))
@@ -690,14 +689,20 @@ impl Emitter<'_> {
             && let [receiver, member] = callee.children.as_slice()
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
-            let (setup, receiver_value) = if matches!(receiver_type, ValueType::Scalar(_))
-                || !self.receiver_needs_live_guard(receiver)
-            {
-                (String::new(), self.receiver_expression(receiver))
-            } else {
-                self.live_receiver_parts(receiver)
-            };
             let member_name = self.text(member).to_owned();
+            let remove_from_collection = member_name == "remove"
+                && matches!(
+                    receiver_type,
+                    ValueType::List(_) | ValueType::Map(_, _) | ValueType::UnorderedMap(_, _)
+                );
+            let (setup, receiver_value) = if remove_from_collection
+                || !matches!(receiver_type, ValueType::Scalar(_))
+                    && self.receiver_needs_live_guard(receiver)
+            {
+                self.live_receiver_parts(receiver)
+            } else {
+                (String::new(), self.receiver_expression(receiver))
+            };
             let values = arguments
                 .children
                 .iter()
@@ -750,10 +755,8 @@ impl Emitter<'_> {
                         node,
                     );
                     let value = self.expression_as(values[1], item.value_type());
-                    let mutation = self.fallible(
-                        format!("collection.set(__terrane_index, __terrane_value)"),
-                        node,
-                    );
+                    let mutation =
+                        self.fallible("collection.set(__terrane_index, __terrane_value)", node);
                     Some(format!(
                         "({{ let __terrane_index = {index}; let __terrane_value = {value}; let collection = &mut ({receiver_value}); {mutation}; collection.clone() }})"
                     ))

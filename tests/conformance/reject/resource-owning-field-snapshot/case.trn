@@ -1,0 +1,11 @@
+namespace resource-owning-field-snapshot
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+class outputs
+  values list of byte-writer = list; (stdout;)
+
+function main;
+  owner = instance outputs;
+  snapshot = owner.values
+  print; snapshot.length

@@ -1,0 +1,7 @@
+namespace resource-owning-get-copy
+from /core/collections import map
+from /core/streams import byte-writer, stdout
+
+function main;
+  outputs map of string, byte-writer = map; output=(stdout;)
+  output = outputs.get; 'output'

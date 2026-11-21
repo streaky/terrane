@@ -1,0 +1,10 @@
+namespace resource-owning-named-argument-transfer
+from /core/streams import byte-writer, stdout
+
+function take; item byte-writer
+  print; item
+
+function main;
+  output = stdout;
+  take; item=output
+  print; output

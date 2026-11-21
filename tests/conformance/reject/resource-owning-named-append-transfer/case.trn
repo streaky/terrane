@@ -1,0 +1,9 @@
+namespace resource-owning-named-append-transfer
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+function main;
+  output = stdout;
+  outputs list of byte-writer = list; output
+  outputs.append; item=output
+  print; output

@@ -1,0 +1,9 @@
+namespace resource-owning-index-assignment-transfer
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+function main;
+  outputs list of byte-writer = list; (stdout;)
+  writer = stdout;
+  outputs[0] = writer
+  outputs[0] = writer

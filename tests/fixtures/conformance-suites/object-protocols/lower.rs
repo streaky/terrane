@@ -412,7 +412,7 @@ fn extract(
         }
     }
 }
-fn release(
+fn release_terrane_authored_enum_resource_transfer(
     value: Option<
         TerraneNsAuthoredEnumResourceTransferConnectionIdentity2F617574686F7265642D656E756D2D7265736F757263652D7472616E7366657200636F6E6E656374696F6E,
     >,
@@ -434,7 +434,7 @@ fn test_scenario_terrane_authored_enum_resource_transfer() {
         terrane_scalar_support::scalar_text(&inspect_terrane_authored_enum_resource_transfer(&acquired))
     );
     result = extract(acquired);
-    release(result);
+    release_terrane_authored_enum_resource_transfer(result);
 }
 // Source: tests/integration/authored-generic-class-phantom-parameter/case.trn
 // Namespace: authored-generic-class-phantom-parameter
@@ -11251,6 +11251,526 @@ fn test_scenario_terrane_required_field_reference() {
         terrane_scalar_support::scalar_text(&d.peek())
     );
 }
+// Source: tests/integration/resource-owning-collections/case.trn
+// Namespace: resource-owning-collections
+pub struct Marker {
+    pub output: ByteWriter,
+    pub name: String,
+}
+impl Marker {
+    pub fn terrane_construct(name: String) -> Self {
+        let mut __terrane_constructed_value = Self {
+            output: stdout(),
+            name: String::new(),
+        };
+        __terrane_constructed_value.construct(name);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, name: String) {
+        {
+            let __terrane_value: String = name;
+            self.name = __terrane_value;
+        }
+    }
+    pub fn destruct(&mut self) {
+        println!(
+            "{}{}", String::from("drop-"), terrane_scalar_support::scalar_text(&self
+            .name)
+        );
+    }
+}
+impl Drop for Marker {
+    fn drop(&mut self) {
+        self.destruct();
+    }
+}
+pub struct Bucket {
+    pub items: terrane_collection_support::List<Marker>,
+}
+impl Bucket {
+    pub fn terrane_construct() -> Self {
+        Self {
+            items: terrane_collection_support::List::<Marker>::new(Vec::new()),
+        }
+    }
+}
+fn seed() -> terrane_collection_support::List<Marker> {
+    let item: Marker;
+    item = Marker::terrane_construct(String::from("first"));
+    return terrane_collection_support::List::<Marker>::new(vec![item]);
+}
+fn inspect_terrane_resource_owning_collections(item: &Marker) {
+    println!(
+        "{}{}", String::from("see-"), terrane_scalar_support::scalar_text(&{ let
+        __terrane_snapshot = item.name.clone(); __terrane_snapshot })
+    );
+}
+fn release_terrane_resource_owning_collections(item: Marker) {
+    inspect_terrane_resource_owning_collections(&item);
+}
+fn remove_items(items: &mut terrane_collection_support::List<Marker>) {
+    let removed: Marker;
+    removed = {
+        let __terrane_result = {
+            let __terrane_index = __terrane_raised(
+                terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(0_i128),
+                ),
+
+                    39 /* terrane-site: tests/integration/resource-owning-collections/case.trn:28:13-28:28 */,
+            );
+            __terrane_raised(
+                items.remove_unique(__terrane_index),
+
+                    39 /* terrane-site: tests/integration/resource-owning-collections/case.trn:28:13-28:28 */,
+            )
+        };
+        __terrane_result
+    };
+    inspect_terrane_resource_owning_collections(&removed);
+}
+fn remove_copyable(
+    items: &mut terrane_collection_support::List<terrane_int_support::Int>,
+) {
+    let removed: terrane_int_support::Int;
+    removed = {
+        let __terrane_result = {
+            let __terrane_index = __terrane_raised(
+                terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(0_i128),
+                ),
+
+                    40 /* terrane-site: tests/integration/resource-owning-collections/case.trn:32:13-32:28 */,
+            );
+            __terrane_raised(
+                items.remove(__terrane_index),
+
+                    40 /* terrane-site: tests/integration/resource-owning-collections/case.trn:32:13-32:28 */,
+            )
+        };
+        __terrane_result
+    };
+    println!(
+        "{}{}", String::from("removed-"), terrane_scalar_support::scalar_text(&removed)
+    );
+}
+fn remove_ordered_map(values: &mut terrane_collection_support::Map<String, Marker>) {
+    let removed: Option<Marker>;
+    removed = {
+        let __terrane_result = {
+            let __terrane_key = String::from("key");
+            values.remove_checked_unique(&__terrane_key)
+        };
+        __terrane_result
+    };
+    if (&removed).is_some() {
+        inspect_terrane_resource_owning_collections(
+            match &removed {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            },
+        );
+    }
+}
+fn remove_unordered_map(
+    values: &mut terrane_collection_support::UnorderedMap<String, Marker>,
+) -> Result<(), TerraneError> {
+    let removed: Marker;
+    removed = {
+        let __terrane_result = {
+            let __terrane_key = String::from("key");
+            __terrane_raised_err(
+                values.remove_unique(&__terrane_key),
+
+                    41 /* terrane-site: tests/integration/resource-owning-collections/case.trn:41:13-41:33 */,
+            )?
+        };
+        __terrane_result
+    };
+    inspect_terrane_resource_owning_collections(&removed);
+    Ok(())
+}
+fn test_scenario_terrane_resource_owning_collections() -> Result<(), TerraneError> {
+    let owner: Bucket;
+    let mut items: terrane_collection_support::List<Marker>;
+    let next: Marker;
+    let mut item: &Marker;
+    let mut ordered: terrane_collection_support::Map<String, Marker>;
+    let absent: Option<Marker>;
+    let mut key: String;
+    let mut unordered: terrane_collection_support::UnorderedMap<String, Marker>;
+    let mut resources: terrane_collection_support::List<Marker>;
+    let mut ordered_removal: terrane_collection_support::Map<String, Marker>;
+    let mut unordered_removal: terrane_collection_support::UnorderedMap<String, Marker>;
+    let mut numbers: terrane_collection_support::List<terrane_int_support::Int>;
+    owner = Bucket::terrane_construct();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(owner
+        .items.length()))
+    );
+    items = seed();
+    next = Marker::terrane_construct(String::from("second"));
+    {
+        let __terrane_collection_argument_0 = next;
+        items.push_unique(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_index = __terrane_raised_err(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(1_i128),
+            ),
+
+                42 /* terrane-site: tests/integration/resource-owning-collections/case.trn:50:3-50:38 */,
+        )?;
+        let __terrane_value = Marker::terrane_construct(String::from("third"));
+        let _ = __terrane_raised_err(
+            items.set_unique(__terrane_index, __terrane_value),
+
+                42 /* terrane-site: tests/integration/resource-owning-collections/case.trn:50:3-50:38 */,
+        )?;
+    }
+    let __terrane_iterable_0 = &items;
+    let mut __terrane_iterator_0 = __terrane_iterable_0.terrane_borrowing_iterator();
+    loop {
+        item = match __terrane_iterator_0.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        inspect_terrane_resource_owning_collections(item);
+    }
+    inspect_terrane_resource_owning_collections({
+        let __terrane_index_0 = __terrane_raised_err(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
+            ),
+
+                43 /* terrane-site: tests/integration/resource-owning-collections/case.trn:53:12-53:20 */,
+        )?;
+        let __terrane_index_place_1 = __terrane_raised_err(
+            items
+                .get(__terrane_index_0)
+                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                    __terrane_index_0,
+                )),
+
+                43 /* terrane-site: tests/integration/resource-owning-collections/case.trn:53:12-53:20 */,
+        )?;
+        __terrane_index_place_1
+    });
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            {
+                let __terrane_result = {
+                    let __terrane_index = __terrane_raised_completion!(
+                        terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
+                        44 /* terrane-site: tests/integration/resource-owning-collections/case.trn:55:5-55:20 */
+                    );
+                    __terrane_raised_completion!(
+                        items.remove_unique(__terrane_index), 44 /* terrane-site: tests/integration/resource-owning-collections/case.trn:55:5-55:20 */
+                    )
+                };
+                __terrane_result
+            };
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::IndexError
+                {
+                    __terrane_handled_0 = true;
+                    println!("{}", String::from("bad-index"));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    release_terrane_resource_owning_collections({
+        let __terrane_result = {
+            let __terrane_index = __terrane_raised_err(
+                terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(0_i128),
+                ),
+
+                    45 /* terrane-site: tests/integration/resource-owning-collections/case.trn:58:13-58:28 */,
+            )?;
+            __terrane_raised_err(
+                items.remove_unique(__terrane_index),
+
+                    45 /* terrane-site: tests/integration/resource-owning-collections/case.trn:58:13-58:28 */,
+            )?
+        };
+        __terrane_result
+    });
+    {
+        items.clear_unique();
+    };
+    println!(
+        "{}{}", String::from("list-size-"),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(items
+        .length()))
+    );
+    ordered = terrane_collection_support::Map::<
+        String,
+        Marker,
+    >::new(
+        vec![
+            terrane_collection_support::Entry::new(String::from("a"),
+            Marker::terrane_construct(String::from("a")))
+        ],
+    );
+    {
+        let __terrane_collection_argument_0 = String::from("b");
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("b"),
+        );
+        ordered
+            .set_unique(
+                __terrane_collection_argument_0,
+                __terrane_collection_argument_1,
+            );
+    };
+    {
+        let __terrane_key = String::from("b");
+        let __terrane_value = Marker::terrane_construct(String::from("replacement"));
+        ordered.set_unique(__terrane_key, __terrane_value);
+    }
+    inspect_terrane_resource_owning_collections({
+        let __terrane_map_key_2 = String::from("b");
+        let __terrane_index_place_3 = __terrane_raised_err(
+            ordered
+                .get(&__terrane_map_key_2)
+                .ok_or(terrane_collection_support::MissingKey),
+
+                46 /* terrane-site: tests/integration/resource-owning-collections/case.trn:65:12-65:24 */,
+        )?;
+        __terrane_index_place_3
+    });
+    absent = {
+        let __terrane_result = {
+            let __terrane_key = String::from("absent");
+            ordered.remove_checked_unique(&__terrane_key)
+        };
+        __terrane_result
+    };
+    println!("{}", terrane_scalar_support::scalar_text(&(&absent).is_none()));
+    let __terrane_iterable_1 = {
+        let __terrane_result = ordered.keys();
+        __terrane_result
+    };
+    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
+        __terrane_iterable_1.as_slice(),
+    );
+    loop {
+        key = match __terrane_iterator_1.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!(
+            "{}{}", String::from("key-"), terrane_scalar_support::scalar_text(&key)
+        );
+    }
+    {
+        let __terrane_collection_argument_0 = String::from("b");
+        let _ = __terrane_raised_err(
+            ordered.remove_unique(&__terrane_collection_argument_0),
+
+                47 /* terrane-site: tests/integration/resource-owning-collections/case.trn:70:3-70:22 */,
+        )?;
+    };
+    let __terrane_completion_1: TerraneCompletion<()> = (|| {
+        let __terrane_try_1: TerraneCompletion<()> = (|| {
+            {
+                let __terrane_collection_argument_0 = String::from("absent");
+                let _ = __terrane_raised_completion!(
+                    ordered.remove_unique(&__terrane_collection_argument_0),
+                    48 /* terrane-site: tests/integration/resource-owning-collections/case.trn:72:5-72:29 */
+                );
+            };
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_1 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_1) => {
+                let mut __terrane_handled_1 = false;
+                if !__terrane_handled_1
+                    && __terrane_error_1.kind == TerraneErrorKind::MissingKey
+                {
+                    __terrane_handled_1 = true;
+                    println!("{}", String::from("bad-key"));
+                }
+                if !__terrane_handled_1 {
+                    return TerraneCompletion::Error(__terrane_error_1);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_1 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    println!(
+        "{}{}", String::from("map-size-"),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(ordered
+        .length()))
+    );
+    unordered = terrane_collection_support::UnorderedMap::<
+        String,
+        Marker,
+    >::new(Vec::new());
+    {
+        let __terrane_collection_argument_0 = String::from("x");
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("x"),
+        );
+        unordered
+            .set_unique(
+                __terrane_collection_argument_0,
+                __terrane_collection_argument_1,
+            );
+    };
+    {
+        let __terrane_collection_argument_0 = String::from("y");
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("y"),
+        );
+        unordered
+            .set_unique(
+                __terrane_collection_argument_0,
+                __terrane_collection_argument_1,
+            );
+    };
+    {
+        let __terrane_collection_argument_0 = String::from("x");
+        let _ = unordered.remove_checked_unique(&__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_key = String::from("z");
+        let __terrane_value = Marker::terrane_construct(String::from("z"));
+        unordered.set_unique(__terrane_key, __terrane_value);
+    }
+    inspect_terrane_resource_owning_collections({
+        let __terrane_map_key_4 = String::from("y");
+        let __terrane_index_place_5 = __terrane_raised_err(
+            unordered
+                .get(&__terrane_map_key_4)
+                .ok_or(terrane_collection_support::MissingKey),
+
+                49 /* terrane-site: tests/integration/resource-owning-collections/case.trn:82:12-82:26 */,
+        )?;
+        __terrane_index_place_5
+    });
+    {
+        let __terrane_collection_argument_0 = String::from("y");
+        let _ = __terrane_raised_err(
+            unordered.remove_unique(&__terrane_collection_argument_0),
+
+                50 /* terrane-site: tests/integration/resource-owning-collections/case.trn:83:3-83:24 */,
+        )?;
+    };
+    {
+        let __terrane_collection_argument_0 = String::from("z");
+        let _ = __terrane_raised_err(
+            unordered.remove_unique(&__terrane_collection_argument_0),
+
+                51 /* terrane-site: tests/integration/resource-owning-collections/case.trn:84:3-84:24 */,
+        )?;
+    };
+    println!(
+        "{}{}", String::from("unordered-size-"),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(unordered
+        .length()))
+    );
+    resources = terrane_collection_support::List::<
+        Marker,
+    >::new(vec![Marker::terrane_construct(String::from("borrowed-remove"))]);
+    remove_items(&mut resources);
+    println!(
+        "{}{}", String::from("resource-list-size-"),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(resources
+        .length()))
+    );
+    ordered_removal = terrane_collection_support::Map::<
+        String,
+        Marker,
+    >::new(
+        vec![
+            terrane_collection_support::Entry::new(String::from("key"),
+            Marker::terrane_construct(String::from("ordered-remove")))
+        ],
+    );
+    remove_ordered_map(&mut ordered_removal);
+    println!(
+        "{}{}", String::from("ordered-removal-size-"),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(ordered_removal
+        .length()))
+    );
+    unordered_removal = terrane_collection_support::UnorderedMap::<
+        String,
+        Marker,
+    >::new(Vec::new());
+    {
+        let __terrane_collection_argument_0 = String::from("key");
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("unordered-remove"),
+        );
+        unordered_removal
+            .set_unique(
+                __terrane_collection_argument_0,
+                __terrane_collection_argument_1,
+            );
+    };
+    __terrane_traced_err(
+        remove_unordered_map(&mut unordered_removal),
+
+            52 /* terrane-site: tests/integration/resource-owning-collections/case.trn:97:3-97:42 */,
+    )?;
+    println!(
+        "{}{}", String::from("unordered-removal-size-"),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(unordered_removal
+        .length()))
+    );
+    numbers = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(4_i128),
+            terrane_int_support::Int::from(5_i128),
+            terrane_int_support::Int::from(6_i128)
+        ],
+    );
+    remove_copyable(&mut numbers);
+    println!(
+        "{}{}", String::from("copyable-list-size-"),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(numbers
+        .length()))
+    );
+    Ok(())
+}
 // Source: tests/integration/shared-object-field-comparisons/case.trn
 // Namespace: shared-object-field-comparisons
 #[derive(Clone)]
@@ -11264,12 +11784,12 @@ impl TerraneNsSharedObjectFieldComparisonsHolderIdentity2F7368617265642D6F626A65
             a: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
 
-                    39 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
+                    53 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
             ),
             b: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(2_i128)),
 
-                    40 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
+                    54 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
             ),
         }
     }
@@ -11323,12 +11843,12 @@ impl InheritedHolder {
             a: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
 
-                    39 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
+                    53 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:5:18-5:38 */,
             ),
             b: __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(2_i128)),
 
-                    40 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
+                    54 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:6:18-6:38 */,
             ),
         }
     }
@@ -11367,7 +11887,7 @@ fn replace(
         let __terrane_value: Duration = __terrane_traced_err(
             Duration::terrane_static_seconds(terrane_int_support::Int::from(2_i128)),
 
-                41 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:18:15-18:35 */,
+                55 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:18:15-18:35 */,
         )?;
         *__terrane_owner_0
             .lock()
@@ -11411,7 +11931,7 @@ fn test_scenario_terrane_shared_object_field_comparisons() -> Result<(), Terrane
     other = __terrane_traced_err(
         Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
 
-            42 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:23:13-23:33 */,
+            56 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:23:13-23:33 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left = &{
@@ -11470,7 +11990,7 @@ fn test_scenario_terrane_shared_object_field_comparisons() -> Result<(), Terrane
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left = &{
         let __terrane_snapshot = h.lock().expect("shared reference lock poisoned")
         .terrane_field_a().clone(); __terrane_snapshot }; let __terrane_comparison_right
-        = &__terrane_traced_err(replace(alias.clone()), 43 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:32:19-32:33 */) ?; <
+        = &__terrane_traced_err(replace(alias.clone()), 57 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:32:19-32:33 */) ?; <
         Duration as std::cmp::PartialOrd > ::lt(__terrane_comparison_left,
         __terrane_comparison_right) })
     );
@@ -11514,14 +12034,14 @@ fn test_scenario_terrane_shared_object_field_comparisons() -> Result<(), Terrane
                         terrane_int_support::Int::from(1_i128),
                     ),
 
-                        44 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:58-39:78 */,
+                        58 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:58-39:78 */,
                 )?,
                 __terrane_traced_err(
                     Duration::terrane_static_seconds(
                         terrane_int_support::Int::from(2_i128),
                     ),
 
-                        45 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:82-39:102 */,
+                        59 /* terrane-site: tests/integration/shared-object-field-comparisons/case.trn:39:82-39:102 */,
                 )?,
             ),
         ),
@@ -11669,11 +12189,11 @@ fn eat_terrane_source_finally_only_rewrite(
                         &terrane_int_support::Int::from(0_i128),
                     ),
 
-                        46 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:8:12-8:21 */,
+                        60 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:8:12-8:21 */,
                 ),
             ),
 
-            46 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:8:12-8:21 */,
+            60 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:8:12-8:21 */,
     );
 }
 fn test_scenario_terrane_source_finally_only_rewrite() {
@@ -11763,8 +12283,8 @@ fn test_scenario_terrane_source_finally_only_rewrite() {
             terrane_scalar_support::scalar_text(&__terrane_raised_completion!(values
             .as_ref().expect("flow-proven available binding")
             .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            47 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:21:16-21:25 */)),
-            47 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:21:16-21:25 */))
+            61 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:21:16-21:25 */)),
+            61 /* terrane-site: tests/integration/source-finally-only-rewrite/case.trn:21:16-21:25 */))
         );
         TerraneCompletion::Normal
     })();
@@ -12564,15 +13084,15 @@ fn test_scenario_terrane_trait_field_defaults() {
         field.defaulted).collect:: < Vec < bool > > ());
         __terrane_raised(__terrane_receiver_value_0
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        48 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */)),
-        48 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */) }),
+        62 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */)),
+        62 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:39-17:68 */) }),
         String::from(":"), terrane_scalar_support::scalar_text(&{ let
         __terrane_receiver_value_1 = &terrane_collection_support::List::new(descriptor
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ());
         __terrane_raised(__terrane_receiver_value_1
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        49 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */)),
-        49 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */) })
+        63 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */)),
+        63 /* terrane-site: tests/integration/trait-field-defaults/case.trn:17:75-17:104 */) })
     );
 }
 // Source: <compiler-generated test registry>
@@ -12853,7 +13373,7 @@ fn main() {
             test_scenario_terrane_required_field_reference();
         }
         "79" => {
-            if let Err(error) = test_scenario_terrane_shared_object_field_comparisons() {
+            if let Err(error) = test_scenario_terrane_resource_owning_collections() {
                 let skipped = error.descriptor_name() == "/core/testing::test-skip";
                 __terrane_test_record(
                     if skipped { "skipped" } else { "failed" },
@@ -12863,30 +13383,40 @@ fn main() {
             }
         }
         "80" => {
-            test_scenario_terrane_source_associated_interface();
+            if let Err(error) = test_scenario_terrane_shared_object_field_comparisons() {
+                let skipped = error.descriptor_name() == "/core/testing::test-skip";
+                __terrane_test_record(
+                    if skipped { "skipped" } else { "failed" },
+                    &error,
+                );
+                std::process::exit(if skipped { 102 } else { 101 });
+            }
         }
         "81" => {
-            test_scenario_terrane_source_finally_only_rewrite();
+            test_scenario_terrane_source_associated_interface();
         }
         "82" => {
-            test_scenario_terrane_source_generic_field_read();
+            test_scenario_terrane_source_finally_only_rewrite();
         }
         "83" => {
-            test_scenario_terrane_source_method_builtin_name_dispatch();
+            test_scenario_terrane_source_generic_field_read();
         }
         "84" => {
-            test_scenario_terrane_source_mutable_receiver_replace();
+            test_scenario_terrane_source_method_builtin_name_dispatch();
         }
         "85" => {
-            test_scenario_terrane_static_class_singleton();
+            test_scenario_terrane_source_mutable_receiver_replace();
         }
         "86" => {
-            test_scenario_terrane_static_explicit_generic();
+            test_scenario_terrane_static_class_singleton();
         }
         "87" => {
-            test_scenario_terrane_static_field_member_assignment();
+            test_scenario_terrane_static_explicit_generic();
         }
         "88" => {
+            test_scenario_terrane_static_field_member_assignment();
+        }
+        "89" => {
             test_scenario_terrane_trait_field_defaults();
         }
         _ => {

@@ -1318,29 +1318,16 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     | (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "set")
             )
         {
-            let value_position = usize::from(operation == "set");
-            let transferred = arguments
-                .children
-                .iter()
-                .enumerate()
-                .find(|(index, argument)| {
-                    let named = argument
-                        .children
-                        .first()
-                        .filter(|child| {
-                            child.kind == SyntaxKind::Name && argument.children.len() > 1
-                        })
-                        .map(|name| node_text(&unit.source, name));
-                    named.is_some_and(|name| matches!(name, "value" | "item"))
-                        || (named.is_none() && *index == value_position)
-                })
-                .and_then(|(_, argument)| argument.children.last())
-                .map(ungrouped_expression)
-                .filter(|value| value.kind == SyntaxKind::Name)
-                .and_then(|value| {
-                    binding_at(unit, node_text(&unit.source, value), value.span.start)
-                })
-                .filter(|binding| noncopyable_binding(package, unit, *binding));
+            let transferred = super::collections::collection_mutator_value_argument(
+                unit,
+                operation.as_str(),
+                arguments,
+            )
+            .and_then(|argument| argument.children.last())
+            .map(ungrouped_expression)
+            .filter(|value| value.kind == SyntaxKind::Name)
+            .and_then(|value| binding_at(unit, node_text(&unit.source, value), value.span.start))
+            .filter(|binding| noncopyable_binding(package, unit, *binding));
             for child in &node.children {
                 visit(
                     package,

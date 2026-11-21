@@ -1,0 +1,6 @@
+namespace resource-owning-tuple
+from /core/collections import tuple
+from /core/streams import byte-writer, stdout
+
+function main;
+  value tuple of byte-writer = tuple; (stdout;)
