@@ -1,11 +1,11 @@
 pub fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
+    terrane_stream_abi::acquire_stdin().into()
 }
 
 pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
+    terrane_stream_abi::acquire_stdout().into()
 }
 
 pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
+    terrane_stream_abi::acquire_stderr().into()
 }

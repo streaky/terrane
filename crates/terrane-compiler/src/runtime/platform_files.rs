@@ -46,7 +46,7 @@ pub fn terrane_platform_open_result(
 ) -> TerranePlatformOpenResult {
     match result {
         Ok(handle) => TerranePlatformOpenResult {
-            handle: TerranePlatformStreamHandle::new(handle),
+            handle: handle.into(),
             failed: false,
             message: String::new(),
             error_kind: "none",
