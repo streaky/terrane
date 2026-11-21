@@ -133,6 +133,16 @@ boundary earlier requires resolved declaration edges, including the facts
 that selected them, rather than treating equal Rust identifier spelling as
 source identity.
 
+The same cache directory also enables pre-lowering assignment tickets.
+These cache a function body's successful definite-assignment check for exact
+unit text, body position and incoming declared/assigned names. Each ticket
+records the reads that needed an exemption; replay checks them against the
+consumer's current lexical and reaching-flow facts rather than trusting the
+producer's file IDs. Use a trusted directory. Assignment diagnostics and
+emitted Rust are unchanged. Reaching-flow inference, type checking and
+lowering still run; this is not a package-wide checked-body artifact or
+permission to skip unused declarations.
+
 ## 4. Proposed repository layout
 
 ```text

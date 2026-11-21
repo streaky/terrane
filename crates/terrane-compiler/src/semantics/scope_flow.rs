@@ -1,4 +1,5 @@
 // Reaching-path facts, loop fixed points, and function-owned storage identities.
+use super::assignment_tickets::{self, AssignmentTickets, TicketCounts};
 use super::prelude::*;
 fn canonical_binding_span(unit: &SemanticUnit, name: &str, position: usize) -> Option<Span> {
     let function_span = unit
@@ -869,7 +870,11 @@ pub(super) fn validate_definite_assignment(
             collect_functions(child, functions);
         }
     }
+    let directory = assignment_tickets::directory();
+    let mut counts = TicketCounts::default();
+    let started = directory.as_ref().map(|_| std::time::Instant::now());
     for unit in &mut package.units {
+        let mut tickets = AssignmentTickets::load(directory.as_deref(), &unit.source);
         // First retain the ordinary function-owned joins and collect canonical
         // reaching origins. Only units with dead, type-changing loop outputs
         // need a second pass to omit their otherwise-unused union carriers.
@@ -886,7 +891,7 @@ pub(super) fn validate_definite_assignment(
             let tree = unit.tree.clone();
             collect_functions(&tree.root, &mut functions);
             for function in &functions {
-                let mut declared = unit
+                let declared = unit
                     .typed_bindings
                     .iter()
                     .filter(|binding| binding.scope == Some(function.span))
@@ -931,7 +936,7 @@ pub(super) fn validate_definite_assignment(
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
                     flow_block(unit, block, active);
-                    validate_assignment_block(unit, block, &mut declared, &mut assigned)?;
+                    tickets.validate(unit, block, declared, assigned, &mut counts)?;
                 }
             }
             if !dead_iteration_outputs.is_empty() {
@@ -945,6 +950,10 @@ pub(super) fn validate_definite_assignment(
             dead_iteration_outputs = std::sync::Arc::new(dead);
         }
         validate_iteration_carriers(unit, &unit.tree.root)?;
+        tickets.finish();
+    }
+    if let Some(started) = started {
+        counts.report(started);
     }
     Ok(())
 }

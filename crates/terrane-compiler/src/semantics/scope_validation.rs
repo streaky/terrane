@@ -1,15 +1,23 @@
 // Source availability, control-flow legality, and return-path validation.
 use super::prelude::*;
+type ReadCheck<'a> = dyn FnMut(&SyntaxNode) -> Result<(), SemanticFailure> + 'a;
+
+pub(super) struct AssignmentCheck<'a> {
+    pub unit: &'a SemanticUnit,
+    pub check_read: &'a mut ReadCheck<'a>,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "definite assignment keeps statement-specific branch joins in one ordered traversal"
 )]
 pub(super) fn validate_assignment_block(
-    unit: &SemanticUnit,
+    check: &mut AssignmentCheck<'_>,
     block: &SyntaxNode,
     declared: &mut BTreeSet<String>,
     assigned: &mut BTreeSet<String>,
 ) -> Result<(), SemanticFailure> {
+    let unit = check.unit;
     for statement in &block.children {
         match statement.kind {
             SyntaxKind::Binding => {
@@ -25,19 +33,19 @@ pub(super) fn validate_assignment_block(
                         && node_text(&unit.source, child) == "global"
                 }) {
                     if let Some(value) = initializer {
-                        validate_assigned_reads(unit, value, declared, assigned)?;
+                        validate_assigned_reads(check, value, declared, assigned)?;
                     }
                     continue;
                 }
                 declared.insert(name.clone());
                 if let Some(value) = initializer {
-                    validate_assigned_reads(unit, value, declared, assigned)?;
+                    validate_assigned_reads(check, value, declared, assigned)?;
                     assigned.insert(name);
                 }
             }
             SyntaxKind::Assignment => {
                 if let Some(value) = statement.children.get(1) {
-                    validate_assigned_reads(unit, value, declared, assigned)?;
+                    validate_assigned_reads(check, value, declared, assigned)?;
                 }
                 if let Some(target) = statement
                     .assignment_target()
@@ -61,7 +69,7 @@ pub(super) fn validate_assignment_block(
                     SyntaxKind::Binding => {
                         if let Some(value) = super::ownership::binding_initializer(acquisition) {
                             validate_assigned_reads(
-                                unit,
+                                check,
                                 value,
                                 &region_declared,
                                 &region_assigned,
@@ -79,7 +87,7 @@ pub(super) fn validate_assignment_block(
                     SyntaxKind::Assignment => {
                         if let Some(value) = acquisition.children.get(1) {
                             validate_assigned_reads(
-                                unit,
+                                check,
                                 value,
                                 &region_declared,
                                 &region_assigned,
@@ -97,7 +105,7 @@ pub(super) fn validate_assignment_block(
                     }
                     _ => {}
                 }
-                validate_assignment_block(unit, body, &mut region_declared, &mut region_assigned)?;
+                validate_assignment_block(check, body, &mut region_declared, &mut region_assigned)?;
                 assigned.retain(|name| outer_declared.contains(name));
                 assigned.extend(
                     region_assigned
@@ -111,7 +119,7 @@ pub(super) fn validate_assignment_block(
                 if let Some(block) = statement.children.first() {
                     let mut try_declared = declared.clone();
                     let mut try_assigned = incoming.clone();
-                    validate_assignment_block(unit, block, &mut try_declared, &mut try_assigned)?;
+                    validate_assignment_block(check, block, &mut try_declared, &mut try_assigned)?;
                     declared.extend(try_declared);
                     results.push(try_assigned);
                 }
@@ -139,7 +147,7 @@ pub(super) fn validate_assignment_block(
                         catch_assigned.insert(name);
                     }
                     validate_assignment_block(
-                        unit,
+                        check,
                         block,
                         &mut catch_declared,
                         &mut catch_assigned,
@@ -161,12 +169,12 @@ pub(super) fn validate_assignment_block(
                     .find(|child| child.kind == SyntaxKind::FinallyClause)
                     .and_then(|clause| clause.children.first())
                 {
-                    validate_assignment_block(unit, finally, declared, assigned)?;
+                    validate_assignment_block(check, finally, declared, assigned)?;
                 }
             }
             SyntaxKind::IfStatement => {
                 if let Some(condition) = statement.children.first() {
-                    validate_assigned_reads(unit, condition, declared, assigned)?;
+                    validate_assigned_reads(check, condition, declared, assigned)?;
                 }
                 let incoming = assigned.clone();
                 let mut branch_results = Vec::new();
@@ -186,7 +194,7 @@ pub(super) fn validate_assignment_block(
                         branch.children.first()
                     };
                     if let Some(condition) = condition {
-                        validate_assigned_reads(unit, condition, declared, &incoming)?;
+                        validate_assigned_reads(check, condition, declared, &incoming)?;
                         if constant_boolean(unit, condition) == Some(false) {
                             continue;
                         }
@@ -203,7 +211,7 @@ pub(super) fn validate_assignment_block(
                         let mut branch_declared = declared.clone();
                         let mut branch_assigned = incoming.clone();
                         validate_assignment_block(
-                            unit,
+                            check,
                             branch_block,
                             &mut branch_declared,
                             &mut branch_assigned,
@@ -262,7 +270,7 @@ pub(super) fn validate_assignment_block(
                             && header.kind == SyntaxKind::ArgumentList
                         {
                             for expression in &header.children {
-                                validate_assigned_reads(unit, expression, declared, &incoming)?;
+                                validate_assigned_reads(check, expression, declared, &incoming)?;
                             }
                         } else if case.kind == SyntaxKind::SelectCase
                             && header.kind == SyntaxKind::Binding
@@ -271,14 +279,14 @@ pub(super) fn validate_assignment_block(
                                 child.kind != SyntaxKind::Name
                                     && child.kind != SyntaxKind::TypeExpression
                             }) {
-                                validate_assigned_reads(unit, value, declared, &incoming)?;
+                                validate_assigned_reads(check, value, declared, &incoming)?;
                             }
                             if let Some(name) = declaration_name(header, &unit.source) {
                                 case_declared.insert(name.clone());
                                 case_assigned.insert(name);
                             }
                         } else if header.kind != SyntaxKind::MatchCatchAll {
-                            validate_assigned_reads(unit, header, declared, &incoming)?;
+                            validate_assigned_reads(check, header, declared, &incoming)?;
                         }
                     }
                     if case.kind == SyntaxKind::MatchCase {
@@ -303,7 +311,7 @@ pub(super) fn validate_assignment_block(
                             }
                         }
                     }
-                    validate_assignment_block(unit, body, &mut case_declared, &mut case_assigned)?;
+                    validate_assignment_block(check, body, &mut case_declared, &mut case_assigned)?;
                     declared.extend(case_declared);
                     results.push(case_assigned);
                 }
@@ -328,7 +336,7 @@ pub(super) fn validate_assignment_block(
                     )
                     && let Some(value) = super::ownership::binding_initializer(initializer)
                 {
-                    validate_assigned_reads(unit, value, declared, assigned)?;
+                    validate_assigned_reads(check, value, declared, assigned)?;
                     if let Some(name) = initializer
                         .assignment_target()
                         .filter(|child| child.kind == SyntaxKind::Name)
@@ -350,7 +358,7 @@ pub(super) fn validate_assignment_block(
                     {
                         continue;
                     }
-                    validate_assigned_reads(unit, expression, declared, assigned)?;
+                    validate_assigned_reads(check, expression, declared, assigned)?;
                 }
                 let body = statement
                     .children
@@ -375,20 +383,20 @@ pub(super) fn validate_assignment_block(
                             body_assigned.insert(name);
                         }
                     }
-                    validate_assignment_block(unit, body, &mut body_declared, &mut body_assigned)?;
+                    validate_assignment_block(check, body, &mut body_declared, &mut body_assigned)?;
                     declared.extend(body_declared);
                 }
                 *assigned = incoming;
             }
 
-            _ => validate_assigned_reads(unit, statement, declared, assigned)?,
+            _ => validate_assigned_reads(check, statement, declared, assigned)?,
         }
     }
     Ok(())
 }
 
-pub(super) fn validate_assigned_reads(
-    unit: &SemanticUnit,
+fn validate_assigned_reads(
+    check: &mut AssignmentCheck<'_>,
     node: &SyntaxNode,
     declared: &BTreeSet<String>,
     assigned: &BTreeSet<String>,
@@ -400,33 +408,14 @@ pub(super) fn validate_assigned_reads(
         return Ok(());
     }
     if node.kind == SyntaxKind::Name {
-        let name = node_text(&unit.source, node);
-        if declared.contains(name)
-            && !assigned.contains(name)
-            && !lexical_scope_chain(unit, node.span.start)
-                .find_map(|scope| {
-                    scope.symbols.get(name)?.iter().rev().find(|symbol| {
-                        symbol
-                            .binding_span
-                            .is_none_or(|span| span.end <= node.span.start)
-                    })
-                })
-                .is_some_and(|symbol| symbol.kind == SymbolKind::Function || symbol.global)
-        {
-            let key = (node.span.file, node.span.start, node.span.end);
-            if !unit.flow_availability.contains_key(&key) {
-                return Err(failure(
-                    &unit.source,
-                    "T0007",
-                    format!("`{name}` may be read before it is assigned"),
-                    node.span,
-                ));
-            }
+        let name = node_text(&check.unit.source, node);
+        if declared.contains(name) && !assigned.contains(name) {
+            (check.check_read)(node)?;
         }
     }
     for (index, child) in node.children.iter().enumerate() {
         if is_flow_value_child(node, index, child) {
-            validate_assigned_reads(unit, child, declared, assigned)?;
+            validate_assigned_reads(check, child, declared, assigned)?;
         }
     }
     Ok(())
