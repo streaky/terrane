@@ -18,6 +18,8 @@ false{"a":1}
 "hello""hello"
 false[1.2345678901234567890123456789e+29,1.23,null]
 false{"count":1.2345678901234567890123456789e+29,"message":"hello"}
+{"message":"hello"}
+{"count":1.2345678901234567890123456789e+29,"message":"hello","nested":[1.2345678901234567890123456789e+29,1.23,null]}
 true$.samefalse
 false
 true

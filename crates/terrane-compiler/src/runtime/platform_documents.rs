@@ -21,24 +21,15 @@ pub fn terrane_make_document_integer(value: String) -> terrane_document_support:
 pub fn terrane_make_document_decimal(value: String) -> terrane_document_support::DataResult {
     terrane_document_support::document_decimal(&value)
 }
-pub fn terrane_make_document_list() -> terrane_document_support::DataResult {
-    terrane_document_support::document_list()
-}
-pub fn terrane_document_list_append(
-    list: &terrane_document_support::DataResult,
-    value: &terrane_document_support::DataResult,
+pub fn terrane_make_document_list<'a>(
+    items: impl IntoIterator<Item = &'a terrane_document_support::DataResult>,
 ) -> terrane_document_support::DataResult {
-    terrane_document_support::document_list_append(list, value)
+    terrane_document_support::document_list(items)
 }
-pub fn terrane_make_document_map() -> terrane_document_support::DataResult {
-    terrane_document_support::document_map()
-}
-pub fn terrane_document_map_insert(
-    map: &terrane_document_support::DataResult,
-    key: String,
-    value: &terrane_document_support::DataResult,
+pub fn terrane_make_document_map<'a>(
+    entries: impl IntoIterator<Item = (&'a str, &'a terrane_document_support::DataResult)>,
 ) -> terrane_document_support::DataResult {
-    terrane_document_support::document_map_insert(map, key, value)
+    terrane_document_support::document_map(entries)
 }
 
 

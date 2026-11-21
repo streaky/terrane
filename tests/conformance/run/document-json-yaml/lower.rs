@@ -78,6 +78,7 @@ fn main() {
     let values: terrane_collection_support::List<DocumentValue>;
     let built_list: DocumentResult;
     let mut entries: DocumentMapEntries;
+    let snapshot: DocumentMapEntries;
     let count_value: DocumentResult;
     let built_map: DocumentResult;
     let mut duplicate_entries: DocumentMapEntries;
@@ -298,16 +299,26 @@ fn main() {
         String::from("message"),
         make_document_string(String::from("hello")),
     );
+    snapshot = entries.clone();
     count_value = make_document_integer(String::from("123456789012345678901234567890"));
     entries = append_document_map_entry(
         entries,
         String::from("count"),
         count_value.value.clone(),
     );
-    built_map = make_document_map(entries);
+    built_map = make_document_map(entries.clone());
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&built_map.failed),
         terrane_scalar_support::scalar_text(&built_map.value.encoded)
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&make_document_map(snapshot).value
+        .encoded)
+    );
+    entries.append(String::from("nested"), built_list.value.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&make_document_map(entries).value
+        .encoded)
     );
     duplicate_entries = DocumentMapEntries::terrane_construct();
     duplicate_entries = append_document_map_entry(

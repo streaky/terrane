@@ -1479,8 +1479,6 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:data::make-document-decimal"
                     | "intrinsic:data::make-document-list"
                     | "intrinsic:data::make-document-map"
-                    | "intrinsic:data::document-list-append"
-                    | "intrinsic:data::document-map-insert"
                     | "intrinsic:data::json-parse"
                     | "intrinsic:data::json-canonical"
                     | "intrinsic:data::json-stringify"

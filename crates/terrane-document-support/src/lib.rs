@@ -1096,47 +1096,47 @@ pub fn document_decimal(value: &str) -> DataResult {
 }
 
 #[must_use]
-pub fn document_list() -> DataResult {
-    DataResult::success(Document::List(Vec::new()))
-}
-
-#[must_use]
-pub fn document_list_append(list: &DataResult, value: &DataResult) -> DataResult {
-    let (Some(Document::List(values)), Some(value)) = (list.value(), value.value()) else {
-        return DataResult::failure(
+pub fn document_list<'a>(items: impl IntoIterator<Item = &'a DataResult>) -> DataResult {
+    let values: Option<Vec<_>> = items
+        .into_iter()
+        .map(|item| item.value().cloned())
+        .collect();
+    match values {
+        Some(values) => DataResult::success(Document::List(values)),
+        None => DataResult::failure(
             "document list construction requires successful document values",
             "$",
             "document-value",
-        );
-    };
-    let mut values = values.clone();
-    values.push(value.clone());
-    DataResult::success(Document::List(values))
-}
-
-#[must_use]
-pub fn document_map() -> DataResult {
-    DataResult::success(Document::Map(BTreeMap::new()))
-}
-
-#[must_use]
-pub fn document_map_insert(map: &DataResult, key: String, value: &DataResult) -> DataResult {
-    let (Some(Document::Map(values)), Some(value)) = (map.value(), value.value()) else {
-        return DataResult::failure(
-            "document map construction requires successful document values",
-            "$",
-            "document-value",
-        );
-    };
-    if values.contains_key(&key) {
-        return DataResult::failure(
-            format!("duplicate key `{key}`"),
-            format!("$.{}", path_segment(&key)),
-            "unique document map key",
-        );
+        ),
     }
-    let mut values = values.clone();
-    values.insert(key, value.clone());
+}
+
+#[must_use]
+pub fn document_map<'a>(
+    entries: impl IntoIterator<Item = (&'a str, &'a DataResult)>,
+) -> DataResult {
+    let mut values = BTreeMap::new();
+    for (key, value) in entries {
+        let Some(value) = value.value() else {
+            return DataResult::failure(
+                "document map construction requires successful document values",
+                "$",
+                "document-value",
+            );
+        };
+        match values.entry(key.to_owned()) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(value.clone());
+            }
+            std::collections::btree_map::Entry::Occupied(_) => {
+                return DataResult::failure(
+                    format!("duplicate key `{key}`"),
+                    format!("$.{}", path_segment(key)),
+                    "unique document map key",
+                );
+            }
+        }
+    }
     DataResult::success(Document::Map(values))
 }
 

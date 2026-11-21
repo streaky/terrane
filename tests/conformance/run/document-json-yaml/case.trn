@@ -88,10 +88,14 @@ function main;
     print; built-list.failed, built-list.value.encoded
     entries = instance document-map-entries;
     entries = append-document-map-entry; entries, 'message', (make-document-string; 'hello')
+    snapshot = entries
     count-value = make-document-integer; '123456789012345678901234567890'
     entries = append-document-map-entry; entries, 'count', count-value.value
     built-map = make-document-map; entries
     print; built-map.failed, built-map.value.encoded
+    print; (make-document-map; snapshot).value.encoded
+    entries.append; 'nested', built-list.value
+    print; (make-document-map; entries).value.encoded
     duplicate-entries = instance document-map-entries;
     duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'first')
     duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'second')
