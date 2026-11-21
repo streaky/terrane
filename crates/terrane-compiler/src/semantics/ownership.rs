@@ -1311,12 +1311,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && let [callee, arguments] = node.children.as_slice()
             && let Some((_receiver, ty, operation)) =
                 super::collections::collection_member_call(unit, callee, &unit.typed_bindings)?
-            && super::collection_uses_unique_storage(package, &ty)
             && matches!(
                 (&ty, operation.as_str()),
                 (ValueType::List(_), "append" | "set")
                     | (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "set")
             )
+            && (super::collection_uses_unique_storage(package, &ty)
+                || operation == "append"
+                    && matches!(&ty, ValueType::List(item)
+                        if matches!(item.value_type_ref(), ValueType::InvocationScopedNative { .. })))
         {
             let transferred = super::collections::collection_mutator_value_argument(
                 unit,
