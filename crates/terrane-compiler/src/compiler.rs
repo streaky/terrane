@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 mod cache;
+mod emission_demand;
 use crate::{
     AuthoredRustModule, Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
     rust_ir::{RenderedFile, SourceAssociation},
@@ -749,6 +750,7 @@ pub(crate) fn compile_analyzed_package(
     let mut rust_ir = crate::lowering::lower(semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(semantic, failure))?;
     bind_private_runtime_dependencies(&mut rust_ir, &mut rust_dependencies, false);
+    emission_demand::select(package, semantic, options, &mut rust_ir);
     lowering.finish();
     let rendering = crate::compilation_progress::start("rendering Rust", &package.identity);
     let rendered_rust = rust_ir.rendered();
@@ -1186,6 +1188,7 @@ fn lower_test_tier(
         crate::lowering::lower_tests(semantic, &runner_cases, options.debug_build.enabled())
             .map_err(|failure| lowering_failure(semantic, failure))?;
     bind_private_runtime_dependencies(&mut rust_ir, &mut rust_dependencies, true);
+    emission_demand::select(package, semantic, options, &mut rust_ir);
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);

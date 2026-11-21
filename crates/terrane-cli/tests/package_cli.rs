@@ -1003,6 +1003,63 @@ fn cached_test_discovery_rechecks_changed_library_sources() {
 }
 
 #[test]
+fn demand_keeps_indirect_calls_and_prunes_unused_core_operations() {
+    let package = TempPackage::new();
+    let source = package.0.join("app/main.trn");
+    let lowered = package.0.join("lower.rs");
+    fs::write(
+        &source,
+        concat!(
+            "namespace cli/app\n",
+            "from /core/output import print\n",
+            "from /core/documents/json import parse-json, canonical-json, default-json-options\n",
+            "function parse-probe bool;\n",
+            "    parsed = parse-json; '[1, 2]', (default-json-options;)\n",
+            "    return parsed.failed\n",
+            "function dormant-probe bool;\n",
+            "    parsed = parse-json; '[1, 2]', (default-json-options;)\n",
+            "    canonical = canonical-json; parsed.value\n",
+            "    return canonical.failed\n",
+            "function main;\n",
+            "    callback = parse-probe\n",
+            "    print; (callback;)\n",
+        ),
+    )
+    .unwrap();
+    let lower = || {
+        Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .env("TERRANE_EXPERIMENTAL_DEMAND", "1")
+            .env("TERRANE_DEMAND_CACHE", package.0.join(".trn/emission-test"))
+            .args(["rust", "-o"])
+            .arg(&lowered)
+            .arg(&package.0)
+            .output()
+            .unwrap()
+    };
+    let output = lower();
+    assert!(output.status.success(), "{output:?}");
+    let main = fs::read_to_string(&lowered).unwrap();
+    let support = fs::read_to_string(package.0.join("lower.support.rs")).unwrap();
+    assert!(main.contains("fn parse_probe("));
+    assert!(!main.contains("fn dormant_probe("));
+    assert!(support.contains("fn terrane_json_parse("));
+    assert!(!support.contains("fn terrane_json_canonical("));
+    assert!(!support.contains("fn terrane_json_stringify("));
+
+    let invalid = fs::read_to_string(&source)
+        .unwrap()
+        .replace("return canonical.failed", "return 'wrong type'");
+    fs::write(&source, invalid).unwrap();
+    let output = lower();
+    assert!(!output.status.success(), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("error[T0015]: function `dormant-probe` must return `bool`"),
+        "{output:?}"
+    );
+}
+
+#[test]
 fn end_to_end_artifact_passes_inputs_and_drains_large_output() {
     let package = TempPackage::new();
     fs::write(

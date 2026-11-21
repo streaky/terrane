@@ -120,6 +120,19 @@ generated items needs roots for callable values, dynamic dispatch, globals,
 reflection, test entrypoints and opaque Rust. A Cargo `include!` sidecar is
 still part of the same Rust crate, not a separate compilation or reuse boundary.
 
+The opt-in CLI experiment `TERRANE_EXPERIMENTAL_DEMAND=1` tests batched
+reachability across source, bundled and native-support functions *after*
+lowering. It retains entrypoints, registry dispatch, non-function items and
+definitions with linkage or expansion attributes as roots. It does not
+prune library artifacts, debug builds with source information, or builds
+with opaque native code. Set `TERRANE_DEMAND_CACHE` to a dedicated directory
+to share exact generated-token summaries across consumers;
+those entries are disposable and are not checked semantic bodies.
+The experiment intentionally preserves full frontend validation. Moving the
+boundary earlier requires resolved declaration edges, including the facts
+that selected them, rather than treating equal Rust identifier spelling as
+source identity.
+
 ## 4. Proposed repository layout
 
 ```text

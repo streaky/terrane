@@ -976,6 +976,62 @@ impl Item {
         self.body.render(output);
     }
 
+    pub(crate) fn demand_source(&self) -> String {
+        match &self.body.body {
+            BlockBody::Parsed(file) => file.to_token_stream().to_string(),
+            BlockBody::Raw(raw) => raw.clone(),
+        }
+    }
+
+    /// Only ordinary named definitions can be discarded. Attributes that may
+    /// expose a symbol or change how its declaration expands make it a root.
+    pub(crate) fn discardable_function(&self) -> Option<String> {
+        let BlockBody::Parsed(file) = &self.body.body else {
+            return None;
+        };
+        let [syn::Item::Fn(function)] = file.items.as_slice() else {
+            return None;
+        };
+        (file.attrs.is_empty()
+            && function.sig.ident != "main"
+            && function.sig.abi.is_none()
+            && function.attrs.iter().all(|attribute| {
+                let path = attribute.path();
+                path.is_ident("allow") || path.is_ident("doc") || path.is_ident("inline")
+            }))
+        .then(|| function.sig.ident.to_string())
+    }
+
+    pub(crate) fn split_runtime_functions(&mut self) -> Option<Vec<Self>> {
+        let BlockBody::Parsed(file) = &mut self.body.body else {
+            return None;
+        };
+        if !file.attrs.is_empty()
+            || file.items.len() < 2
+            || !file
+                .items
+                .iter()
+                .all(|item| matches!(item, syn::Item::Fn(_)))
+        {
+            return None;
+        }
+        Some(
+            std::mem::take(&mut file.items)
+                .into_iter()
+                .map(|item| Self {
+                    source: self.source,
+                    body: Block {
+                        body: BlockBody::Parsed(syn::File {
+                            shebang: None,
+                            attrs: Vec::new(),
+                            items: vec![item],
+                        }),
+                    },
+                })
+                .collect(),
+        )
+    }
+
     fn render_associated(&self, output: &mut String, associations: &mut Vec<SourceAssociation>) {
         let generated_start = output.len();
         self.render(output);

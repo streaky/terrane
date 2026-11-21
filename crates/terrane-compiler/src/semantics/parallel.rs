@@ -10,7 +10,7 @@ const WORKER_STACK_SIZE: usize = 8 * 1024 * 1024;
 
 /// Run independent work against one read-only snapshot, preserving source order
 /// for the caller's reconciliation and diagnostic selection.
-pub(super) fn map_ordered<T: Send>(
+pub(crate) fn map_ordered<T: Send>(
     len: usize,
     work: usize,
     operation: impl Fn(usize) -> T + Sync,
