@@ -24,7 +24,7 @@ pub enum ScalarType {
     None,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize)]
 pub enum TypeCategory {
     Value,
     Object,

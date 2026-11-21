@@ -143,6 +143,19 @@ emitted Rust are unchanged. Reaching-flow inference, type checking and
 lowering still run; this is not a package-wide checked-body artifact or
 permission to skip unused declarations.
 
+The separate opt-in `TERRANE_INFERENCE_CACHE` points to a trusted directory
+for typed-binding inference results. One entry stores a successful source
+unit's binding collection for one fixed-point input, including its function
+bodies. The key includes the compiler, exact semantic unit (including source
+IDs and incoming bindings), resolved enum inventory and match name
+resolution. Workers collect or replay independently and reconcile in
+source order; global type joins, reaching-flow inference and later checks
+still run. This deliberately misses when source IDs change and does not
+perform declaration reachability analysis. Do not enable it by default:
+small-input measurements showed that snapshot hashing and I/O outweighed
+the traversal they skipped. Move to smaller semantic input identities before
+considering this as a build optimization.
+
 ## 4. Proposed repository layout
 
 ```text

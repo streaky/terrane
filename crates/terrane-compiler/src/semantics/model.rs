@@ -2,13 +2,13 @@ use super::prelude::*;
 
 pub const BOOTSTRAP_VERSION: &str = "2";
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum Visibility {
     Public,
     Protected,
     Private,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum SymbolKind {
     Binding,
     Function,
@@ -20,7 +20,7 @@ pub enum SymbolKind {
     ErrorObject,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct Symbol {
     pub identity: String,
     pub(crate) lowering_identity: Option<String>,
@@ -251,20 +251,20 @@ impl std::fmt::Display for ElementType {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum ReferenceProjection {
     Field(String),
     Element,
     CallResult,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum ReferenceAuthority {
     ReadOnly,
     Exclusive,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct ReferenceProvenance {
     pub owner: Span,
     pub authority: ReferenceAuthority,
@@ -274,7 +274,7 @@ pub struct ReferenceProvenance {
     pub path: Vec<ReferenceProjection>,
     pub lifetime_end: Option<Span>,
 }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub(super) struct ReferenceAssignmentProvenance {
     pub assignment: Span,
     pub provenance: ReferenceProvenance,
@@ -1384,12 +1384,12 @@ impl CoercionPolicy {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum FlowAvailability {
     DefinitelyAssigned,
     MayBeUnassigned,
 }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TypedBinding {
     pub name: String,
     pub span: Span,
@@ -1410,14 +1410,14 @@ impl TypedBinding {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub(super) struct DescriptorAlias {
     pub(super) visible_from: usize,
     pub(super) scope: Option<Span>,
     pub(super) identity: String,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum ObjectKind {
     Class,
     Interface,
@@ -1426,7 +1426,7 @@ pub enum ObjectKind {
     Enum,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub(crate) enum BuiltinDescriptor {
     Value,
     StringView,
@@ -1449,7 +1449,7 @@ pub(crate) enum BuiltinDescriptor {
     UnorderedSet,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct ObjectFieldMetadata {
     pub external_name: String,
     pub defaulted: bool,
@@ -1458,7 +1458,7 @@ pub struct ObjectFieldMetadata {
     pub visibility: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct ObjectField {
     pub name: String,
     pub span: Span,
@@ -1469,41 +1469,41 @@ pub struct ObjectField {
     pub metadata: ObjectFieldMetadata,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct RequiredInitProof {
     pub constructor: Span,
     pub initialized_fields: BTreeSet<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct SourceEnumField {
     pub name: String,
     pub span: Span,
     pub value_type: ValueType,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct SourceEnumVariant {
     pub name: String,
     pub span: Span,
     pub payload: Vec<SourceEnumField>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct SourceEnumContract {
     pub identity: ObjectIdentity,
     pub span: Span,
     pub variants: Vec<SourceEnumVariant>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct GenericParameterContract {
     pub name: String,
     pub span: Span,
     pub bound: Option<ObjectIdentity>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct AssociatedTypeContract {
     pub name: String,
     pub span: Span,
@@ -1511,7 +1511,7 @@ pub struct AssociatedTypeContract {
     pub owner: ObjectIdentity,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct DescriptorContract {
     /// Name visible in this unit; imported contracts carry their local alias here.
     pub name: String,
@@ -1542,7 +1542,7 @@ pub struct DescriptorContract {
     clippy::struct_excessive_bools,
     reason = "callable contracts retain independent semantic properties"
 )]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct FunctionContract {
     pub name: String,
     pub span: Span,
@@ -1569,7 +1569,7 @@ pub struct FunctionContract {
     pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct ParameterContract {
     pub name: String,
     pub span: Span,
@@ -1626,7 +1626,7 @@ impl ParameterContract {
 /// Evaluation effects and conditional boundaries used by semantic lowering proofs.
 /// `Call` includes invocation, construction and initialization, not just authored
 /// function calls. These classifications do not establish callee purity.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum EvaluationKind {
     /// Invocation, construction or initialization may execute user-defined behavior.
     Call,
@@ -1643,7 +1643,7 @@ pub enum EvaluationKind {
     Access,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct EvaluationStep {
     pub kind: EvaluationKind,
     pub span: Span,
@@ -1651,19 +1651,19 @@ pub struct EvaluationStep {
 }
 
 /// A statement-local loan of a stable owning handle, not a loan of its payload.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub(crate) struct StatementOwnerLoan {
     pub binding_index: usize,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum SelectionOperationKind {
     Task,
     Channel,
     Projected,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct SemanticSelectionCase {
     pub span: Span,
     pub await_span: Span,
@@ -1675,7 +1675,7 @@ pub struct SemanticSelectionCase {
     pub operation: SelectionOperationKind,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct SemanticSelection {
     pub span: Span,
     pub cases: Vec<SemanticSelectionCase>,
@@ -1694,7 +1694,7 @@ pub(crate) enum ContextualConstant {
     Float64(f64),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub(crate) struct ProjectedCallSpecialization {
     pub substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
     pub generic_arguments: Vec<crate::rust_interop::projection::ProjectedType>,
@@ -1885,10 +1885,12 @@ impl DeclarationInterface {
 
 type CallableApplications = BTreeMap<(u32, usize, usize), BTreeMap<(u32, usize, usize), ValueType>>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct SemanticUnit {
     pub source: SourceFile,
     pub source_path: String,
+    // During binding inference the tree is the unmodified parse of `source`.
+    #[serde(skip)]
     pub tree: SyntaxTree,
     pub namespace: String,
     pub(super) prelude: bool,
@@ -1899,29 +1901,41 @@ pub struct SemanticUnit {
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,
     /// Lazily rendered backend identifiers; invalidated when flow storage is rebuilt.
+    #[serde(skip)]
     pub(crate) rust_storage_names: std::sync::OnceLock<crate::lowering::StorageNames>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub flow_types: BTreeMap<(u32, usize, usize), ValueType>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub flow_binding_ids: BTreeMap<(u32, usize, usize), Span>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub flow_binding_types: BTreeMap<Span, ValueType>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(crate) flow_replacements: BTreeMap<Span, Span>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub flow_availability: BTreeMap<(u32, usize, usize), FlowAvailability>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(crate) flow_read_bindings: BTreeMap<(u32, usize, usize), BTreeSet<Span>>,
     /// Values rebound across completion closures need address-stable take/insert storage.
     pub(crate) completion_capture_slots: BTreeSet<Span>,
     /// Owner bindings used by declaration-directed implicit source-reference arguments.
     pub reference_owner_spans: BTreeSet<(usize, usize)>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
     /// Provenance versions established by scalar reference assignments.
     pub(super) reference_assignment_provenance: Vec<ReferenceAssignmentProvenance>,
     /// Borrowed callable carriers keyed by their last-use statement's cleanup boundary.
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub callable_drops_after: BTreeMap<(u32, usize, usize), Vec<Span>>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(crate) statement_owner_loans: BTreeMap<(u32, usize, usize), StatementOwnerLoan>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
     pub source_enums: Vec<std::sync::Arc<SourceEnumContract>>,
     /// Canonical source enum contracts from all package units, retaining local ownership above.
     pub(crate) source_enum_registry: std::sync::Arc<[std::sync::Arc<SourceEnumContract>]>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(crate) required_init_proofs: BTreeMap<(u32, usize, usize), RequiredInitProof>,
     pub descriptors: Vec<DescriptorContract>,
     pub(crate) builtin_descriptors: std::sync::Arc<[DescriptorContract]>,
@@ -1931,6 +1945,7 @@ pub struct SemanticUnit {
     pub(super) projected_error_objects: std::sync::Arc<BTreeSet<ObjectIdentity>>,
     pub(super) projected_interfaces_requiring_application: BTreeSet<ObjectIdentity>,
     pub(super) function_aliases: BTreeMap<String, FunctionContract>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
     pub(crate) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
@@ -1938,11 +1953,15 @@ pub struct SemanticUnit {
     pub(super) projected_member_inventory:
         std::sync::Arc<crate::rust_interop::projection::ProjectedInstanceMembers>,
     pub(super) projected_destination_functions: BTreeSet<String>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(crate) selected_expression_types: BTreeMap<(u32, usize, usize), ValueType>,
     /// Selected physical callable shapes, indexed by application and exact declaration.
+    #[serde(serialize_with = "super::binding_tickets::nested_ordered_map")]
     pub(super) projected_callable_applications: CallableApplications,
+    #[serde(serialize_with = "super::binding_tickets::ordered_map")]
     pub(crate) invocation_scoped_function_results: BTreeMap<(u32, usize, usize), ValueType>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
@@ -2109,7 +2128,7 @@ pub(super) fn visible_descriptor_aliases(
         .collect()
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct LexicalScope {
     pub span: Span,
     pub parent: Option<usize>,

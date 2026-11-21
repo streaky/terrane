@@ -2,13 +2,13 @@ use std::borrow::Cow;
 use std::fmt::Write as _;
 
 use crate::source::{SourceFile, Span};
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum Severity {
     Error,
     Warning,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct Diagnostic {
     pub severity: Severity,
     pub code: Cow<'static, str>,

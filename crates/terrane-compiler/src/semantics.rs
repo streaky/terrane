@@ -15,6 +15,7 @@ mod written_types;
 
 // Namespace, import, bootstrap-surface, and lexical name resolution.
 mod assignment_tickets;
+mod binding_tickets;
 mod bootstrap;
 mod namespaces;
 mod scope_flow;

@@ -3639,6 +3639,9 @@ pub(super) fn refresh_typed_bindings_after_effect_inference(
 
 fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     let enums = super::enums::resolve_enums(package);
+    let tickets = super::binding_tickets::BindingTickets::open(&enums);
+    let mut hit_count = 0;
+    let mut attempt_count = 0;
     // Discard provisional projected results once. Subsequent passes consume only
     // the newly computed canonical reaching facts, not the previous analysis.
     for unit in &mut package.units {
@@ -3656,20 +3659,29 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
         let results = super::parallel::map_ordered(package.units.len(), work, |index| {
             let unit = &package.units[index];
             let matches = super::enums::MatchContext::new(package, unit, &enums);
-            let mut bindings = Vec::new();
-            let mut visible_bindings = Vec::new();
-            collect_typed_bindings(
-                unit,
-                &matches,
-                &unit.tree.root,
-                &mut visible_bindings,
-                &mut bindings,
-                None,
-            )
-            .map(|()| bindings)
+            let infer = || {
+                let mut bindings = Vec::new();
+                let mut visible_bindings = Vec::new();
+                collect_typed_bindings(
+                    unit,
+                    &matches,
+                    &unit.tree.root,
+                    &mut visible_bindings,
+                    &mut bindings,
+                    None,
+                )
+                .map(|()| bindings)
+            };
+            if let Some(tickets) = &tickets {
+                tickets.collect(unit, &matches, infer)
+            } else {
+                infer().map(|bindings| (bindings, false))
+            }
         });
         for (index, result) in results.into_iter().enumerate() {
-            let bindings = result?;
+            let (bindings, hit) = result?;
+            hit_count += usize::from(hit);
+            attempt_count += 1;
             if bindings != package.units[index].typed_bindings {
                 package.units[index].rust_storage_names.take();
                 package.units[index].typed_bindings = bindings;
@@ -3677,6 +3689,12 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
             }
         }
         if !changed && !first_pass {
+            if tickets.is_some() {
+                crate::compilation_progress::note(
+                    "binding inference tickets",
+                    format_args!("{hit_count}/{attempt_count} unit rounds reused"),
+                );
+            }
             return Ok(());
         }
         // A loop-carried RHS may discover an earlier inferred declaration.
