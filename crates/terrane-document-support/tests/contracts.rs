@@ -131,8 +131,7 @@ fn json_budgets_beyond_sixteen_mib_and_strict_invalid_syntax() {
     let parsed = parse_json(&input, 8, input.len());
     assert!(!parsed.failed, "{}", parsed.message);
     assert_eq!(parsed.encoded, input);
-    let list = parse_json("[]", 8, 16);
-    let appended = terrane_document_support::document_list_append(&list, &parsed);
+    let appended = terrane_document_support::document_list([&parsed]);
     assert!(!appended.failed, "{}", appended.message);
     assert_eq!(
         appended

@@ -1164,8 +1164,6 @@ impl Emitter<'_> {
             ("make-document-decimal", "make_document_decimal"),
             ("make-document-list", "make_document_list"),
             ("make-document-map", "make_document_map"),
-            ("document-list-append", "document_list_append"),
-            ("document-map-insert", "document_map_insert"),
             ("json-parse", "json_parse"),
             ("json-canonical", "json_canonical"),
             ("json-stringify", "json_stringify"),
@@ -1228,16 +1226,21 @@ impl Emitter<'_> {
                     } else {
                         self.expression(value)
                     };
-                    let borrowed_result = (index == 0
+                    match function {
+                        "make_document_list" => {
+                            return format!("({value}).as_slice().iter().map(|item| &item.raw)");
+                        }
+                        "make_document_map" => {
+                            return format!("({value}).as_slice().iter().map(|entry| (entry.key.as_str(), &entry.value))");
+                        }
+                        _ => {}
+                    }
+                    let borrowed_result = index == 0
                         && (function.starts_with("data_")
                             || function.starts_with("document_")
                             || matches!(function, "json_canonical" | "json_stringify")
                             || function == "validate_mapping"
-                            || function.starts_with("url_") && function != "url_parse"))
-                        || matches!(
-                            (function, index),
-                            ("document_list_append", 1) | ("document_map_insert", 2)
-                        );
+                            || function.starts_with("url_") && function != "url_parse");
                     if borrowed_result {
                         format!("&({value})")
                     } else {

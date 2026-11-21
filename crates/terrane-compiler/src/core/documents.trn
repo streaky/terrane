@@ -1,6 +1,6 @@
 namespace core/documents
 
-from /core/collections import list
+from /core/collections import entry, list
 
 class document-integer
     text string = '0'
@@ -121,29 +121,22 @@ function make-document-integer document-result; value string
 
 function make-document-decimal document-result; value string
     return make-document-result; (host-make-document-decimal; value)
-class document-map-entries
-    private raw host-platform-data-result = host-make-document-map;
 
-    function construct;
-        this.raw = host-make-document-map;
+class document-map-entries
+    private entries list of entry of string, host-platform-data-result = list;
 
     mutable function append; key string, value document-value
-        this.raw = host-document-map-insert; this.raw, key, value.raw
+        this.entries.append; (entry; key, value.raw)
 
 function append-document-map-entry document-map-entries; entries document-map-entries, key string, value document-value
     entries.append; key, value
     return entries
 
 function make-document-list document-result; values list of document-value
-    raw = host-make-document-list;
-    index int = 0
-    while index < values.length
-        raw = host-document-list-append; raw, values[index].raw
-        index = index + 1
-    return make-document-result; raw
+    return make-document-result; (host-make-document-list; values)
 
 function make-document-map document-result; entries document-map-entries
-    return make-document-result; entries.raw
+    return make-document-result; (host-make-document-map; entries.entries)
 function mapping-required-fields list of string; mapping document-mapping
     fields = mapping.field-names
     optional-fields = mapping.optional-fields
