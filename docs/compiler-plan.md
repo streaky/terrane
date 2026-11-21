@@ -3706,15 +3706,14 @@ replacement and rename; passes text and non-Unicode process arguments; checks pa
 and invalid exit-status construction; and observes process exit status 7. Compiler-supplied host
 operations are public objects in purpose-named `/core` namespaces; bundled packages import those
 namespaces explicitly. Runtime templates are split by selected core or standard facility so
-`filesystem-only` and `process-only` programs emit no unrelated host shims. Resource-owning
-collection types were rejected before lowering at this milestone; that historical restriction
-was later removed for lists and ordered/unordered maps, which now use move-only storage (see the
+stream-only, filesystem-only, and process-only programs emit no unrelated host shims.
+Resource-owning collection types were rejected before lowering at this milestone; that historical
+restriction was later removed for lists and ordered/unordered maps, which now use move-only storage (see the
 collection rules in `docs/language-spec-concise.md` and the feature evidence below). Stream
 operations release the global registry lock before per-handle blocking I/O. Untouched generated
 Rust passes warnings-denied compilation and canonical-Rust validation. Milestone evidence:
 `RUSTFLAGS='-D warnings' cargo test --workspace --all-targets` and
 `cargo clippy --workspace --all-targets -- -D warnings`.
-
 
 ### Move-only resource collections — implemented feature evidence
 

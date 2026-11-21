@@ -1321,16 +1321,19 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     && matches!(&ty, ValueType::List(item)
                         if matches!(item.value_type_ref(), ValueType::InvocationScopedNative { .. })))
         {
-            let transferred = super::collections::collection_mutator_value_argument(
-                unit,
-                operation.as_str(),
-                arguments,
-            )
-            .and_then(|argument| argument.children.last())
-            .map(ungrouped_expression)
-            .filter(|value| value.kind == SyntaxKind::Name)
-            .and_then(|value| binding_at(unit, node_text(&unit.source, value), value.span.start))
-            .filter(|binding| noncopyable_binding(package, unit, *binding));
+            // Move checking runs before full collection-call validation.
+            super::collections::validate_collection_mutator_argument_names(
+                unit, &ty, &operation, arguments,
+            )?;
+            let transferred =
+                super::collections::collection_mutator_value_argument(&operation, arguments)
+                    .and_then(|argument| argument.children.last())
+                    .map(ungrouped_expression)
+                    .filter(|value| value.kind == SyntaxKind::Name)
+                    .and_then(|value| {
+                        binding_at(unit, node_text(&unit.source, value), value.span.start)
+                    })
+                    .filter(|binding| noncopyable_binding(package, unit, *binding));
             for child in &node.children {
                 visit(
                     package,

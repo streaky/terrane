@@ -4,6 +4,6 @@ from /core/streams import byte-writer, stdout
 
 function main;
   output = stdout;
-  outputs list of byte-writer = list; output
+  outputs list of byte-writer = list
   outputs.append; item=output
   print; output

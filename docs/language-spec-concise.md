@@ -820,11 +820,13 @@ Core environment provides object protocols/facilities for list, map, set, tuple,
 - Generic collection arguments substitute explicit callable/owner selections before contextual validation; unresolved filled literals infer normally, while unresolved empty literals remain source errors. Declared/inferred native-view lists and tuples preserve native lifetime metadata and lenders through aliases and appends; Copy views remain independently reusable. Value/reference loops retain native member demand and borrow mode; local-lender collection escapes report `T0240`.
 - Value iteration over native-view collections preserves their storage for later reuse; bodies that mutate the collection iterate an independent element snapshot. Shared-reference loops reject collection mutation. Nested loop binders retain element demand and separate declaration identities without losing live function-owned post-loop joins.
 - Mutable-reference iteration retains exclusive owner access throughout the body, even with an unused binder; conflicting owner access reports `T0149`. Ordered/unordered map entry iteration supports local native lifetimes, including nested maps, without a static-lender requirement.
-- Non-Clone scoped native elements remain unsupported in maps (`T0101`); sets retain their scalar-element restriction (`T0001`), and sets/tuples do not yet support resource-owning elements. Fluent/nested list transfers retain true lenders; actual receiver borrows pin the slot. Unordered maps retain value-lender protection through entry iteration and later uses.
+- Non-Clone scoped native elements remain unsupported in maps (`T0101`); sets retain their scalar-element restriction (`T0001`). Lists support non-Clone native transfer and per-iteration append. Fluent/nested list transfers retain the true lenders, not the moved-from view slot; actual receiver borrows still pin that slot. Unordered maps retain value-lender protection through entry iteration and later uses.
+- A mutable-reference collection parameter denotes caller-owned storage, even through a local alias. Inserting a local-lender native view into it reports `T0240`, including nested ordered/unordered maps; local collection storage within the lender's region remains valid.
 - Lists and ordered/unordered maps can own resources. An indexed element can be passed directly to a reference parameter; to access a member or call a method on it, borrow explicitly, as in `(ref items[index]).name`. Resource-list iteration uses `for item in ref items`. Resource maps expose `.keys`; borrow values by key instead of iterating entries. Owned indexing, `.get`, `.get.checked`, `.iterator`, and map `.values`/`.entries` cannot copy resources.
 - Tuple type application is `tuple of Item`; tuples are homogeneous and fixed-length after construction, but runtime length is not part of the type.
 - Indexing: `value[index]`; slices/ranges are objects.
 - `for x in y` invokes the iteration protocol; comma-separated targets destructure a matching tuple/object item, including `for key, value in mapping` for copyable maps.
+- `string` is Unicode text/UTF-8; default length is grapheme count and requires capability.
 - Explicit scalar and byte views avoid ambiguity.
 - `bytes` distinct from `string`; encode/decode explicit.
 
@@ -839,7 +841,10 @@ list_sort_order: strings use Unicode scalar sequence; integers use mathematical 
 byte_index: integer index -> uint8; negative/unrepresentable/out-of-bounds throws index-error
 byte_slice: range index -> new bytes; visits authored half-open/inclusive range and step in order; any invalid selected index throws index-error; valid empty boundary -> empty bytes; never text-decodes
 mutators: append/set/clear return the resulting copyable collection; for resource collections they are statement-only. Removal returns the displaced value by transfer, including through a mutable ref parameter.
+mutator_argument_names: built-in append/add accept value or item; set uses index or key, then value; remove uses index, key, or value/item for a set; remove.checked uses key. Names, when supplied, must match their written argument positions.
+discarded_mutation: statement-form collection mutators require a retained binding receiver; temporary entry/index snapshots are rejected, with explicit expression-result writeback such as nested.set; index, (nested[index].append; value)
 release_replacement: displaced logical element released before mutation returns once no owner retains it; COW separation preserves unmutated collection without creating shared source identity
+release_removal: removed element transferred to caller; released when returned value is released (immediately if discarded)
 resource_collection_transfer: resource-owning lists and ordered/unordered maps use move-only storage; insertion, whole-collection calls, and removal transfer ownership, including named arguments; sets and tuples reject resource elements
 release_clearing: elements released in collection iteration order before clear returns
 release_destruction: ordered collection releases remaining elements in iteration order

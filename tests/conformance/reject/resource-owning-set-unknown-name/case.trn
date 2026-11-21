@@ -1,0 +1,9 @@
+namespace resource-owning-set-unknown-name
+from /core/collections import map
+from /core/streams import byte-writer, stdout
+
+function main;
+  writer = stdout;
+  outputs map of string, byte-writer = map
+  outputs.set; key='output', item=writer
+  print; writer

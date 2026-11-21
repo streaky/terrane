@@ -65,33 +65,55 @@ pub(super) fn retain_appended_native_origins(
 }
 
 pub(super) fn collection_mutator_value_argument<'a>(
-    unit: &SemanticUnit,
     operation: &str,
     arguments: &'a SyntaxNode,
 ) -> Option<&'a SyntaxNode> {
-    let value_position = usize::from(operation == "set");
-    let mut positional = 0;
-    for argument in &arguments.children {
-        let name = argument
-            .children
-            .first()
-            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1)
-            .map(|name| node_text(&unit.source, name));
-        let is_value = if let Some(name) = name {
-            matches!(
-                (operation, name),
-                ("append" | "add", "value" | "item") | ("set", "value")
-            )
-        } else {
-            let position = positional;
-            positional += 1;
-            position == value_position
+    arguments.children.get(usize::from(operation == "set"))
+}
+
+pub(super) fn validate_collection_mutator_argument_names(
+    unit: &SemanticUnit,
+    receiver_type: &ValueType,
+    member: &str,
+    arguments: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let slots: &[&[&str]] = match (receiver_type, member) {
+        (ValueType::List(_), "append")
+        | (ValueType::Set(_) | ValueType::UnorderedSet(_), "add" | "remove") => {
+            &[&["value", "item"]]
+        }
+        (ValueType::List(_), "set") => &[&["index"], &["value"]],
+        (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "set") => &[&["key"], &["value"]],
+        (ValueType::List(_), "remove") => &[&["index"]],
+        (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "remove" | "remove.checked") => {
+            &[&["key"]]
+        }
+        _ => return Ok(()),
+    };
+    for (position, argument) in arguments.children.iter().enumerate() {
+        let [name, _] = argument.children.as_slice() else {
+            continue;
         };
-        if is_value {
-            return Some(argument);
+        if name.kind != SyntaxKind::Name {
+            continue;
+        }
+        let name_text = node_text(&unit.source, name);
+        if !slots
+            .get(position)
+            .is_some_and(|names| names.contains(&name_text))
+        {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "`.{member}` does not accept `{name_text}` at argument position {}",
+                    position + 1
+                ),
+                name.span,
+            ));
         }
     }
-    None
+    Ok(())
 }
 
 fn validate_collection_mutator_value(
@@ -102,7 +124,7 @@ fn validate_collection_mutator_value(
     destination: &str,
     bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
-    if let Some(argument) = collection_mutator_value_argument(unit, operation, arguments) {
+    if let Some(argument) = collection_mutator_value_argument(operation, arguments) {
         return validate_collection_constructor_value(
             unit,
             argument.children.last().unwrap_or(argument),
@@ -873,6 +895,7 @@ pub(super) fn infer_collection_call_type(
             ));
         }
         if matches!(member.as_str(), "get" | "get.checked" | "remove.checked") {
+            validate_collection_mutator_argument_names(unit, &receiver_type, &member, arguments)?;
             let [argument] = arguments.children.as_slice() else {
                 return Err(failure(
                     &unit.source,
@@ -988,6 +1011,7 @@ pub(super) fn infer_collection_call_type(
             }
             return Ok(None);
         }
+        validate_collection_mutator_argument_names(unit, &receiver_type, member, arguments)?;
         validate_collection_mutator_storage(unit, &receiver_type, member, arguments, bindings)?;
         if operation == Some("collection.remove")
             && matches!(
