@@ -1,7 +1,7 @@
 use super::matching::MatchCoverage;
 use super::prelude::*;
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone)]
 pub(super) struct ResolvedEnum {
     identity: ObjectIdentity,
     variants: Vec<(String, Vec<ValueType>)>,
@@ -517,10 +517,6 @@ pub(super) struct MatchContext<'a> {
 }
 
 impl<'a> MatchContext<'a> {
-    pub(super) fn names(&self) -> &BTreeMap<usize, String> {
-        &self.names
-    }
-
     pub(super) fn new(
         package: &SemanticPackage,
         unit: &SemanticUnit,

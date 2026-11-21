@@ -1,19 +1,19 @@
 use crate::package::ExecutorProfile;
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ExecutionRequirements {
     pub runtime: RuntimeRequirements,
     pub tasks: TaskRequirements,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct RuntimeRequirements {
     pub context: bool,
     pub wake_support: bool,
     pub blocking_delegation: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct TaskRequirements {
     pub local: bool,
     pub transferable: bool,
