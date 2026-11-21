@@ -1228,9 +1228,11 @@ impl Emitter<'_> {
                     };
                     match function {
                         "make_document_list" => {
+                            // `core/documents.trn` passes a `list of document-value`; borrow its raw results.
                             return format!("({value}).as_slice().iter().map(|item| &item.raw)");
                         }
                         "make_document_map" => {
+                            // `core/documents.trn` stores a `list of entry of string, host-platform-data-result`.
                             return format!("({value}).as_slice().iter().map(|entry| (entry.key.as_str(), &entry.value))");
                         }
                         _ => {}
