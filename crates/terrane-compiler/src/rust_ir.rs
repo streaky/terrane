@@ -182,6 +182,7 @@ pub(crate) struct RenderedProgram {
     support: RenderedFragment,
     standalone: RenderedFragment,
     application: RenderedFragment,
+    vendored_support: u8,
     review: RenderedFragment,
 }
 pub(crate) fn rust_type_constructor(rust: &str) -> Option<String> {
@@ -238,7 +239,16 @@ pub(crate) fn rewrite_type_paths<'a>(
     if let Some(canonical) = aliases.get(rust) {
         return std::borrow::Cow::Borrowed(canonical);
     }
-    if aliases.is_empty() {
+    // A plain path has no nested paths to rewrite, and its exact spelling
+    // was checked above. Leave generic, raw and qualified syntax to syn.
+    if aliases.is_empty()
+        || rust.split("::").all(|segment| {
+            !segment.is_empty()
+                && segment
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        })
+    {
         return std::borrow::Cow::Borrowed(rust);
     }
     let Ok(ty) = syn::parse_str::<syn::Type>(rust) else {
@@ -989,18 +999,38 @@ const VENDORED_SUPPORT_CRATES: [(&str, &str); 7] = [
     ("terrane_platform_support", "terrane-platform-support"),
 ];
 
-fn token_stream_contains_ident(tokens: TokenStream, expected: &str) -> bool {
-    tokens.into_iter().any(|token| match token {
-        TokenTree::Group(group) => token_stream_contains_ident(group.stream(), expected),
-        TokenTree::Ident(ident) => ident == expected,
-        TokenTree::Punct(_) | TokenTree::Literal(_) => false,
-    })
+const SIGNAL_SUPPORT_BIT: u8 = 1 << VENDORED_SUPPORT_CRATES.len();
+
+fn vendored_support_mask(tokens: TokenStream, mask: &mut u8) {
+    const ALL: u8 = SIGNAL_SUPPORT_BIT - 1;
+    for token in tokens {
+        match token {
+            TokenTree::Group(group) => vendored_support_mask(group.stream(), mask),
+            TokenTree::Ident(ident) => {
+                for (index, (name, _)) in VENDORED_SUPPORT_CRATES.iter().enumerate() {
+                    let bit = 1 << index;
+                    if *mask & bit == 0 && ident == *name {
+                        *mask |= bit;
+                        break;
+                    }
+                }
+            }
+            TokenTree::Punct(_) | TokenTree::Literal(_) => {}
+        }
+        if *mask == ALL {
+            break;
+        }
+    }
 }
 
-fn push_manifest_line(output: &mut String, label: &str, values: &[&str]) {
+fn push_manifest_line<'a>(output: &mut String, label: &str, values: impl Iterator<Item = &'a str>) {
     write!(output, "// {label}:").expect("writing to a String cannot fail");
-    if !values.is_empty() {
-        write!(output, " {}", values.join(", ")).expect("writing to a String cannot fail");
+    for (index, value) in values.enumerate() {
+        if index != 0 {
+            output.push(',');
+        }
+        output.push(' ');
+        output.push_str(value);
     }
     output.push('\n');
 }
@@ -1029,33 +1059,30 @@ impl RenderedProgram {
         }
     }
     pub(crate) fn review_file(&self) -> String {
-        let runtime_support = self.runtime_source_files().collect::<Vec<_>>();
-        let tokens = self
-            .standalone
-            .contents
-            .parse::<TokenStream>()
-            .expect("compiler must produce syntactically valid Rust tokens");
-        let mut vendored_support = VENDORED_SUPPORT_CRATES
-            .iter()
-            .filter_map(|(rust_name, package_name)| {
-                token_stream_contains_ident(tokens.clone(), rust_name).then_some(*package_name)
-            })
-            .collect::<Vec<_>>();
-        if runtime_support.contains(&"platform_signals.rs") {
-            vendored_support.push("terrane-signal-support");
-        }
         let mut output = format!(
             "// Generated deterministically by Terrane {}.\n",
             self.version
         );
-        push_manifest_line(&mut output, "Runtime support", &runtime_support);
-        push_manifest_line(&mut output, "Vendored support crates", &vendored_support);
+        push_manifest_line(&mut output, "Runtime support", self.runtime_source_files());
+        self.push_vendored_support(&mut output);
         output.push_str(&self.review.contents);
         output
     }
 
     fn runtime_source_files(&self) -> impl Iterator<Item = &str> + '_ {
         self.runtime_source_files.iter().map(AsRef::as_ref)
+    }
+
+    fn push_vendored_support(&self, output: &mut String) {
+        let crates = VENDORED_SUPPORT_CRATES
+            .iter()
+            .enumerate()
+            .filter_map(|(index, (_, name))| {
+                (self.vendored_support & (1 << index) != 0).then_some(*name)
+            });
+        let signal =
+            (self.vendored_support & SIGNAL_SUPPORT_BIT != 0).then_some("terrane-signal-support");
+        push_manifest_line(output, "Vendored support crates", crates.chain(signal));
     }
 
     pub(crate) fn files(&self, entrypoint: &std::path::Path) -> Result<Vec<RenderedFile>, String> {
@@ -1105,29 +1132,8 @@ impl RenderedProgram {
             .collect();
         let mut files = Vec::with_capacity(if support_is_empty { 1 } else { 2 });
         if !support_is_empty {
-            let tokens = self
-                .standalone
-                .contents
-                .parse::<TokenStream>()
-                .expect("compiler must produce syntactically valid Rust tokens");
-            let mut vendored_support = VENDORED_SUPPORT_CRATES
-                .iter()
-                .filter_map(|(rust_name, package_name)| {
-                    token_stream_contains_ident(tokens.clone(), rust_name).then_some(*package_name)
-                })
-                .collect::<Vec<_>>();
-            if self
-                .runtime_source_files()
-                .any(|path| path == "platform_signals.rs")
-            {
-                vendored_support.push("terrane-signal-support");
-            }
             let mut support_contents = String::new();
-            push_manifest_line(
-                &mut support_contents,
-                "Vendored support crates",
-                &vendored_support,
-            );
+            self.push_vendored_support(&mut support_contents);
             let support_offset = support_contents.len();
             support_contents.push_str(&self.support.contents);
             files.push(RenderedFile {
@@ -1218,13 +1224,14 @@ impl Program {
                 source: association.source,
             }
         }));
+        let standalone_runtime_len = runtime.len();
         let mut standalone = runtime.clone();
         standalone.push_str(&program);
         let mut standalone_associations = runtime_associations.clone();
         standalone_associations.extend(program_associations.iter().map(|association| {
             SourceAssociation {
-                generated_start: association.generated_start + runtime.len(),
-                generated_end: association.generated_end + runtime.len(),
+                generated_start: association.generated_start + standalone_runtime_len,
+                generated_end: association.generated_end + standalone_runtime_len,
                 source: association.source,
             }
         }));
@@ -1250,6 +1257,18 @@ impl Program {
             &mut application,
             &mut application_associations,
         );
+        let tokens = standalone
+            .parse::<TokenStream>()
+            .expect("compiler must produce syntactically valid Rust tokens");
+        let mut vendored_support = 0;
+        vendored_support_mask(tokens, &mut vendored_support);
+        if self
+            .runtime
+            .iter()
+            .any(|module| module.source_files.contains(&"platform_signals.rs"))
+        {
+            vendored_support |= SIGNAL_SUPPORT_BIT;
+        }
         RenderedProgram {
             runtime_source_files: self
                 .runtime
@@ -1257,6 +1276,7 @@ impl Program {
                 .flat_map(|module| module.source_files.iter().copied())
                 .map(std::borrow::Cow::Borrowed)
                 .collect(),
+            vendored_support,
             version: self.version.into(),
             standalone: RenderedFragment {
                 contents: standalone,

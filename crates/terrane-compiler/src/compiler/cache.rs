@@ -33,7 +33,7 @@ impl Fingerprint {
 }
 
 /// External inputs are captured independently of in-memory source and options.
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Inputs(String);
 
 pub(super) fn current(package: &Package) -> Option<Inputs> {
@@ -128,6 +128,13 @@ pub(super) fn key(package: &Package, options: CompilerOptions, inputs: &Inputs) 
     serde_json::to_writer(&mut hash, package).ok()?;
     hash.part(b"package-end");
     serde_json::to_writer(&mut hash, &options).ok()?;
+    Some(hash.finish_hex())
+}
+
+pub(super) fn derived_key(base: &str, context: &impl Serialize) -> Option<String> {
+    let mut hash = crate::cache_io::HashWriter::new();
+    hash.part(base.as_bytes());
+    serde_json::to_writer(&mut hash, context).ok()?;
     Some(hash.finish_hex())
 }
 #[derive(Deserialize, Serialize)]

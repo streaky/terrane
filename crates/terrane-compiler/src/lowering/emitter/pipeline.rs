@@ -793,11 +793,17 @@ fn lower_with_tests(
             )));
             source_files.push("platform_documents.rs");
         }
-        if uses_json || uses_yaml {
+        if uses_json {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_json.rs"
             )));
             source_files.push("platform_json.rs");
+        }
+        if uses_json || uses_yaml {
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_json_write.rs"
+            )));
+            source_files.push("platform_json_write.rs");
         }
         if uses_yaml {
             items.push(Item::generated(include_str!(

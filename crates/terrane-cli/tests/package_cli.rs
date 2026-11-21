@@ -952,6 +952,57 @@ fn native_test_listing_and_empty_selection_do_not_build_runners() {
 }
 
 #[test]
+fn cached_test_discovery_rechecks_changed_library_sources() {
+    let package = TempPackage::new();
+    let manifest = package.0.join("package.toml");
+    let mut text = fs::read_to_string(&manifest).unwrap();
+    text.push_str("\n[terrane-dependencies.fixture.library]\npath = \"library\"\n");
+    fs::write(manifest, text).unwrap();
+    fs::create_dir_all(package.0.join("library/src")).unwrap();
+    fs::write(
+        package.0.join("library/package.toml"),
+        "package = \"fixture/library\"\nartifact = \"library\"\n[namespaces]\n\"fixture/library\" = \"src\"\n",
+    )
+    .unwrap();
+    let library = package.0.join("library/src/lib.trn");
+    fs::write(
+        &library,
+        "namespace fixture/library\npublic function answer int;\n    return 1\n",
+    )
+    .unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("tests/unit/case.trn"),
+        "namespace cli/app\nfunction test-present;\n    return\n",
+    )
+    .unwrap();
+    let list = || {
+        Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["test", "--list"])
+            .arg(&package.0)
+            .output()
+            .unwrap()
+    };
+    for _ in 0..2 {
+        let output = list();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(output.stdout, b"/cli/app::test-present [unit]\n");
+    }
+    fs::write(
+        &library,
+        "namespace fixture/library\npublic function answer int;\n    return 'wrong type'\n",
+    )
+    .unwrap();
+    let output = list();
+    assert!(!output.status.success(), "{output:?}");
+    assert!(output.stdout.is_empty(), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("lib.trn:3:"),
+        "{output:?}"
+    );
+}
+
+#[test]
 fn end_to_end_artifact_passes_inputs_and_drains_large_output() {
     let package = TempPackage::new();
     fs::write(

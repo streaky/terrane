@@ -835,7 +835,7 @@ pub fn compile_test_package_tiers(
         for case in &discovery.cases {
             if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
                 return Err(duplicate_test_identity_failure(
-                    &discovery.semantic.units[0].source,
+                    &discovery.sources[0],
                     case,
                     previous,
                 ));
@@ -862,7 +862,7 @@ pub fn discover_test_package(
         for case in &discovery.cases {
             if let Some(previous) = identities.insert(case.identity.clone(), case.source_span) {
                 return Err(duplicate_test_identity_failure(
-                    &discovery.semantic.units[0].source,
+                    &discovery.sources[0],
                     case,
                     previous,
                 ));
@@ -894,15 +894,104 @@ fn duplicate_test_identity_failure(
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct TestTierAnalysis {
+    state: TestTierAnalysisState,
+    snapshot: Option<(cache::Inputs, String)>,
+}
+
+#[derive(Clone, Debug)]
+enum TestTierAnalysisState {
+    Analyzed(semantics::SemanticPackage),
+    Cached {
+        prepared: Option<Package>,
+        referenced: Vec<Span>,
+    },
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct TestDiscoverySnapshot {
+    cases: Vec<TestCase>,
+    #[serde(with = "cache::warnings")]
+    warnings: Vec<Diagnostic>,
+    sources: Vec<SourceFile>,
+}
+
+fn test_cache_kind(tier: TestTier, phase: &str) -> String {
+    format!("test-{}-{phase}", tier.name())
+}
+
+fn test_snapshot_is_current(package: &Package, before: &cache::Inputs) -> bool {
+    cache::current(package).as_ref() == Some(before)
+}
+
 fn discover_test_tier(
     package: &Package,
     tier: TestTier,
     options: CompilerOptions,
 ) -> Result<TestTierDiscovery, CompilationFailure> {
     let inputs = cache::current(package);
-    let (prepared, _) = prepare_package_for_analysis(package, inputs.as_ref())?;
+    let (prepared, consumer_inputs_unchanged) =
+        prepare_package_for_analysis(package, inputs.as_ref())?;
     let prepared_package = prepared.as_ref().unwrap_or(package);
+    let snapshot = inputs
+        .filter(|_| consumer_inputs_unchanged)
+        .and_then(|inputs| {
+            let key = cache::key(prepared_package, options, &inputs)?;
+            Some((inputs, key))
+        });
+    if let Some((_, key)) = &snapshot
+        && let Some(TestDiscoverySnapshot {
+            cases,
+            warnings,
+            sources,
+        }) = cache::load(&package.root, &test_cache_kind(tier, "discovery"), key)
+    {
+        let referenced = cases.iter().map(|case| case.source_span).collect();
+        return Ok(TestTierDiscovery {
+            tier,
+            cases,
+            warnings,
+            sources,
+            package: package.clone(),
+            analysis: TestTierAnalysis {
+                state: TestTierAnalysisState::Cached {
+                    prepared,
+                    referenced,
+                },
+                snapshot,
+            },
+        });
+    }
     let mut semantic = analyze_prepared_package(prepared_package)?;
+    let discovered = discover_cases(&mut semantic, tier, options)?;
+    let snapshot = snapshot.filter(|(before, _)| test_snapshot_is_current(package, before));
+    if let Some((_, key)) = &snapshot {
+        cache::store(
+            &package.root,
+            &test_cache_kind(tier, "discovery"),
+            key,
+            &discovered,
+        );
+    }
+    Ok(TestTierDiscovery {
+        tier,
+        cases: discovered.cases,
+        warnings: discovered.warnings,
+        sources: discovered.sources,
+        package: package.clone(),
+        analysis: TestTierAnalysis {
+            state: TestTierAnalysisState::Analyzed(semantic),
+            snapshot,
+        },
+    })
+}
+
+fn discover_cases(
+    semantic: &mut semantics::SemanticPackage,
+    tier: TestTier,
+    options: CompilerOptions,
+) -> Result<TestDiscoverySnapshot, CompilationFailure> {
     let role = match tier {
         TestTier::Unit => crate::SourceRole::UnitTest,
         TestTier::Integration => crate::SourceRole::IntegrationTest,
@@ -987,18 +1076,15 @@ fn discover_test_tier(
         .iter()
         .map(|unit| unit.source.clone())
         .collect();
-    let warnings = collect_warnings(&semantic, options);
-    Ok(TestTierDiscovery {
-        tier,
+    let warnings = collect_warnings(semantic, options);
+    Ok(TestDiscoverySnapshot {
         cases,
         warnings,
         sources,
-        package: package.clone(),
-        semantic,
     })
 }
 
-/// Lowers one previously discovered test tier without repeating semantic analysis.
+/// Lowers one discovered test tier or reuses its exact cached runner compilation.
 ///
 /// # Errors
 ///
@@ -1011,10 +1097,63 @@ pub fn compile_discovered_test_tier(
         tier,
         cases,
         warnings: _,
-        mut sources,
+        sources,
         package,
-        semantic,
+        analysis,
     } = discovery;
+    let snapshot = analysis.snapshot.and_then(|(before, key)| {
+        // Public discovery data can be edited by library callers. Use the
+        // actual runner selectors and source associations, not the defaults.
+        let key = cache::derived_key(&key, &(options, &cases, &sources))?;
+        test_snapshot_is_current(&package, &before).then_some((before, key))
+    });
+    if let Some((_, key)) = &snapshot
+        && let Some(compilation) = cache::load(&package.root, &test_cache_kind(tier, "runner"), key)
+    {
+        return Ok(crate::testing::TestTierCompilation {
+            tier,
+            package,
+            compilation,
+            cases,
+        });
+    }
+    let semantic = match analysis.state {
+        TestTierAnalysisState::Analyzed(semantic) => semantic,
+        TestTierAnalysisState::Cached {
+            prepared,
+            referenced,
+        } => {
+            let mut semantic = analyze_prepared_package(prepared.as_ref().unwrap_or(&package))?;
+            semantic.mark_functions_referenced(referenced);
+            semantic
+        }
+    };
+    let compilation = lower_test_tier(&package, &semantic, &cases, sources, options)?;
+    if let Some((before, key)) = &snapshot
+        && test_snapshot_is_current(&package, before)
+    {
+        cache::store(
+            &package.root,
+            &test_cache_kind(tier, "runner"),
+            key,
+            &compilation,
+        );
+    }
+    Ok(crate::testing::TestTierCompilation {
+        tier,
+        package,
+        compilation,
+        cases,
+    })
+}
+
+fn lower_test_tier(
+    package: &Package,
+    semantic: &semantics::SemanticPackage,
+    cases: &[TestCase],
+    mut sources: Vec<SourceFile>,
+    options: CompilerOptions,
+) -> Result<Compilation, CompilationFailure> {
     sources.extend(
         package
             .authored_rust_modules
@@ -1041,11 +1180,11 @@ pub fn compile_discovered_test_tier(
             || semantic.units[0].source.clone(),
             |unit| unit.source.clone(),
         );
-    let warnings = collect_warnings(&semantic, options);
-    let mut rust_dependencies = compilation_rust_dependencies(&package, &semantic.projection);
+    let warnings = collect_warnings(semantic, options);
+    let mut rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
     let mut rust_ir =
-        crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
-            .map_err(|failure| lowering_failure(&semantic, failure))?;
+        crate::lowering::lower_tests(semantic, &runner_cases, options.debug_build.enabled())
+            .map_err(|failure| lowering_failure(semantic, failure))?;
     bind_private_runtime_dependencies(&mut rust_ir, &mut rust_dependencies, true);
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
@@ -1056,7 +1195,7 @@ pub fn compile_discovered_test_tier(
             canonical_authored_rust_files(standalone_file.clone(), &package.authored_rust_modules);
         validate_canonical_rust(&canonical_files, &sources, &source, entry_span)?;
     }
-    let compilation = Compilation {
+    Ok(Compilation {
         source,
         sources,
         rust: standalone_file.contents,
@@ -1069,7 +1208,7 @@ pub fn compile_discovered_test_tier(
         authored_rust_modules: package.authored_rust_modules.clone(),
         debug_symbols: options.debug_build.enabled().then(|| {
             crate::debugging::DebugSymbols::from_semantic(
-                &semantic,
+                semantic,
                 options.debug_build.embeds_sources(),
                 options.debug_build.embeds_generated_sources(),
             )
@@ -1081,18 +1220,12 @@ pub fn compile_discovered_test_tier(
         requires_async_runtime: rust_ir.requires_async_runtime,
         requires_blocking_runtime: rust_ir.requires_blocking_runtime,
         requires_runtime_sync: rust_ir.requires_runtime_sync,
-        requires_unsafe_code: semantic_requires_unsafe_code(&semantic),
+        requires_unsafe_code: semantic_requires_unsafe_code(semantic),
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
         native_dependency_identity: (!semantic.projection.dependencies.is_empty())
             .then(|| semantic.projection.cache_identity.clone()),
-    };
-    Ok(crate::testing::TestTierCompilation {
-        tier,
-        package: package.clone(),
-        compilation,
-        cases,
     })
 }
 
