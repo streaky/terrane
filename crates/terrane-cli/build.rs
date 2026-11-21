@@ -62,10 +62,9 @@ fn development_identity(root: &Path) -> Option<String> {
     }
 
     let commit = git(root, &["rev-parse", "--short", "HEAD"])?;
-    let branch = branch
-        .as_deref()
-        .map(|name| name.strip_prefix("refs/heads/").unwrap_or(name))
-        .unwrap_or("detached HEAD");
+    let branch = branch.as_deref().map_or("detached HEAD", |name| {
+        name.strip_prefix("refs/heads/").unwrap_or(name)
+    });
     Some(format!("development, git {commit}, branch {branch}"))
 }
 

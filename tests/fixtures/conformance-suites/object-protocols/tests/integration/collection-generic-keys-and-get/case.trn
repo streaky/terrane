@@ -9,14 +9,14 @@ function test-scenario;
     names = keys; values
     print; names[0]
     print; names[1]
-    found = values.get; 'b'
+    found = values.get; key='b'
     print; found
     other unordered-map of string, int = unordered-map; k=11
     other-names = unordered-keys; other
     print; other-names[0]
-    unordered-found = other.get; 'k'
+    unordered-found = other.get; key='k'
     print; unordered-found
     numbers list of int = list; 13
-    print; (numbers.get; 0)
+    print; (numbers.get; index=0)
     fixed tuple of int = tuple; 17
-    print; (fixed.get; 0)
+    print; (fixed.get; index=0)

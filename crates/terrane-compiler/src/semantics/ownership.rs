@@ -33,6 +33,9 @@ fn requires_noncopyable_projection_access(
     while let ValueType::Optional(inner) = callable_type {
         callable_type = inner;
     }
+    if super::collection_uses_unique_storage(package, callable_type) {
+        return is_instance_field(package, unit, value);
+    }
     if matches!(
         callable_type,
         ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects)
@@ -1244,21 +1247,52 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             }
         }
         if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
             && super::collections::collection_constructor_identity(unit, node, &unit.typed_bindings)
                 .is_some()
-            && let Some(arguments) = node.children.get(1)
         {
-            let transferred = arguments
-                .children
-                .iter()
-                .filter_map(|argument| {
-                    let value = ungrouped_expression(argument.children.last().unwrap_or(argument));
-                    (value.kind == SyntaxKind::Name)
-                        .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
-                        .flatten()
-                        .filter(|binding| noncopyable_binding(package, unit, *binding))
-                })
-                .collect::<Vec<_>>();
+            visit(
+                package,
+                unit,
+                callee,
+                moved,
+                false,
+                resource_objects,
+                loop_exits,
+            )?;
+            for argument in &arguments.children {
+                visit(
+                    package,
+                    unit,
+                    argument,
+                    moved,
+                    false,
+                    resource_objects,
+                    loop_exits,
+                )?;
+                let value = ungrouped_expression(argument.children.last().unwrap_or(argument));
+                if value.kind == SyntaxKind::Name
+                    && let Some(binding) =
+                        binding_at(unit, node_text(&unit.source, value), value.span.start)
+                    && noncopyable_binding(package, unit, binding)
+                {
+                    moved.insert(binding);
+                }
+            }
+            return Ok(true);
+        }
+        if node.kind == SyntaxKind::Assignment
+            && let Some(target) = node.assignment_target().map(ungrouped_expression)
+            && target.kind == SyntaxKind::IndexExpression
+            && let Some(receiver) = target.children.first()
+            && let Some(ty) = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
+            && super::collection_uses_unique_storage(package, &ty)
+            && let Some(value) = node.children.last().map(ungrouped_expression)
+            && value.kind == SyntaxKind::Name
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, value), value.span.start)
+            && resource_binding(package, unit, binding)
+        {
             for child in &node.children {
                 visit(
                     package,
@@ -1270,30 +1304,36 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     loop_exits,
                 )?;
             }
-            moved.extend(transferred);
+            moved.insert(binding);
             return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
-            && callee.kind == SyntaxKind::MemberExpression
-            && callee
-                .children
-                .last()
-                .is_some_and(|member| node_text(&unit.source, member) == "append")
-            && let Some(receiver) = callee.children.first()
+            && let Some((_receiver, ty, operation)) =
+                super::collections::collection_member_call(unit, callee, &unit.typed_bindings)?
             && matches!(
-                infer_value_type(unit, receiver, &unit.typed_bindings)
-                    .ok()
-                    .flatten(),
-                Some(ValueType::List(_))
+                (&ty, operation.as_str()),
+                (ValueType::List(_), "append" | "set")
+                    | (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "set")
             )
-            && let Some(argument) = arguments.children.first()
+            && (super::collection_uses_unique_storage(package, &ty)
+                || operation == "append"
+                    && matches!(&ty, ValueType::List(item)
+                        if matches!(item.value_type_ref(), ValueType::InvocationScopedNative { .. })))
         {
-            let value = ungrouped_expression(argument.children.last().unwrap_or(argument));
-            let transferred = (value.kind == SyntaxKind::Name)
-                .then(|| binding_at(unit, node_text(&unit.source, value), value.span.start))
-                .flatten()
-                .filter(|binding| noncopyable_binding(package, unit, *binding));
+            // Move checking runs before full collection-call validation.
+            super::collections::validate_collection_argument_names(
+                unit, &ty, &operation, arguments,
+            )?;
+            let transferred =
+                super::collections::collection_mutator_value_argument(&operation, arguments)
+                    .and_then(|argument| argument.children.last())
+                    .map(ungrouped_expression)
+                    .filter(|value| value.kind == SyntaxKind::Name)
+                    .and_then(|value| {
+                        binding_at(unit, node_text(&unit.source, value), value.span.start)
+                    })
+                    .filter(|binding| noncopyable_binding(package, unit, *binding));
             for child in &node.children {
                 visit(
                     package,
@@ -1305,15 +1345,16 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     loop_exits,
                 )?;
             }
-            if let Some(transferred) = transferred {
-                moved.insert(transferred);
+            if let Some(binding) = transferred {
+                moved.insert(binding);
             }
             return Ok(true);
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
-            && let Some(parameters) = function_parameters(package, unit, callee)
+            && let Some(contract) = function_contract_for_call(package, unit, callee)
         {
+            let parameters = &contract.parameters;
             for (index, argument) in arguments.children.iter().enumerate() {
                 let Some(parameter) = parameters
                     .get(index)
@@ -1361,53 +1402,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 callee,
                 crate::syntax::call_is_unsafe(node),
             );
-            let transferred = arguments
-                .children
-                .iter()
-                .zip(parameters)
-                .enumerate()
-                .filter_map(|(index, (argument, parameter))| {
-                    let projected_parameter = projected.and_then(|function| {
-                        argument
-                            .children
-                            .first()
-                            .filter(|name| {
-                                argument.children.len() > 1 && name.kind == SyntaxKind::Name
-                            })
-                            .and_then(|name| {
-                                function.parameters.iter().find(|candidate| {
-                                    candidate.name == node_text(&unit.source, name)
-                                })
-                            })
-                            .or_else(|| function.parameters.get(index))
-                    });
-                    if projected_parameter.is_some_and(|parameter| parameter.borrowed) {
-                        return None;
-                    }
-                    parameter
-                        .value_type
-                        .as_ref()
-                        .filter(|value_type| {
-                            matches!(
-                                value_type,
-                                ValueType::PlatformStreamHandle
-                                    | ValueType::PlatformResourceHandle
-                                    | ValueType::Object(_)
-                                    | ValueType::Function(_, _, _)
-                                    | ValueType::AsyncFunction(_, _, _, _)
-                                    | ValueType::InvocationScopedNative { .. }
-                            )
-                        })
-                        .and_then(|_| argument.children.last())
-                        .filter(|value| value.kind == SyntaxKind::Name)
-                        .and_then(|value| {
-                            binding_at(unit, node_text(&unit.source, value), value.span.start)
-                        })
-                        .filter(|binding| noncopyable_binding(package, unit, *binding))
-                })
-                .collect::<Vec<_>>();
-            let receiver_transferred = function_contract_for_call(package, unit, callee)
-                .filter(|contract| contract.owner.is_some())
+            let receiver_transferred = contract
+                .owner
+                .as_ref()
                 .and_then(|_| typed_member_call(unit, callee))
                 .filter(|(receiver, ty, member)| {
                     super::diagnostics::member_invocation_mode_at(
@@ -1429,21 +1426,87 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         || matches!(ty, ValueType::Object(identity)
                             if package.projection.item(&identity.namespace, &identity.name).is_none()))
                 });
-            for (index, child) in node.children.iter().enumerate() {
+            visit(
+                package,
+                unit,
+                callee,
+                moved,
+                false,
+                resource_objects,
+                loop_exits,
+            )?;
+            moved.extend(receiver_transferred);
+            let mut positional = 0;
+            let mut named_seen = false;
+            for argument in &arguments.children {
                 visit(
                     package,
                     unit,
-                    child,
+                    argument,
                     moved,
                     false,
                     resource_objects,
                     loop_exits,
                 )?;
-                if index == 0 {
-                    moved.extend(receiver_transferred);
+                let name = argument
+                    .children
+                    .first()
+                    .filter(|child| argument.children.len() > 1 && child.kind == SyntaxKind::Name);
+                let Ok((index, parameter)) = super::calls::resolve_call_parameter(
+                    unit,
+                    argument,
+                    name,
+                    contract,
+                    &mut positional,
+                    &mut named_seen,
+                ) else {
+                    continue;
+                };
+                let projected_parameter = projected.and_then(|function| {
+                    name.and_then(|name| {
+                        function
+                            .parameters
+                            .iter()
+                            .find(|candidate| candidate.name == node_text(&unit.source, name))
+                    })
+                    .or_else(|| function.parameters.get(index))
+                });
+                if projected_parameter.is_some_and(|parameter| parameter.borrowed) {
+                    continue;
+                }
+                let Some(expected) = parameter.element_value_type() else {
+                    continue;
+                };
+                if matches!(
+                    expected,
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                ) {
+                    continue;
+                }
+                if let Some(value) = argument.children.last().map(ungrouped_expression)
+                    && value.kind == SyntaxKind::Name
+                    && let Some(binding) =
+                        binding_at(unit, node_text(&unit.source, value), value.span.start)
+                    && (matches!(
+                        expected,
+                        ValueType::PlatformStreamHandle
+                            | ValueType::PlatformResourceHandle
+                            | ValueType::Object(_)
+                            | ValueType::Function(_, _, _)
+                            | ValueType::AsyncFunction(_, _, _, _)
+                            | ValueType::InvocationScopedNative { .. }
+                    ) || super::collection_uses_unique_storage(package, &expected)
+                        || super::collection_uses_unique_storage(
+                            package,
+                            &unit.typed_bindings[binding].value_type,
+                        ))
+                    && noncopyable_binding(package, unit, binding)
+                {
+                    moved.insert(binding);
                 }
             }
-            moved.extend(transferred);
             return Ok(true);
         }
         Ok(false)

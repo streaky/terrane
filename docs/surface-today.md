@@ -1017,11 +1017,12 @@ Stream classes become resource-owning transitively from their compiler-owned pro
 There is no source `linear class` qualifier; assignment transfers these values automatically.
 
 
-Ordinary strings, bytes, paths, filesystem capability values, collections, and non-resource
-objects have value semantics. Pass them normally; neither `ref` at an argument nor any other
-reference syntax is a workaround for an anticipated Rust move. Lowering preserves later source uses
-with copy-on-write separation or compiler-owned clones. A declared `ref` parameter means the callee
-intentionally observes or mutates the same source value.
+Ordinary strings, bytes, paths, filesystem capability values, copyable collections, and
+non-resource objects have value semantics. Resource-owning lists and maps instead use
+move-only storage: insertion transfers ownership, indexing/lookup borrows explicitly, and
+reference iteration avoids cloning elements. Passing a mutable-reference collection parameter
+allows removal to mutate the caller's collection. A declared `ref` parameter intentionally
+observes the same source value; it does not grant mutation authority unless declared `mutable ref`.
 
 An explicit stream `.close` consumes the resource and returns an observable failure result. Use it
 when close failure matters. Deterministic destruction remains a fallback release path and cannot

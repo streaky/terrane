@@ -246,6 +246,27 @@ impl<T> List<T> {
             .expect("invocation-scoped list backing storage must be uniquely owned")
             .push(value);
     }
+    /// Accesses the backing vector of a statically noncopyable list.
+    #[doc(hidden)]
+    pub fn make_unique_storage(&mut self) -> &mut Vec<T> {
+        unique_storage(&mut self.0)
+    }
+    #[doc(hidden)]
+    pub fn set_unique(&mut self, index: usize, value: T) -> Result<(), IndexError> {
+        replace_list_item(self.make_unique_storage(), index, value)
+    }
+    #[doc(hidden)]
+    pub fn remove_unique(&mut self, index: usize) -> Result<T, IndexError> {
+        let items = self.make_unique_storage();
+        if index >= items.len() {
+            return Err(IndexError::from_usize(index));
+        }
+        Ok(items.remove(index))
+    }
+    #[doc(hidden)]
+    pub fn clear_unique(&mut self) {
+        self.make_unique_storage().clear();
+    }
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)
@@ -294,6 +315,18 @@ impl<T> List<T> {
     }
 }
 
+fn unique_storage<T>(storage: &mut Arc<T>) -> &mut T {
+    Arc::get_mut(storage).expect("noncopyable collection backing storage must be uniquely owned")
+}
+
+fn replace_list_item<T>(items: &mut [T], index: usize, value: T) -> Result<(), IndexError> {
+    let Some(slot) = items.get_mut(index) else {
+        return Err(IndexError::from_usize(index));
+    };
+    *slot = value;
+    Ok(())
+}
+
 impl<T: Clone> IntoIterator for List<T> {
     type Item = T;
     type IntoIter = std::vec::IntoIter<T>;
@@ -311,11 +344,7 @@ impl<T: Clone> List<T> {
     /// Returns [`IndexError`] when `index` is outside the list.
     #[inline]
     pub fn set(&mut self, index: usize, value: T) -> Result<(), IndexError> {
-        let Some(slot) = self.make_unique().get_mut(index) else {
-            return Err(IndexError::from_usize(index));
-        };
-        *slot = value;
-        Ok(())
+        replace_list_item(self.make_unique(), index, value)
     }
     /// Removes and returns one indexed item.
     ///
@@ -541,6 +570,18 @@ impl<K: Eq + Hash, V> Map<K, V> {
     pub fn as_entries(&self) -> impl std::iter::Iterator<Item = (&K, &V)> {
         self.0.iter()
     }
+    #[doc(hidden)]
+    pub fn set_unique(&mut self, key: K, value: V) {
+        unique_storage(&mut self.0).insert(key, value);
+    }
+    #[doc(hidden)]
+    pub fn remove_unique(&mut self, key: &K) -> Result<V, MissingKey> {
+        self.remove_checked_unique(key).ok_or(MissingKey)
+    }
+    #[doc(hidden)]
+    pub fn remove_checked_unique(&mut self, key: &K) -> Option<V> {
+        unique_storage(&mut self.0).shift_remove(key)
+    }
 }
 impl<K: Eq + Hash + Clone, V> Map<K, V> {
     #[must_use]
@@ -680,6 +721,29 @@ impl<K: Eq + Hash, V> UnorderedMapData<K, V> {
     fn indexed_value(&self, key: &K) -> &V {
         &self.values.get(key).expect("indexed key must exist").1
     }
+
+    fn remove(&mut self, key: &K) -> Option<V> {
+        let (index, value) = self.values.remove(key)?;
+        self.iteration_keys.swap_remove(index);
+        if let Some(moved) = self.iteration_keys.get(index)
+            && let Some((position, _)) = self.values.get_mut(moved)
+        {
+            *position = index;
+        }
+        Some(value)
+    }
+}
+
+impl<K: Eq + Hash + Clone, V> UnorderedMapData<K, V> {
+    fn insert(&mut self, key: K, value: V) {
+        if let Some((_, existing)) = self.values.get_mut(&key) {
+            *existing = value;
+            return;
+        }
+        let index = self.iteration_keys.len();
+        self.iteration_keys.push(key.clone());
+        self.values.insert(key, (index, value));
+    }
 }
 
 impl<K: Eq + Hash, V: PartialEq> PartialEq for UnorderedMapData<K, V> {
@@ -723,26 +787,31 @@ impl<K: Eq + Hash, V> UnorderedMap<K, V> {
             .iter()
             .map(|key| (key, self.0.indexed_value(key)))
     }
+    #[doc(hidden)]
+    pub fn remove_unique(&mut self, key: &K) -> Result<V, MissingKey> {
+        self.remove_checked_unique(key).ok_or(MissingKey)
+    }
+    #[doc(hidden)]
+    pub fn remove_checked_unique(&mut self, key: &K) -> Option<V> {
+        unique_storage(&mut self.0).remove(key)
+    }
 }
 
 impl<K: Eq + Hash + Clone, V> UnorderedMap<K, V> {
     #[must_use]
     pub fn new(entries: Vec<Entry<K, V>>) -> Self {
-        let mut values = HashMap::with_hasher(FixedState::default());
-        let mut iteration_keys = Vec::new();
+        let mut data = UnorderedMapData {
+            values: HashMap::with_hasher(FixedState::default()),
+            iteration_keys: Vec::new(),
+        };
         for entry in entries {
-            if let Some((_, value)) = values.get_mut(&entry.key) {
-                *value = entry.value;
-            } else {
-                let index = iteration_keys.len();
-                iteration_keys.push(entry.key.clone());
-                values.insert(entry.key, (index, entry.value));
-            }
+            data.insert(entry.key, entry.value);
         }
-        Self(Arc::new(UnorderedMapData {
-            values,
-            iteration_keys,
-        }))
+        Self(Arc::new(data))
+    }
+    #[doc(hidden)]
+    pub fn set_unique(&mut self, key: K, value: V) {
+        unique_storage(&mut self.0).insert(key, value);
     }
 }
 
@@ -769,14 +838,7 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
         self.get(key).cloned().ok_or(MissingKey)
     }
     pub fn set(&mut self, key: K, value: V) {
-        let data = Arc::make_mut(&mut self.0);
-        if let Some((_, existing)) = data.values.get_mut(&key) {
-            *existing = value;
-            return;
-        }
-        let index = data.iteration_keys.len();
-        data.iteration_keys.push(key.clone());
-        data.values.insert(key, (index, value));
+        Arc::make_mut(&mut self.0).insert(key, value);
     }
     /// Removes and returns the mapped value without separating shared storage on a miss.
     ///
@@ -789,15 +851,7 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
         if Arc::get_mut(&mut self.0).is_none() && !self.0.values.contains_key(key) {
             return None;
         }
-        let data = Arc::make_mut(&mut self.0);
-        let (index, value) = data.values.remove(key)?;
-        data.iteration_keys.swap_remove(index);
-        if let Some(moved) = data.iteration_keys.get(index)
-            && let Some((position, _)) = data.values.get_mut(moved)
-        {
-            *position = index;
-        }
-        Some(value)
+        Arc::make_mut(&mut self.0).remove(key)
     }
     #[must_use]
     pub fn values(&self) -> List<V> {

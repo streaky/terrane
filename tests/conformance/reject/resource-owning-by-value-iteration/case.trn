@@ -1,0 +1,8 @@
+namespace resource-owning-by-value-iteration
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+function main;
+  outputs list of byte-writer = list; (stdout;)
+  for output in outputs
+    print; output

@@ -54,6 +54,7 @@ pub(crate) use bindings::projected_macro_for_call;
 mod diagnostics;
 mod field_moves;
 mod objects;
+pub(crate) use objects::collection_uses_unique_storage;
 mod ownership;
 mod receiver_bounds;
 mod reference_validation;

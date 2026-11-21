@@ -214,19 +214,43 @@ impl Emitter<'_> {
             .iter()
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
-        let mutation = match (receiver_type, operation.as_str()) {
+        let mutation = self.collection_mutation_for_operation(
+            node,
+            (&receiver_type, &operation),
+            &values,
+            &mut stage_argument,
+            list_append_vector,
+            &receiver_value,
+        );
+        mutation.map(|mutation| format!("{{ {setup}{argument_setup}{mutation}; }}"))
+    }
+
+    fn collection_mutation_for_operation(
+        &mut self,
+        node: &SyntaxNode,
+        (receiver_type, operation): (&ValueType, &str),
+        values: &[&SyntaxNode],
+        stage_argument: &mut impl FnMut(String) -> String,
+        list_append_vector: Option<String>,
+        receiver_value: &str,
+    ) -> Option<String> {
+        let unique = crate::semantics::collection_uses_unique_storage(self.package, receiver_type);
+        match (receiver_type, operation) {
             (ValueType::List(item), "append") => {
                 let value = stage_argument(self.expression_as(values[0], item.value_type()));
-                if matches!(
-                    item.value_type_ref(),
-                    ValueType::InvocationScopedNative { .. }
-                ) {
-                    Some(format!("({receiver_value}).push_unique({value})"))
+                if let Some(vector) = list_append_vector {
+                    Some(format!("{vector}.push({value})"))
                 } else {
-                    Some(list_append_vector.map_or_else(
-                        || format!("({receiver_value}).append({value})"),
-                        |vector| format!("{vector}.push({value})"),
-                    ))
+                    let method = if unique
+                        || matches!(
+                            item.value_type_ref(),
+                            ValueType::InvocationScopedNative { .. }
+                        ) {
+                        "push_unique"
+                    } else {
+                        "append"
+                    };
+                    Some(format!("({receiver_value}).{method}({value})"))
                 }
             }
             (ValueType::List(item), "set") => {
@@ -237,32 +261,44 @@ impl Emitter<'_> {
                 );
                 let index = stage_argument(index);
                 let value = stage_argument(self.expression_as(values[1], item.value_type()));
-                Some(self.fallible(format!("({receiver_value}).set({index}, {value})"), node))
+                let method = if unique { "set_unique" } else { "set" };
+                Some(self.fallible(
+                    format!("({receiver_value}).{method}({index}, {value})"),
+                    node,
+                ))
             }
-            (ValueType::List(_), "clear") => Some(format!("({receiver_value}).clear()")),
+            (ValueType::List(_), "clear") => {
+                let method = if unique { "clear_unique" } else { "clear" };
+                Some(format!("({receiver_value}).{method}()"))
+            }
             (ValueType::List(item), "sort" | "sort.descending") => {
                 let comparator =
-                    super::calls::list_sort_comparator(&item, operation == "sort.descending");
+                    super::calls::list_sort_comparator(item, operation == "sort.descending");
                 Some(format!("({receiver_value}).sort_by({comparator})"))
             }
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
-                Some(format!(
-                    "({receiver_value}).set({}, {})",
-                    stage_argument(self.expression_as(values[0], key.value_type())),
-                    stage_argument(self.expression_as(values[1], value.value_type()))
-                ))
+                let key = stage_argument(self.expression_as(values[0], key.value_type()));
+                let value = stage_argument(self.expression_as(values[1], value.value_type()));
+                let method = if unique { "set_unique" } else { "set" };
+                Some(format!("({receiver_value}).{method}({key}, {value})"))
             }
             (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove.checked") => {
+                let method = if unique {
+                    "remove_checked_unique"
+                } else {
+                    "remove_checked"
+                };
                 Some(format!(
-                    "let _ = ({receiver_value}).remove_checked(&({}))",
+                    "let _ = ({receiver_value}).{method}(&({}))",
                     stage_argument(self.expression_as(values[0], key.value_type()))
                 ))
             }
             (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove") => {
                 let key = stage_argument(self.expression_as(values[0], key.value_type()));
+                let method = if unique { "remove_unique" } else { "remove" };
                 Some(format!(
                     "let _ = {}",
-                    self.fallible(format!("({receiver_value}).remove(&({key}))"), node)
+                    self.fallible(format!("({receiver_value}).{method}(&({key}))"), node)
                 ))
             }
             (ValueType::Set(item) | ValueType::UnorderedSet(item), "add") => Some(format!(
@@ -270,8 +306,7 @@ impl Emitter<'_> {
                 stage_argument(self.expression_as(values[0], item.value_type()))
             )),
             _ => None,
-        };
-        mutation.map(|mutation| format!("{{ {setup}{argument_setup}{mutation}; }}"))
+        }
     }
 
     pub(super) fn assigned_binding(&self, left: &SyntaxNode) -> Option<TypedBinding> {
@@ -325,6 +360,12 @@ impl Emitter<'_> {
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
             let (setup, receiver_value) = self.live_receiver_parts(receiver);
+            let method =
+                if crate::semantics::collection_uses_unique_storage(self.package, &receiver_type) {
+                    "set_unique"
+                } else {
+                    "set"
+                };
             match receiver_type {
                 ValueType::List(item) => {
                     let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
@@ -334,7 +375,7 @@ impl Emitter<'_> {
                     );
                     let value = self.expression_as(value, item.value_type());
                     let mutation = self.fallible(
-                        format!("({receiver_value}).set(__terrane_index, __terrane_value)"),
+                        format!("({receiver_value}).{method}(__terrane_index, __terrane_value)"),
                         node,
                     );
                     self.line(&format!(
@@ -345,7 +386,7 @@ impl Emitter<'_> {
                     let key = self.expression_as(index, key.value_type());
                     let value = self.expression_as(value, value_type.value_type());
                     self.line(&format!(
-                        "{{ {setup} let __terrane_key = {key}; let __terrane_value = {value}; ({receiver_value}).set(__terrane_key, __terrane_value); }}"
+                        "{{ {setup} let __terrane_key = {key}; let __terrane_value = {value}; ({receiver_value}).{method}(__terrane_key, __terrane_value); }}"
                     ));
                 }
                 _ => {}
@@ -1861,7 +1902,15 @@ impl Emitter<'_> {
             } else {
                 storage.to_owned()
             };
-            self.line(&format!("let {vector} = {storage}.make_unique();"));
+            let accessor = if crate::semantics::collection_uses_unique_storage(
+                self.package,
+                &binding.value_type,
+            ) {
+                "make_unique_storage"
+            } else {
+                "make_unique"
+            };
+            self.line(&format!("let {vector} = {storage}.{accessor}();"));
             if let Some((start, end)) = capacity_hint {
                 self.line(&format!(
                     "if let (Ok(__terrane_start), Ok(__terrane_end)) = (usize::try_from({start}), usize::try_from({end})) {{"

@@ -794,19 +794,36 @@ fn value_type_contains_nonclone_foreign(package: &SemanticPackage, value_type: &
     }
 }
 
-pub(super) fn value_type_is_resource_container(
+fn value_type_is_unsupported_resource_container(
     value_type: &ValueType,
     resource_identities: &BTreeSet<String>,
 ) -> bool {
     matches!(
         value_type,
-        ValueType::List(_)
-            | ValueType::Map(_, _)
-            | ValueType::Set(_)
-            | ValueType::Tuple(_, _)
-            | ValueType::UnorderedMap(_, _)
-            | ValueType::UnorderedSet(_)
+        ValueType::Set(_) | ValueType::Tuple(_, _) | ValueType::UnorderedSet(_)
     ) && value_type_owns_resource(value_type, resource_identities)
+}
+
+/// Selects noncopying storage operations for lists and maps known to own a resource.
+/// An unconstrained parameter alone is not proof: the generic body must remain valid
+/// for copyable instantiations that can have shared COW storage.
+pub(crate) fn collection_uses_unique_storage(package: &SemanticPackage, ty: &ValueType) -> bool {
+    let item = match ty {
+        ValueType::List(item) | ValueType::Map(_, item) | ValueType::UnorderedMap(_, item) => {
+            item.value_type_ref()
+        }
+        _ => return false,
+    };
+    if matches!(
+        item,
+        ValueType::Scalar(_)
+            | ValueType::Reference(_)
+            | ValueType::MutableReference(_)
+            | ValueType::SharedReference(_)
+    ) {
+        return false;
+    }
+    application_resource_ownership(package, item, ResourceParameters::AllCopyable)
 }
 fn value_type_has_nonclone_scoped_map_storage(
     package: &SemanticPackage,
@@ -860,17 +877,38 @@ pub(crate) fn application_is_resource_owning(
     package: &SemanticPackage,
     value_type: &ValueType,
 ) -> bool {
-    application_is_resource_owning_assuming_parameters(package, value_type, &BTreeSet::new())
+    application_resource_ownership(
+        package,
+        value_type,
+        ResourceParameters::AssumedCopyable(&BTreeSet::new()),
+    )
+}
+
+#[derive(Clone, Copy)]
+enum ResourceParameters<'a> {
+    AllCopyable,
+    AssumedCopyable(&'a BTreeSet<String>),
+    Applied(&'a BTreeMap<String, bool>),
+}
+
+impl ResourceParameters<'_> {
+    fn owns(self, name: &str) -> bool {
+        match self {
+            Self::AllCopyable => false,
+            Self::AssumedCopyable(names) => !names.contains(name),
+            Self::Applied(parameters) => parameters.get(name).copied().unwrap_or(true),
+        }
+    }
 }
 
 #[expect(
     clippy::too_many_lines,
     reason = "Recursive resource classification mirrors semantic value shapes and preserves generic-parameter ownership profiles"
 )]
-fn application_is_resource_owning_assuming_parameters(
+fn application_resource_ownership(
     package: &SemanticPackage,
     value_type: &ValueType,
-    assumed_non_resource_parameters: &BTreeSet<String>,
+    parameters: ResourceParameters<'_>,
 ) -> bool {
     #[expect(
         clippy::too_many_lines,
@@ -879,15 +917,15 @@ fn application_is_resource_owning_assuming_parameters(
     fn owns(
         package: &SemanticPackage,
         value_type: &ValueType,
-        resources: &BTreeSet<String>,
-        parameters: &BTreeMap<String, bool>,
+        resources: &std::cell::OnceCell<BTreeSet<String>>,
+        parameters: ResourceParameters<'_>,
         visiting: &mut BTreeSet<(ObjectIdentity, Vec<bool>)>,
     ) -> bool {
         match value_type {
             ValueType::Reference(_)
             | ValueType::MutableReference(_)
             | ValueType::SharedReference(_) => return false,
-            ValueType::TypeParameter(name) => return parameters.get(name).copied().unwrap_or(true),
+            ValueType::TypeParameter(name) => return parameters.owns(name),
             _ => {}
         }
         match value_type {
@@ -896,16 +934,25 @@ fn application_is_resource_owning_assuming_parameters(
                 if let Some(capability) = package.native_capability(identity) {
                     return !capability.cloneable;
                 }
-                if resources.contains(&identity.qualified_base())
+                // Only nominal fallback needs the package-wide inventory. Primitive,
+                // structural and already-proven native queries never build it.
+                if resources
+                    .get_or_init(|| resource_identities(package))
+                    .contains(&identity.qualified_base())
                     || value_type_contains_nonclone_foreign(package, value_type)
                 {
                     return true;
                 }
+                let same_base = |candidate: &ObjectIdentity| {
+                    candidate.namespace == identity.namespace
+                        && candidate.name == identity.name
+                        && candidate.is_unsafe == identity.is_unsafe
+                };
                 let Some(descriptor) = package
                     .units
                     .iter()
                     .flat_map(|unit| &unit.descriptors)
-                    .find(|descriptor| descriptor.identity.base() == identity.base())
+                    .find(|descriptor| same_base(&descriptor.identity))
                 else {
                     return false;
                 };
@@ -936,19 +983,20 @@ fn application_is_resource_owning_assuming_parameters(
                         )
                     })
                     .collect::<BTreeMap<_, _>>();
+                let parameters = ResourceParameters::Applied(&parameters);
                 let result = if descriptor.kind == ObjectKind::Enum {
                     if let Some(enumeration) = package
                         .units
                         .iter()
                         .flat_map(|unit| &unit.source_enums)
-                        .find(|enumeration| enumeration.identity.base() == identity.base())
+                        .find(|enumeration| same_base(&enumeration.identity))
                     {
                         enumeration
                             .variants
                             .iter()
                             .flat_map(|variant| &variant.payload)
                             .any(|field| {
-                                owns(package, &field.value_type, resources, &parameters, visiting)
+                                owns(package, &field.value_type, resources, parameters, visiting)
                             })
                     } else {
                         package
@@ -975,7 +1023,7 @@ fn application_is_resource_owning_assuming_parameters(
                                             &field_type,
                                             &identity.native_arguments,
                                         );
-                                        owns(package, &field_type, resources, &parameters, visiting)
+                                        owns(package, &field_type, resources, parameters, visiting)
                                     },
                                 ))
                             })
@@ -986,7 +1034,7 @@ fn application_is_resource_owning_assuming_parameters(
                         .iter()
                         .filter(|field| !field.is_static)
                         .any(|field| {
-                            owns(package, &field.value_type, resources, &parameters, visiting)
+                            owns(package, &field.value_type, resources, parameters, visiting)
                         })
                 };
                 visiting.remove(&key);
@@ -1042,21 +1090,11 @@ fn application_is_resource_owning_assuming_parameters(
             _ => false,
         }
     }
-    if let ValueType::Object(identity) = value_type
-        && let Some(capability) = package.native_capability(identity)
-    {
-        return !capability.cloneable;
-    }
-    let parameters = assumed_non_resource_parameters
-        .iter()
-        .cloned()
-        .map(|name| (name, false))
-        .collect::<BTreeMap<_, _>>();
     owns(
         package,
         value_type,
-        &resource_identities(package),
-        &parameters,
+        &std::cell::OnceCell::new(),
+        parameters,
         &mut BTreeSet::new(),
     )
 }
@@ -1102,10 +1140,10 @@ fn cloneable_object(
     }) {
         return false;
     }
-    if application_is_resource_owning_assuming_parameters(
+    if application_resource_ownership(
         package,
         value_type,
-        assumed_clone_parameters,
+        ResourceParameters::AssumedCopyable(assumed_clone_parameters),
     ) {
         return false;
     }
@@ -1355,8 +1393,10 @@ pub(super) fn propagate_resource_ownership(
                 ));
             }
             if let Some(field) = object.fields.iter().find(|field| {
-                value_type_is_resource_container(&field.value_type, &resource_identities)
-                    || value_type_has_nonclone_scoped_map_storage(package, unit, &field.value_type)
+                value_type_is_unsupported_resource_container(
+                    &field.value_type,
+                    &resource_identities,
+                ) || value_type_has_nonclone_scoped_map_storage(package, unit, &field.value_type)
             }) {
                 return Err(failure(
                     &unit.source,
@@ -1388,7 +1428,7 @@ pub(super) fn validate_resource_collection_types(
         .collect::<BTreeSet<_>>();
     for unit in &package.units {
         if let Some(binding) = unit.typed_bindings.iter().find(|binding| {
-            value_type_is_resource_container(&binding.value_type, &resource_identities)
+            value_type_is_unsupported_resource_container(&binding.value_type, &resource_identities)
                 || value_type_has_nonclone_scoped_map_storage(package, unit, &binding.value_type)
         }) {
             return Err(failure(
@@ -1401,7 +1441,7 @@ pub(super) fn validate_resource_collection_types(
         for function in &unit.functions {
             if let Some(parameter) = function.parameters.iter().find(|parameter| {
                 parameter.value_type.as_ref().is_some_and(|value_type| {
-                    value_type_is_resource_container(value_type, &resource_identities)
+                    value_type_is_unsupported_resource_container(value_type, &resource_identities)
                         || value_type_has_nonclone_scoped_map_storage(package, unit, value_type)
                 })
             }) {
@@ -1413,7 +1453,7 @@ pub(super) fn validate_resource_collection_types(
                 ));
             }
             if function.return_type.as_ref().is_some_and(|value_type| {
-                value_type_is_resource_container(value_type, &resource_identities)
+                value_type_is_unsupported_resource_container(value_type, &resource_identities)
                     || value_type_has_nonclone_scoped_map_storage(package, unit, value_type)
             }) {
                 return Err(failure(

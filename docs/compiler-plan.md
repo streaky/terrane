@@ -3707,11 +3707,28 @@ and invalid exit-status construction; and observes process exit status 7. Compil
 operations are public objects in purpose-named `/core` namespaces; bundled packages import those
 namespaces explicitly. Runtime templates are split by selected core or standard facility so
 stream-only, filesystem-only, and process-only programs emit no unrelated host shims.
-Resource-owning collection types are rejected before lowering, and stream operations release the
-global registry lock before per-handle blocking I/O. Untouched generated Rust passes
-warnings-denied compilation and canonical-Rust validation. Milestone evidence:
+Resource-owning collection types were rejected before lowering at this milestone; that historical
+restriction was later removed for lists and ordered/unordered maps, which now use move-only storage (see the
+collection rules in `docs/language-spec-concise.md` and the feature evidence below). Stream
+operations release the global registry lock before per-handle blocking I/O. Untouched generated
+Rust passes warnings-denied compilation and canonical-Rust validation. Milestone evidence:
 `RUSTFLAGS='-D warnings' cargo test --workspace --all-targets` and
 `cargo clippy --workspace --all-targets -- -D warnings`.
+
+### Move-only resource collections — implemented feature evidence
+
+Lists and ordered/unordered maps admit resource-owning elements using move-only storage.
+Insertion and removal transfer ownership; element borrows and list reference iteration retain
+the owner’s storage/lifetime constraints. Mutable-reference removal operates on the caller’s
+collection. Sets and tuples continue to reject resource-owning elements, and map reference-entry
+iteration and copy-requiring lookup/value views remain unsupported.
+Named call arguments participate in ownership transfer tracking just like positional arguments;
+this is general call move tracking rather than a collection-specific rule.
+
+Evidence: `tests/fixtures/conformance-suites/object-protocols/tests/integration/resource-owning-collections/case.trn`
+covers list/map insertion and removal by transfer, reference iteration/borrowing, and
+`mutable ref` removal on caller-owned storage. It is subsequent to milestone 21, not a
+retroactive change to that milestone’s acceptance history.
 
 ### Milestone 22 — Document values, JSON, YAML, and URLs
 
@@ -4374,10 +4391,9 @@ map. The `checked` child removes and returns the value when present and returns 
 mutation when absent. Neither form performs a separate source-visible lookup. A successful removal
 transfers the removed value to the caller; discarding the result releases it at that site.
 
-The existing collection admissibility boundary remains: a collection whose item graph is
-resource-owning is rejected before lowering, so this milestone does not create copyable/COW aliases
-of linear resources. Removal transfers an admitted stored logical value under the existing
-collection release rules; lifting the resource-owning collection restriction is separate work.
+Resource-owning map values use move-only storage, so removal transfers the sole owner
+of the stored resource under the same collection release rules. Copyable map values
+retain the existing copy-on-write semantics.
 
 An ordered `map` retains the relative insertion order of every remaining entry. Removing and later
 reinserting the same key is a new insertion at the end. An `unordered-map` retains its existing

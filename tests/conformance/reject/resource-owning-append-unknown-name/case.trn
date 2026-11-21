@@ -1,0 +1,9 @@
+namespace resource-owning-append-unknown-name
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+function main;
+  writer = stdout;
+  outputs list of byte-writer = list
+  outputs.append; bogus=writer
+  print; writer

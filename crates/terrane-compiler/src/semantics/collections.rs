@@ -1,3 +1,4 @@
+use super::objects::collection_uses_unique_storage;
 use super::prelude::*;
 
 pub(super) fn retain_appended_native_origins(
@@ -63,38 +64,76 @@ pub(super) fn retain_appended_native_origins(
     Ok(())
 }
 
+pub(super) fn collection_mutator_value_argument<'a>(
+    operation: &str,
+    arguments: &'a SyntaxNode,
+) -> Option<&'a SyntaxNode> {
+    arguments.children.get(usize::from(operation == "set"))
+}
+
+pub(super) fn validate_collection_argument_names(
+    unit: &SemanticUnit,
+    receiver_type: &ValueType,
+    member: &str,
+    arguments: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let slots: &[&[&str]] = match (receiver_type, member) {
+        (ValueType::List(_), "append")
+        | (ValueType::Set(_) | ValueType::UnorderedSet(_), "add" | "remove") => {
+            &[&["value", "item"]]
+        }
+        (ValueType::List(_), "set") => &[&["index"], &["value"]],
+        (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "set") => &[&["key"], &["value"]],
+        (ValueType::List(_) | ValueType::Tuple(_, _), "get" | "get.checked")
+        | (ValueType::List(_), "remove") => &[&["index"]],
+        (
+            ValueType::Map(_, _) | ValueType::UnorderedMap(_, _),
+            "get" | "get.checked" | "remove" | "remove.checked",
+        ) => &[&["key"]],
+        _ => return Ok(()),
+    };
+    for (position, argument) in arguments.children.iter().enumerate() {
+        let [name, _] = argument.children.as_slice() else {
+            continue;
+        };
+        if name.kind != SyntaxKind::Name {
+            continue;
+        }
+        let name_text = node_text(&unit.source, name);
+        if !slots
+            .get(position)
+            .is_some_and(|names| names.contains(&name_text))
+        {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "`.{member}` does not accept `{name_text}` at argument position {}",
+                    position + 1
+                ),
+                name.span,
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_collection_mutator_value(
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
-    value_position: usize,
+    operation: &str,
     expected: &ValueType,
     destination: &str,
-    named_values: &[&str],
     bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
-    let mut positional = 0;
-    for argument in &arguments.children {
-        let name = argument
-            .children
-            .first()
-            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1)
-            .map(|name| node_text(&unit.source, name));
-        let is_value = if let Some(name) = name {
-            named_values.contains(&name)
-        } else {
-            let position = positional;
-            positional += 1;
-            position == value_position
-        };
-        if is_value {
-            return validate_collection_constructor_value(
-                unit,
-                argument.children.last().unwrap_or(argument),
-                expected,
-                destination,
-                bindings,
-            );
-        }
+    if let Some(argument) = collection_mutator_value_argument(operation, arguments) {
+        return validate_collection_constructor_value(
+            unit,
+            argument.children.last().unwrap_or(argument),
+            expected,
+            destination,
+            bindings,
+        );
     }
     Ok(())
 }
@@ -110,29 +149,26 @@ fn validate_collection_mutator_storage(
         (ValueType::List(item), "append") => validate_collection_mutator_value(
             unit,
             arguments,
-            0,
+            "append",
             &item.value_type(),
             "list item",
-            &["value", "item"],
             bindings,
         ),
         (ValueType::List(item), "set") => validate_collection_mutator_value(
             unit,
             arguments,
-            1,
+            "set",
             &item.value_type(),
             "list item",
-            &["value"],
             bindings,
         ),
         (ValueType::Map(_, value) | ValueType::UnorderedMap(_, value), "set") => {
             validate_collection_mutator_value(
                 unit,
                 arguments,
-                1,
+                "set",
                 &value.value_type(),
                 "map value",
-                &["value"],
                 bindings,
             )
         }
@@ -140,10 +176,9 @@ fn validate_collection_mutator_storage(
             validate_collection_mutator_value(
                 unit,
                 arguments,
-                0,
+                "add",
                 &item.value_type(),
                 "set item",
-                &["value", "item"],
                 bindings,
             )
         }
@@ -862,6 +897,7 @@ pub(super) fn infer_collection_call_type(
             ));
         }
         if matches!(member.as_str(), "get" | "get.checked" | "remove.checked") {
+            validate_collection_argument_names(unit, &receiver_type, &member, arguments)?;
             let [argument] = arguments.children.as_slice() else {
                 return Err(failure(
                     &unit.source,
@@ -977,6 +1013,7 @@ pub(super) fn infer_collection_call_type(
             }
             return Ok(None);
         }
+        validate_collection_argument_names(unit, &receiver_type, member, arguments)?;
         validate_collection_mutator_storage(unit, &receiver_type, member, arguments, bindings)?;
         if operation == Some("collection.remove")
             && matches!(
@@ -1261,79 +1298,272 @@ pub(super) fn validate_copy_requirements(
     package: &SemanticPackage,
     unit: &SemanticUnit,
 ) -> Result<(), SemanticFailure> {
-    fn validate_item(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        item: &ElementType,
-        span: Span,
-    ) -> Result<(), SemanticFailure> {
-        // Scoped collections have a separate native ownership/storage validator.
-        // Their append path transfers elements rather than using ordinary COW copies.
-        if matches!(
-            item.value_type_ref(),
-            ValueType::InvocationScopedNative { .. }
-        ) {
-            return Ok(());
+    let mut borrowed_indices = BTreeSet::new();
+    collect_borrowed_indices(package, unit, &unit.tree.root, &mut borrowed_indices);
+    validate_copy_node(
+        package,
+        unit,
+        &unit.tree.root,
+        false,
+        false,
+        &borrowed_indices,
+        false,
+    )
+}
+
+fn validate_item(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    item: &ElementType,
+    span: Span,
+) -> Result<(), SemanticFailure> {
+    // Scoped collections have a separate native ownership/storage validator.
+    // Their append path transfers elements rather than using ordinary COW copies.
+    if matches!(
+        item.value_type_ref(),
+        ValueType::InvocationScopedNative { .. }
+    ) {
+        return Ok(());
+    }
+    if !super::objects::value_type_is_cloneable(package, unit, item.value_type_ref()) {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "collection operation cannot implicitly copy non-Clone or unconstrained elements; use a concrete typed adapter",
+            span,
+        ));
+    }
+    Ok(())
+}
+
+fn collect_borrowed_indices(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    indices: &mut BTreeSet<Span>,
+) {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && arguments.children.iter().any(|argument| {
+            argument.children.last().is_some_and(|value| {
+                ungrouped_expression(value).kind == SyntaxKind::IndexExpression
+            })
+        })
+        && let Some(contract) = super::namespaces::function_contract_for_call(package, unit, callee)
+    {
+        let mut positional = 0;
+        let mut named_seen = false;
+        for argument in &arguments.children {
+            let name = argument
+                .children
+                .first()
+                .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+            let Ok((_, parameter)) = super::calls::resolve_call_parameter(
+                unit,
+                argument,
+                name,
+                contract,
+                &mut positional,
+                &mut named_seen,
+            ) else {
+                continue;
+            };
+            if matches!(
+                &parameter.value_type,
+                Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+            ) {
+                let value = argument.children.last().map(ungrouped_expression);
+                if let Some(value) = value.filter(|value| value.kind == SyntaxKind::IndexExpression)
+                {
+                    indices.insert(value.span);
+                }
+            }
         }
-        if !super::objects::value_type_is_cloneable(package, unit, item.value_type_ref()) {
+    }
+    for child in &node.children {
+        collect_borrowed_indices(package, unit, child, indices);
+    }
+}
+
+fn validate_resource_iteration(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    collection: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let Some(mut ty) = infer_value_type(unit, collection, &unit.typed_bindings)? else {
+        return Ok(());
+    };
+    let borrowed = matches!(
+        &ty,
+        ValueType::Reference(_) | ValueType::MutableReference(_) | ValueType::SharedReference(_)
+    ) || (collection.kind == SyntaxKind::UnaryExpression
+        && matches!(
+            unary_operator_text(unit, collection).as_deref(),
+            Some("ref" | "mutable ref")
+        ));
+    while let ValueType::Reference(item)
+    | ValueType::MutableReference(item)
+    | ValueType::SharedReference(item) = ty
+    {
+        ty = item.value_type();
+    }
+    if collection_uses_unique_storage(package, &ty) {
+        let is_map = matches!(ty, ValueType::Map(_, _) | ValueType::UnorderedMap(_, _));
+        if is_map && borrowed {
             return Err(failure(
                 &unit.source,
                 "T0135",
-                "collection operation cannot implicitly copy non-Clone or unconstrained elements; use a concrete typed adapter",
-                span,
+                "resource maps do not support reference iteration; use borrowed indexing or iterate over `keys`",
+                collection.span,
             ));
         }
-        Ok(())
+        if !borrowed {
+            return Err(failure(
+                &unit.source,
+                "T0135",
+                "resource collections cannot be iterated by value; use `for` over `ref collection`",
+                collection.span,
+            ));
+        }
     }
+    Ok(())
+}
 
-    fn visit(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-    ) -> Result<(), SemanticFailure> {
-        if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
-            && let Some((_, ty, member)) =
-                collection_member_call(unit, callee, &unit.typed_bindings)?
-        {
-            let copied = match (&ty, member.as_str()) {
-                (
-                    ValueType::List(item),
-                    "get" | "get.checked" | "append" | "set" | "remove" | "clear" | "sort"
-                    | "sort.descending",
-                )
-                | (ValueType::Tuple(item, _), "get" | "get.checked")
-                | (
-                    ValueType::Map(_, item) | ValueType::UnorderedMap(_, item),
-                    "get" | "get.checked" | "set" | "remove" | "remove.checked" | "clear"
-                    | "values" | "entries",
-                ) => Some(item),
-                _ => None,
-            };
-            if let Some(item) = copied {
-                validate_item(package, unit, item, node.span)?;
-            }
-        }
-        if node.kind == SyntaxKind::Assignment
-            && let Some(target) = node.children.first()
-            && target.kind == SyntaxKind::IndexExpression
-            && let Some(receiver) = target.children.first()
-            && let Some(ty) = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
-        {
-            let copied = match &ty {
-                ValueType::List(item)
-                | ValueType::Map(_, item)
-                | ValueType::UnorderedMap(_, item) => Some(item),
-                _ => None,
-            };
-            if let Some(item) = copied {
-                validate_item(package, unit, item, target.span)?;
-            }
-        }
-        for child in &node.children {
-            visit(package, unit, child)?;
-        }
-        Ok(())
+fn validate_collection_copy_call(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    ty: &ValueType,
+    member: &str,
+    span: Span,
+    statement_position: bool,
+) -> Result<(), SemanticFailure> {
+    let unique = collection_uses_unique_storage(package, ty);
+    if unique && !statement_position && matches!(member, "append" | "set" | "clear") {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "resource collection mutation must be a standalone statement because its result would copy the collection",
+            span,
+        ));
     }
-    visit(package, unit, &unit.tree.root)
+    if unique
+        && matches!(
+            member,
+            "get" | "get.checked" | "values" | "entries" | "iterator"
+        )
+    {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "resource collection values cannot be copied; use borrowed indexing or reference iteration",
+            span,
+        ));
+    }
+    let copied = match (ty, member) {
+        (
+            ValueType::List(item),
+            "get" | "get.checked" | "append" | "set" | "remove" | "clear" | "sort"
+            | "sort.descending",
+        )
+        | (ValueType::Tuple(item, _), "get" | "get.checked")
+        | (
+            ValueType::Map(_, item) | ValueType::UnorderedMap(_, item),
+            "get" | "get.checked" | "set" | "remove" | "remove.checked" | "clear" | "values"
+            | "entries",
+        ) => Some(item),
+        _ => None,
+    };
+    if !unique && let Some(item) = copied {
+        validate_item(package, unit, item, span)?;
+    }
+    Ok(())
+}
+
+fn validate_copy_node(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    inside_ref: bool,
+    write_place: bool,
+    borrowed_indices: &BTreeSet<Span>,
+    statement_position: bool,
+) -> Result<(), SemanticFailure> {
+    let borrow_place = inside_ref || borrowed_indices.contains(&node.span);
+    if node.kind == SyntaxKind::IndexExpression
+        && !borrow_place
+        && !write_place
+        && let Some(receiver) = node.children.first()
+        && let Some(ty) = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
+        && collection_uses_unique_storage(package, &ty)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "resource collection indexing cannot produce an owned value; member access through a resource collection index requires explicit `ref collection[index]`",
+            node.span,
+        ));
+    }
+    if node.kind == SyntaxKind::ForStatement
+        && let Some(collection) = node.children.get(1)
+    {
+        validate_resource_iteration(package, unit, collection)?;
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+        && let Some((_, ty, member)) = collection_member_call(unit, callee, &unit.typed_bindings)?
+    {
+        validate_collection_copy_call(package, unit, &ty, &member, node.span, statement_position)?;
+    }
+    if node.kind == SyntaxKind::Assignment
+        && let Some(target) = node.assignment_target().map(ungrouped_expression)
+        && target.kind == SyntaxKind::IndexExpression
+        && let Some(receiver) = target.children.first()
+        && let Some(ty) = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)?
+    {
+        let copied = match &ty {
+            ValueType::List(item) | ValueType::Map(_, item) | ValueType::UnorderedMap(_, item) => {
+                Some(item)
+            }
+            _ => None,
+        };
+        if let Some(item) = copied
+            && !collection_uses_unique_storage(package, &ty)
+        {
+            validate_item(package, unit, item, target.span)?;
+        }
+    }
+    for (index, child) in node.children.iter().enumerate() {
+        let ref_operand = node.kind == SyntaxKind::UnaryExpression
+            && matches!(
+                unary_operator_text(unit, node).as_deref(),
+                Some("ref" | "mutable ref")
+            )
+            && node
+                .children
+                .last()
+                .is_some_and(|operand| operand.span == child.span);
+        let receiver_place = index == 0
+            && matches!(
+                node.kind,
+                SyntaxKind::GroupExpression
+                    | SyntaxKind::IndexExpression
+                    | SyntaxKind::MemberExpression
+            );
+        let assignment_target = (write_place && receiver_place)
+            || node.kind == SyntaxKind::Assignment
+                && node
+                    .assignment_target()
+                    .is_some_and(|target| target.span == child.span);
+        validate_copy_node(
+            package,
+            unit,
+            child,
+            ref_operand || borrow_place && receiver_place,
+            assignment_target,
+            borrowed_indices,
+            node.kind == SyntaxKind::Block
+                || statement_position && node.kind == SyntaxKind::GroupExpression,
+        )?;
+    }
+    Ok(())
 }

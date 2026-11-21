@@ -780,20 +780,24 @@ impl Emitter<'_> {
             return None;
         }
         let collection_type = self.receiver_value_type(collection);
+        let unique = collection_type
+            .as_ref()
+            .is_some_and(|ty| crate::semantics::collection_uses_unique_storage(self.package, ty));
         if matches!(
             collection_type,
             Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList)
         ) {
             let (setup, place) = self.receiver_place_parts(collection, false, GuardScope::Place);
-            let (mut setup, collection) = if self.read_index_needs_snapshot(collection, index) {
-                let name = self.fresh_read_binding_name("index_collection");
-                (
-                    format!("let {name} = {{ {setup}({place}).clone() }}; "),
-                    name,
-                )
-            } else {
-                (setup, place)
-            };
+            let (mut setup, collection) =
+                if !unique && self.read_index_needs_snapshot(collection, index) {
+                    let name = self.fresh_read_binding_name("index_collection");
+                    (
+                        format!("let {name} = {{ {setup}({place}).clone() }}; "),
+                        name,
+                    )
+                } else {
+                    (setup, place)
+                };
             let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
             let index = self.fallible(
                 format!("terrane_collection_support::index_from_int(&({index}))"),
@@ -811,15 +815,16 @@ impl Emitter<'_> {
         }
         if let Some(ValueType::Map(key, _) | ValueType::UnorderedMap(key, _)) = collection_type {
             let (setup, place) = self.receiver_place_parts(collection, false, GuardScope::Place);
-            let (mut setup, collection) = if self.read_index_needs_snapshot(collection, index) {
-                let name = self.fresh_read_binding_name("index_collection");
-                (
-                    format!("let {name} = {{ {setup}({place}).clone() }}; "),
-                    name,
-                )
-            } else {
-                (setup, place)
-            };
+            let (mut setup, collection) =
+                if !unique && self.read_index_needs_snapshot(collection, index) {
+                    let name = self.fresh_read_binding_name("index_collection");
+                    (
+                        format!("let {name} = {{ {setup}({place}).clone() }}; "),
+                        name,
+                    )
+                } else {
+                    (setup, place)
+                };
             let key_value = self.expression_as(index, key.value_type());
             let key_name = self.fresh_read_binding_name("map_key");
             write!(setup, "let {key_name} = {key_value}; ")

@@ -599,7 +599,8 @@ reference_reassignment: ordinary read-only references retain provenance per reac
 reference_lender_inference: a reference-returning callable must select exactly one reference parameter by return-flow analysis, including fixed-point propagation through calls; parameter count never chooses, and by-value/local/ambiguous origins reject
 reference_contract_identity: function inventories are namespace-wide; return-lender inference and containing-function selection must match the defining source file before comparing byte offsets
 reference_callable_environment: an anonymous callable returning an ordinary reference into its captured environment rejects with T0145 before native lowering; borrow from an explicit reference parameter or return an owned result instead; local-owner and ambiguous parameter results remain T0068
-reference_elements: list/map/unordered-map element borrows are supported; owner mutation that can invalidate storage ends the element path; unsupported index owners reject before lowering
+reference_elements: list/map/unordered-map element borrows are supported; owner mutation that can invalidate storage ends the element path; indexed element removal through a mutable ref mutates the caller's collection; unsupported index owners reject before lowering
+reference_explicit_member: `ref` remains explicit when deriving a reference from an indexed member or method receiver; e.g. member access on `items[index]` is rejected unless the indexed element is explicitly borrowed with `ref items[index]`; no implicit indexed-member/method-receiver borrowing form is added
 reference_lowering: a provenance-bounded ordinary ref lowers to a target borrow and reads without owner upgrade/lock/clone; selected reference-return lenders become explicit Rust lifetimes; shared ref alone keeps Arc<TerraneSharedCell<T>> checked synchronized ownership, while an ordinary observer of the same explicitly shared owner uses a non-owning weak handle
 reference_field_payloads: ref owner.field borrows the declared field payload, including inherited/wrapped required fields; internal proven-initialization Option slots do not appear in the reference type
 callable_field_payloads: direct invocation calls the initialized field payload rather than synthesizing a bound method; local aliases use ordinary callable value separation; mutable field calls update stored environment state while an independent copied callable keeps its own state; required async/throwing fields retain their declared ABI
@@ -821,9 +822,10 @@ Core environment provides object protocols/facilities for list, map, set, tuple,
 - Mutable-reference iteration retains exclusive owner access throughout the body, even with an unused binder; conflicting owner access reports `T0149`. Ordered/unordered map entry iteration supports local native lifetimes, including nested maps, without a static-lender requirement.
 - Non-Clone scoped native elements remain unsupported in maps (`T0101`); sets retain their scalar-element restriction (`T0001`). Lists support non-Clone native transfer and per-iteration append. Fluent/nested list transfers retain the true lenders, not the moved-from view slot; actual receiver borrows still pin that slot. Unordered maps retain value-lender protection through entry iteration and later uses.
 - A mutable-reference collection parameter denotes caller-owned storage, even through a local alias. Inserting a local-lender native view into it reports `T0240`, including nested ordered/unordered maps; local collection storage within the lender's region remains valid.
+- Lists and ordered/unordered maps can own resources. An indexed element can be passed directly to a reference parameter; to access a member or call a method on it, borrow explicitly, as in `(ref items[index]).name`. Resource-list iteration uses `for item in ref items`. Resource maps expose `.keys`; borrow values by key instead of iterating entries. Owned indexing, `.get`, `.get.checked`, `.iterator`, and map `.values`/`.entries` cannot copy resources.
 - Tuple type application is `tuple of Item`; tuples are homogeneous and fixed-length after construction, but runtime length is not part of the type.
 - Indexing: `value[index]`; slices/ranges are objects.
-- `for x in y` invokes the iteration protocol; comma-separated targets destructure a matching tuple/object item, including `for key, value in mapping`.
+- `for x in y` invokes the iteration protocol; comma-separated targets destructure a matching tuple/object item, including `for key, value in mapping` for copyable maps.
 - `string` is Unicode text/UTF-8; default length is grapheme count and requires capability.
 - Explicit scalar and byte views avoid ambiguity.
 - `bytes` distinct from `string`; encode/decode explicit.
@@ -838,10 +840,12 @@ list_sort: sort and sort.descending stably mutate and return the resulting list;
 list_sort_order: strings use Unicode scalar sequence; integers use mathematical value; floating NaNs remain a stable final bucket in both directions, signed zeros compare equal, and descending compares directly rather than reversing
 byte_index: integer index -> uint8; negative/unrepresentable/out-of-bounds throws index-error
 byte_slice: range index -> new bytes; visits authored half-open/inclusive range and step in order; any invalid selected index throws index-error; valid empty boundary -> empty bytes; never text-decodes
-mutators: return the resulting collection for value/COW collections; none for in-place resource mutators unless a removed/replaced value is meaningful
+mutators: append/set/clear return the resulting copyable collection; for resource collections they are statement-only. Removal returns the displaced value by transfer, including through a mutable ref parameter.
+collection_argument_names: built-in get/get.checked accept index for lists and tuples or key for maps; append/add accept value or item; set uses index or key, then value; remove uses index, key, or value/item for a set; remove.checked uses key. Names, when supplied, must match their written argument positions.
 discarded_mutation: statement-form collection mutators require a retained binding receiver; temporary entry/index snapshots are rejected, with explicit expression-result writeback such as nested.set; index, (nested[index].append; value)
 release_replacement: displaced logical element released before mutation returns once no owner retains it; COW separation preserves unmutated collection without creating shared source identity
 release_removal: removed element transferred to caller; released when returned value is released (immediately if discarded)
+resource_collection_transfer: resource-owning lists and ordered/unordered maps use move-only storage; insertion, whole-collection calls, and removal transfer ownership, including named arguments; sets and tuples reject resource elements
 release_clearing: elements released in collection iteration order before clear returns
 release_destruction: ordered collection releases remaining elements in iteration order
 collection_identity: collection remains identity-less even when COW storage is shared or elements carry identity

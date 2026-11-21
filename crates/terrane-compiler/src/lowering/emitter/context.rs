@@ -1336,17 +1336,21 @@ impl<'unit> Emitter<'unit> {
     pub(super) fn mutable_reference_address_expression(&mut self, operand: &SyntaxNode) -> String {
         if let [receiver, index] = operand.children.as_slice()
             && operand.kind == SyntaxKind::IndexExpression
-            && let Some(ValueType::List(item)) = self.receiver_value_type(receiver)
+            && let Some(collection_type @ ValueType::List(item)) =
+                &self.receiver_value_type(receiver)
         {
-            let accessor = if crate::semantics::value_type_is_cloneable(
-                self.package,
-                self.unit,
-                item.value_type_ref(),
-            ) {
-                "get_mut"
-            } else {
-                "get_mut_unique"
-            };
+            let accessor =
+                if crate::semantics::collection_uses_unique_storage(self.package, collection_type)
+                    || !crate::semantics::value_type_is_cloneable(
+                        self.package,
+                        self.unit,
+                        item.value_type_ref(),
+                    )
+                {
+                    "get_mut_unique"
+                } else {
+                    "get_mut"
+                };
             let (setup, receiver) = self.live_receiver_parts(receiver);
             let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
             let index = self.fallible(
@@ -1361,18 +1365,23 @@ impl<'unit> Emitter<'unit> {
         }
         if let [receiver, key] = operand.children.as_slice()
             && operand.kind == SyntaxKind::IndexExpression
-            && let Some(ValueType::Map(key_type, item) | ValueType::UnorderedMap(key_type, item)) =
-                self.receiver_value_type(receiver)
+            && let Some(
+                collection_type @ (ValueType::Map(key_type, item)
+                | ValueType::UnorderedMap(key_type, item)),
+            ) = &self.receiver_value_type(receiver)
         {
-            let accessor = if crate::semantics::value_type_is_cloneable(
-                self.package,
-                self.unit,
-                item.value_type_ref(),
-            ) {
-                "get_mut"
-            } else {
-                "get_mut_unique"
-            };
+            let accessor =
+                if crate::semantics::collection_uses_unique_storage(self.package, collection_type)
+                    || !crate::semantics::value_type_is_cloneable(
+                        self.package,
+                        self.unit,
+                        item.value_type_ref(),
+                    )
+                {
+                    "get_mut_unique"
+                } else {
+                    "get_mut"
+                };
             let key = self.expression_as(key, key_type.value_type());
             let (setup, receiver) = self.live_receiver_parts(receiver);
             let item = self.fallible(
@@ -1467,38 +1476,8 @@ impl<'unit> Emitter<'unit> {
                 format!("{{ {setup}{address} }}")
             };
         }
-        if operand.kind == SyntaxKind::IndexExpression
-            && let [receiver, index] = operand.children.as_slice()
-            && matches!(
-                self.receiver_value_type(receiver),
-                Some(ValueType::List(_) | ValueType::Tuple(_, _))
-            )
-        {
-            let receiver = self.expression(receiver);
-            let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
-            let converted_index = self.fallible(
-                format!("terrane_collection_support::index_from_int(&({index}))"),
-                operand,
-            );
-            let item = self.fallible(
-                format!(
-                    "({receiver}).get(__terrane_index).ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index))"
-                ),
-                operand,
-            );
-            return format!("{{ let __terrane_index = {converted_index}; {item} }}");
-        }
-        if operand.kind == SyntaxKind::IndexExpression
-            && let [receiver, key] = operand.children.as_slice()
-            && let Some(ValueType::Map(key_type, _) | ValueType::UnorderedMap(key_type, _)) =
-                self.receiver_value_type(receiver)
-        {
-            let receiver = self.expression(receiver);
-            let key = self.expression_as(key, key_type.value_type());
-            return self.fallible(
-                format!("({receiver}).get(&({key})).ok_or(terrane_collection_support::MissingKey)"),
-                operand,
-            );
+        if let Some(address) = self.collection_reference_address_expression(operand) {
+            return address;
         }
         let message = format!(
             "validated reference expression `{}` has no native address lowering",
@@ -1509,6 +1488,62 @@ impl<'unit> Emitter<'unit> {
             message,
         });
         "{ compile_error!(\"internal reference-address lowering failure\") }".to_owned()
+    }
+
+    fn collection_reference_address_expression(&mut self, operand: &SyntaxNode) -> Option<String> {
+        if operand.kind == SyntaxKind::IndexExpression
+            && operand.children.first().is_some_and(|collection| {
+                self.receiver_value_type(collection).is_some_and(|ty| {
+                    crate::semantics::collection_uses_unique_storage(self.package, &ty)
+                })
+            })
+            && let Some((setup, place)) = self.borrowed_index_place_parts(operand)
+        {
+            return Some(format!("{{ {setup}{place} }}"));
+        }
+        if operand.kind == SyntaxKind::IndexExpression
+            && let [receiver, index] = operand.children.as_slice()
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::List(_) | ValueType::Tuple(_, _))
+            )
+        {
+            return Some(self.list_reference_address_expression(operand, receiver, index));
+        }
+        if operand.kind == SyntaxKind::IndexExpression
+            && let [receiver, key] = operand.children.as_slice()
+            && let Some(ValueType::Map(key_type, _) | ValueType::UnorderedMap(key_type, _)) =
+                self.receiver_value_type(receiver)
+        {
+            let receiver = self.expression(receiver);
+            let key = self.expression_as(key, key_type.value_type());
+            return Some(self.fallible(
+                format!("({receiver}).get(&({key})).ok_or(terrane_collection_support::MissingKey)"),
+                operand,
+            ));
+        }
+        None
+    }
+
+    fn list_reference_address_expression(
+        &mut self,
+        operand: &SyntaxNode,
+        receiver: &SyntaxNode,
+        index: &SyntaxNode,
+    ) -> String {
+        let receiver = self.expression(receiver);
+        let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
+        let converted_index = self.fallible(
+            format!("terrane_collection_support::index_from_int(&({index}))"),
+            operand,
+        );
+        let item = self.fallible(
+            format!(
+                "({receiver}).get(__terrane_index).ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index))"
+            ),
+            operand,
+        );
+        format!("{{ let __terrane_index = {converted_index}; {item} }}")
     }
 
     pub(super) fn reference_backed_name(&self, node: &SyntaxNode) -> Option<&TypedBinding> {

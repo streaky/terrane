@@ -1,0 +1,102 @@
+namespace resource-owning-collections
+from /core/collections import list, map, unordered-map
+from /core/errors import index-error, missing-key
+from /core/streams import byte-writer, stdout
+
+class marker
+  output byte-writer = stdout;
+  name string
+  function construct; name string
+    this.name = name
+  consuming function destruct;
+    print; 'drop-', this.name
+
+class bucket
+  items list of marker = list
+
+function seed list of marker;
+  item = instance marker; 'first'
+  return list; item
+
+function inspect; item ref marker
+  print; 'see-', item.name
+
+function release; item marker
+  inspect; item
+
+function remove-items; items mutable ref list of marker
+  removed = items.remove; 0
+  inspect; removed
+
+function remove-copyable; items mutable ref list of int
+  removed = items.remove; 0
+  print; 'removed-', removed
+
+function remove-ordered-map; values mutable ref map of string, marker
+  removed = values.remove.checked; 'key'
+  if removed != none
+    inspect; removed
+
+function remove-unordered-map; values mutable ref unordered-map of string, marker
+  removed = values.remove; 'key'
+  inspect; removed
+
+function test-scenario;
+  owner = instance bucket;
+  print; owner.items.length
+  items list of marker = seed;
+  next = instance marker; 'second'
+  items.append; next
+  items[1] = instance marker; 'third'
+  for item in ref items
+    inspect; item
+  inspect; items[0]
+  try
+    items.remove; 5
+  catch index-error
+    print; 'bad-index'
+  release; (items.remove; 0)
+  items.clear;
+  print; 'list-size-', items.length
+
+  ordered map of string, marker = map; a=(instance marker; 'a')
+  ordered.set; 'b', (instance marker; 'b')
+  ordered['b'] = instance marker; 'replacement'
+  inspect; ordered['b']
+  absent = ordered.remove.checked; 'absent'
+  print; absent == none
+  for key in ordered.keys;
+    print; 'key-', key
+  ordered.remove; 'b'
+  try
+    ordered.remove; 'absent'
+  catch missing-key
+    print; 'bad-key'
+  print; 'map-size-', ordered.length
+
+  unordered unordered-map of string, marker = unordered-map
+  unordered.set; 'x', (instance marker; 'x')
+  unordered.set; 'y', (instance marker; 'y')
+  unordered.remove.checked; 'x'
+  unordered['z'] = instance marker; 'z'
+  inspect; unordered['y']
+  unordered.remove; 'y'
+  unordered.remove; 'z'
+  print; 'unordered-size-', unordered.length
+
+  resources list of marker = list; (instance marker; 'borrowed-remove')
+  remove-items; resources
+  print; 'resource-list-size-', resources.length
+
+  ordered-removal map of string, marker = map; key=(instance marker; 'ordered-remove')
+  remove-ordered-map; ordered-removal
+  print; 'ordered-removal-size-', ordered-removal.length
+
+  unordered-removal unordered-map of string, marker = unordered-map
+  unordered-removal.set; 'key', (instance marker; 'unordered-remove')
+  remove-unordered-map; unordered-removal
+  print; 'unordered-removal-size-', unordered-removal.length
+
+  numbers list of int = list; 4, 5, 6
+  remove-copyable; numbers
+  print; 'copyable-list-size-', numbers.length

@@ -1,0 +1,15 @@
+namespace resource-owning-double-list-transfer
+from /core/collections import list
+from /core/streams import byte-writer
+
+function collect list of byte-writer;
+  result list of byte-writer = list
+  return result
+
+function take; values list of byte-writer
+  print; values.length
+
+function main;
+  values = collect;
+  take; values
+  take; values

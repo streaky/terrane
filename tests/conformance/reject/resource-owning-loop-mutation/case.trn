@@ -1,0 +1,8 @@
+namespace resource-owning-loop-mutation
+from /core/collections import list
+from /core/streams import byte-writer, stdout
+
+function main;
+  outputs list of byte-writer = list; (stdout;)
+  for output in ref outputs
+    outputs.clear;
