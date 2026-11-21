@@ -173,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cached_read_is_rechecked_in_the_consumers_flow_context() {
+    fn replay_rechecks_reads_in_consumer_scope() {
         let text = "namespace example\nfunction probe;\n    return value\n";
         let unit = |id| {
             let source = SourceFile::new(id, PathBuf::from("body.trn"), text.to_owned());

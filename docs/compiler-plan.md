@@ -120,18 +120,15 @@ generated items needs roots for callable values, dynamic dispatch, globals,
 reflection, test entrypoints and opaque Rust. A Cargo `include!` sidecar is
 still part of the same Rust crate, not a separate compilation or reuse boundary.
 
-The opt-in CLI experiment `TERRANE_EXPERIMENTAL_DEMAND=1` tests batched
-reachability across source, bundled and native-support functions *after*
-lowering. It retains entrypoints, registry dispatch, non-function items and
-definitions with linkage or expansion attributes as roots. It does not
-prune library artifacts, debug builds with source information, or builds
-with opaque native code. Set `TERRANE_DEMAND_CACHE` to a dedicated directory
-to share exact generated-token summaries across consumers;
-those entries are disposable and are not checked semantic bodies.
-The experiment intentionally preserves full frontend validation. Moving the
-boundary earlier requires resolved declaration edges, including the facts
-that selected them, rather than treating equal Rust identifier spelling as
-source identity.
+Executable lowering reconciles reachability across source, bundled and
+native-support functions after semantic checking. It retains entrypoints,
+test dispatch, non-function items and linked or expansion-sensitive
+definitions as roots. It does not prune library artifacts, source-debug
+builds, or builds with opaque Rust. An optional trusted `TERRANE_DEMAND_CACHE`
+directory shares exact generated-token summaries across CLI consumers.
+These entries are disposable and do not replace frontend analysis. Moving the
+boundary earlier requires resolved declaration edges and the facts that
+selected them; equal Rust identifier spelling is not source identity.
 
 The same cache directory also enables pre-lowering assignment tickets.
 These cache a function body's successful definite-assignment check for exact

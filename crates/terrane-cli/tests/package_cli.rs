@@ -1028,8 +1028,6 @@ fn demand_keeps_indirect_calls_and_prunes_unused_core_operations() {
     .unwrap();
     let lower = || {
         Command::new(env!("CARGO_BIN_EXE_terrane"))
-            .env("TERRANE_EXPERIMENTAL_DEMAND", "1")
-            .env("TERRANE_DEMAND_CACHE", package.0.join(".trn/emission-test"))
             .args(["rust", "-o"])
             .arg(&lowered)
             .arg(&package.0)

@@ -1,4 +1,4 @@
-//! Experimental reachability over emitted Rust items, not over semantic bodies.
+//! Conservative reachability over emitted Rust items, not over semantic bodies.
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -15,9 +15,7 @@ pub(super) fn select(
     options: CompilerOptions,
     program: &mut Program,
 ) {
-    if !crate::cache_scope::enabled()
-        || std::env::var_os("TERRANE_EXPERIMENTAL_DEMAND").as_deref() != Some("1".as_ref())
-        || package.artifact != crate::ArtifactKind::Executable
+    if package.artifact != crate::ArtifactKind::Executable
         || options.debug_build != super::DebugBuild::Disabled
     {
         return;
@@ -49,7 +47,9 @@ pub(super) fn select(
     }
     let stage =
         crate::compilation_progress::start("reconciling emission demand", &package.identity);
-    let cache_dir = std::env::var_os("TERRANE_DEMAND_CACHE")
+    let cache_dir = crate::cache_scope::enabled()
+        .then(|| std::env::var_os("TERRANE_DEMAND_CACHE"))
+        .flatten()
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
     for module in &mut program.runtime {
@@ -68,7 +68,13 @@ pub(super) fn select(
         .collect::<Vec<_>>();
     let bytes = sources.iter().flatten().map(String::len).sum();
     let answers = crate::semantics::parallel::map_ordered(sources.len(), bytes, |index| {
-        crate::with_compilation_cache(|| summarize_group(&sources[index], cache_dir.as_deref()))
+        let sources = &sources[index];
+        match cache_dir.as_deref() {
+            Some(directory) => {
+                crate::with_compilation_cache(|| summarize_group(sources, Some(directory)))
+            }
+            None => summarize_group(sources, None),
+        }
     });
     let hits = answers.iter().filter(|answer| answer.1).count();
     let Some(references) = answers
