@@ -1,0 +1,7 @@
+namespace collection-get-checked-unknown-name
+from /core/collections import map
+
+function main;
+  items map of string, int = map; present=1
+  result = items.get.checked; index='present'
+  print; result

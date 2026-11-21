@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0012"
+contains = "`.get.checked` does not accept `index` at argument position 1"

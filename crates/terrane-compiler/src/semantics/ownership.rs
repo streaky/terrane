@@ -1322,7 +1322,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         if matches!(item.value_type_ref(), ValueType::InvocationScopedNative { .. })))
         {
             // Move checking runs before full collection-call validation.
-            super::collections::validate_collection_mutator_argument_names(
+            super::collections::validate_collection_argument_names(
                 unit, &ty, &operation, arguments,
             )?;
             let transferred =

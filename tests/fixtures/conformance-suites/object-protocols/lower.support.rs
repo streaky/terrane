@@ -576,16 +576,16 @@ mod __terrane_trace {
         { Site { function: 7, file: 5, line: 10, column: 12, end_line: 10, end_column: 20 } },
         /* terrane-site-row: site 13: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:11:12-11:20) */
         { Site { function: 7, file: 5, line: 11, column: 12, end_line: 11, end_column: 20 } },
-        /* terrane-site-row: site 14: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:12:13-12:28) */
-        { Site { function: 7, file: 5, line: 12, column: 13, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 14: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:12:13-12:32) */
+        { Site { function: 7, file: 5, line: 12, column: 13, end_line: 12, end_column: 32 } },
         /* terrane-site-row: site 15: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:16:12-16:26) */
         { Site { function: 7, file: 5, line: 16, column: 12, end_line: 16, end_column: 26 } },
-        /* terrane-site-row: site 16: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:17:23-17:37) */
-        { Site { function: 7, file: 5, line: 17, column: 23, end_line: 17, end_column: 37 } },
-        /* terrane-site-row: site 17: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:20:13-20:27) */
-        { Site { function: 7, file: 5, line: 20, column: 13, end_line: 20, end_column: 27 } },
-        /* terrane-site-row: site 18: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:22:13-22:25) */
-        { Site { function: 7, file: 5, line: 22, column: 13, end_line: 22, end_column: 25 } },
+        /* terrane-site-row: site 16: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:17:23-17:41) */
+        { Site { function: 7, file: 5, line: 17, column: 23, end_line: 17, end_column: 41 } },
+        /* terrane-site-row: site 17: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:20:13-20:33) */
+        { Site { function: 7, file: 5, line: 20, column: 13, end_line: 20, end_column: 33 } },
+        /* terrane-site-row: site 18: /collection-generic-keys-and-get::test-scenario (tests/integration/collection-generic-keys-and-get/case.trn:22:13-22:31) */
+        { Site { function: 7, file: 5, line: 22, column: 13, end_line: 22, end_column: 31 } },
         /* terrane-site-row: site 19: /completion-finally-loop-break::eat (tests/integration/completion-finally-loop-break/case.trn:5:12-5:16) */
         { Site { function: 8, file: 6, line: 5, column: 12, end_line: 5, end_column: 16 } },
         /* terrane-site-row: site 20: /completion-finally-loop-break::test-scenario (tests/integration/completion-finally-loop-break/case.trn:16:12-16:16) */

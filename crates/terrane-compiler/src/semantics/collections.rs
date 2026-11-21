@@ -71,7 +71,7 @@ pub(super) fn collection_mutator_value_argument<'a>(
     arguments.children.get(usize::from(operation == "set"))
 }
 
-pub(super) fn validate_collection_mutator_argument_names(
+pub(super) fn validate_collection_argument_names(
     unit: &SemanticUnit,
     receiver_type: &ValueType,
     member: &str,
@@ -84,10 +84,12 @@ pub(super) fn validate_collection_mutator_argument_names(
         }
         (ValueType::List(_), "set") => &[&["index"], &["value"]],
         (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "set") => &[&["key"], &["value"]],
-        (ValueType::List(_), "remove") => &[&["index"]],
-        (ValueType::Map(_, _) | ValueType::UnorderedMap(_, _), "remove" | "remove.checked") => {
-            &[&["key"]]
-        }
+        (ValueType::List(_) | ValueType::Tuple(_, _), "get" | "get.checked")
+        | (ValueType::List(_), "remove") => &[&["index"]],
+        (
+            ValueType::Map(_, _) | ValueType::UnorderedMap(_, _),
+            "get" | "get.checked" | "remove" | "remove.checked",
+        ) => &[&["key"]],
         _ => return Ok(()),
     };
     for (position, argument) in arguments.children.iter().enumerate() {
@@ -895,7 +897,7 @@ pub(super) fn infer_collection_call_type(
             ));
         }
         if matches!(member.as_str(), "get" | "get.checked" | "remove.checked") {
-            validate_collection_mutator_argument_names(unit, &receiver_type, &member, arguments)?;
+            validate_collection_argument_names(unit, &receiver_type, &member, arguments)?;
             let [argument] = arguments.children.as_slice() else {
                 return Err(failure(
                     &unit.source,
@@ -1011,7 +1013,7 @@ pub(super) fn infer_collection_call_type(
             }
             return Ok(None);
         }
-        validate_collection_mutator_argument_names(unit, &receiver_type, member, arguments)?;
+        validate_collection_argument_names(unit, &receiver_type, member, arguments)?;
         validate_collection_mutator_storage(unit, &receiver_type, member, arguments, bindings)?;
         if operation == Some("collection.remove")
             && matches!(

@@ -2826,7 +2826,7 @@ fn test_scenario_terrane_collection_generic_keys_and_get() {
     found = __terrane_raised(
         values.get_or_error(&String::from("b")),
 
-            14 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:12:13-12:28 */,
+            14 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:12:13-12:32 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&found));
     other = terrane_collection_support::UnorderedMap::<
@@ -2848,7 +2848,7 @@ fn test_scenario_terrane_collection_generic_keys_and_get() {
     unordered_found = __terrane_raised(
         other.get_or_error(&String::from("k")),
 
-            16 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:17:23-17:37 */,
+            16 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:17:23-17:41 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&unordered_found));
     numbers = terrane_collection_support::List::<
@@ -2857,7 +2857,7 @@ fn test_scenario_terrane_collection_generic_keys_and_get() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
-        .and_then(| index | numbers.get_or_error(index)), 17 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:20:13-20:27 */))
+        .and_then(| index | numbers.get_or_error(index)), 17 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:20:13-20:33 */))
     );
     fixed = terrane_collection_support::Tuple::<
         terrane_int_support::Int,
@@ -2865,7 +2865,7 @@ fn test_scenario_terrane_collection_generic_keys_and_get() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
-        .and_then(| index | fixed.get_or_error(index)), 18 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:22:13-22:25 */))
+        .and_then(| index | fixed.get_or_error(index)), 18 /* terrane-site: tests/integration/collection-generic-keys-and-get/case.trn:22:13-22:31 */))
     );
 }
 // Source: tests/integration/completion-callable-rewrite/case.trn

@@ -841,7 +841,7 @@ list_sort_order: strings use Unicode scalar sequence; integers use mathematical 
 byte_index: integer index -> uint8; negative/unrepresentable/out-of-bounds throws index-error
 byte_slice: range index -> new bytes; visits authored half-open/inclusive range and step in order; any invalid selected index throws index-error; valid empty boundary -> empty bytes; never text-decodes
 mutators: append/set/clear return the resulting copyable collection; for resource collections they are statement-only. Removal returns the displaced value by transfer, including through a mutable ref parameter.
-mutator_argument_names: built-in append/add accept value or item; set uses index or key, then value; remove uses index, key, or value/item for a set; remove.checked uses key. Names, when supplied, must match their written argument positions.
+collection_argument_names: built-in get/get.checked accept index for lists and tuples or key for maps; append/add accept value or item; set uses index or key, then value; remove uses index, key, or value/item for a set; remove.checked uses key. Names, when supplied, must match their written argument positions.
 discarded_mutation: statement-form collection mutators require a retained binding receiver; temporary entry/index snapshots are rejected, with explicit expression-result writeback such as nested.set; index, (nested[index].append; value)
 release_replacement: displaced logical element released before mutation returns once no owner retains it; COW separation preserves unmutated collection without creating shared source identity
 release_removal: removed element transferred to caller; released when returned value is released (immediately if discarded)
