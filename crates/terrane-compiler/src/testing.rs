@@ -49,6 +49,8 @@ impl PartialOrd for TestTier {
 /// Manifest-selected roots and capability profile used by `terrane test`.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct TestConfiguration {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suite: Option<PathBuf>,
     pub roots: BTreeMap<TestTier, PathBuf>,
     pub profile: CapabilityProfile,
 }
@@ -57,6 +59,7 @@ impl TestConfiguration {
     #[must_use]
     pub fn conventional(profile: CapabilityProfile) -> Self {
         Self {
+            suite: None,
             roots: BTreeMap::from([
                 (TestTier::Unit, PathBuf::from("tests/unit")),
                 (TestTier::Integration, PathBuf::from("tests/integration")),
@@ -118,7 +121,38 @@ impl TestPackage {
     ///
     /// Returns package, manifest, containment, or source-read diagnostics.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Vec<PackageLoadError>> {
-        let package = Package::load(path)?;
+        let mut package = Package::load(path)?;
+        if let Some(suite) = &package.testing.suite {
+            let root = package.root.canonicalize().map_err(|error| {
+                vec![test_load_error(
+                    package.root.clone(),
+                    format!("cannot resolve testing package root: {error}"),
+                )]
+            })?;
+            let requested = root.join(suite);
+            let canonical = requested.canonicalize().map_err(|error| {
+                vec![test_load_error(
+                    requested.clone(),
+                    format!("cannot resolve testing suite manifest: {error}"),
+                )]
+            })?;
+            if !canonical.starts_with(&root)
+                || canonical.parent() == Some(root.as_path())
+                || !canonical.is_file()
+            {
+                return Err(vec![test_load_error(
+                    requested,
+                    "testing suite must be a manifest in a subdirectory of the package".to_owned(),
+                )]);
+            }
+            package = Package::load(&canonical)?;
+            if package.testing.suite.is_some() {
+                return Err(vec![test_load_error(
+                    canonical,
+                    "a selected testing suite cannot select another suite".to_owned(),
+                )]);
+            }
+        }
         let root = package.root.clone();
         let configuration = package.testing.clone();
 
@@ -207,11 +241,12 @@ pub(crate) fn parse_configuration(
     ordinary_profile: &CapabilityProfile,
 ) -> Result<TestConfiguration, Vec<PackageLoadError>> {
     let TestConfiguration {
+        suite,
         mut roots,
         mut profile,
     } = TestConfiguration::conventional(ordinary_profile.clone());
     let Some(testing) = table.get("testing") else {
-        return Ok(TestConfiguration { roots, profile });
+        return Ok(TestConfiguration { suite, roots, profile });
     };
     let Some(testing) = testing.as_table() else {
         return Err(vec![manifest_test_error(
@@ -225,7 +260,7 @@ pub(crate) fn parse_configuration(
     for key in testing.keys() {
         if !matches!(
             key.as_str(),
-            "unit" | "integration" | "end-to-end" | "profile"
+            "suite" | "unit" | "integration" | "end-to-end" | "profile"
         ) {
             errors.push(manifest_test_error(
                 manifest_path,
@@ -235,13 +270,50 @@ pub(crate) fn parse_configuration(
             ));
         }
     }
+    if let Some(suite) = testing.get("suite") {
+        let manifest = suite
+            .as_str()
+            .and_then(normalized_relative_path)
+            .filter(|path| {
+                path.file_name().is_some_and(|name| name == "package.toml")
+                    && path.components().count() > 1
+            });
+        if manifest.is_none() {
+            errors.push(manifest_test_error(
+                manifest_path,
+                text,
+                "`testing.suite` must be a bounded relative path to a nested package.toml",
+                "suite",
+            ));
+        }
+        if ["unit", "integration", "end-to-end", "profile"]
+            .iter()
+            .any(|key| testing.contains_key(*key))
+        {
+            errors.push(manifest_test_error(
+                manifest_path,
+                text,
+                "`testing.suite` cannot be combined with test roots or a test profile",
+                "suite",
+            ));
+        }
+        return if errors.is_empty() {
+            Ok(TestConfiguration {
+                suite: manifest,
+                roots,
+                profile,
+            })
+        } else {
+            Err(errors)
+        };
+    }
     for (key, tier) in [
         ("unit", TestTier::Unit),
         ("integration", TestTier::Integration),
         ("end-to-end", TestTier::EndToEnd),
     ] {
         if let Some(value) = testing.get(key) {
-            match value.as_str().and_then(normalized_relative_directory) {
+            match value.as_str().and_then(normalized_relative_path) {
                 Some(path) => {
                     roots.insert(tier, path);
                 }
@@ -262,11 +334,7 @@ pub(crate) fn parse_configuration(
                 "testing `profile` must be a table",
                 "profile",
             ));
-            return if errors.is_empty() {
-                Ok(TestConfiguration { roots, profile })
-            } else {
-                Err(errors)
-            };
+            return Err(errors);
         };
         for key in fields.keys() {
             if !matches!(key.as_str(), "name" | "capabilities" | "panic") {
@@ -326,13 +394,13 @@ pub(crate) fn parse_configuration(
         }
     }
     if errors.is_empty() {
-        Ok(TestConfiguration { roots, profile })
+        Ok(TestConfiguration { suite, roots, profile })
     } else {
         Err(errors)
     }
 }
 
-fn normalized_relative_directory(value: &str) -> Option<PathBuf> {
+fn normalized_relative_path(value: &str) -> Option<PathBuf> {
     let path = Path::new(value);
     if value.is_empty()
         || path.is_absolute()

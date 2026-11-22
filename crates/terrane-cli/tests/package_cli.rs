@@ -82,6 +82,66 @@ fn wait_for_test_runner(process: u32, timeout: Duration) -> Option<u32> {
 }
 
 #[test]
+fn bare_test_runs_manifest_suite_with_its_fixture_root() {
+    let package = TempPackage::new();
+    let manifest = package.0.join("package.toml");
+    let original = fs::read_to_string(&manifest).unwrap();
+    fs::write(
+        &manifest,
+        format!("{original}\n[testing]\nsuite = \"suite/package.toml\"\n"),
+    )
+    .unwrap();
+    let suite = package.0.join("suite");
+    fs::create_dir_all(suite.join("src")).unwrap();
+    fs::create_dir_all(suite.join("tests/unit")).unwrap();
+    fs::write(
+        suite.join("package.toml"),
+        concat!(
+            "package = \"cli-suite\"\n",
+            "[namespaces]\n\"cli-suite\" = \"src\"\n",
+            "[profile]\ncapabilities = [\"filesystem\"]\n",
+        ),
+    )
+    .unwrap();
+    fs::write(
+        suite.join("src/main.trn"),
+        "namespace cli-suite\nfunction main;\n",
+    )
+    .unwrap();
+    fs::write(suite.join("fixture.txt"), "suite only").unwrap();
+    fs::write(
+        suite.join("tests/unit/cases.trn"),
+        concat!(
+            "namespace cli-suite\n",
+            "from /core/filesystem import filesystem-capability, filesystem-read-bounded\n",
+            "from /core/filesystem/paths import path\n",
+            "from /core/testing import assert-equal-bytes, fail, test-package-root\n",
+            "function test-real-fixture;\n",
+            "    root = test-package-root;\n",
+            "    if root == none\n",
+            "        fail; 'missing suite root'\n",
+            "    target = instance path; root + '/fixture.txt'\n",
+            "    result = filesystem-read-bounded; (filesystem-capability;), target, 32\n",
+            "    assert-equal-bytes; result.data, b'suite only'\n",
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .current_dir(&package.0)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("passed /cli-suite::test-real-fixture"));
+}
+
+#[test]
 fn declaration_interface_export_survives_removal_of_original_source() {
     let package = TempPackage::new();
     fs::write(package.0.join("app/main.trn"), "namespace cli/app\n/// Public command documentation.\npublic function command int; count int = 7\n  return count\n").unwrap();

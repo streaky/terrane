@@ -146,7 +146,7 @@ struct TestResult {
     cause: Option<TestCause>,
 }
 
-fn load_test_package(options: &mut TestOptions) -> Result<(PathBuf, TestPackage), CliFailure> {
+fn load_test_package(options: &mut TestOptions) -> Result<TestPackage, CliFailure> {
     let package_root = fs::canonicalize(&options.input).map_err(|error| {
         CliFailure::backend(format!("cannot resolve test package path: {error}"))
     })?;
@@ -162,7 +162,7 @@ fn load_test_package(options: &mut TestOptions) -> Result<(PathBuf, TestPackage)
             .tiers
             .extend(test_package.tier_packages.keys().copied());
     }
-    Ok((package_root, test_package))
+    Ok(test_package)
 }
 
 fn emit_discovery_warnings(discovered_tiers: &[TestTierDiscovery]) {
@@ -259,7 +259,7 @@ fn compile_selected_tiers(
 
 pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let mut options = parse_test_options(arguments)?;
-    let (package_root, test_package) = load_test_package(&mut options)?;
+    let test_package = load_test_package(&mut options)?;
     let Some(selected) = discover_selected_cases(&test_package, &options)? else {
         return Ok(ExitCode::SUCCESS);
     };
@@ -267,19 +267,12 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     let compiled_tiers = compile_selected_tiers(selected.discovered_tiers, &cases, &options)?;
 
     let application_artifact = if cases.iter().any(|case| case.tier == TestTier::EndToEnd) {
-        let application_package = Package::load(&package_root).map_err(|errors| CliFailure {
-            code: 3,
-            message: errors
-                .into_iter()
-                .map(|error| error.diagnostic.render(&error.source))
-                .collect(),
-        })?;
         let application = terrane_compiler::with_compilation_cache(|| {
-            terrane_compiler::compile_package(&application_package)
+            terrane_compiler::compile_package(&test_package.package)
         })
         .map_err(CliFailure::compilation)?;
         Some(build_native_compilation(
-            &application_package,
+            &test_package.package,
             &application,
             false,
             GeneratedCrateRole::Application,
@@ -312,6 +305,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     let results = execute_cases(
         &executables,
         application_artifact.as_deref(),
+        &test_package.package.root,
         &run_root,
         &cases,
         &options,
@@ -428,7 +422,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
         index += 1;
     }
     Ok(TestOptions {
-        input: input.ok_or_else(CliFailure::usage)?,
+        input: input.unwrap_or_else(|| PathBuf::from(".")),
         filter,
         list,
         fail_fast,
@@ -516,6 +510,7 @@ fn build_native_compilation(
 fn execute_cases(
     executables: &std::collections::BTreeMap<TestTier, PathBuf>,
     application_artifact: Option<&Path>,
+    package_root: &Path,
     run_root: &Path,
     cases: &[TestCase],
     options: &TestOptions,
@@ -526,11 +521,11 @@ fn execute_cases(
             let result = execute_case(
                 executables,
                 application_artifact,
+                package_root,
                 run_root,
                 index,
                 case,
-                options.timeout,
-                &options.arguments,
+                options,
             );
             let stop = options.fail_fast && !result.status.successful();
             results.push(result);
@@ -555,11 +550,11 @@ fn execute_cases(
                     let result = execute_case(
                         executables,
                         application_artifact,
+                        package_root,
                         run_root,
                         index,
                         case,
-                        options.timeout,
-                        &options.arguments,
+                        options,
                     );
                     results
                         .lock()
@@ -580,11 +575,11 @@ fn execute_cases(
 fn execute_case(
     executables: &std::collections::BTreeMap<TestTier, PathBuf>,
     application_artifact: Option<&Path>,
+    package_root: &Path,
     run_root: &Path,
     work_index: usize,
     case: &TestCase,
-    timeout: Duration,
-    arguments: &[OsString],
+    options: &TestOptions,
 ) -> TestResult {
     let directory = run_root.join(format!("{}-{work_index}", std::process::id()));
     let _ = fs::remove_dir_all(&directory);
@@ -598,16 +593,17 @@ fn execute_case(
     let mut command = Command::new(executable);
     command
         .arg(case.selector.to_string())
-        .args(arguments)
+        .args(&options.arguments)
         .current_dir(&directory)
         .env_clear()
         .env("TERRANE_TEST_ID", &case.identity)
         .env("TERRANE_TEST_TIER", case.tier.name())
+        .env("TERRANE_TEST_PACKAGE_ROOT", package_root)
         .env("TERRANE_TEST_SEED", deterministic_seed(&case.identity))
         .env("TMPDIR", &directory)
         .env(
             "TERRANE_TEST_DEADLINE_NANOSECONDS",
-            timeout.as_nanos().to_string(),
+            options.timeout.as_nanos().to_string(),
         )
         .env("TERRANE_TEST_RESULT", directory.join(".terrane-result"))
         .stdin(Stdio::null())
@@ -630,7 +626,7 @@ fn execute_case(
     let (status, timed_out) = loop {
         match child.try_wait() {
             Ok(Some(status)) => break (Some(status), false),
-            Ok(None) if started.elapsed() < timeout => {
+            Ok(None) if started.elapsed() < options.timeout => {
                 std::thread::sleep(PROCESS_POLL_INTERVAL);
             }
             Ok(None) => {
@@ -667,7 +663,7 @@ fn execute_case(
         .map(|record| parse_test_record(&record));
     let _ = fs::remove_dir_all(&directory);
     let (test_status, failure_cause) =
-        classify_test_result(status.as_ref(), timed_out, record, timeout);
+        classify_test_result(status.as_ref(), timed_out, record, options.timeout);
     TestResult {
         case: case.clone(),
         status: test_status,

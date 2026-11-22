@@ -1930,7 +1930,7 @@ fn usage() -> String {
      terrane debug-adapter --stdio\n\
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
-     [--show-output] [--report <json-file>] <package-or-manifest>\n\
+     [--show-output] [--report <json-file>] [<package-or-manifest>]\n\
      terrane declaration-interface <package-or-source> --output <interface.json>\n\
      terrane reference-snapshot <package-or-source> --scope <namespace|all> --output <snapshot.json>\n\
      terrane <file-or-manifest> [program arguments]\n\
