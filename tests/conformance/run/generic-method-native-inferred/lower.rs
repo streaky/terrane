@@ -51,14 +51,6 @@ impl Factory {
         >::terrane_construct(value);
     }
 }
-#[allow(dead_code)]
-fn free_both<TerraneType42>(
-    value: TerraneType42,
-) -> TerraneNsAppBoxIdentity2F61707000426F78<TerraneType42> {
-    return TerraneNsAppBoxIdentity2F61707000426F78::<
-        TerraneType42,
-    >::terrane_construct(value);
-}
 fn unbox<TerraneType54>(
     __trn_626f78: TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54>,
 ) -> TerraneType54 {

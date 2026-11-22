@@ -512,20 +512,6 @@ mod __terrane_trace {
         )
     }
 }
-#[allow(
-    dead_code,
-    reason = "native cancellation omits deadline polling when no clock package is used"
-)]
-fn terrane_time_deadline_expired(_target: &terrane_int_support::Int) -> bool {
-    false
-}
-#[allow(
-    dead_code,
-    reason = "native cancellation omits deadline polling when no clock package is used"
-)]
-async fn terrane_time_sleep_until(_target: terrane_int_support::Int) {
-    std::future::pending::<()>().await;
-}
 #[derive(Clone)]
 pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
 impl Default for TerranePlatformStreamHandle {
@@ -533,10 +519,12 @@ impl Default for TerranePlatformStreamHandle {
         Self(std::sync::Arc::new(0))
     }
 }
-impl TerranePlatformStreamHandle {
-    fn new(handle: terrane_stream_abi::StreamHandle) -> Self {
+impl From<terrane_stream_abi::StreamHandle> for TerranePlatformStreamHandle {
+    fn from(handle: terrane_stream_abi::StreamHandle) -> Self {
         Self(std::sync::Arc::new(handle.id()))
     }
+}
+impl TerranePlatformStreamHandle {
     fn abi_handle(&self) -> terrane_stream_abi::StreamHandle {
         terrane_stream_abi::StreamHandle::from_id(*self.0)
     }
@@ -751,7 +739,7 @@ pub fn terrane_platform_open_result(
     match result {
         Ok(handle) => {
             TerranePlatformOpenResult {
-                handle: TerranePlatformStreamHandle::new(handle),
+                handle: handle.into(),
                 failed: false,
                 message: String::new(),
                 error_kind: "none",
@@ -2161,50 +2149,6 @@ impl Path {
         }
     }
 }
-pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
-    let parts: Vec<String>;
-    let mut result: terrane_collection_support::List<String>;
-    let mut index: terrane_int_support::Int;
-    let mut part: String;
-    parts = {
-        let __terrane_string_argument_0 = "/";
-        terrane_string_support::split(
-            &subject.text,
-            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
-        )
-    };
-    result = terrane_collection_support::List::<String>::new(vec![]);
-    index = terrane_int_support::Int::from(0_i128);
-    {
-        let __terrane_list_append_0 = result.make_unique();
-        while index < terrane_int_support::Int::from(parts.len() as i128) {
-            part = __terrane_raised(
-                {
-                    let __terrane_receiver = &parts;
-                    let __terrane_index = __terrane_raised(
-                        terrane_collection_support::index_from_int(&index.clone()),
-                        1 /* terrane-site: core/paths.trn:16:16-16:28 */,
-                    );
-                    __terrane_receiver
-                        .get(__terrane_index)
-                        .cloned()
-                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                            __terrane_index,
-                        ))
-                },
-                1 /* terrane-site: core/paths.trn:16:16-16:28 */,
-            );
-            if part.as_str() != "" {
-                {
-                    let __terrane_collection_argument_0 = part;
-                    __terrane_list_append_0.push(__terrane_collection_argument_0);
-                };
-            }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
-        }
-    }
-    return result;
-}
 pub fn path_is_absolute(subject: Path) -> bool {
     return {
         let __terrane_string_argument_0 = "/";
@@ -2377,293 +2321,4 @@ pub fn normalise_path(subject: Path) -> Path {
         result = String::from("/");
     }
     return Path::terrane_construct(result);
-}
-pub fn path_name(subject: Path) -> String {
-    let normal: Path;
-    let parts: terrane_collection_support::List<String>;
-    normal = normalise_path(subject);
-    parts = path_components(normal);
-    if terrane_int_support::Int::from(parts.length())
-        == terrane_int_support::Int::from(0_i128)
-    {
-        return String::from("");
-    }
-    return __terrane_raised(
-        parts
-            .get_or_error(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &(terrane_int_support::Int::from(parts.length())
-                            - terrane_int_support::Int::from(1_i128)),
-                    ),
-                    7 /* terrane-site: core/paths.trn:69:12-69:35 */,
-                ),
-            ),
-        7 /* terrane-site: core/paths.trn:69:12-69:35 */,
-    );
-}
-pub fn path_parent(subject: Path) -> Path {
-    let normal: Path;
-    let parts: terrane_collection_support::List<String>;
-    let mut result: String;
-    let mut index: terrane_int_support::Int;
-    let absolute: bool;
-    normal = normalise_path(subject);
-    parts = path_components(normal.clone());
-    if terrane_int_support::Int::from(parts.length())
-        == terrane_int_support::Int::from(0_i128)
-    {
-        return normal;
-    }
-    if terrane_int_support::Int::from(parts.length())
-        == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
-    {
-        return Path::terrane_construct(String::from("."));
-    }
-    result = String::from("");
-    index = terrane_int_support::Int::from(0_i128);
-    while index
-        < terrane_int_support::Int::from(parts.length())
-            - terrane_int_support::Int::from(1_i128)
-    {
-        if result.as_str() != "" {
-            result = {
-                let mut __terrane_text = String::with_capacity(1);
-                terrane_scalar_support::ScalarDisplay::write_scalar(
-                    &result,
-                    &mut __terrane_text,
-                );
-                __terrane_text.push_str("/");
-                __terrane_text
-            };
-        }
-        result = {
-            let mut __terrane_text = String::with_capacity(0);
-            terrane_scalar_support::ScalarDisplay::write_scalar(
-                &result,
-                &mut __terrane_text,
-            );
-            terrane_scalar_support::ScalarDisplay::write_scalar(
-                &__terrane_raised(
-                    parts
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
-                                8 /* terrane-site: core/paths.trn:83:33-83:45 */,
-                            ),
-                        ),
-                    8 /* terrane-site: core/paths.trn:83:33-83:45 */,
-                ),
-                &mut __terrane_text,
-            );
-            __terrane_text
-        };
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
-    }
-    absolute = path_is_absolute(normal);
-    if absolute {
-        result = {
-            let mut __terrane_text = String::with_capacity(1);
-            __terrane_text.push_str("/");
-            terrane_scalar_support::ScalarDisplay::write_scalar(
-                &result,
-                &mut __terrane_text,
-            );
-            __terrane_text
-        };
-    }
-    return Path::terrane_construct(result);
-}
-pub fn path_stem(subject: Path) -> String {
-    let current: String;
-    let pieces: Vec<String>;
-    let mut result: String;
-    let mut index: terrane_int_support::Int;
-    current = path_name(subject);
-    pieces = {
-        let __terrane_string_argument_0 = ".";
-        terrane_string_support::split(
-            &current,
-            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
-        )
-    };
-    if terrane_int_support::Int::from(pieces.len() as i128)
-        <= terrane_int_support::Int::from(1_i128)
-    {
-        return current;
-    }
-    if terrane_int_support::Int::from(pieces.len() as i128)
-        == terrane_int_support::Int::from(2_i128)
-        && __terrane_raised(
-                {
-                    let __terrane_receiver = &pieces;
-                    let __terrane_index = __terrane_raised(
-                        terrane_collection_support::index_from_int(
-                            &terrane_int_support::Int::from(0_i128),
-                        ),
-                        9 /* terrane-site: core/paths.trn:95:31-95:40 */,
-                    );
-                    __terrane_receiver
-                        .get(__terrane_index)
-                        .cloned()
-                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                            __terrane_index,
-                        ))
-                },
-                9 /* terrane-site: core/paths.trn:95:31-95:40 */,
-            )
-            .as_str() == ""
-    {
-        return current;
-    }
-    result = String::from("");
-    index = terrane_int_support::Int::from(0_i128);
-    while index
-        < terrane_int_support::Int::from(pieces.len() as i128)
-            - terrane_int_support::Int::from(1_i128)
-    {
-        if index > terrane_int_support::Int::from(0_i128) {
-            result = {
-                let mut __terrane_text = String::with_capacity(1);
-                terrane_scalar_support::ScalarDisplay::write_scalar(
-                    &result,
-                    &mut __terrane_text,
-                );
-                __terrane_text.push_str(".");
-                __terrane_text
-            };
-        }
-        result = {
-            let mut __terrane_text = String::with_capacity(0);
-            terrane_scalar_support::ScalarDisplay::write_scalar(
-                &result,
-                &mut __terrane_text,
-            );
-            terrane_scalar_support::ScalarDisplay::write_scalar(
-                &__terrane_raised(
-                    {
-                        let __terrane_receiver = &pieces;
-                        let __terrane_index = __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
-                            10 /* terrane-site: core/paths.trn:102:33-102:46 */,
-                        );
-                        __terrane_receiver
-                            .get(__terrane_index)
-                            .cloned()
-                            .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                                __terrane_index,
-                            ))
-                    },
-                    10 /* terrane-site: core/paths.trn:102:33-102:46 */,
-                ),
-                &mut __terrane_text,
-            );
-            __terrane_text
-        };
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
-    }
-    return result;
-}
-pub fn path_extension(subject: Path) -> String {
-    let current: String;
-    let pieces: Vec<String>;
-    current = path_name(subject);
-    pieces = {
-        let __terrane_string_argument_0 = ".";
-        terrane_string_support::split(
-            &current,
-            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
-        )
-    };
-    if terrane_int_support::Int::from(pieces.len() as i128)
-        <= terrane_int_support::Int::from(1_i128)
-    {
-        return String::from("");
-    }
-    if terrane_int_support::Int::from(pieces.len() as i128)
-        == terrane_int_support::Int::from(2_i128)
-        && __terrane_raised(
-                {
-                    let __terrane_receiver = &pieces;
-                    let __terrane_index = __terrane_raised(
-                        terrane_collection_support::index_from_int(
-                            &terrane_int_support::Int::from(0_i128),
-                        ),
-                        11 /* terrane-site: core/paths.trn:111:31-111:40 */,
-                    );
-                    __terrane_receiver
-                        .get(__terrane_index)
-                        .cloned()
-                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                            __terrane_index,
-                        ))
-                },
-                11 /* terrane-site: core/paths.trn:111:31-111:40 */,
-            )
-            .as_str() == ""
-    {
-        return String::from("");
-    }
-    return __terrane_raised(
-        {
-            let __terrane_receiver = &pieces;
-            let __terrane_index = __terrane_raised(
-                terrane_collection_support::index_from_int(
-                    &(terrane_int_support::Int::from(pieces.len() as i128)
-                        - terrane_int_support::Int::from(1_i128)),
-                ),
-                12 /* terrane-site: core/paths.trn:113:12-113:37 */,
-            );
-            __terrane_receiver
-                .get(__terrane_index)
-                .cloned()
-                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                    __terrane_index,
-                ))
-        },
-        12 /* terrane-site: core/paths.trn:113:12-113:37 */,
-    );
-}
-pub fn join_path(base: Path, child: Path) -> Path {
-    let absolute: bool;
-    let mut joined: String;
-    let combined: Path;
-    absolute = path_is_absolute(child.clone());
-    if absolute {
-        return normalise_path(child);
-    }
-    joined = base.text.clone();
-    if joined.as_str() != ""
-        && !{
-            let __terrane_string_argument_0 = "/";
-            joined
-                .ends_with(
-                    std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
-                )
-        }
-    {
-        joined = {
-            let mut __terrane_text = String::with_capacity(1);
-            terrane_scalar_support::ScalarDisplay::write_scalar(
-                &joined,
-                &mut __terrane_text,
-            );
-            __terrane_text.push_str("/");
-            __terrane_text
-        };
-    }
-    joined = {
-        let mut __terrane_text = String::with_capacity(0);
-        terrane_scalar_support::ScalarDisplay::write_scalar(
-            &joined,
-            &mut __terrane_text,
-        );
-        terrane_scalar_support::ScalarDisplay::write_scalar(
-            &child.text,
-            &mut __terrane_text,
-        );
-        __terrane_text
-    };
-    combined = Path::terrane_construct(joined);
-    return normalise_path(combined);
 }

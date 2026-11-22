@@ -1986,15 +1986,6 @@ async fn terrane_time_sleep_until(target: terrane_int_support::Int) {
         terrane_platform_support::sleep(std::time::Duration::from_nanos(chunk)).await;
     }
 }
-#[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
-fn terrane_time_sleep_after(
-    elapsed: terrane_int_support::Int,
-) -> impl std::future::Future<Output = ()> {
-    let target = terrane_time_monotonic() + elapsed;
-    async move {
-        terrane_time_sleep_until(target).await;
-    }
-}
 pub type TerranePlatformCapability = terrane_platform_support::Capability;
 pub type TerranePlatformResult = terrane_platform_support::ResultValue;
 pub fn terrane_platform_i128(
@@ -2008,12 +1999,6 @@ pub fn terrane_platform_i128(
             )
         })
 }
-pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
-    if value < terrane_int_support::Int::from(0_i128) {
-        return -1;
-    }
-    i128::from(terrane_int_support::coerce::<u64>(&value).unwrap_or(u64::MAX))
-}
 macro_rules! terrane_platform_i128 {
     ($value:expr, $label:literal) => {
         match terrane_platform_i128(&$value, $label) { Ok(value) => value, Err(error) =>
@@ -2021,32 +2006,12 @@ macro_rules! terrane_platform_i128 {
     };
 }
 #[allow(dead_code)]
-fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
-    terrane_platform_support::cancellation_token()
-}
-#[allow(dead_code)]
 fn terrane_platform_no_resource() -> TerranePlatformCapability {
     TerranePlatformCapability::default()
 }
 #[allow(dead_code)]
-fn terrane_platform_failed_result() -> TerranePlatformResult {
-    TerranePlatformResult::error("uninitialized platform value")
-}
-#[allow(dead_code)]
-fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
-    terrane_platform_support::cancel(token)
-}
-#[allow(dead_code)]
 fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
     result.failed
-}
-#[allow(dead_code)]
-fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool {
-    result.resource_limit
-}
-#[allow(dead_code)]
-fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
-    result.truncated
 }
 #[allow(dead_code)]
 fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
@@ -2057,18 +2022,6 @@ fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
     result.message.clone()
 }
 #[allow(dead_code)]
-fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
-    result.text.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
-    result.detail.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
-    result.data.clone()
-}
-#[allow(dead_code)]
 fn terrane_platform_result_int(
     result: &TerranePlatformResult,
 ) -> terrane_int_support::Int {
@@ -2077,10 +2030,6 @@ fn terrane_platform_result_int(
 #[allow(dead_code)]
 fn terrane_platform_result_bool(result: &TerranePlatformResult) -> bool {
     result.flag
-}
-#[allow(dead_code)]
-fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String> {
-    result.entries.clone()
 }
 #[allow(dead_code)]
 fn terrane_platform_result_capability(
@@ -2482,21 +2431,6 @@ impl MemoryOrder {
             self.name = __terrane_value;
         }
     }
-}
-pub fn relaxed_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("relaxed"));
-}
-pub fn acquire_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("acquire"));
-}
-pub fn release_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("release"));
-}
-pub fn acquire_release_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("acquire-release"));
-}
-pub fn sequentially_consistent_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("sequentially-consistent"));
 }
 #[derive(Clone)]
 pub struct AtomicInt64 {

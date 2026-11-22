@@ -33,9 +33,3 @@ fn main() {
         );
     }
 }
-// Source: src/other.trn
-// Namespace: generic-return-cross-file
-#[allow(dead_code)]
-fn other() -> Slot<terrane_int_support::Int> {
-    return Slot::<terrane_int_support::Int>::terrane_construct();
-}

@@ -1429,15 +1429,6 @@ async fn terrane_time_sleep_until(target: terrane_int_support::Int) {
         terrane_platform_support::sleep(std::time::Duration::from_nanos(chunk)).await;
     }
 }
-#[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
-fn terrane_time_sleep_after(
-    elapsed: terrane_int_support::Int,
-) -> impl std::future::Future<Output = ()> {
-    let target = terrane_time_monotonic() + elapsed;
-    async move {
-        terrane_time_sleep_until(target).await;
-    }
-}
 #[derive(Clone)]
 pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
 impl Default for TerranePlatformStreamHandle {
@@ -1445,10 +1436,12 @@ impl Default for TerranePlatformStreamHandle {
         Self(std::sync::Arc::new(0))
     }
 }
-impl TerranePlatformStreamHandle {
-    fn new(handle: terrane_stream_abi::StreamHandle) -> Self {
+impl From<terrane_stream_abi::StreamHandle> for TerranePlatformStreamHandle {
+    fn from(handle: terrane_stream_abi::StreamHandle) -> Self {
         Self(std::sync::Arc::new(handle.id()))
     }
+}
+impl TerranePlatformStreamHandle {
     fn abi_handle(&self) -> terrane_stream_abi::StreamHandle {
         terrane_stream_abi::StreamHandle::from_id(*self.0)
     }
@@ -1669,46 +1662,6 @@ pub fn terrane_platform_buffer_filled_text(
 ) -> TerranePlatformResult {
     terrane_platform_support::buffer_filled_text(buffer)
 }
-pub async fn terrane_platform_tcp_read_into_async(
-    stream: &TerranePlatformCapability,
-    buffer: &TerranePlatformCapability,
-    limit: terrane_int_support::Int,
-    deadline: terrane_int_support::Int,
-    cancellation: Option<&TerranePlatformCapability>,
-) -> TerranePlatformResult {
-    let limit = match terrane_platform_i128(&limit, "TCP read limit") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    terrane_platform_support::tcp_read_into_async(
-            stream,
-            buffer,
-            limit,
-            terrane_platform_timeout_nanos(deadline),
-            cancellation,
-        )
-        .await
-}
-pub async fn terrane_platform_tls_read_into_async(
-    stream: &TerranePlatformCapability,
-    buffer: &TerranePlatformCapability,
-    limit: terrane_int_support::Int,
-    deadline: terrane_int_support::Int,
-    cancellation: Option<&TerranePlatformCapability>,
-) -> TerranePlatformResult {
-    let limit = match terrane_platform_i128(&limit, "TLS read limit") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    terrane_platform_support::tls_read_into_async(
-            stream,
-            buffer,
-            limit,
-            terrane_platform_timeout_nanos(deadline),
-            cancellation,
-        )
-        .await
-}
 pub async fn terrane_platform_stream_read_into_async(
     handle: &TerranePlatformStreamHandle,
     buffer: &TerranePlatformCapability,
@@ -1832,13 +1785,7 @@ fn terrane_platform_stream_options(
     }
 }
 pub fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
-}
-pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
-}
-pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
+    terrane_stream_abi::acquire_stdin().into()
 }
 pub type TerranePlatformCapability = terrane_platform_support::Capability;
 pub type TerranePlatformResult = terrane_platform_support::ResultValue;
@@ -1853,12 +1800,6 @@ pub fn terrane_platform_i128(
             )
         })
 }
-pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
-    if value < terrane_int_support::Int::from(0_i128) {
-        return -1;
-    }
-    i128::from(terrane_int_support::coerce::<u64>(&value).unwrap_or(u64::MAX))
-}
 #[allow(dead_code)]
 fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
     terrane_platform_support::cancellation_token()
@@ -1868,24 +1809,8 @@ fn terrane_platform_no_resource() -> TerranePlatformCapability {
     TerranePlatformCapability::default()
 }
 #[allow(dead_code)]
-fn terrane_platform_failed_result() -> TerranePlatformResult {
-    TerranePlatformResult::error("uninitialized platform value")
-}
-#[allow(dead_code)]
-fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
-    terrane_platform_support::cancel(token)
-}
-#[allow(dead_code)]
 fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
     result.failed
-}
-#[allow(dead_code)]
-fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool {
-    result.resource_limit
-}
-#[allow(dead_code)]
-fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
-    result.truncated
 }
 #[allow(dead_code)]
 fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
@@ -1900,10 +1825,6 @@ fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
     result.text.clone()
 }
 #[allow(dead_code)]
-fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
-    result.detail.clone()
-}
-#[allow(dead_code)]
 fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
     result.data.clone()
 }
@@ -1916,10 +1837,6 @@ fn terrane_platform_result_int(
 #[allow(dead_code)]
 fn terrane_platform_result_bool(result: &TerranePlatformResult) -> bool {
     result.flag
-}
-#[allow(dead_code)]
-fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String> {
-    result.entries.clone()
 }
 #[allow(dead_code)]
 fn terrane_platform_result_capability(
@@ -2025,15 +1942,6 @@ impl IoOperationResult {
             self.message = __terrane_value;
         }
     }
-}
-pub fn cancel_operation(cancellation: CancellationToken) -> IoOperationResult {
-    let raw: TerranePlatformResult;
-    raw = terrane_platform_cancel(&cancellation.handle);
-    return IoOperationResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_deadline_exceeded(&raw),
-        terrane_platform_result_message(&raw),
-    );
 }
 #[derive(Clone)]
 pub struct IoOperationOptions {
@@ -4144,12 +4052,6 @@ impl Drop for TextWriter {
 }
 pub fn stdin() -> ByteReader {
     return ByteReader::terrane_construct(terrane_platform_acquire_stdin());
-}
-pub fn stdout() -> ByteWriter {
-    return ByteWriter::terrane_construct(terrane_platform_acquire_stdout());
-}
-pub fn stderr() -> ByteWriter {
-    return ByteWriter::terrane_construct(terrane_platform_acquire_stderr());
 }
 // Source: core/time.trn
 // Namespace: core/time

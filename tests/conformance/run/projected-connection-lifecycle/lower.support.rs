@@ -916,17 +916,6 @@ async fn __terrane_dependency_await_unwind<F: Future>(
         })
         .await
 }
-fn __terrane_uninitialized_binding(
-    name: &str,
-    path: &str,
-    line: usize,
-    column: usize,
-) -> ! {
-    eprintln!(
-        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
-    );
-    std::process::exit(1);
-}
 // Source: <terrane>/projected/deps/terrane-lifecycle-witness.trn
 // Namespace: deps/terrane-lifecycle-witness
 pub use terrane_lifecycle_witness::Connection;

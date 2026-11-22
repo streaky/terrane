@@ -509,9 +509,6 @@ pub fn terrane_empty_document() -> terrane_document_support::DataResult {
 pub fn terrane_make_document_none() -> terrane_document_support::DataResult {
     terrane_document_support::document_none()
 }
-pub fn terrane_make_document_bool(value: bool) -> terrane_document_support::DataResult {
-    terrane_document_support::document_bool(value)
-}
 pub fn terrane_make_document_string(
     value: String,
 ) -> terrane_document_support::DataResult {
@@ -1087,9 +1084,6 @@ pub fn make_document_result(
 pub fn make_document_none() -> DocumentValue {
     return DocumentValue::terrane_construct(terrane_make_document_none());
 }
-pub fn make_document_bool(value: bool) -> DocumentValue {
-    return DocumentValue::terrane_construct(terrane_make_document_bool(value));
-}
 pub fn make_document_string(value: String) -> DocumentValue {
     return DocumentValue::terrane_construct(terrane_make_document_string(value));
 }
@@ -1489,13 +1483,6 @@ impl YamlOptions {
             self.max_alias_nodes = __terrane_value;
         }
     }
-}
-pub fn default_yaml_options() -> YamlOptions {
-    return YamlOptions::terrane_construct(
-        terrane_int_support::Int::from(128_i128),
-        terrane_int_support::Int::from(16777216_i128),
-        terrane_int_support::Int::from(65536_i128),
-    );
 }
 pub fn make_yaml_options(
     max_depth: terrane_int_support::Int,

@@ -503,33 +503,11 @@ pub fn terrane_platform_i128(
             )
         })
 }
-pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
-    if value < terrane_int_support::Int::from(0_i128) {
-        return -1;
-    }
-    i128::from(terrane_int_support::coerce::<u64>(&value).unwrap_or(u64::MAX))
-}
 macro_rules! terrane_platform_i128 {
     ($value:expr, $label:literal) => {
         match terrane_platform_i128(&$value, $label) { Ok(value) => value, Err(error) =>
         return error, }
     };
-}
-#[allow(dead_code)]
-fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
-    terrane_platform_support::cancellation_token()
-}
-#[allow(dead_code)]
-fn terrane_platform_no_resource() -> TerranePlatformCapability {
-    TerranePlatformCapability::default()
-}
-#[allow(dead_code)]
-fn terrane_platform_failed_result() -> TerranePlatformResult {
-    TerranePlatformResult::error("uninitialized platform value")
-}
-#[allow(dead_code)]
-fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
-    terrane_platform_support::cancel(token)
 }
 #[allow(dead_code)]
 fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
@@ -540,24 +518,12 @@ fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> boo
     result.resource_limit
 }
 #[allow(dead_code)]
-fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
-    result.truncated
-}
-#[allow(dead_code)]
-fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
-    result.deadline_exceeded
-}
-#[allow(dead_code)]
 fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
     result.message.clone()
 }
 #[allow(dead_code)]
 fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
     result.text.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
-    result.detail.clone()
 }
 #[allow(dead_code)]
 fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
@@ -568,14 +534,6 @@ fn terrane_platform_result_int(
     result: &TerranePlatformResult,
 ) -> terrane_int_support::Int {
     terrane_int_support::Int::from(result.number)
-}
-#[allow(dead_code)]
-fn terrane_platform_result_bool(result: &TerranePlatformResult) -> bool {
-    result.flag
-}
-#[allow(dead_code)]
-fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String> {
-    result.entries.clone()
 }
 #[allow(dead_code)]
 fn terrane_platform_result_capability(
@@ -784,18 +742,6 @@ impl Base64Codec {
             terrane_platform_result_bytes(&raw),
         );
     }
-}
-pub fn hex() -> HexCodec {
-    return HexCodec::terrane_construct();
-}
-pub fn base64() -> Base64Codec {
-    return Base64Codec::terrane_construct(false);
-}
-pub fn base64_url() -> Base64Codec {
-    return Base64Codec::terrane_construct(true);
-}
-pub fn bytes_from_octets(octets: terrane_collection_support::List<u8>) -> Vec<u8> {
-    return octets.into_vec();
 }
 pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
@@ -1516,9 +1462,6 @@ pub fn sign_hmac(
         terrane_platform_result_message(&raw),
         value,
     );
-}
-pub fn digest_equals(left: DigestValue, right: DigestValue) -> bool {
-    return left.constant_time_equals(right);
 }
 pub fn signature_equals(left: SignatureValue, right: SignatureValue) -> bool {
     return left.constant_time_equals(right);

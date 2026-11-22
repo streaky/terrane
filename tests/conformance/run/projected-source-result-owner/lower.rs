@@ -1,14 +1,5 @@
 // Generated deterministically by Terrane <version>.
 include!("lower.support.rs");
-// Source: helpers/maker.trn
-// Namespace: helpers
-#[allow(dead_code)]
-fn make() -> Holder {
-    return __terrane_raised(
-        terrane_static_trn_486f6c646572_new(),
-        0 /* terrane-site: helpers/maker.trn:6:10-6:17 */,
-    );
-}
 // Source: src/main.trn
 // Namespace: app
 fn same(h: Holder) -> Holder {

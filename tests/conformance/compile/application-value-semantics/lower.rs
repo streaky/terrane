@@ -2,18 +2,6 @@
 include!("lower.support.rs");
 // Source: case.trn
 // Namespace: application-value-semantics
-#[allow(dead_code)]
-fn close_or_read(authority: Filesystem, handle: FileHandle, should_close: bool) {
-    let outcome: FilesystemOperationResult;
-    let read: FileData;
-    if should_close {
-        outcome = file_close(authority.clone(), handle);
-        let _ = &outcome;
-        return ();
-    }
-    read = file_read(authority, &handle, terrane_int_support::Int::from(1_i128));
-    let _ = &read;
-}
 fn main() {
     let authority: Filesystem;
     let target: Path;

@@ -33,16 +33,3 @@ fn main() {
         }
     }
 }
-// Source: src/other.trn
-// Namespace: enum-return-cross-file
-#[allow(dead_code)]
-fn other() -> TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2D63726F73732D66696C6500726573756C74<
-    terrane_int_support::Int,
-> {
-    return {
-        let __terrane_enum_payload_0 = terrane_int_support::Int::from(1_i128);
-        TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2D63726F73732D66696C6500726573756C74::<
-            terrane_int_support::Int,
-        >::Success(__terrane_enum_payload_0)
-    };
-}

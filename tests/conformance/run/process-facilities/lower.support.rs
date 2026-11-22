@@ -528,22 +528,8 @@ pub fn terrane_unhex(text: &str) -> Vec<u8> {
         .filter_map(|pair| Some(digit(pair[0])? << 4 | digit(pair[1])?))
         .collect()
 }
-fn terrane_hex(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        write!(encoded, "{byte:02x}").expect("writing to a string cannot fail");
-    }
-    encoded
-}
 pub fn terrane_platform_value(value: std::ffi::OsString) -> String {
     terrane_platform_support::platform_value(value)
-}
-fn terrane_platform_value_from_text(value: &str) -> String {
-    format!("text:{value}")
-}
-fn terrane_platform_value_from_bytes(value: &[u8]) -> String {
-    format!("raw:{}", terrane_hex(value))
 }
 pub fn terrane_platform_value_is_text(value: &str) -> bool {
     value.starts_with("text:")
@@ -675,16 +661,6 @@ impl ProcessHostNameResult {
             self.value = __terrane_value;
         }
     }
-}
-pub fn process_host_name() -> ProcessHostNameResult {
-    let raw: TerranePlatformResult;
-    raw = terrane_platform_support::system_host_name();
-    return ProcessHostNameResult::terrane_construct(
-        raw.failed,
-        raw.flag,
-        raw.message.clone(),
-        NativeString::terrane_construct(raw.text.clone()),
-    );
 }
 pub fn arguments() -> terrane_collection_support::List<NativeString> {
     let encoded: Vec<String>;
@@ -1070,32 +1046,4 @@ pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
 }
 pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
-}
-pub fn native_text(value: String) -> NativeString {
-    let encoded: String;
-    encoded = terrane_platform_value_from_text(&value);
-    return NativeString::terrane_construct(encoded);
-}
-pub fn native_raw(value: Vec<u8>) -> NativeString {
-    let encoded: String;
-    encoded = terrane_platform_value_from_bytes(&value);
-    return NativeString::terrane_construct(encoded);
-}
-pub fn native_text_value(value: NativeString) -> Option<String> {
-    if value.is_text {
-        return Some(value.text.clone());
-    }
-    return None;
-}
-pub fn native_raw_value(value: NativeString) -> Vec<u8> {
-    return value.raw.clone();
-}
-pub fn environment_pair(key: NativeString, item: NativeString) -> EnvironmentEntry {
-    return EnvironmentEntry::terrane_construct(key, item);
-}
-pub fn encode_native_string(value: NativeString) -> String {
-    if value.is_text {
-        return terrane_platform_value_from_text(&value.text);
-    }
-    return terrane_platform_value_from_bytes(&value.raw);
 }

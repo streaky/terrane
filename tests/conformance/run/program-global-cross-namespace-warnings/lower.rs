@@ -30,9 +30,3 @@ fn main() {
         __terrane_uninitialized_binding("calls", "main.trn", 5, 10)))
     );
 }
-#[allow(dead_code)]
-fn local_control() {
-    let calls: i64;
-    calls = 0;
-    let _ = &calls;
-}

@@ -529,17 +529,6 @@ mod __terrane_trace {
         )
     }
 }
-fn __terrane_uninitialized_binding(
-    name: &str,
-    path: &str,
-    line: usize,
-    column: usize,
-) -> ! {
-    eprintln!(
-        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
-    );
-    std::process::exit(1);
-}
 // Source: <terrane>/projected/deps/panic-api.trn
 // Namespace: deps/panic-api
 pub use panic_api::Locks;

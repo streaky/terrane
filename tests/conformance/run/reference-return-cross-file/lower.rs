@@ -91,15 +91,6 @@ impl Point {
         Self { latitude: 51.5 }
     }
 }
-#[allow(dead_code)]
-fn describe(name: String) -> String {
-    return {
-        let mut __terrane_text = String::with_capacity(32);
-        __terrane_text.push_str("Unknown camera catalogue entry: ");
-        terrane_scalar_support::ScalarDisplay::write_scalar(&name, &mut __terrane_text);
-        __terrane_text
-    };
-}
 #[derive(Clone)]
 pub struct LookupError {
     pub message: String,
