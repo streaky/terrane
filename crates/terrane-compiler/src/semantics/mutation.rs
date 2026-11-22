@@ -105,16 +105,6 @@ impl MutationSites {
     }
 
     fn load_or_collect(root: &std::path::Path, unit: &SemanticUnit) -> Self {
-        if !crate::cache_scope::enabled() {
-            return Self::collect(unit);
-        }
-        let mut slot = crate::cache_io::HashWriter::new();
-        slot.part(unit.source.path().as_os_str().as_encoded_bytes());
-        let path = root
-            .join(".trn/cache/mutation-sites")
-            .join(slot.finish_hex());
-        let mut key = crate::cache_io::HashWriter::new();
-        key.part(unit.source.text().as_bytes());
         // The same text can normalize differently after a cross-file edit.
         // Address sites only in an identical tree, including their source offsets.
         fn shape(node: &SyntaxNode, key: &mut crate::cache_io::HashWriter) {
@@ -126,6 +116,17 @@ impl MutationSites {
                 shape(child, key);
             }
         }
+
+        if !crate::cache_scope::enabled() {
+            return Self::collect(unit);
+        }
+        let mut slot = crate::cache_io::HashWriter::new();
+        slot.part(unit.source.path().as_os_str().as_encoded_bytes());
+        let path = root
+            .join(".trn/cache/mutation-sites")
+            .join(slot.finish_hex());
+        let mut key = crate::cache_io::HashWriter::new();
+        key.part(unit.source.text().as_bytes());
         shape(&unit.tree.root, &mut key);
         let key = key.finish_hex();
         if let Some(cached) = crate::compiler::cache::load_file(&path, &key) {
