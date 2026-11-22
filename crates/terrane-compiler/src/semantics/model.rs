@@ -131,12 +131,13 @@ impl SemanticPackage {
         }
     }
 
-    pub(crate) fn rust_object_names(&self) -> &crate::lowering::helpers::ObjectNames {
-        self.descriptor_index
-            .as_ref()
-            .expect("descriptor inventory is indexed before lowering")
-            .rust_names
-            .get_or_init(|| crate::lowering::helpers::ObjectNames::new(self))
+    pub(crate) fn rust_object_names(&self) -> Option<&crate::lowering::helpers::ObjectNames> {
+        let index = self.descriptor_index.as_ref()?;
+        Some(
+            index
+                .rust_names
+                .get_or_init(|| crate::lowering::helpers::ObjectNames::new(self)),
+        )
     }
 
     pub(super) fn find_nominal_descriptor(

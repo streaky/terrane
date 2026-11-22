@@ -88,7 +88,6 @@ pub(super) fn normalize(package: &mut SemanticPackage) {
         let mut sites = Vec::new();
         collect(package, unit, &unit.tree.root, &mut sites);
         if !sites.is_empty() {
-            package.units[index].mutations.normalized = true;
             rewrite(
                 &mut package.units[index].tree.root,
                 &mut sites.into_iter().peekable(),

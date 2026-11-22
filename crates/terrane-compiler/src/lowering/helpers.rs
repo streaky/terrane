@@ -1129,7 +1129,10 @@ pub(crate) fn rust_object_type_base_name(
     let rendered = rust_rendered_object_name(identity);
     let collides = rust_prelude_type_name(&rendered)
         || rendered.starts_with("Terrane")
-        || package.rust_object_names().collides(&rendered, identity);
+        || package.rust_object_names().map_or_else(
+            || ObjectNames::new(package).collides(&rendered, identity),
+            |names| names.collides(&rendered, identity),
+        );
     if collides {
         let mut qualified =
             String::with_capacity(18 + identity.namespace.len() * 3 + identity.name.len() * 3);

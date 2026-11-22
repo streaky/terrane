@@ -25,7 +25,6 @@ pub(crate) enum ClosureWrites {
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct MutationState {
-    pub(super) normalized: bool,
     sites: MutationSites,
     index: Option<MutationIndex>,
 }
@@ -116,20 +115,18 @@ impl MutationSites {
             .join(slot.finish_hex());
         let mut key = crate::cache_io::HashWriter::new();
         key.part(unit.source.text().as_bytes());
-        if unit.mutations.normalized {
-            // Some syntax rewrites depend on other files' declarations. For those
-            // files, also verify the shape and the byte offsets the paths address.
-            fn shape(node: &SyntaxNode, key: &mut crate::cache_io::HashWriter) {
-                key.part(&(node.kind as u32).to_le_bytes());
-                key.part(&node.span.start.to_le_bytes());
-                key.part(&node.span.end.to_le_bytes());
-                key.part(&node.children.len().to_le_bytes());
-                for child in &node.children {
-                    shape(child, key);
-                }
+        // The same text can normalize differently after a cross-file edit.
+        // Address sites only in an identical tree, including their source offsets.
+        fn shape(node: &SyntaxNode, key: &mut crate::cache_io::HashWriter) {
+            key.part(&(node.kind as u32).to_le_bytes());
+            key.part(&node.span.start.to_le_bytes());
+            key.part(&node.span.end.to_le_bytes());
+            key.part(&node.children.len().to_le_bytes());
+            for child in &node.children {
+                shape(child, key);
             }
-            shape(&unit.tree.root, &mut key);
         }
+        shape(&unit.tree.root, &mut key);
         let key = key.finish_hex();
         if let Some(cached) = crate::compiler::cache::load_file(&path, &key) {
             crate::compilation_progress::note(
@@ -704,6 +701,9 @@ fn explicit_field_extraction(
     else {
         return false;
     };
+    // Preserve the legacy field-lookup policy here: this check matches by name
+    // across safety variants. A safety-specific lookup would change which
+    // required-field extraction makes the receiver mutable.
     package
         .units
         .iter()
