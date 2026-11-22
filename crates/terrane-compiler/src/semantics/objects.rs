@@ -537,6 +537,7 @@ pub(super) fn analyze_descriptor_contracts(
                 matches!(
                     field.value_type,
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
+                        | ValueType::PlatformTemporaryPath
                 )
             }),
             ObjectKind::Interface => node.children.iter().any(|child| {
@@ -666,6 +667,7 @@ pub(super) fn value_type_owns_resource(
     match value_type {
         ValueType::PlatformStreamHandle
         | ValueType::PlatformResourceHandle
+        | ValueType::PlatformTemporaryPath
         | ValueType::ChannelPair(_)
         | ValueType::ChannelSender(_)
         | ValueType::ChannelReceiver(_) => true,
@@ -1081,6 +1083,7 @@ fn application_resource_ownership(
             ValueType::PlatformStreamHandle
             | ValueType::TaskGroup(_)
             | ValueType::PlatformResourceHandle
+            | ValueType::PlatformTemporaryPath
             | ValueType::ChannelPair(_)
             | ValueType::ChannelSender(_)
             | ValueType::ChannelReceiver(_) => true,
@@ -1229,6 +1232,7 @@ fn cloneable_value_type_assuming_parameters(
         | ValueType::Iterator(_)
         | ValueType::PlatformStreamHandle
         | ValueType::PlatformResourceHandle
+        | ValueType::PlatformTemporaryPath
         | ValueType::ChannelPair(_)
         | ValueType::ChannelSender(_)
         | ValueType::ChannelReceiver(_) => false,
@@ -2517,7 +2521,9 @@ pub(super) fn validate_class_field_initializers(
 pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
     fn owns_resource(package: &SemanticPackage, value_type: &ValueType) -> bool {
         match value_type {
-            ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
+            ValueType::PlatformStreamHandle
+            | ValueType::PlatformResourceHandle
+            | ValueType::PlatformTemporaryPath => true,
             ValueType::Object(name) => resolved_object_span(package, name)
                 .and_then(|span| {
                     package

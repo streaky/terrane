@@ -768,6 +768,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
         ValueType::FilesystemAuthority => "TerraneFilesystemAuthority".to_owned(),
         ValueType::PlatformFilesystemResult => "TerraneFilesystemResult".to_owned(),
+        ValueType::PlatformTemporaryPath => "TerraneTemporaryPath".to_owned(),
         ValueType::PlatformOpenResult => "TerranePlatformOpenResult".to_owned(),
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),

@@ -1609,7 +1609,15 @@ fn infer_nonbinary_value_type(
                     "intrinsic:process-signals::process-signal-result-observed" => Some(
                         ValueType::Object(ObjectIdentity::new("/core/time", "monotonic-instant")),
                     ),
-                    "intrinsic:system::filesystem-create-directory"
+                    "intrinsic:system::temporary-create" => Some(ValueType::PlatformTemporaryPath),
+                    "intrinsic:system::temporary-location" | "intrinsic:system::temporary-keep" => {
+                        Some(ValueType::Scalar(ScalarType::String))
+                    }
+                    "intrinsic:system::temporary-status" => Some(ValueType::Optional(Box::new(
+                        ValueType::Scalar(ScalarType::String),
+                    ))),
+                    "intrinsic:system::temporary-delete"
+                    | "intrinsic:system::filesystem-create-directory"
                     | "intrinsic:system::filesystem-create-directories"
                     | "intrinsic:system::filesystem-list-directory"
                     | "intrinsic:system::filesystem-remove-directory"

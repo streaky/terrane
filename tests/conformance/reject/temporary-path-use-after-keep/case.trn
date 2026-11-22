@@ -1,0 +1,8 @@
+namespace conformance/temporary-path-use-after-keep
+
+from /core/filesystem import filesystem-capability, filesystem-create-temporary-file
+
+function main;
+    scratch = filesystem-create-temporary-file; (filesystem-capability;)
+    scratch.keep;
+    scratch.location;

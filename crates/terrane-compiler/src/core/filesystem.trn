@@ -1,6 +1,7 @@
 namespace core/filesystem
 
 from /core/collections import list
+from /core/errors import throwable
 from /core/filesystem/paths import path
 
 private function filesystem-error-kind string; failure bool, category string|none
@@ -43,6 +44,47 @@ class path-result
         this.failed = failure
         this.message = detail
         this.error-kind = filesystem-error-kind; failure, category
+
+class temporary-path-error implements throwable
+    message string = ''
+
+    private function construct; detail string
+        this.message = detail
+
+    function render string;
+        return this.message
+
+class temporary-path
+    private entry host-temporary-path
+
+    private function construct; entry host-temporary-path
+        this.entry = entry
+
+    function location path;
+        return instance path; (host-temporary-location; this.entry)
+
+    consuming function delete filesystem-operation-result;
+        raw = host-temporary-delete; move this.entry
+        return instance filesystem-operation-result; (host-result-failed; raw), (host-result-message; raw), (host-result-error-kind; raw)
+
+    consuming function keep path;
+        return instance path; (host-temporary-keep; move this.entry)
+
+private function create-temporary-path temporary-path throws temporary-path-error; parent path|none, directory bool
+    parent-text string|none = none
+    if parent != none
+        parent-text = parent.text
+    entry = host-temporary-create; parent-text, directory
+    problem = host-temporary-status; entry
+    if problem != none
+        throw instance temporary-path-error; problem
+    return instance temporary-path; entry
+
+function filesystem-create-temporary-directory temporary-path throws temporary-path-error; capability filesystem, parent path|none = none
+    return create-temporary-path; parent, true
+
+function filesystem-create-temporary-file temporary-path throws temporary-path-error; capability filesystem, parent path|none = none
+    return create-temporary-path; parent, false
 
 class file-metadata
     kind string = 'other'

@@ -225,6 +225,46 @@ pub fn terrane_filesystem_write_atomic(path: String, data: Vec<u8>) -> TerraneFi
     }
 }
 
+pub type TerraneTemporaryPath = std::io::Result<terrane_platform_support::temporary::TemporaryPath>;
+
+pub fn terrane_temporary_create(parent: Option<String>, directory: bool) -> TerraneTemporaryPath {
+    use terrane_platform_support::temporary::TemporaryPath;
+    let parent = parent.as_deref().map(std::path::Path::new);
+    let owner = if directory {
+        TemporaryPath::directory(parent)?
+    } else {
+        TemporaryPath::file(parent)?.0
+    };
+    if owner.path().to_str().is_none() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "temporary path is not valid UTF-8",
+        ));
+    }
+    Ok(owner)
+}
+
+pub fn terrane_temporary_status(entry: &TerraneTemporaryPath) -> Option<String> {
+    entry.as_ref().err().map(ToString::to_string)
+}
+
+pub fn terrane_temporary_location(entry: &TerraneTemporaryPath) -> String {
+    entry.as_ref().expect("checked temporary creation").path().to_str()
+        .expect("checked temporary path encoding").to_owned()
+}
+
+pub fn terrane_temporary_delete(entry: TerraneTemporaryPath) -> TerraneFilesystemResult {
+    match entry.and_then(terrane_platform_support::temporary::TemporaryPath::delete) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+
+pub fn terrane_temporary_keep(entry: TerraneTemporaryPath) -> String {
+    entry.expect("checked temporary creation").keep().into_os_string().into_string()
+        .expect("checked temporary path encoding")
+}
+
 pub fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
     match std::fs::remove_file(path) {
         Ok(()) => TerraneFilesystemResult::default(),

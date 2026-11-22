@@ -1,6 +1,6 @@
 namespace conformance/filesystem-facilities
 
-from /core/filesystem/paths import path, normalise-path
+from /core/filesystem/paths import path, normalise-path, path-parent
 from /core/filesystem import filesystem, filesystem-capability, filesystem-write-atomic, filesystem-exists
 from /core/filesystem import filesystem-metadata, filesystem-symlink-metadata, filesystem-read-link
 from /core/filesystem import filesystem-read-bounded, filesystem-canonical, filesystem-realpath
@@ -9,6 +9,7 @@ from /core/filesystem import directory-handle, file-handle, open-file, open-file
 from /core/filesystem import file-flush, file-sync-data, file-sync-all, file-close
 from /core/filesystem import filesystem-create-directory, filesystem-create-directories, filesystem-list-directory
 from /core/filesystem import filesystem-remove-directory, filesystem-remove-directory-tree, filesystem-create-symlink, filesystem-create-hard-link
+from /core/filesystem import filesystem-create-temporary-directory, filesystem-create-temporary-file, temporary-path-error
 
 function sync-file bool; capability filesystem, output ref file-handle
     flushed = file-flush; capability, output
@@ -77,6 +78,47 @@ function exercise-open-modes; fs filesystem
     removed = filesystem-remove; fs, subject
     print; removed.failed, removed.error-kind
 
+function dropped-file path throws temporary-path-error; fs filesystem, parent path
+    file = filesystem-create-temporary-file; fs, parent
+    return file.location;
+
+function exercise-temporary-paths; fs filesystem, outside path
+    directory = filesystem-create-temporary-directory; fs, (instance path; '.')
+    workspace = directory.location;
+    info = filesystem-metadata; fs, workspace
+    print; (info.kind == 'directory' and info.permission-detail == 'unix-mode:0700')
+    file = filesystem-create-temporary-file; fs, workspace
+    sibling = filesystem-create-temporary-file; fs, workspace
+    target = file.location;
+    other = sibling.keep;
+    info = filesystem-metadata; fs, target
+    kept = filesystem-exists; fs, other
+    print; (target.text != other.text and (path-parent; target).text == workspace.text), (info.kind == 'regular-file' and info.size == 0 and info.permission-detail == 'unix-mode:0600'), kept.exists
+    result = file.delete;
+    print; (not result.failed and not (filesystem-exists; fs, target).exists)
+    expired = dropped-file; fs, workspace
+    print; not (filesystem-exists; fs, expired).exists
+    link = filesystem-create-symlink; fs, outside, (instance path; (workspace.text + '/outside'))
+    removed = directory.delete;
+    print; (not link.failed and not removed.failed and not (filesystem-exists; fs, workspace).exists and (filesystem-exists; fs, outside).exists)
+    try
+        filesystem-create-temporary-file; fs, workspace
+        print; false
+    catch temporary-path-error as error
+        print; error.message != ''
+    missing = filesystem-create-temporary-file; fs
+    location = missing.location;
+    unlinked = filesystem-remove; fs, location
+    result = missing.delete;
+    print; (not unlinked.failed and not result.failed)
+    replaced = filesystem-create-temporary-file; fs
+    location = replaced.location;
+    unlinked = filesystem-remove; fs, location
+    made = filesystem-create-directory; fs, location
+    result = replaced.delete;
+    removed = filesystem-remove-directory; fs, location
+    print; (not unlinked.failed and not made.failed and result.failed and not removed.failed)
+
 function main;
     fs = filesystem-capability;
     target = instance path; 'terrane-filesystem-case.txt'
@@ -113,6 +155,7 @@ function main;
     print; renamed.failed, restored.failed
     exercise-directory-operations; fs, target
     exercise-open-modes; fs
+    exercise-temporary-paths; fs, canonical.resolved
     base = instance path; '.'
     escape = instance path; '../Cargo.toml'
     escaped = filesystem-open-beneath; fs, base, escape

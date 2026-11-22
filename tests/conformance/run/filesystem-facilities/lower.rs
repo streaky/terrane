@@ -62,7 +62,7 @@ fn exercise_directory_operations(fs: Filesystem, outside: Path) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(entries.entries
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            0 /* terrane-site: case.trn:29:16-29:34 */)), 0 /* terrane-site: case.trn:29:16-29:34 */))
+            0 /* terrane-site: case.trn:30:16-30:34 */)), 0 /* terrane-site: case.trn:30:16-30:34 */))
         );
     } else {
         println!("{}", terrane_scalar_support::scalar_text(&entries.message));
@@ -270,6 +270,167 @@ fn exercise_open_modes(fs: Filesystem) {
         terrane_scalar_support::scalar_text(&removed.error_kind)
     );
 }
+fn dropped_file(fs: Filesystem, parent: Path) -> Result<Path, TerraneError> {
+    let file: TemporaryPath;
+    file = __terrane_traced_err(
+        filesystem_create_temporary_file(fs, Some(parent)),
+        1 /* terrane-site: case.trn:82:12-82:56 */,
+    )?;
+    return Ok(file.location());
+}
+fn exercise_temporary_paths(fs: Filesystem, outside: Path) -> Result<(), TerraneError> {
+    let directory: TemporaryPath;
+    let workspace: Path;
+    let mut info: FileMetadata;
+    let file: TemporaryPath;
+    let sibling: TemporaryPath;
+    let target: Path;
+    let other: Path;
+    let kept: ExistenceResult;
+    let mut result: FilesystemOperationResult;
+    let expired: Path;
+    let link: FilesystemOperationResult;
+    let mut removed: FilesystemOperationResult;
+    let mut error: Option<TerraneError> = None;
+    let missing: TemporaryPath;
+    let mut location: Path;
+    let mut unlinked: FilesystemOperationResult;
+    let replaced: TemporaryPath;
+    let made: FilesystemOperationResult;
+    directory = __terrane_traced_err(
+        filesystem_create_temporary_directory(
+            fs.clone(),
+            Some(Path::terrane_construct(String::from("."))),
+        ),
+        2 /* terrane-site: case.trn:86:17-86:80 */,
+    )?;
+    workspace = directory.location();
+    info = filesystem_metadata(fs.clone(), workspace.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(info.kind.as_str() == "directory"
+        &&info.permission_detail.as_str() == "unix-mode:0700"))
+    );
+    file = __terrane_traced_err(
+        filesystem_create_temporary_file(fs.clone(), Some(workspace.clone())),
+        3 /* terrane-site: case.trn:90:12-90:59 */,
+    )?;
+    sibling = __terrane_traced_err(
+        filesystem_create_temporary_file(fs.clone(), Some(workspace.clone())),
+        4 /* terrane-site: case.trn:91:15-91:62 */,
+    )?;
+    target = file.location();
+    other = sibling.keep();
+    info = filesystem_metadata(fs.clone(), target.clone());
+    kept = filesystem_exists(fs.clone(), other.clone());
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(&(target.text.as_str() != other
+        .text.as_str() &&path_parent(target.clone()).text.as_str() == workspace.text
+        .as_str())), terrane_scalar_support::scalar_text(&(info.kind.as_str() ==
+        "regular-file" &&info.size.clone() == terrane_int_support::Int::from(0_i128)
+        &&info.permission_detail.as_str() == "unix-mode:0600")),
+        terrane_scalar_support::scalar_text(&kept.exists)
+    );
+    result = file.delete();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! result.failed &&!
+        filesystem_exists(fs.clone(), target).exists))
+    );
+    expired = __terrane_traced_err(
+        dropped_file(fs.clone(), workspace.clone()),
+        5 /* terrane-site: case.trn:99:15-99:42 */,
+    )?;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&! filesystem_exists(fs.clone(),
+        expired).exists)
+    );
+    link = filesystem_create_symlink(
+        fs.clone(),
+        outside.clone(),
+        Path::terrane_construct({
+            let mut __terrane_text = String::with_capacity(8);
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &workspace.text,
+                &mut __terrane_text,
+            );
+            __terrane_text.push_str("/outside");
+            __terrane_text
+        }),
+    );
+    removed = directory.delete();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! link.failed &&! removed.failed &&!
+        filesystem_exists(fs.clone(), workspace.clone()).exists &&filesystem_exists(fs
+        .clone(), outside).exists))
+    );
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            __terrane_traced_completion!(
+                filesystem_create_temporary_file(fs.clone(), Some(workspace)),
+                6 /* terrane-site: case.trn:105:9-105:56 */
+            );
+            println!("{}", terrane_scalar_support::scalar_text(&false));
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind
+                        == TerraneErrorKind::Custom(DescriptorId(0))
+                {
+                    __terrane_handled_0 = true;
+                    let _ = error.insert(__terrane_error_0.clone());
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&{ let
+                        __terrane_error_text_0 = error.as_ref()
+                        .expect("flow-proven available binding").message();
+                        __terrane_error_text_0 != "" })
+                    );
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    missing = __terrane_traced_err(
+        filesystem_create_temporary_file(fs.clone(), None),
+        7 /* terrane-site: case.trn:109:15-109:51 */,
+    )?;
+    location = missing.location();
+    unlinked = filesystem_remove(fs.clone(), location);
+    result = missing.delete();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! unlinked.failed &&! result.failed))
+    );
+    replaced = __terrane_traced_err(
+        filesystem_create_temporary_file(fs.clone(), None),
+        8 /* terrane-site: case.trn:114:16-114:52 */,
+    )?;
+    location = replaced.location();
+    unlinked = filesystem_remove(fs.clone(), location.clone());
+    made = filesystem_create_directory(fs.clone(), location.clone());
+    result = replaced.delete();
+    removed = filesystem_remove_directory(fs, location);
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! unlinked.failed &&! made.failed
+        &&result.failed &&! removed.failed))
+    );
+    Ok(())
+}
 fn main() {
     let fs: Filesystem;
     let target: Path;
@@ -402,6 +563,10 @@ fn main() {
     );
     exercise_directory_operations(fs.clone(), target.clone());
     exercise_open_modes(fs.clone());
+    __terrane_traced(
+        exercise_temporary_paths(fs.clone(), canonical.resolved.clone()),
+        9 /* terrane-site: case.trn:158:5-158:53 */,
+    );
     base = Path::terrane_construct(String::from("."));
     escape = Path::terrane_construct(String::from("../Cargo.toml"));
     escaped = filesystem_open_beneath(fs.clone(), base.clone(), escape, false);

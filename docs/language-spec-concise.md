@@ -1154,11 +1154,12 @@ path: platform-neutral lexical value with canonical '/' separator; no host looku
 path_normalise: discard empty/'.'; resolve '..' lexically; rooted paths never cross root; unrooted unresolved leading parents remain
 path_join: absolute child replaces base; otherwise concatenate then normalise
 canonicalisation: `filesystem-canonical` is the capability-mediated native host resolution operation; follows filesystem and may fail; `filesystem-realpath` is its deliberate POSIX spelling alias with the same implementation; lexical path operations remain Terrane
-filesystem_authority: unforgeable value acquired only through `filesystem-capability`; REQUIRED by every host filesystem operation and handle method
+filesystem_authority: unforgeable value acquired through `filesystem-capability`; ordinary filesystem operations require it, and temporary path creation grants its owner authority to delete that entry
 metadata: metadata follows final link; symlink-metadata inspects it; portable kind/size/read-only plus platform permission detail
 bounded_read: explicit limit; excess fails, never truncates
 atomic_replace: sibling temporary then rename over destination without following destination link
 directory_management: create one directory or all missing parents; list bounded, unsorted immediate UTF-8 names; remove empty directory or explicitly remove a tree without following encountered symlinks; ordinary paths, not confined operations
+temporary_paths: filesystem-create-temporary-file/directory create private unique entries under an existing parent or the host temp directory; move-only owner deletes on drop, reports explicit delete failures, or transfers cleanup with keep
 links: capability-gated symbolic and hard link creation; relative symlink targets are stored verbatim, relative to the link's parent
 error_kinds: filesystem results and handles expose portable `error-kind` strings alongside `failed` and `message`; `none` on success, `other` for unclassified failures
 directory_relative: resource-owning directory handle; final anchor component and all beneath operations are no-follow; intermediate components of the caller-supplied anchor path use ordinary host resolution; beneath rejects escape; cross-filesystem requires explicit permission

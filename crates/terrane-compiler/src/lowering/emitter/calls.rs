@@ -1781,6 +1781,11 @@ impl Emitter<'_> {
                 "acquire-filesystem-authority",
                 "acquire_filesystem_authority",
             ),
+            ("temporary-create", "temporary_create"),
+            ("temporary-status", "temporary_status"),
+            ("temporary-location", "temporary_location"),
+            ("temporary-delete", "temporary_delete"),
+            ("temporary-keep", "temporary_keep"),
             ("filesystem-create-directory", "filesystem_create_directory"),
             (
                 "filesystem-create-directories",
@@ -1841,7 +1846,9 @@ impl Emitter<'_> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            if function.starts_with("filesystem_result_") || function.starts_with("platform_value_")
+            if function.starts_with("filesystem_result_")
+                || function.starts_with("platform_value_")
+                || matches!(function, "temporary_status" | "temporary_location")
             {
                 return format!("terrane_{function}(&({values}))");
             }
