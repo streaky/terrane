@@ -1069,14 +1069,56 @@ fn rust_object_name_characters(name: &str) -> impl Iterator<Item = char> + Clone
     })
 }
 
-fn rust_rendered_object_name(identity: &ObjectIdentity) -> impl Iterator<Item = char> + Clone + '_ {
-    rust_object_name_characters(&identity.name).chain(
-        identity
-            .is_unsafe
-            .then_some("UnsafeContract")
-            .into_iter()
-            .flat_map(str::chars),
-    )
+fn rust_rendered_object_name(identity: &ObjectIdentity) -> String {
+    let mut rendered = rust_object_name(&identity.name);
+    if identity.is_unsafe {
+        rendered.push_str("UnsafeContract");
+    }
+    rendered
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ObjectNames {
+    // None means multiple distinct nominal identities render to this spelling.
+    exact: std::collections::BTreeMap<String, Option<ObjectIdentity>>,
+    protocol_stems: std::collections::BTreeSet<String>,
+}
+
+impl ObjectNames {
+    fn new(package: &SemanticPackage) -> Self {
+        let mut exact = std::collections::BTreeMap::new();
+        let mut protocol_stems = std::collections::BTreeSet::new();
+        for object in package.units.iter().flat_map(|unit| &unit.descriptors) {
+            let rendered = rust_rendered_object_name(&object.identity);
+            if let Some(stem) = rendered.strip_suffix("Protocol") {
+                protocol_stems.insert(stem.to_owned());
+            }
+            let first = exact
+                .entry(rendered)
+                .or_insert_with(|| Some(object.identity.clone()));
+            if first
+                .as_ref()
+                .is_some_and(|identity| identity.nominal_key() != object.identity.nominal_key())
+            {
+                *first = None;
+            }
+        }
+        Self {
+            exact,
+            protocol_stems,
+        }
+    }
+
+    fn collides(&self, rendered: &str, identity: &ObjectIdentity) -> bool {
+        self.exact.get(rendered).is_some_and(|first| {
+            first
+                .as_ref()
+                .is_none_or(|first| first.nominal_key() != identity.nominal_key())
+        }) || rendered
+            .strip_suffix("Protocol")
+            .is_some_and(|stem| self.exact.contains_key(stem))
+            || self.protocol_stems.contains(rendered)
+    }
 }
 
 /// Qualifies rendered-name collisions with a readable canonical stem and exact-byte suffix.
@@ -1086,25 +1128,12 @@ pub(crate) fn rust_object_type_base_name(
 ) -> String {
     let rendered = rust_rendered_object_name(identity);
     let collides = rust_prelude_type_name(&rendered)
-        || rendered.clone().take(7).eq("Terrane".chars())
+        || rendered.starts_with("Terrane")
         || package
-            .units
-            .iter()
-            .flat_map(|unit| &unit.descriptors)
-            .any(|object| {
-                if object.identity.namespace == identity.namespace
-                    && object.identity.name == identity.name
-                    && object.identity.is_unsafe == identity.is_unsafe
-                {
-                    return false;
-                }
-                let other = rust_rendered_object_name(&object.identity);
-                let current = rust_rendered_object_name(identity);
-                other.clone().eq(current.clone())
-                    || other.clone().chain("Protocol".chars()).eq(current.clone())
-                    || current.chain("Protocol".chars()).eq(other)
-            });
-    let mut base = if collides {
+            .rust_object_names
+            .get_or_init(|| ObjectNames::new(package))
+            .collides(&rendered, identity);
+    if collides {
         let mut qualified =
             String::with_capacity(18 + identity.namespace.len() * 3 + identity.name.len() * 3);
         qualified.push_str("TerraneNs");
@@ -1126,14 +1155,13 @@ pub(crate) fn rust_object_type_base_name(
         {
             write!(qualified, "{byte:02X}").expect("writing to a string cannot fail");
         }
+        if identity.is_unsafe {
+            qualified.push_str("UnsafeContract");
+        }
         qualified
     } else {
-        rust_object_name(&identity.name)
-    };
-    if identity.is_unsafe {
-        base.push_str("UnsafeContract");
+        rendered
     }
-    base
 }
 
 pub(crate) fn rust_object_type_name(
@@ -1162,7 +1190,7 @@ pub(crate) fn rust_object_type_name(
 }
 
 // Mirrors the edition-2024 std prelude, plus names used by generated runtime support.
-fn rust_prelude_type_name(name: &(impl Iterator<Item = char> + Clone)) -> bool {
+fn rust_prelude_type_name(name: &str) -> bool {
     [
         "AsMut",
         "AsRef",
@@ -1206,8 +1234,7 @@ fn rust_prelude_type_name(name: &(impl Iterator<Item = char> + Clone)) -> bool {
         "UnwindSafe",
         "Vec",
     ]
-    .into_iter()
-    .any(|reserved| (*name).clone().eq(reserved.chars()))
+    .contains(&name)
 }
 
 pub(super) fn rust_source_type_application(

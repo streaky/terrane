@@ -172,6 +172,7 @@ pub(super) fn parse_unit(
         projected_callable_applications: BTreeMap::new(),
         flow_types: BTreeMap::new(),
         rust_storage_names: std::sync::OnceLock::new(),
+        shared_reference_operands: std::sync::OnceLock::new(),
         flow_binding_ids: BTreeMap::new(),
         flow_binding_types: BTreeMap::new(),
         flow_replacements: BTreeMap::new(),
@@ -1117,6 +1118,8 @@ fn analyze_parsed_with_projection(
         prelude_bindings,
         descriptor_constructs,
         units,
+        rust_object_names: std::sync::OnceLock::new(),
+        descriptor_positions: None,
         projection,
         native_capabilities: BTreeMap::new(),
         binding_events: BTreeMap::new(),
@@ -1149,6 +1152,9 @@ fn analyze_parsed_with_projection(
     }
     super::throw_construction::normalize(&mut semantic);
     super::interpolation::normalize_keys(&mut semantic)?;
+    for unit in &mut semantic.units {
+        unit.shared_reference_operands.take();
+    }
     super::mutation::prepare_sites(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
@@ -1487,6 +1493,7 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
             )
         })
         .collect::<BTreeMap<_, _>>();
+    let mut added = false;
     for unit in &mut package.units {
         let mut aliases = package
             .namespaces
@@ -1523,7 +1530,11 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
                 .iter()
                 .any(|contract| contract.name == alias.name)
         });
+        added |= !aliases.is_empty();
         unit.descriptors.extend(aliases);
+    }
+    if added && package.descriptor_positions.is_some() {
+        package.index_descriptors();
     }
 }
 

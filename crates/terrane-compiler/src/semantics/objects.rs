@@ -2942,12 +2942,8 @@ fn open_interface_name(package: &SemanticPackage, value_type: &ValueType) -> Opt
                 return Some(format!("projected interface `{}`", item.name));
             }
             let open = package
-                .units
-                .iter()
-                .flat_map(|unit| &unit.descriptors)
-                .find(|descriptor| {
+                .find_nominal_descriptor(identity, |descriptor| {
                     descriptor.kind == ObjectKind::Interface
-                        && descriptor.identity.base() == identity.base()
                         && !descriptor.associated_types.is_empty()
                         && identity.type_arguments.len()
                             + usize::from(
@@ -3593,6 +3589,7 @@ pub(super) fn prepare_type_declarations(
     populate_function_aliases(package);
     populate_function_type_dependencies(package);
     refresh_source_descriptor_members(&mut package.units);
+    package.index_descriptors();
     Ok(())
 }
 

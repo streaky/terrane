@@ -517,10 +517,7 @@ impl SiteWrites {
             && let Ok(Some(ValueType::Object(identity))) =
                 infer_value_type(unit, owner, &unit.typed_bindings)
             && package
-                .units
-                .iter()
-                .flat_map(|unit| &unit.descriptors)
-                .find(|descriptor| descriptor.identity.base() == identity.base())
+                .find_nominal_descriptor(&identity, |_| true)
                 .is_some_and(|descriptor| {
                     effective_object_fields(package, descriptor)
                         .iter()
