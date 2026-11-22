@@ -52,8 +52,8 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "regex",
         [
             "compile",
-            "compile-error",
-            "compiled-pattern",
+            "result-error",
+            "result-value",
             "matches",
             "first-match",
             "captures",

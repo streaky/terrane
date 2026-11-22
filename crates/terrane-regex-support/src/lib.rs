@@ -1,12 +1,15 @@
 //! Native implementation of Terrane's text regex operations.
 
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 use terrane_string_support::TextRange;
 
 #[derive(Clone)]
-pub struct Pattern(Arc<regex::Regex>);
+pub struct Pattern(Arc<fancy_regex::Regex>);
 
-pub type Compilation = Result<Pattern, regex::Error>;
+pub type Outcome<T> = Result<T, fancy_regex::Error>;
+
+const BACKTRACK_LIMIT: usize = 1_000_000;
+const MAX_PROGRAM_SIZE: usize = 100_000;
 
 #[derive(Clone)]
 pub struct Captures(Arc<CaptureData>);
@@ -14,62 +17,75 @@ pub struct Captures(Arc<CaptureData>);
 struct CaptureData {
     source: Arc<str>,
     pattern: Pattern,
-    locations: regex::CaptureLocations,
+    locations: Vec<Option<Range<usize>>>,
 }
 
-/// Compiles one Unicode text pattern with the engine's default size limit.
+/// Compiles one Unicode text pattern, delegating regular portions to automata.
 ///
 /// # Errors
 ///
 /// Returns an error for invalid or unsupported syntax or an oversized compiled pattern.
-pub fn compile(pattern: &str, case_insensitive: bool) -> Compilation {
-    regex::RegexBuilder::new(pattern)
+pub fn compile(pattern: &str, case_insensitive: bool) -> Outcome<Pattern> {
+    fancy_regex::RegexBuilder::new(pattern)
         .case_insensitive(case_insensitive)
+        .backtrack_limit(BACKTRACK_LIMIT)
+        .max_prog_size(MAX_PROGRAM_SIZE)
+        .delegate_dfa_skip_cache_capacity_check(false)
         .build()
         .map(|regex| Pattern(Arc::new(regex)))
 }
 
 #[must_use]
-pub fn compile_error(result: &Compilation) -> Option<String> {
+pub fn result_error<T>(result: &Outcome<T>) -> Option<String> {
     result.as_ref().err().map(ToString::to_string)
 }
 
-/// Extracts the successfully compiled pattern.
+/// Extracts a successful compile or search outcome.
 ///
 /// # Panics
 ///
 /// The Terrane wrapper must throw a typed error before calling this on a failure.
 #[must_use]
-pub fn compiled_pattern(result: Compilation) -> Pattern {
-    result.expect("Terrane checked regex compilation")
+pub fn result_value<T>(result: Outcome<T>) -> T {
+    result.expect("Terrane checked the regex outcome")
 }
 
-#[must_use]
-pub fn matches(pattern: &Pattern, text: &str) -> bool {
+/// # Errors
+///
+/// Returns an execution error if the engine cannot finish the search.
+pub fn matches(pattern: &Pattern, text: &str) -> Outcome<bool> {
     pattern.0.is_match(text)
 }
 
-#[must_use]
-pub fn first_match(pattern: &Pattern, text: &str) -> Option<TextRange> {
-    let matched = pattern.0.find(text)?;
-    TextRange::from_shared(Arc::from(text), matched.start(), matched.end())
+/// # Errors
+///
+/// Returns an execution error if the engine cannot finish the search.
+pub fn first_match(pattern: &Pattern, text: &str) -> Outcome<Option<TextRange>> {
+    Ok(pattern.0.find(text)?.and_then(|matched| {
+        TextRange::from_shared(Arc::from(text), matched.start(), matched.end())
+    }))
 }
 
-#[must_use]
-pub fn captures(pattern: &Pattern, text: &str) -> Option<Captures> {
-    let mut locations = pattern.0.capture_locations();
-    pattern.0.captures_read(&mut locations, text)?;
-    Some(Captures(Arc::new(CaptureData {
-        source: Arc::from(text),
-        pattern: pattern.clone(),
-        locations,
-    })))
+/// # Errors
+///
+/// Returns an execution error if the engine cannot finish the search.
+pub fn captures(pattern: &Pattern, text: &str) -> Outcome<Option<Captures>> {
+    Ok(pattern.0.captures(text)?.map(|found| {
+        Captures(Arc::new(CaptureData {
+            source: Arc::from(text),
+            pattern: pattern.clone(),
+            locations: found
+                .iter()
+                .map(|matched| matched.map(|matched| matched.range()))
+                .collect(),
+        }))
+    }))
 }
 
 #[must_use]
 pub fn capture(captures: &Captures, index: Option<usize>) -> Option<TextRange> {
-    let (start, end) = captures.0.locations.get(index?)?;
-    TextRange::from_shared(Arc::clone(&captures.0.source), start, end)
+    let range = captures.0.locations.get(index?)?.as_ref()?;
+    TextRange::from_shared(Arc::clone(&captures.0.source), range.start, range.end)
 }
 
 #[must_use]

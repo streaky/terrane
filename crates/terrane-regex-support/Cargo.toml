@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-regex = "1"
+fancy-regex = "=0.20.2"
 terrane-string-support = { path = "../terrane-string-support" }
 
 [lints]

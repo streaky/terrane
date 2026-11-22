@@ -11,6 +11,15 @@ class regex-error implements throwable
     function render string;
         return this.message
 
+class regex-match-error implements throwable
+    message string = ''
+
+    private function construct; detail string
+        this.message = detail
+
+    function render string;
+        return this.message
+
 class regex-captures
     private value host-regex-captures
 
@@ -29,21 +38,31 @@ class regex-pattern
     private function construct; value host-regex-pattern
         this.value = value
 
-    function matches bool; text string
-        return host-matches; this.value, text
+    function matches bool throws regex-match-error; text string
+        result = host-matches; this.value, text
+        check-match-error; (host-result-error; result)
+        return host-result-value; move result
 
-    function match text-range|none; text string
-        return host-first-match; this.value, text
+    function match text-range|none throws regex-match-error; text string
+        result = host-first-match; this.value, text
+        check-match-error; (host-result-error; result)
+        return host-result-value; move result
 
-    function captures regex-captures|none; text string
-        found = host-captures; this.value, text
+    function captures regex-captures|none throws regex-match-error; text string
+        result = host-captures; this.value, text
+        check-match-error; (host-result-error; result)
+        found = host-result-value; move result
         if found != none
             return instance regex-captures; found
         return none
 
+private function check-match-error throws regex-match-error; detail string|none
+    if detail != none
+        throw instance regex-match-error; detail
+
 function compile regex-pattern throws regex-error; pattern string, case-insensitive bool = false
     result = host-compile; pattern, case-insensitive
-    detail = host-compile-error; result
+    detail = host-result-error; result
     if detail != none
         throw instance regex-error; move detail
-    return instance regex-pattern; (host-compiled-pattern; move result)
+    return instance regex-pattern; (host-result-value; move result)

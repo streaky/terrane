@@ -1412,17 +1412,30 @@ fn infer_nonbinary_value_type(
             if callee.kind == SyntaxKind::Name
                 && let Some(identity) = resolved_compiler_identity(unit, callee)
             {
+                if identity == "intrinsic:regex::result-value"
+                    && let Some(argument) = arguments.children.first()
+                    && let Some(ValueType::RegexOutcome(value)) = infer_value_type(
+                        unit,
+                        argument.children.last().unwrap_or(argument),
+                        bindings,
+                    )?
+                {
+                    return Ok(Some(value.value_type()));
+                }
+                let regex_outcome = |value| Some(ValueType::RegexOutcome(ElementType::new(value)));
                 let platform_result = match identity {
-                    "intrinsic:regex::compile" => Some(ValueType::RegexCompilation),
-                    "intrinsic:regex::compiled-pattern" => Some(ValueType::RegexPattern),
-                    "intrinsic:regex::matches" => Some(ValueType::Scalar(ScalarType::Bool)),
-                    "intrinsic:regex::first-match"
-                    | "intrinsic:regex::capture"
-                    | "intrinsic:regex::named-capture" => {
+                    "intrinsic:regex::compile" => regex_outcome(ValueType::RegexPattern),
+                    "intrinsic:regex::matches" => {
+                        regex_outcome(ValueType::Scalar(ScalarType::Bool))
+                    }
+                    "intrinsic:regex::first-match" => {
+                        regex_outcome(ValueType::Optional(Box::new(ValueType::TextRange)))
+                    }
+                    "intrinsic:regex::capture" | "intrinsic:regex::named-capture" => {
                         Some(ValueType::Optional(Box::new(ValueType::TextRange)))
                     }
                     "intrinsic:regex::captures" => {
-                        Some(ValueType::Optional(Box::new(ValueType::RegexCaptures)))
+                        regex_outcome(ValueType::Optional(Box::new(ValueType::RegexCaptures)))
                     }
                     "intrinsic:streams::acquire-stdin"
                     | "intrinsic:streams::acquire-stdout"
@@ -1623,7 +1636,7 @@ fn infer_nonbinary_value_type(
                     "intrinsic:system::filesystem-temporary-create" => {
                         Some(ValueType::PlatformTemporaryPath)
                     }
-                    "intrinsic:regex::compile-error"
+                    "intrinsic:regex::result-error"
                     | "intrinsic:system::filesystem-temporary-status" => Some(ValueType::Optional(
                         Box::new(ValueType::Scalar(ScalarType::String)),
                     )),

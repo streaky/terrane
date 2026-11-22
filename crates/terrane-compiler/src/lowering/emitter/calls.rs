@@ -1530,8 +1530,8 @@ impl Emitter<'_> {
                 .and_then(|symbol| symbol.compiler_identity().strip_prefix("intrinsic:regex::"))
         {
             let function = match name {
-                "compile-error" => "compile_error",
-                "compiled-pattern" => "compiled_pattern",
+                "result-error" => "result_error",
+                "result-value" => "result_value",
                 "first-match" => "first_match",
                 "named-capture" => "named_capture",
                 _ => name,
@@ -1540,7 +1540,7 @@ impl Emitter<'_> {
                 .iter()
                 .enumerate()
                 .map(|(index, value)| match (function, index) {
-                    ("compiled_pattern", _) | ("compile", 1) => self.expression(value),
+                    ("result_value", _) | ("compile", 1) => self.expression(value),
                     _ => {
                         if let Some(name) = self.borrowed_key_name(value) {
                             return name.to_owned();

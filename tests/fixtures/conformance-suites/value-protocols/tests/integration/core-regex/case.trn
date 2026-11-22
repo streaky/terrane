@@ -1,6 +1,6 @@
 namespace core-regex
 
-from /core/regex import compile, regex-error
+from /core/regex import compile, regex-error, regex-match-error
 
 function test-scenario;
   pattern = compile; '([0-9]+)?(?<call>[a-z]+)()\(', case-insensitive=true
@@ -29,6 +29,37 @@ function test-scenario;
     print; ((found.named-group; 'unknown') == none)
     print; source
   try
-    _ = compile; '(?<=left)right'
+    _ = compile; '['
   catch regex-error as error
     print; error.message != ''
+
+  lookaround = compile; '(?<=HTTP/1\.1 )(?<status>[0-9]+)(?= OK)'
+  response = lookaround.captures; 'read: HTTP/1.1 200 OK'
+  if response != none
+    status = response.named-group; 'status'
+    if status != none
+      print; status.text
+      print; status.bytes.start
+  print; (lookaround.matches; 'HTTP/1.1 200 Failed')
+
+  repeated = compile; '\A(?<word>[a-z]+) \k<word>\z'
+  print; (repeated.matches; 'word word')
+  print; (repeated.matches; 'word other')
+  positional = compile; '\A([a-z]+) \1\z'
+  print; (positional.matches; 'word word')
+
+  expensive = compile; '\A(a|aa)+\1b\z'
+  input = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacb'
+  try
+    _ = expensive.matches; input
+  catch regex-match-error as error
+    print; error.message != ''
+  try
+    _ = expensive.match; input
+  catch regex-match-error
+    print; 'match limit'
+  try
+    _ = expensive.captures; input
+  catch regex-match-error
+    print; 'captures limit'
+  print; (expensive.matches; 'aab')
