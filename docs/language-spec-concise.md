@@ -1259,8 +1259,9 @@ assertions: assert | deny | fail | fail-values for caller-owned typed comparison
 assertion_invariants: operands evaluated once; structured causes retain source frames and bounded useful values; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
 context: stable identity/tier/seed/temporary-directory, typed deadline duration, repeatable controlled process arguments, checked explicit monotonic-time advancement, and test-clock sleeps that advance immediately to their target when awaited; reading this runner-supplied context is intentionally ungated, while operations such as process spawning remain capability-gated
 fixture_root: test-package-root returns the absolute selected package directory as string|none, independently of the case working directory
+compiler_context: testing.compiler = true supplies test-compiler (the invoking CLI path as string|none) and forwards only PATH, HOME, CARGO_HOME, RUSTUP_HOME, and RUSTUP_TOOLCHAIN from the host for toolchain discovery; spawning still requires process capability
 reporting: deterministic human counts distinguish pass/fail/skip/timeout/crash/infrastructure outcomes; schema 1.2.0 JSON has effective run metadata, numeric timeout milliseconds, per-tier compilation status/diagnostics, structured causes, and bounded byte-array streams with independent truncation flags
-timeout_units: bare values are seconds; ms and s suffixes are accepted
+timeout_units: bare CLI values are seconds; ms and s suffixes are accepted; --timeout overrides the positive testing.timeout-ms manifest default, otherwise 30 seconds
 non_goals_initial: new test declaration grammar, decorators, parameterized-test syntax, automatic retry, snapshot rewriting, mock generation, matcher DSL
 host_boundary: no Cargo test target, Rust #[test], or libtest semantics; Rust only for compiler CLI and irreducible process/filesystem/clock ABI
 ```

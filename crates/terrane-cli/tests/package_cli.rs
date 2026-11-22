@@ -99,7 +99,8 @@ fn bare_test_runs_manifest_suite_with_its_fixture_root() {
         concat!(
             "package = \"cli-suite\"\n",
             "[namespaces]\n\"cli-suite\" = \"src\"\n",
-            "[profile]\ncapabilities = [\"filesystem\"]\n",
+            "[profile]\ncapabilities = [\"filesystem\", \"process\"]\n",
+            "[testing]\ncompiler = true\ntimeout-ms = 123000\n",
         ),
     )
     .unwrap();
@@ -113,9 +114,12 @@ fn bare_test_runs_manifest_suite_with_its_fixture_root() {
         suite.join("tests/unit/cases.trn"),
         concat!(
             "namespace cli-suite\n",
+            "from /core/collections import list\n",
             "from /core/filesystem import filesystem-capability, filesystem-read-bounded\n",
             "from /core/filesystem/paths import path\n",
-            "from /core/testing import assert-equal-bytes, fail, test-package-root\n",
+            "from /core/process import environment, native-text\n",
+            "from /core/testing import assert, assert-equal-bytes, assert-equal-int, deny, fail, test-compiler, test-deadline, test-package-root\n",
+            "from /core/testing/process import process-fixture, run-process\n",
             "function test-real-fixture;\n",
             "    root = test-package-root;\n",
             "    if root == none\n",
@@ -123,6 +127,20 @@ fn bare_test_runs_manifest_suite_with_its_fixture_root() {
             "    target = instance path; root + '/fixture.txt'\n",
             "    result = filesystem-read-bounded; (filesystem-capability;), target, 32\n",
             "    assert-equal-bytes; result.data, b'suite only'\n",
+            "    compiler = test-compiler;\n",
+            "    if compiler != none\n",
+            "        child = instance process-fixture; compiler\n",
+            "        child.arguments = list; (native-text; '--version')\n",
+            "        version = run-process; child\n",
+            "        assert-equal-int; version.exit-code, 0\n",
+            "        output = version.stdout.decode; utf8\n",
+            "        assert; (output.contains.start; 'terrane ')\n",
+            "    else\n",
+            "        fail; 'missing test compiler'\n",
+            "    deadline = test-deadline;\n",
+            "    assert-equal-int; deadline.total-nanoseconds, 123000000000\n",
+            "    for setting in (environment;)\n",
+            "        deny; setting.name.text == 'TERRANE_TEST_UNRELATED'\n",
         ),
     )
     .unwrap();
@@ -130,6 +148,8 @@ fn bare_test_runs_manifest_suite_with_its_fixture_root() {
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .arg("test")
         .current_dir(&package.0)
+        .env("TERRANE_TEST_UNRELATED", "do not forward")
+        .env("TERRANE_TEST_COMPILER", "/not/the/invoking/compiler")
         .output()
         .unwrap();
     assert!(
@@ -693,8 +713,9 @@ const DETERMINISTIC_TEST_CASES: &str = concat!(
     "from /core/process import exit, make-exit-status, native-text-value\n",
     "from /core/output import print\n",
     "from /core/streams import stderr\n",
-    "from /core/testing import assert, assert-equal-int, assert-equal-string, fail, skip, test-arguments, test-deadline, test-failure, test-skip\n",
+    "from /core/testing import assert, assert-equal-int, assert-equal-string, assert-none-string, fail, skip, test-arguments, test-compiler, test-deadline, test-failure, test-skip\n",
     "function test-pass none throws throwable;\n",
+    "    assert-none-string; (test-compiler;)\n",
     "    supplied = test-arguments;\n",
     "    assert-equal-int; supplied.length, 1\n",
     "    first = native-text-value; supplied[0]\n",
