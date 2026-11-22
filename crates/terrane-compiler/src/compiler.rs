@@ -37,12 +37,19 @@ impl DebugBuild {
     }
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "compiler options represent independent validation and emission choices"
+)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
     pub lint_unused_functions: bool,
     pub debug_build: DebugBuild,
+    /// Keep generated definitions when a caller will append or link Rust code
+    /// that can refer to them outside the compiler's reachability graph.
+    pub retain_rust_definitions: bool,
 }
 
 #[expect(

@@ -17,6 +17,7 @@ pub(super) fn select(
 ) {
     if package.artifact != crate::ArtifactKind::Executable
         || options.debug_build != super::DebugBuild::Disabled
+        || options.retain_rust_definitions
     {
         return;
     }

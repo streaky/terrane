@@ -770,6 +770,10 @@ fn lower_with_tests(
                     "../../runtime/platform_testing.rs"
                 )));
                 source_files.push("platform_testing.rs");
+                items.push(Item::generated(include_str!(
+                    "../../runtime/platform_test_values.rs"
+                )));
+                source_files.push("platform_test_values.rs");
             }
         }
         runtime.push(GeneratedModule {

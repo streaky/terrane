@@ -158,6 +158,7 @@ fn compile_shared_suite(
         lint_name_style: false,
         lint_unused_functions: false,
         debug_build: terrane_compiler::DebugBuild::Disabled,
+        retain_rust_definitions: false,
     };
     let mut tiers = terrane_compiler::compile_test_package(&package, options)
         .unwrap_or_else(|failure| {

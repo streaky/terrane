@@ -129,6 +129,9 @@ directory shares exact generated-token summaries across CLI consumers.
 These entries are disposable and do not replace frontend analysis. Moving the
 boundary earlier requires resolved declaration edges and the facts that
 selected them; equal Rust identifier spelling is not source identity.
+Rust consumers that append code after lowering must request retained
+definitions through `CompilerOptions::retain_rust_definitions`, as the
+conformance harness does for dependency-panic tests.
 
 The same cache directory also enables pre-lowering assignment tickets.
 These cache a function body's successful definite-assignment check for exact

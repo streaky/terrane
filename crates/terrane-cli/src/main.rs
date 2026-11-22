@@ -305,6 +305,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 require_canonical_rust,
                 lint_name_style,
                 lint_unused_functions,
+                retain_rust_definitions: false,
                 debug_build: match command {
                     CliCommand::Profile if embed_debug_sources => {
                         terrane_compiler::DebugBuild::EmbeddedAllSources

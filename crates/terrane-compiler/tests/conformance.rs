@@ -684,6 +684,7 @@ fn prepare_conformance_case(
         lint_name_style: false,
         lint_unused_functions: boolean_field(&manifest, "lint-unused-functions").unwrap_or(false),
         debug_build: terrane_compiler::DebugBuild::Disabled,
+        retain_rust_definitions: field(&manifest, "dependency-panic-test").is_some(),
     };
 
     match (phase, status) {
