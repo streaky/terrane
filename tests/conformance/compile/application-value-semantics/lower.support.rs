@@ -473,8 +473,8 @@ mod __terrane_trace {
         "/core/filesystem/paths::path-extension",
     ];
     pub static SITES: [Site; 13] = [
-        /* terrane-site-row: site 0: /application-value-semantics::main (case.trn:16:17-16:28) */
-        { Site { function: 0, file: 0, line: 16, column: 17, end_line: 16, end_column: 28 } },
+        /* terrane-site-row: site 0: /application-value-semantics::main (case.trn:18:17-18:28) */
+        { Site { function: 0, file: 0, line: 18, column: 17, end_line: 18, end_column: 28 } },
         /* terrane-site-row: site 1: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
         { Site { function: 1, file: 1, line: 16, column: 16, end_line: 16, end_column: 28 } },
         /* terrane-site-row: site 2: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
@@ -1683,6 +1683,48 @@ pub fn open_file(
     category = raw.error_kind.to_owned();
     acquired = raw.handle.clone();
     return FileHandle::terrane_construct(acquired, failure, detail, category);
+}
+pub fn file_read(
+    capability: Filesystem,
+    file: &FileHandle,
+    limit: terrane_int_support::Int,
+) -> FileData {
+    let raw: TerranePlatformReadResult;
+    let _ = &capability;
+    raw = terrane_platform_read(
+        &{
+            let __terrane_snapshot = file
+                .handle
+                .as_ref()
+                .expect("required field initialized")
+                .clone();
+            __terrane_snapshot
+        },
+        limit,
+    );
+    return FileData::terrane_construct(
+        raw.data.clone(),
+        raw.completed.clone(),
+        raw.end,
+        raw.failed,
+        raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
+    );
+}
+pub fn file_close(
+    capability: Filesystem,
+    file: FileHandle,
+) -> FilesystemOperationResult {
+    let raw: TerranePlatformUnitResult;
+    let _ = &capability;
+    raw = terrane_platform_close(
+        &file.handle.as_ref().expect("required field initialized"),
+    );
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone(),
+        Some(raw.error_kind.to_owned()),
+    );
 }
 #[derive(Clone)]
 pub struct Filesystem {

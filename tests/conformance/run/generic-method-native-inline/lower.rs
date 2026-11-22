@@ -51,21 +51,47 @@ impl Factory {
         >::terrane_construct(value);
     }
 }
+fn free_both<TerraneType42>(
+    value: TerraneType42,
+) -> TerraneNsAppBoxIdentity2F61707000426F78<TerraneType42> {
+    return TerraneNsAppBoxIdentity2F61707000426F78::<
+        TerraneType42,
+    >::terrane_construct(value);
+}
 fn unbox<TerraneType54>(
     __trn_626f78: TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54>,
 ) -> TerraneType54 {
     return __trn_626f78.take();
 }
 fn main() {
+    let free: terrane_query_witness::Holder;
     let factory: Factory;
     let value: terrane_query_witness::Holder;
+    free = unbox(
+        free_both(
+            __terrane_raised(
+                terrane_static_trn_486f6c646572_new(),
+                0 /* terrane-site: src/main.trn:21:32-21:44 */,
+            ),
+        ),
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&free).label_len()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+        u128)) } } (), 1 /* terrane-site: src/main.trn:22:13-22:28 */))
+    );
     factory = Factory::terrane_construct();
     value = unbox(
         factory
             .both(
                 __terrane_raised(
                     terrane_static_trn_486f6c646572_new(),
-                    0 /* terrane-site: src/main.trn:22:36-22:48 */,
+                    2 /* terrane-site: src/main.trn:24:36-24:48 */,
                 ),
             ),
     );
@@ -77,6 +103,6 @@ fn main() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 1 /* terrane-site: src/main.trn:23:13-23:29 */))
+        u128)) } } (), 3 /* terrane-site: src/main.trn:25:13-25:29 */))
     );
 }

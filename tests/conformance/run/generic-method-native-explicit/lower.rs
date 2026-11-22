@@ -51,17 +51,45 @@ impl Factory {
         >::terrane_construct(value);
     }
 }
+fn free_both<TerraneType42>(
+    value: TerraneType42,
+) -> TerraneNsAppBoxIdentity2F61707000426F78<TerraneType42> {
+    return TerraneNsAppBoxIdentity2F61707000426F78::<
+        TerraneType42,
+    >::terrane_construct(value);
+}
 fn unbox<TerraneType54>(
     __trn_626f78: TerraneNsAppBoxIdentity2F61707000426F78<TerraneType54>,
 ) -> TerraneType54 {
     return __trn_626f78.take();
 }
 fn main() {
+    let free: terrane_query_witness::Holder;
     let factory: Factory;
     let __trn_626f78: TerraneNsAppBoxIdentity2F61707000426F78<
         terrane_query_witness::Holder,
     >;
     let value: terrane_query_witness::Holder;
+    free = unbox(
+        free_both::<
+            Holder,
+        >(
+            __terrane_raised(
+                terrane_static_trn_486f6c646572_new(),
+                0 /* terrane-site: src/main.trn:21:44-21:56 */,
+            ),
+        ),
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&free).label_len()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
+        "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
+        _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
+        u128)) } } (), 1 /* terrane-site: src/main.trn:22:13-22:28 */))
+    );
     factory = Factory::terrane_construct();
     __trn_626f78 = factory
         .both::<
@@ -69,7 +97,7 @@ fn main() {
         >(
             __terrane_raised(
                 terrane_static_trn_486f6c646572_new(),
-                0 /* terrane-site: src/main.trn:22:38-22:50 */,
+                2 /* terrane-site: src/main.trn:24:38-24:50 */,
             ),
         );
     value = unbox(__trn_626f78);
@@ -81,6 +109,6 @@ fn main() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 1 /* terrane-site: src/main.trn:24:13-24:29 */))
+        u128)) } } (), 3 /* terrane-site: src/main.trn:26:13-26:29 */))
     );
 }

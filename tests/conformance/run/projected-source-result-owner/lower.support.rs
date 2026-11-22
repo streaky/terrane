@@ -509,13 +509,11 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 2] = ["helpers/maker.trn", "src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/helpers::make", "/app::main"];
-    pub static SITES: [Site; 3] = [
+    pub static SITES: [Site; 2] = [
         /* terrane-site-row: site 0: /helpers::make (helpers/maker.trn:6:10-6:17) */
         { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 17 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:9:14-9:26) */
-        { Site { function: 1, file: 1, line: 9, column: 14, end_line: 9, end_column: 26 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:10:11-10:23) */
-        { Site { function: 1, file: 1, line: 10, column: 11, end_line: 10, end_column: 23 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:11:11-11:23) */
+        { Site { function: 1, file: 1, line: 11, column: 11, end_line: 11, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]

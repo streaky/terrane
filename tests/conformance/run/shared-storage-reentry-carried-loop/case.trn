@@ -11,6 +11,7 @@ function main;
     b = instance box;
     ha = shared ref a
     hb = shared ref b
+    invoke; ha, hb
     copy = hb
     other = hb
     for item in (list; 1, 2)

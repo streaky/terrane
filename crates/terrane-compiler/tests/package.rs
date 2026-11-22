@@ -181,6 +181,25 @@ fn package_compilation_parses_every_discovered_unit() {
 }
 
 #[test]
+fn yaml_only_runtime_omits_json_reader_without_pruning() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/yaml-only-runtime-support");
+    let package = Package::load(&fixture).unwrap();
+    let compilation = compile_package_with_options(
+        &package,
+        CompilerOptions {
+            retain_rust_definitions: true,
+            ..CompilerOptions::default()
+        },
+    )
+    .unwrap();
+    assert!(compilation.rust.contains("fn terrane_yaml_parse("));
+    assert!(compilation.rust.contains("fn terrane_json_stringify("));
+    assert!(!compilation.rust.contains("fn terrane_json_parse("));
+    assert!(!compilation.rust.contains("fn terrane_json_canonical("));
+}
+
+#[test]
 fn package_compilation_emits_functions_and_bindings_from_every_unit() {
     let package = TempPackage::new();
     package.write(

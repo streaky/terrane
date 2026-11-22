@@ -71,9 +71,12 @@ fn main() {
         let __terrane_collection_argument_1 = Point::terrane_construct();
         points.set(__terrane_collection_argument_0, __terrane_collection_argument_1);
     };
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&describe(String::from("camera")))
+    );
     borrowed = __terrane_traced(
         locate(&points, 1),
-        2 /* terrane-site: src/main.trn:15:16-15:33 */,
+        2 /* terrane-site: src/main.trn:16:16-16:33 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = borrowed
@@ -90,6 +93,14 @@ impl Point {
     pub fn terrane_construct() -> Self {
         Self { latitude: 51.5 }
     }
+}
+fn describe(name: String) -> String {
+    return {
+        let mut __terrane_text = String::with_capacity(32);
+        __terrane_text.push_str("Unknown camera catalogue entry: ");
+        terrane_scalar_support::ScalarDisplay::write_scalar(&name, &mut __terrane_text);
+        __terrane_text
+    };
 }
 #[derive(Clone)]
 pub struct LookupError {

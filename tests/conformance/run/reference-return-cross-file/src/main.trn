@@ -12,5 +12,6 @@ function locate ref point throws throwable; points ref map of int64, point, id i
 function main throws throwable;
     points map of int64, point = map;
     points.set; 1, (instance point;)
+    print; (describe; 'camera')
     borrowed = locate; points, 1
     print; borrowed.latitude
