@@ -108,27 +108,12 @@ pub(super) fn parse_unit(
     if let Some(expected) = expected_namespace
         && namespace != expected
     {
-        let span = parsed
-            .tree
-            .root
-            .children
-            .iter()
-            .find(|node| node.kind == SyntaxKind::NamespaceDeclaration)
-            .map_or(Span::new(source.id(), 0, source.text().len()), |node| {
-                node.span
-            });
-        let diagnostic = Diagnostic::error(
-            "S2020",
-            format!(
-                "declared namespace `{namespace}` does not match `{expected}` required by its source directory"
-            ),
-            span,
-        )
-        .with_help(format!("declare `namespace {}`", expected.trim_start_matches('/')));
-        return Err(SemanticFailure {
-            source: source.clone(),
-            diagnostics: vec![diagnostic],
-        });
+        return Err(namespace_mismatch(
+            source,
+            &parsed.tree,
+            &namespace,
+            expected,
+        ));
     }
     let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
     let mut unsafe_rust_spans = Vec::new();
@@ -144,6 +129,7 @@ pub(super) fn parse_unit(
         scopes: Vec::new(),
         declaration_metadata: Vec::new(),
         typed_bindings: Vec::new(),
+        mutations: super::mutation::MutationState::default(),
         functions: Vec::new(),
         source_enums: Vec::new(),
         source_enum_registry: std::sync::Arc::from([]),
@@ -171,6 +157,7 @@ pub(super) fn parse_unit(
         projected_callable_applications: BTreeMap::new(),
         flow_types: BTreeMap::new(),
         rust_storage_names: std::sync::OnceLock::new(),
+        shared_reference_operands: std::sync::OnceLock::new(),
         flow_binding_ids: BTreeMap::new(),
         flow_binding_types: BTreeMap::new(),
         flow_replacements: BTreeMap::new(),
@@ -184,6 +171,34 @@ pub(super) fn parse_unit(
         evaluation_steps: Vec::new(),
         selections: Vec::new(),
     })
+}
+
+fn namespace_mismatch(
+    source: &SourceFile,
+    tree: &crate::syntax::SyntaxTree,
+    namespace: &str,
+    expected: &str,
+) -> SemanticFailure {
+    let span = tree
+        .root
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::NamespaceDeclaration)
+        .map_or(Span::new(source.id(), 0, source.text().len()), |node| {
+            node.span
+        });
+    let diagnostic = Diagnostic::error(
+        "S2020",
+        format!(
+            "declared namespace `{namespace}` does not match `{expected}` required by its source directory"
+        ),
+        span,
+    )
+    .with_help(format!("declare `namespace {}`", expected.trim_start_matches('/')));
+    SemanticFailure {
+        source: source.clone(),
+        diagnostics: vec![diagnostic],
+    }
 }
 
 fn parse_authored_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
@@ -1116,6 +1131,7 @@ fn analyze_parsed_with_projection(
         prelude_bindings,
         descriptor_constructs,
         units,
+        descriptor_index: None,
         projection,
         native_capabilities: BTreeMap::new(),
         binding_events: BTreeMap::new(),
@@ -1148,6 +1164,10 @@ fn analyze_parsed_with_projection(
     }
     super::throw_construction::normalize(&mut semantic);
     super::interpolation::normalize_keys(&mut semantic)?;
+    for unit in &mut semantic.units {
+        unit.shared_reference_operands.take();
+    }
+    super::mutation::prepare_sites(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     super::ownership::validate_reference_expression_sites(&semantic)?;
@@ -1264,6 +1284,7 @@ fn analyze_parsed_with_projection(
     super::scoped_regions::record_completion_capture_slots(&mut semantic);
     super::statement_owners::record(&mut semantic);
     stage.finish();
+    super::mutation::finalize(&mut semantic);
     Ok(semantic)
 }
 
@@ -1484,6 +1505,7 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
             )
         })
         .collect::<BTreeMap<_, _>>();
+    let mut added = false;
     for unit in &mut package.units {
         let mut aliases = package
             .namespaces
@@ -1520,7 +1542,11 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
                 .iter()
                 .any(|contract| contract.name == alias.name)
         });
+        added |= !aliases.is_empty();
         unit.descriptors.extend(aliases);
+    }
+    if added && package.descriptor_index.is_some() {
+        package.index_descriptors();
     }
 }
 

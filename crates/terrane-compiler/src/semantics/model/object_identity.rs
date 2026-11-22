@@ -410,6 +410,10 @@ impl ObjectIdentity {
         )
     }
 
+    pub(crate) fn nominal_key(&self) -> (&str, &str, bool) {
+        (&self.namespace, &self.name, self.is_unsafe)
+    }
+
     pub(crate) fn base(&self) -> Self {
         Self::new(&self.namespace, &self.name).with_safety(self.is_unsafe)
     }

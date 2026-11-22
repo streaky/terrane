@@ -1,4 +1,8 @@
-use super::{prelude::*, types::ungrouped_expression};
+use super::{
+    mutation::{ClosureWrites, binding_span_is_mutated_in},
+    prelude::*,
+    types::ungrouped_expression,
+};
 mod callable_captures;
 #[cfg(test)]
 mod evaluation_tests;
@@ -2163,7 +2167,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         .filter(|object| object.resource_owning)
         .map(|object| span_key(object.span))
         .collect();
-    for unit in &package.units {
+    let work = super::parallel::source_work(&package.units);
+    super::parallel::try_for_each_unit(package.units.iter(), work, |unit| {
         super::collections::validate_copy_requirements(package, unit)?;
         visit(
             package,
@@ -2173,9 +2178,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             false,
             &resource_objects,
             &mut LoopMoveExits::default(),
-        )?;
-    }
-    Ok(())
+        )
+    })
 }
 
 /// Authority of an earlier call operation borrowing this owned argument's place.

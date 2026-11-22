@@ -981,30 +981,22 @@ fn method_contract_with_safety<'a>(
     is_static: bool,
     is_unsafe: bool,
 ) -> Option<&'a FunctionContract> {
-    let object = package
-        .units
-        .iter()
-        .flat_map(|candidate| &candidate.descriptors)
-        .find(|object| {
-            object.identity == *object_identity
-                || (!object_identity.type_arguments.is_empty()
-                    && object.identity.base() == object_identity.base())
-                || (object.identity.namespace == object_identity.namespace
-                    && object.identity.name == object_identity.name
-                    && object.identity.is_unsafe == object_identity.is_unsafe
-                    && object_identity.native_projection.is_some()
-                    && package
-                        .projection
-                        .method_for_native(
-                            &object_identity.namespace,
-                            &object_identity.name,
-                            object_identity.native_projection.as_deref(),
-                            method_name,
-                            is_static,
-                            is_unsafe,
-                        )
-                        .is_some())
-        })?;
+    let object = package.find_nominal_descriptor(object_identity, |object| {
+        object.identity == *object_identity
+            || !object_identity.type_arguments.is_empty()
+            || (object_identity.native_projection.is_some()
+                && package
+                    .projection
+                    .method_for_native(
+                        &object_identity.namespace,
+                        &object_identity.name,
+                        object_identity.native_projection.as_deref(),
+                        method_name,
+                        is_static,
+                        is_unsafe,
+                    )
+                    .is_some())
+    })?;
     package
         .units
         .iter()

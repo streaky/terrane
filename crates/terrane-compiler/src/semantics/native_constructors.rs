@@ -635,9 +635,11 @@ pub(super) fn normalize_contracts(
                 })
         })
         .collect::<BTreeMap<_, _>>();
+    let mut nominal_keys_changed = false;
     for unit in &mut package.units {
         for descriptor in &mut unit.descriptors {
             if let Some(selected) = selections.get(&descriptor.identity) {
+                nominal_keys_changed |= descriptor.identity.nominal_key() != selected.nominal_key();
                 descriptor.identity.clone_from(selected);
             }
             for field in &mut descriptor.fields {
@@ -668,6 +670,9 @@ pub(super) fn normalize_contracts(
         for binding in &mut unit.typed_bindings {
             normalize_type(&mut binding.value_type, &selections);
         }
+    }
+    if nominal_keys_changed && package.descriptor_index.is_some() {
+        package.index_descriptors();
     }
     for (unit_index, function_index, parameter_index, selected) in signatures {
         let function = &mut package.units[unit_index].functions[function_index];

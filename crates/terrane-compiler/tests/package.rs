@@ -106,6 +106,102 @@ fn manifest_discovers_sources_in_deterministic_path_order() {
 }
 
 #[test]
+fn unchanged_caller_mutability_tracks_an_edited_callee() {
+    let fixture = TempPackage::new();
+    fixture.write(
+        "package.toml",
+        "package = \"example.mutation-cache\"\n[namespaces]\nexample = \"src\"\n",
+    );
+    fixture.write(
+        "src/main.trn",
+        "namespace example\nfunction main;\n  local = 1\n  print; (update; local)\n",
+    );
+    let validate = |expected| {
+        let package = Package::load(&fixture.0).unwrap();
+        let semantic = terrane_compiler::with_compilation_cache(|| analyze(&package)).unwrap();
+        let caller = semantic
+            .units
+            .iter()
+            .find(|unit| unit.source_path.ends_with("main.trn"))
+            .unwrap();
+        let local = caller
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.name == "local")
+            .unwrap();
+        assert_eq!(local.mutable, expected);
+        let cached =
+            terrane_compiler::with_compilation_cache(|| compile_package(&package)).unwrap();
+        let clean = compile_package(&package).unwrap();
+        assert_eq!(cached.rust, clean.rust);
+    };
+
+    fixture.write(
+        "src/update.trn",
+        "namespace example\nfunction update int; value ref int\n  return value\n",
+    );
+    validate(false);
+    // The unchanged caller also gets a different composition-local file ID.
+    fixture.write("src/first.trn", "namespace example\n");
+    fixture.write(
+        "src/update.trn",
+        "namespace example\nfunction update int; value mutable ref int\n  value = 2\n  return value\n",
+    );
+    validate(true);
+}
+
+#[test]
+fn mutation_cache_rekeys_an_unchanged_file_after_throw_rewrite_changes() {
+    use sha2::{Digest, Sha256};
+
+    let fixture = TempPackage::new();
+    fixture.write(
+        "package.toml",
+        "package = \"example.mutation-shape\"\n[namespaces]\nexample = \"src\"\n",
+    );
+    fixture.write(
+        "src/main.trn",
+        "namespace example\nfunction other throws problem;\n  throw problem\nfunction main;\n  value = 1\n  try\n    throw failure; value\n  catch\n    print; value\n",
+    );
+    let throwable = "namespace example\nfrom /core/errors import throwable\nclass problem implements throwable\n  message string = 'failure'\n  function render string;\n    return this.message\n";
+    fixture.write(
+        "src/failure.trn",
+        &format!("{throwable}class failure implements throwable\n  message string = 'failure'\n  function construct; value int\n    print; value\n  function render string;\n    return this.message\n"),
+    );
+    let package = Package::load(&fixture.0).unwrap();
+    let caller = package
+        .units
+        .iter()
+        .find(|unit| unit.relative_path.ends_with("main.trn"))
+        .unwrap();
+    let source_path = caller.source.path().as_os_str().as_encoded_bytes();
+    let mut slot = Sha256::new();
+    slot.update((source_path.len() as u64).to_le_bytes());
+    slot.update(source_path);
+    let slot = fixture
+        .0
+        .join(".trn/cache/mutation-sites")
+        .join(format!("{:x}", slot.finalize()));
+    let key = || {
+        let snapshot: serde_json::Value =
+            serde_json::from_slice(&fs::read(&slot).unwrap()).unwrap();
+        snapshot["key"].as_str().unwrap().to_owned()
+    };
+    terrane_compiler::with_compilation_cache(|| compile_package(&package)).unwrap();
+    let constructor_key = key();
+
+    fixture.write(
+        "src/failure.trn",
+        &format!("{throwable}function failure problem; value mutable ref int\n  value = 2\n  return instance problem;\n"),
+    );
+    let package = Package::load(&fixture.0).unwrap();
+    let cached = terrane_compiler::with_compilation_cache(|| compile_package(&package)).unwrap();
+    let clean = compile_package(&package).unwrap();
+    assert_ne!(key(), constructor_key);
+    assert_eq!(cached.rust, clean.rust);
+}
+
+#[test]
 fn manifest_can_explicitly_use_the_system_rust_toolchain() {
     let package = TempPackage::new();
     package.write(

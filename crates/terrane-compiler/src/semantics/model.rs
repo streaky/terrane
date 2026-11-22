@@ -69,6 +69,14 @@ pub(super) struct NativeTypeCapabilities {
     pub sync: bool,
 }
 
+type DescriptorPositions = BTreeMap<String, BTreeMap<String, Vec<(usize, usize)>>>;
+
+#[derive(Clone, Debug)]
+pub(super) struct DescriptorIndex {
+    positions: DescriptorPositions,
+    rust_names: std::sync::OnceLock<crate::lowering::helpers::ObjectNames>,
+}
+
 #[derive(Clone, Debug)]
 pub struct SemanticPackage {
     pub identity: String,
@@ -87,6 +95,8 @@ pub struct SemanticPackage {
     pub prelude_bindings: BTreeMap<String, Symbol>,
     pub descriptor_constructs: BTreeMap<String, Symbol>,
     pub units: Vec<SemanticUnit>,
+    // Keep the late-built indexes off the stack when moving semantic packages.
+    pub(super) descriptor_index: Option<Box<DescriptorIndex>>,
     pub(super) binding_events: BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
     pub(super) metadata_constant_reads: BTreeMap<(u32, usize, usize), Span>,
     /// Ordered, typed modifier applications selected before region lowering.
@@ -97,6 +107,64 @@ pub struct SemanticPackage {
 }
 
 impl SemanticPackage {
+    pub(super) fn index_descriptors(&mut self) {
+        let mut positions = DescriptorPositions::new();
+        for (unit, source) in self.units.iter().enumerate() {
+            for (index, descriptor) in source.descriptors.iter().enumerate() {
+                let names = positions
+                    .entry(descriptor.identity.namespace.clone())
+                    .or_default();
+                names
+                    .entry(descriptor.identity.name.clone())
+                    .or_default()
+                    .push((unit, index));
+            }
+        }
+        if let Some(index) = &mut self.descriptor_index {
+            index.positions = positions;
+            index.rust_names.take();
+        } else {
+            self.descriptor_index = Some(Box::new(DescriptorIndex {
+                positions,
+                rust_names: std::sync::OnceLock::new(),
+            }));
+        }
+    }
+
+    pub(crate) fn rust_object_names(&self) -> Option<&crate::lowering::helpers::ObjectNames> {
+        let index = self.descriptor_index.as_ref()?;
+        Some(
+            index
+                .rust_names
+                .get_or_init(|| crate::lowering::helpers::ObjectNames::new(self)),
+        )
+    }
+
+    pub(super) fn find_nominal_descriptor(
+        &self,
+        identity: &ObjectIdentity,
+        mut matches: impl FnMut(&DescriptorContract) -> bool,
+    ) -> Option<&DescriptorContract> {
+        let matches = |descriptor: &&DescriptorContract| {
+            descriptor.identity.nominal_key() == identity.nominal_key() && matches(descriptor)
+        };
+        if let Some(index) = &self.descriptor_index {
+            index
+                .positions
+                .get(identity.namespace.as_str())?
+                .get(identity.name.as_str())?
+                .iter()
+                .map(|&(unit, index)| &self.units[unit].descriptors[index])
+                .find(matches)
+        } else {
+            // Declaration preparation itself occasionally queries a partial inventory.
+            self.units
+                .iter()
+                .flat_map(|unit| &unit.descriptors)
+                .find(matches)
+        }
+    }
+
     /// Canonical authored declarations, ordered by source unit and declaration span.
     pub fn declarations(&self) -> impl Iterator<Item = &DeclarationMetadata> {
         self.units
@@ -1912,8 +1980,10 @@ pub struct SemanticUnit {
 
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,
+    pub(super) mutations: super::mutation::MutationState,
     /// Lazily rendered backend identifiers; invalidated when flow storage is rebuilt.
     pub(crate) rust_storage_names: std::sync::OnceLock<crate::lowering::StorageNames>,
+    pub(super) shared_reference_operands: std::sync::OnceLock<Vec<Span>>,
     pub flow_types: BTreeMap<(u32, usize, usize), ValueType>,
     pub flow_binding_ids: BTreeMap<(u32, usize, usize), Span>,
     pub flow_binding_types: BTreeMap<Span, ValueType>,
