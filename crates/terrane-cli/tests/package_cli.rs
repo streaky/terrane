@@ -84,11 +84,13 @@ fn wait_for_test_runner(process: u32, timeout: Duration) -> Option<u32> {
 #[test]
 fn bare_test_runs_manifest_suite_with_its_fixture_root() {
     let package = TempPackage::new();
-    let manifest = package.0.join("package.toml");
-    let original = fs::read_to_string(&manifest).unwrap();
     fs::write(
-        &manifest,
-        format!("{original}\n[testing]\nsuite = \"suite/package.toml\"\n"),
+        package.0.join("package.toml"),
+        concat!(
+            "package = \"outer\"\n[namespaces]\nouter = \"missing-source\"\n",
+            "[terrane-dependencies.acme.missing]\npath = \"missing-dependency\"\n",
+            "[testing]\nsuite = \"suite/package.toml\"\n",
+        ),
     )
     .unwrap();
     let suite = package.0.join("suite");
@@ -118,7 +120,7 @@ fn bare_test_runs_manifest_suite_with_its_fixture_root() {
             "from /core/filesystem import filesystem-capability, filesystem-read-bounded\n",
             "from /core/filesystem/paths import path\n",
             "from /core/process import environment, native-text\n",
-            "from /core/testing import assert, assert-equal-bytes, assert-equal-int, deny, fail, test-compiler, test-deadline, test-package-root\n",
+            "from /core/testing import assert, assert-equal-bytes, assert-equal-int, deny, fail, test-arguments, test-compiler, test-deadline, test-package-root\n",
             "from /core/testing/process import process-fixture, run-process\n",
             "function test-real-fixture;\n",
             "    root = test-package-root;\n",
@@ -138,27 +140,49 @@ fn bare_test_runs_manifest_suite_with_its_fixture_root() {
             "    else\n",
             "        fail; 'missing test compiler'\n",
             "    deadline = test-deadline;\n",
-            "    assert-equal-int; deadline.total-nanoseconds, 123000000000\n",
+            "    supplied = test-arguments;\n",
+            "    if supplied.length == 0\n",
+            "        assert-equal-int; deadline.total-nanoseconds, 123000000000\n",
+            "    else\n",
+            "        assert-equal-int; deadline.total-nanoseconds, 240000000000\n",
             "    for setting in (environment;)\n",
             "        deny; setting.name.text == 'TERRANE_TEST_UNRELATED'\n",
         ),
     )
     .unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
-        .arg("test")
-        .current_dir(&package.0)
-        .env("TERRANE_TEST_UNRELATED", "do not forward")
-        .env("TERRANE_TEST_COMPILER", "/not/the/invoking/compiler")
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(String::from_utf8_lossy(&output.stdout).contains("passed /cli-suite::test-real-fixture"));
+    let report_path = package.0.join("report.json");
+    for (timeout_args, expected_ms) in [
+        (&[][..], 123_000),
+        (
+            &["--timeout", "240s", "--argument", "override"][..],
+            240_000,
+        ),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .args(timeout_args)
+            .arg("--report")
+            .arg(&report_path)
+            .current_dir(&package.0)
+            .env("TERRANE_TEST_UNRELATED", "do not forward")
+            .env("TERRANE_TEST_COMPILER", "/not/the/invoking/compiler")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .contains("passed /cli-suite::test-real-fixture")
+        );
+        let report: serde_json::Value =
+            serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+        assert_eq!(report["run"]["timeout_milliseconds"], expected_ms);
+    }
 }
 
 #[test]

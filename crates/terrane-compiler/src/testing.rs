@@ -126,38 +126,7 @@ impl TestPackage {
     ///
     /// Returns package, manifest, containment, or source-read diagnostics.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Vec<PackageLoadError>> {
-        let mut package = Package::load(path)?;
-        if let Some(suite) = &package.testing.suite {
-            let root = package.root.canonicalize().map_err(|error| {
-                vec![test_load_error(
-                    package.root.clone(),
-                    format!("cannot resolve testing package root: {error}"),
-                )]
-            })?;
-            let requested = root.join(suite);
-            let canonical = requested.canonicalize().map_err(|error| {
-                vec![test_load_error(
-                    requested.clone(),
-                    format!("cannot resolve testing suite manifest: {error}"),
-                )]
-            })?;
-            if !canonical.starts_with(&root)
-                || canonical.parent() == Some(root.as_path())
-                || !canonical.is_file()
-            {
-                return Err(vec![test_load_error(
-                    requested,
-                    "testing suite must be a manifest in a subdirectory of the package".to_owned(),
-                )]);
-            }
-            package = Package::load(&canonical)?;
-            if package.testing.suite.is_some() {
-                return Err(vec![test_load_error(
-                    canonical,
-                    "a selected testing suite cannot select another suite".to_owned(),
-                )]);
-            }
-        }
+        let package = Package::load_for_testing(path.as_ref())?;
         let root = package.root.clone();
         let configuration = package.testing.clone();
 
@@ -532,7 +501,7 @@ fn manifest_test_error(
     }
 }
 
-fn test_load_error(path: PathBuf, message: String) -> PackageLoadError {
+pub(crate) fn test_load_error(path: PathBuf, message: String) -> PackageLoadError {
     PackageLoadError {
         source: SourceFile::new(u32::MAX, path, String::new()),
         diagnostic: Diagnostic::unlocated_error("S2050", message),

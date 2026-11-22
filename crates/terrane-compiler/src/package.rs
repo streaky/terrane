@@ -361,13 +361,50 @@ impl Package {
     ///
     /// Returns every manifest, dependency, or source file error.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Vec<PackageLoadError>> {
-        let requested = path.as_ref();
-        let manifest_path = if requested.is_dir() {
-            requested.join(MANIFEST_FILE_NAME)
-        } else {
-            requested.to_path_buf()
+        load_package_graph(&package_manifest_path(path.as_ref()))
+    }
+
+    pub(crate) fn load_for_testing(path: &Path) -> Result<Self, Vec<PackageLoadError>> {
+        use crate::testing::test_load_error;
+
+        let manifest_path = package_manifest_path(path);
+        let manifest = read_package_manifest(&manifest_path)?;
+        let Some(suite) = &manifest.testing.suite else {
+            return load_package_graph_from_parsed(&manifest_path, manifest);
         };
-        load_package_graph(&manifest_path)
+
+        // A suite is a test-only target, not a dependency of the outer package.
+        let root = package_manifest_root(&manifest_path);
+        let canonical_root = root.canonicalize().map_err(|error| {
+            vec![test_load_error(
+                root.to_path_buf(),
+                format!("cannot resolve testing package root: {error}"),
+            )]
+        })?;
+        let requested = canonical_root.join(suite);
+        let canonical = requested.canonicalize().map_err(|error| {
+            vec![test_load_error(
+                requested.clone(),
+                format!("cannot resolve testing suite manifest: {error}"),
+            )]
+        })?;
+        if !canonical.starts_with(&canonical_root)
+            || canonical.parent() == Some(canonical_root.as_path())
+            || !canonical.is_file()
+        {
+            return Err(vec![test_load_error(
+                requested,
+                "testing suite must be a manifest in a subdirectory of the package".to_owned(),
+            )]);
+        }
+        let selected = read_package_manifest(&canonical)?;
+        if selected.testing.suite.is_some() {
+            return Err(vec![test_load_error(
+                canonical,
+                "a selected testing suite cannot select another suite".to_owned(),
+            )]);
+        }
+        load_package_graph_from_parsed(&canonical, selected)
     }
 
     pub(crate) fn from_tooling_sources(
@@ -496,10 +533,63 @@ fn overlay_tooling_sources(
     }
 }
 
+fn package_manifest_path(path: &Path) -> PathBuf {
+    if path.is_dir() {
+        path.join(MANIFEST_FILE_NAME)
+    } else {
+        path.to_path_buf()
+    }
+}
+
+fn package_manifest_root(manifest_path: &Path) -> &Path {
+    manifest_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+}
+
 fn load_package_graph(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
-    let mut package = load_package_unit(manifest_path)?;
+    load_package_graph_from_parsed(manifest_path, read_package_manifest(manifest_path)?)
+}
+
+fn load_package_graph_from_parsed(
+    manifest_path: &Path,
+    manifest: ParsedManifest,
+) -> Result<Package, Vec<PackageLoadError>> {
+    let mut package = load_package_unit_from_parsed(manifest_path, manifest)?;
     compose_package_dependencies(manifest_path, &mut package)?;
     Ok(package)
+}
+
+fn load_package_unit_from_parsed(
+    manifest_path: &Path,
+    manifest: ParsedManifest,
+) -> Result<Package, Vec<PackageLoadError>> {
+    let root = package_manifest_root(manifest_path).to_path_buf();
+    let units = discover_source_units(&root, &manifest.namespace_roots, manifest.prelude)?;
+    let authored_rust_modules =
+        load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
+    Ok(Package {
+        identity: manifest.identity,
+        root,
+        prelude: manifest.prelude,
+        reflection: manifest.reflection,
+        executor: manifest.executor,
+        artifact: manifest.artifact,
+        profile: manifest.profile,
+        purpose: PackagePurpose::Production,
+        testing: manifest.testing,
+        build_toolchain: manifest.build_toolchain,
+        units,
+        rust_dependencies: manifest.rust_dependencies,
+        authored_rust_modules,
+        terrane_dependencies: manifest.terrane_dependencies,
+        consumer_tools: manifest.consumer_tools,
+        dependency_roots: BTreeMap::new(),
+        consumer_configs: manifest.consumer_configs,
+        dependency_manifests: vec![manifest_path.to_path_buf()],
+        library_source_ids: BTreeSet::new(),
+    })
 }
 
 fn compose_package_dependencies(
@@ -538,29 +628,20 @@ pub(crate) fn consumer_tool_exports(
     Ok(parse_manifest(manifest_path, &text)?.consumer_tools)
 }
 
-fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
-    let root = manifest_path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."))
-        .to_path_buf();
-    let text = fs::read_to_string(manifest_path).map_err(|error| {
-        vec![PackageLoadError::unreadable(
-            manifest_path.to_path_buf(),
-            format!("cannot read package manifest: {error}"),
-        )]
-    })?;
-    let manifest = parse_manifest(manifest_path, &text)?;
+fn validate_manifest_semantics(
+    manifest_path: &Path,
+    text: &str,
+    manifest: &ParsedManifest,
+) -> Result<(), Vec<PackageLoadError>> {
     if manifest.artifact == ArtifactKind::Library {
         let namespace_identity = format!("/{}", manifest.identity.trim_start_matches('/'));
         let prefix = format!("{namespace_identity}/");
-        let invalid = manifest.namespace_roots.iter().find(|mapping| {
+        if let Some(mapping) = manifest.namespace_roots.iter().find(|mapping| {
             mapping.namespace != namespace_identity && !mapping.namespace.starts_with(&prefix)
-        });
-        if let Some(mapping) = invalid {
+        }) {
             return Err(vec![manifest_error(
                 manifest_path,
-                &text,
+                text,
                 format!(
                     "library namespace `{}` must equal or descend from package identity `{}`",
                     mapping.namespace, manifest.identity
@@ -569,30 +650,23 @@ fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadErr
             )]);
         }
     }
-    let units = discover_source_units(&root, &manifest.namespace_roots, manifest.prelude)?;
-    let authored_rust_modules =
-        load_authored_rust_modules(&root, &manifest.authored_rust_modules, units.len())?;
-    Ok(Package {
-        identity: manifest.identity,
-        root,
-        prelude: manifest.prelude,
-        reflection: manifest.reflection,
-        executor: manifest.executor,
-        artifact: manifest.artifact,
-        profile: manifest.profile,
-        purpose: PackagePurpose::Production,
-        testing: manifest.testing,
-        build_toolchain: manifest.build_toolchain,
-        units,
-        rust_dependencies: manifest.rust_dependencies,
-        authored_rust_modules,
-        terrane_dependencies: manifest.terrane_dependencies,
-        consumer_tools: manifest.consumer_tools,
-        dependency_roots: BTreeMap::new(),
-        consumer_configs: manifest.consumer_configs,
-        dependency_manifests: vec![manifest_path.to_path_buf()],
-        library_source_ids: BTreeSet::new(),
-    })
+    Ok(())
+}
+
+fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
+    load_package_unit_from_parsed(manifest_path, read_package_manifest(manifest_path)?)
+}
+
+fn read_package_manifest(manifest_path: &Path) -> Result<ParsedManifest, Vec<PackageLoadError>> {
+    let text = fs::read_to_string(manifest_path).map_err(|error| {
+        vec![PackageLoadError::unreadable(
+            manifest_path.to_path_buf(),
+            format!("cannot read package manifest: {error}"),
+        )]
+    })?;
+    let manifest = parse_manifest(manifest_path, &text)?;
+    validate_manifest_semantics(manifest_path, &text, &manifest)?;
+    Ok(manifest)
 }
 
 fn compose_dependencies(
@@ -1163,6 +1237,7 @@ fn merge_library(
     Ok(())
 }
 
+#[derive(Clone, Debug)]
 struct ParsedManifest {
     identity: String,
     prelude: bool,
