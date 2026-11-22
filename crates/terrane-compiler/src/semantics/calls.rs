@@ -12,10 +12,11 @@ pub(super) fn validate_calls(package: &SemanticPackage) -> Result<(), SemanticFa
             )
         })
         .collect();
-    for unit in &package.units {
+    let work = super::parallel::source_work(&package.units);
+    super::parallel::try_for_each_unit(package.units.iter(), work, |unit| {
         let bindings = call_site_bindings(unit, None);
-        validate_call_nodes(package, unit, &unit.tree.root, &contracts, None, &bindings)?;
-    }
+        validate_call_nodes(package, unit, &unit.tree.root, &contracts, None, &bindings)
+    })?;
     super::shared_reentry::validate(package)
 }
 

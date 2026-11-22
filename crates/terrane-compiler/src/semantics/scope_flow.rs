@@ -857,6 +857,11 @@ fn validate_iteration_carriers(
 pub(super) fn validate_definite_assignment(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
+    let work = super::parallel::source_work(&package.units);
+    super::parallel::try_for_each_unit(package.units.iter_mut(), work, validate_unit_assignment)
+}
+
+fn validate_unit_assignment(unit: &mut SemanticUnit) -> Result<(), SemanticFailure> {
     fn collect_functions<'a>(node: &'a SyntaxNode, functions: &mut Vec<&'a SyntaxNode>) {
         if matches!(
             node.kind,
@@ -869,84 +874,81 @@ pub(super) fn validate_definite_assignment(
             collect_functions(child, functions);
         }
     }
-    for unit in &mut package.units {
-        // First retain the ordinary function-owned joins and collect canonical
-        // reaching origins. Only units with dead, type-changing loop outputs
-        // need a second pass to omit their otherwise-unused union carriers.
-        let mut dead_iteration_outputs = std::sync::Arc::new(BTreeSet::new());
-        loop {
-            unit.rust_storage_names.take();
-            unit.flow_types.clear();
-            unit.flow_binding_ids.clear();
-            unit.flow_binding_types.clear();
-            unit.flow_availability.clear();
-            unit.flow_replacements.clear();
-            unit.flow_read_bindings.clear();
-            let mut functions = Vec::new();
-            let tree = unit.tree.clone();
-            collect_functions(&tree.root, &mut functions);
-            for function in &functions {
-                let mut declared = unit
-                    .typed_bindings
-                    .iter()
-                    .filter(|binding| binding.scope == Some(function.span))
-                    .filter(|binding| !matches!(binding.name.as_str(), "self" | "this"))
-                    .map(|binding| binding.name.clone())
-                    .collect();
-                let mut assigned = BTreeSet::new();
-                let mut active = FlowEnv::new(BTreeMap::new());
-                active.dead_iteration_outputs = Some(dead_iteration_outputs.clone());
-                if let Some(parameters) = function
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::ParameterList)
-                {
-                    for parameter in &parameters.children {
-                        if let Some(name) = parameter
-                            .children
+    // First retain the ordinary function-owned joins and collect canonical
+    // reaching origins. Only units with dead, type-changing loop outputs
+    // need a second pass to omit their otherwise-unused union carriers.
+    let mut dead_iteration_outputs = std::sync::Arc::new(BTreeSet::new());
+    loop {
+        unit.rust_storage_names.take();
+        unit.flow_types.clear();
+        unit.flow_binding_ids.clear();
+        unit.flow_binding_types.clear();
+        unit.flow_availability.clear();
+        unit.flow_replacements.clear();
+        unit.flow_read_bindings.clear();
+        let mut functions = Vec::new();
+        let tree = unit.tree.clone();
+        collect_functions(&tree.root, &mut functions);
+        for function in &functions {
+            let mut declared = unit
+                .typed_bindings
+                .iter()
+                .filter(|binding| binding.scope == Some(function.span))
+                .filter(|binding| !matches!(binding.name.as_str(), "self" | "this"))
+                .map(|binding| binding.name.clone())
+                .collect();
+            let mut assigned = BTreeSet::new();
+            let mut active = FlowEnv::new(BTreeMap::new());
+            active.dead_iteration_outputs = Some(dead_iteration_outputs.clone());
+            if let Some(parameters) = function
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::ParameterList)
+            {
+                for parameter in &parameters.children {
+                    if let Some(name) = parameter
+                        .children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::Name)
+                    {
+                        let name = node_text(&unit.source, name).to_owned();
+                        assigned.insert(name.clone());
+                        if let Some(binding) = unit
+                            .typed_bindings
                             .iter()
-                            .find(|child| child.kind == SyntaxKind::Name)
+                            .find(|binding| binding.span == parameter.span)
                         {
-                            let name = node_text(&unit.source, name).to_owned();
-                            assigned.insert(name.clone());
-                            if let Some(binding) = unit
-                                .typed_bindings
-                                .iter()
-                                .find(|binding| binding.span == parameter.span)
-                            {
-                                active
-                                    .types
-                                    .insert(name.clone(), binding.value_type.clone());
-                                active.binding_ids.insert(name.clone(), binding.span);
-                                active
-                                    .origins
-                                    .insert(name.clone(), BTreeSet::from([binding.span]));
-                            }
+                            active
+                                .types
+                                .insert(name.clone(), binding.value_type.clone());
+                            active.binding_ids.insert(name.clone(), binding.span);
+                            active
+                                .origins
+                                .insert(name.clone(), BTreeSet::from([binding.span]));
                         }
                     }
                 }
-                if let Some(block) = function
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::Block)
-                {
-                    flow_block(unit, block, active);
-                    validate_assignment_block(unit, block, &mut declared, &mut assigned)?;
-                }
             }
-            if !dead_iteration_outputs.is_empty() {
-                break;
+            if let Some(block) = function
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Block)
+            {
+                flow_block(unit, block, active);
+                validate_assignment_block(unit, block, &mut declared, &mut assigned)?;
             }
-            let mut dead = BTreeSet::new();
-            collect_dead_iteration_outputs(unit, &tree.root, &mut dead);
-            if dead.is_empty() {
-                break;
-            }
-            dead_iteration_outputs = std::sync::Arc::new(dead);
         }
-        validate_iteration_carriers(unit, &unit.tree.root)?;
+        if !dead_iteration_outputs.is_empty() {
+            break;
+        }
+        let mut dead = BTreeSet::new();
+        collect_dead_iteration_outputs(unit, &tree.root, &mut dead);
+        if dead.is_empty() {
+            break;
+        }
+        dead_iteration_outputs = std::sync::Arc::new(dead);
     }
-    Ok(())
+    validate_iteration_carriers(unit, &unit.tree.root)
 }
 fn require_completion_storage(unit: &mut SemanticUnit, statement: &SyntaxNode, state: &FlowEnv) {
     // Completion closures capture function-owned slots before their body runs.

@@ -3652,16 +3652,11 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
         unit.flow_types.clear();
         unit.rust_storage_names.take();
     }
-    let work = package
-        .units
-        .iter()
-        .map(|unit| unit.source.text().len())
-        .sum();
+    let work = super::parallel::source_work(&package.units);
     let mut first_pass = true;
     loop {
         let mut changed = false;
-        let results = super::parallel::map_ordered(package.units.len(), work, |index| {
-            let unit = &package.units[index];
+        let results = super::parallel::map_ordered(package.units.iter(), work, |unit| {
             let matches = super::enums::MatchContext::new(package, unit, &enums);
             let mut bindings = Vec::new();
             let mut visible_bindings = Vec::new();
