@@ -978,6 +978,7 @@ pub(super) fn declared_value_type_with_visible_objects(
         }
         "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
         "host-filesystem-authority" => return Ok(ValueType::FilesystemAuthority),
+        "host-temporary-path" => return Ok(ValueType::PlatformTemporaryPath),
         "host-platform-data-result" => return Ok(ValueType::PlatformDataResult),
         "host-platform-url-result" => return Ok(ValueType::PlatformUrlResult),
         "host-platform-capability" => return Ok(ValueType::PlatformCapability),

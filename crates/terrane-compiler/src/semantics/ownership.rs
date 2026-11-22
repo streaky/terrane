@@ -1369,7 +1369,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     continue;
                 };
                 let expects_named_resource = match &expected {
-                    ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
+                    ValueType::PlatformStreamHandle
+                    | ValueType::PlatformResourceHandle
+                    | ValueType::PlatformTemporaryPath => true,
                     ValueType::Object(name) => resolved_object_span(package, name)
                         .is_some_and(|span| resource_objects.contains(&span_key(span))),
                     ValueType::Function(_, _, effects)
@@ -1493,6 +1495,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         expected,
                         ValueType::PlatformStreamHandle
                             | ValueType::PlatformResourceHandle
+                            | ValueType::PlatformTemporaryPath
                             | ValueType::Object(_)
                             | ValueType::Function(_, _, _)
                             | ValueType::AsyncFunction(_, _, _, _)

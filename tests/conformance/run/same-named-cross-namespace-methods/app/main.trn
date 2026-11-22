@@ -3,5 +3,9 @@ from /first import duplicate as first-duplicate
 from /second import duplicate as second-duplicate
 function main;
   first = instance first-duplicate;
-  second = instance second-duplicate;
+  second = instance second-duplicate; 2
   print; (first.value;), (second.value;)
+  print; (first.local-helper;)
+  first.local-destructor;
+  print; 'end'
+  print; (first.foreign-value;)

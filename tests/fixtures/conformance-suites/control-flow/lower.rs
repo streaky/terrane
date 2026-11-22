@@ -1956,7 +1956,9 @@ fn parity(value: terrane_int_support::Int) -> terrane_int_support::Int {
     return terrane_int_support::Int::from(0_i128);
 }
 fn own_closure() -> terrane_int_support::Int {
-    fn nested(value: terrane_int_support::Int) -> terrane_int_support::Int {
+    fn nested_terrane_local_function_lexical_boundaries(
+        value: terrane_int_support::Int,
+    ) -> terrane_int_support::Int {
         let local: terrane_int_support::Int;
         let callback: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
         local = value.clone() + (*__TERRANE_F21_SHARED).clone();
@@ -1969,7 +1971,9 @@ fn own_closure() -> terrane_int_support::Int {
         };
         return callback();
     }
-    return nested(terrane_int_support::Int::from(1_i128));
+    return nested_terrane_local_function_lexical_boundaries(
+        terrane_int_support::Int::from(1_i128),
+    );
 }
 fn test_scenario_terrane_local_function_lexical_boundaries() {
     println!(
@@ -2073,7 +2077,7 @@ impl Counter {
         Self {}
     }
     pub fn increment(&self) -> terrane_int_support::Int {
-        pub fn read() -> terrane_int_support::Int {
+        fn read() -> terrane_int_support::Int {
             return {
                 let __terrane_value = TERRANE_STATIC_COUNTER_TOTAL
                     .lock()
@@ -2094,15 +2098,6 @@ impl Counter {
         }
         return read();
     }
-    pub fn read(&self) -> terrane_int_support::Int {
-        return {
-            let __terrane_value = TERRANE_STATIC_COUNTER_TOTAL
-                .lock()
-                .expect("static field lock poisoned")
-                .clone();
-            __terrane_value
-        };
-    }
 }
 pub static TERRANE_STATIC_STATICCOUNTER_TOTAL: std::sync::LazyLock<
     TerraneSharedCell<terrane_int_support::Int>,
@@ -2115,17 +2110,8 @@ impl StaticCounter {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn nested(&self) -> terrane_int_support::Int {
-        return {
-            let __terrane_value = TERRANE_STATIC_STATICCOUNTER_TOTAL
-                .lock()
-                .expect("static field lock poisoned")
-                .clone();
-            __terrane_value
-        };
-    }
     pub fn terrane_static_read() -> terrane_int_support::Int {
-        pub fn nested() -> terrane_int_support::Int {
+        fn nested_terrane_local_function_self_static_member() -> terrane_int_support::Int {
             return {
                 let __terrane_value = TERRANE_STATIC_STATICCOUNTER_TOTAL
                     .lock()
@@ -2134,7 +2120,7 @@ impl StaticCounter {
                 __terrane_value
             };
         }
-        return nested();
+        return nested_terrane_local_function_self_static_member();
     }
 }
 pub static TERRANE_STATIC_INHERITEDCOUNTER_TOTAL: std::sync::LazyLock<
@@ -2148,15 +2134,6 @@ impl InheritedCounterStorage {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn nested(&self) -> terrane_int_support::Int {
-        return {
-            let __terrane_value = TERRANE_STATIC_INHERITEDCOUNTER_TOTAL
-                .lock()
-                .expect("static field lock poisoned")
-                .clone();
-            __terrane_value
-        };
-    }
 }
 #[derive(Clone)]
 pub enum InheritedCounter {
@@ -2168,7 +2145,7 @@ impl InheritedCounter {
         Self::Own(InheritedCounterStorage::terrane_construct())
     }
     pub fn terrane_static_read() -> terrane_int_support::Int {
-        pub fn nested() -> terrane_int_support::Int {
+        fn nested_terrane_local_function_self_static_member() -> terrane_int_support::Int {
             return {
                 let __terrane_value = TERRANE_STATIC_INHERITEDCOUNTER_TOTAL
                     .lock()
@@ -2177,13 +2154,7 @@ impl InheritedCounter {
                 __terrane_value
             };
         }
-        return nested();
-    }
-    pub fn nested(&self) -> terrane_int_support::Int {
-        match self {
-            Self::Own(value) => value.nested(),
-            Self::DerivedCounter(value) => value.nested(),
-        }
+        return nested_terrane_local_function_self_static_member();
     }
 }
 pub static TERRANE_STATIC_DERIVEDCOUNTER_TOTAL: std::sync::LazyLock<
@@ -2197,17 +2168,8 @@ impl DerivedCounter {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn nested(&self) -> terrane_int_support::Int {
-        return {
-            let __terrane_value = TERRANE_STATIC_DERIVEDCOUNTER_TOTAL
-                .lock()
-                .expect("static field lock poisoned")
-                .clone();
-            __terrane_value
-        };
-    }
     pub fn terrane_static_read() -> terrane_int_support::Int {
-        pub fn nested() -> terrane_int_support::Int {
+        fn nested_terrane_local_function_self_static_member() -> terrane_int_support::Int {
             return {
                 let __terrane_value = TERRANE_STATIC_DERIVEDCOUNTER_TOTAL
                     .lock()
@@ -2216,7 +2178,7 @@ impl DerivedCounter {
                 __terrane_value
             };
         }
-        return nested();
+        return nested_terrane_local_function_self_static_member();
     }
 }
 fn test_scenario_terrane_local_function_self_static_member() {

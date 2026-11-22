@@ -6,11 +6,11 @@ use ValueType::{
     FloatDecomposition, Function, InlineRust, InvocationScopedNative, IterationEnd, IterationStep,
     Iterator, List, Map, MutableReference, Object, Optional, OverflowResult, PlatformCapability,
     PlatformDataResult, PlatformFilesystemResult, PlatformOpenResult, PlatformReadResult,
-    PlatformResourceHandle, PlatformResult, PlatformStreamHandle, PlatformUnitResult,
-    PlatformUrlResult, PlatformWriteResult, ProjectedAssociated, ProjectedGeneric, Range,
-    Reference, Scalar, ScopedTask, Set, SharedReference, StringList, StringView, Task, TaskGroup,
-    TaskOutcome, TaskScope, TextRange, TextRangeList, TextRangeView, Tuple, TypeParameter, Union,
-    UnorderedMap, UnorderedSet,
+    PlatformResourceHandle, PlatformResult, PlatformStreamHandle, PlatformTemporaryPath,
+    PlatformUnitResult, PlatformUrlResult, PlatformWriteResult, ProjectedAssociated,
+    ProjectedGeneric, Range, Reference, Scalar, ScopedTask, Set, SharedReference, StringList,
+    StringView, Task, TaskGroup, TaskOutcome, TaskScope, TextRange, TextRangeList, TextRangeView,
+    Tuple, TypeParameter, Union, UnorderedMap, UnorderedSet,
 };
 use std::collections::BTreeMap;
 
@@ -257,6 +257,7 @@ impl ValuePayloadComparison {
                 | ProjectedAssociated
                 | PlatformCapability
                 | PlatformResourceHandle
+                | PlatformTemporaryPath
                 | PlatformResult,
                 _,
             ) => true,

@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi, terrane-platform-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -465,7 +465,7 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
+    pub static DESCRIPTORS: [&str; 1] = ["/core/filesystem::temporary-path-error"];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -476,8 +476,15 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 2] = ["core/streams.trn", "core/paths.trn"];
-    pub static FUNCTIONS: [&str; 9] = [
+    pub static FILES: [&str; 3] = [
+        "core/filesystem.trn",
+        "core/streams.trn",
+        "core/paths.trn",
+    ];
+    pub static FUNCTIONS: [&str; 12] = [
+        "/core/filesystem::create-temporary-path",
+        "/core/filesystem::filesystem-create-temporary-directory",
+        "/core/filesystem::filesystem-create-temporary-file",
         "/core/streams::read",
         "/core/streams::read-exact",
         "/core/streams::read-all",
@@ -488,37 +495,43 @@ mod __terrane_trace {
         "/core/filesystem/paths::path-stem",
         "/core/filesystem/paths::path-extension",
     ];
-    pub static SITES: [Site; 15] = [
-        /* terrane-site-row: site 0: /core/streams::read (core/streams.trn:381:23-381:50) */
-        { Site { function: 0, file: 0, line: 381, column: 23, end_line: 381, end_column: 50 } },
-        /* terrane-site-row: site 1: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
-        { Site { function: 1, file: 0, line: 403, column: 23, end_line: 403, end_column: 46 } },
-        /* terrane-site-row: site 2: /core/streams::read-all (core/streams.trn:422:23-422:46) */
-        { Site { function: 2, file: 0, line: 422, column: 23, end_line: 422, end_column: 46 } },
-        /* terrane-site-row: site 3: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
-        { Site { function: 3, file: 1, line: 16, column: 16, end_line: 16, end_column: 28 } },
-        /* terrane-site-row: site 4: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
-        { Site { function: 4, file: 1, line: 32, column: 16, end_line: 32, end_column: 33 } },
-        /* terrane-site-row: site 5: /core/filesystem/paths::normalise-path (core/paths.trn:35:34-35:49) */
-        { Site { function: 4, file: 1, line: 35, column: 34, end_line: 35, end_column: 49 } },
-        /* terrane-site-row: site 6: /core/filesystem/paths::normalise-path (core/paths.trn:40:29-40:50) */
-        { Site { function: 4, file: 1, line: 40, column: 29, end_line: 40, end_column: 50 } },
-        /* terrane-site-row: site 7: /core/filesystem/paths::normalise-path (core/paths.trn:46:21-46:42) */
-        { Site { function: 4, file: 1, line: 46, column: 21, end_line: 46, end_column: 42 } },
-        /* terrane-site-row: site 8: /core/filesystem/paths::normalise-path (core/paths.trn:56:33-56:44) */
-        { Site { function: 4, file: 1, line: 56, column: 33, end_line: 56, end_column: 44 } },
-        /* terrane-site-row: site 9: /core/filesystem/paths::path-name (core/paths.trn:69:12-69:35) */
-        { Site { function: 5, file: 1, line: 69, column: 12, end_line: 69, end_column: 35 } },
-        /* terrane-site-row: site 10: /core/filesystem/paths::path-parent (core/paths.trn:83:33-83:45) */
-        { Site { function: 6, file: 1, line: 83, column: 33, end_line: 83, end_column: 45 } },
-        /* terrane-site-row: site 11: /core/filesystem/paths::path-stem (core/paths.trn:95:31-95:40) */
-        { Site { function: 7, file: 1, line: 95, column: 31, end_line: 95, end_column: 40 } },
-        /* terrane-site-row: site 12: /core/filesystem/paths::path-stem (core/paths.trn:102:33-102:46) */
-        { Site { function: 7, file: 1, line: 102, column: 33, end_line: 102, end_column: 46 } },
-        /* terrane-site-row: site 13: /core/filesystem/paths::path-extension (core/paths.trn:111:31-111:40) */
-        { Site { function: 8, file: 1, line: 111, column: 31, end_line: 111, end_column: 40 } },
-        /* terrane-site-row: site 14: /core/filesystem/paths::path-extension (core/paths.trn:113:12-113:37) */
-        { Site { function: 8, file: 1, line: 113, column: 12, end_line: 113, end_column: 37 } },
+    pub static SITES: [Site; 18] = [
+        /* terrane-site-row: site 0: /core/filesystem::create-temporary-path (core/filesystem.trn:80:9-80:53) */
+        { Site { function: 0, file: 0, line: 80, column: 9, end_line: 80, end_column: 53 } },
+        /* terrane-site-row: site 1: /core/filesystem::filesystem-create-temporary-directory (core/filesystem.trn:84:12-84:47) */
+        { Site { function: 1, file: 0, line: 84, column: 12, end_line: 84, end_column: 47 } },
+        /* terrane-site-row: site 2: /core/filesystem::filesystem-create-temporary-file (core/filesystem.trn:87:12-87:48) */
+        { Site { function: 2, file: 0, line: 87, column: 12, end_line: 87, end_column: 48 } },
+        /* terrane-site-row: site 3: /core/streams::read (core/streams.trn:381:23-381:50) */
+        { Site { function: 3, file: 1, line: 381, column: 23, end_line: 381, end_column: 50 } },
+        /* terrane-site-row: site 4: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
+        { Site { function: 4, file: 1, line: 403, column: 23, end_line: 403, end_column: 46 } },
+        /* terrane-site-row: site 5: /core/streams::read-all (core/streams.trn:422:23-422:46) */
+        { Site { function: 5, file: 1, line: 422, column: 23, end_line: 422, end_column: 46 } },
+        /* terrane-site-row: site 6: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
+        { Site { function: 6, file: 2, line: 16, column: 16, end_line: 16, end_column: 28 } },
+        /* terrane-site-row: site 7: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
+        { Site { function: 7, file: 2, line: 32, column: 16, end_line: 32, end_column: 33 } },
+        /* terrane-site-row: site 8: /core/filesystem/paths::normalise-path (core/paths.trn:35:34-35:49) */
+        { Site { function: 7, file: 2, line: 35, column: 34, end_line: 35, end_column: 49 } },
+        /* terrane-site-row: site 9: /core/filesystem/paths::normalise-path (core/paths.trn:40:29-40:50) */
+        { Site { function: 7, file: 2, line: 40, column: 29, end_line: 40, end_column: 50 } },
+        /* terrane-site-row: site 10: /core/filesystem/paths::normalise-path (core/paths.trn:46:21-46:42) */
+        { Site { function: 7, file: 2, line: 46, column: 21, end_line: 46, end_column: 42 } },
+        /* terrane-site-row: site 11: /core/filesystem/paths::normalise-path (core/paths.trn:56:33-56:44) */
+        { Site { function: 7, file: 2, line: 56, column: 33, end_line: 56, end_column: 44 } },
+        /* terrane-site-row: site 12: /core/filesystem/paths::path-name (core/paths.trn:69:12-69:35) */
+        { Site { function: 8, file: 2, line: 69, column: 12, end_line: 69, end_column: 35 } },
+        /* terrane-site-row: site 13: /core/filesystem/paths::path-parent (core/paths.trn:83:33-83:45) */
+        { Site { function: 9, file: 2, line: 83, column: 33, end_line: 83, end_column: 45 } },
+        /* terrane-site-row: site 14: /core/filesystem/paths::path-stem (core/paths.trn:95:31-95:40) */
+        { Site { function: 10, file: 2, line: 95, column: 31, end_line: 95, end_column: 40 } },
+        /* terrane-site-row: site 15: /core/filesystem/paths::path-stem (core/paths.trn:102:33-102:46) */
+        { Site { function: 10, file: 2, line: 102, column: 33, end_line: 102, end_column: 46 } },
+        /* terrane-site-row: site 16: /core/filesystem/paths::path-extension (core/paths.trn:111:31-111:40) */
+        { Site { function: 11, file: 2, line: 111, column: 31, end_line: 111, end_column: 40 } },
+        /* terrane-site-row: site 17: /core/filesystem/paths::path-extension (core/paths.trn:113:12-113:37) */
+        { Site { function: 11, file: 2, line: 113, column: 12, end_line: 113, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1236,6 +1249,56 @@ pub fn terrane_filesystem_write_atomic(
         Err(error) => terrane_io_error(error),
     }
 }
+pub type TerraneTemporaryPath = std::io::Result<
+    terrane_platform_support::temporary::TemporaryPath,
+>;
+pub fn terrane_temporary_create(
+    parent: Option<String>,
+    directory: bool,
+) -> TerraneTemporaryPath {
+    use terrane_platform_support::temporary::TemporaryPath;
+    let parent = parent.as_deref().map(std::path::Path::new);
+    let owner = if directory {
+        TemporaryPath::directory(parent)?
+    } else {
+        TemporaryPath::file(parent)?.0
+    };
+    if owner.path().to_str().is_none() {
+        return Err(
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "temporary path is not valid UTF-8",
+            ),
+        );
+    }
+    Ok(owner)
+}
+pub fn terrane_temporary_status(entry: &TerraneTemporaryPath) -> Option<String> {
+    entry.as_ref().err().map(ToString::to_string)
+}
+pub fn terrane_temporary_location(entry: &TerraneTemporaryPath) -> String {
+    entry
+        .as_ref()
+        .expect("checked temporary creation")
+        .path()
+        .to_str()
+        .expect("checked temporary path encoding")
+        .to_owned()
+}
+pub fn terrane_temporary_delete(entry: TerraneTemporaryPath) -> TerraneFilesystemResult {
+    match entry.and_then(terrane_platform_support::temporary::TemporaryPath::delete) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+pub fn terrane_temporary_keep(entry: TerraneTemporaryPath) -> String {
+    entry
+        .expect("checked temporary creation")
+        .keep()
+        .into_os_string()
+        .into_string()
+        .expect("checked temporary path encoding")
+}
 pub fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
     match std::fs::remove_file(path) {
         Ok(()) => TerraneFilesystemResult::default(),
@@ -1512,6 +1575,67 @@ impl PathResult {
             let __terrane_value: String = filesystem_error_kind(failure, category);
             self.error_kind = __terrane_value;
         }
+    }
+}
+#[derive(Clone)]
+pub struct TemporaryPathError {
+    pub message: String,
+}
+impl TemporaryPathError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(detail);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, detail: String) {
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+pub struct TemporaryPath {
+    pub entry: Option<TerraneTemporaryPath>,
+}
+impl TemporaryPath {
+    pub fn terrane_construct(entry: TerraneTemporaryPath) -> Self {
+        let mut __terrane_constructed_value = Self { entry: None };
+        __terrane_constructed_value.construct(entry);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, entry: TerraneTemporaryPath) {
+        {
+            let __terrane_value: TerraneTemporaryPath = entry;
+            self.entry = Some(__terrane_value);
+        }
+    }
+    pub fn location(&self) -> Path {
+        return Path::terrane_construct(
+            terrane_temporary_location(
+                &self.entry.as_ref().expect("required field initialized"),
+            ),
+        );
+    }
+    pub fn delete(mut self) -> FilesystemOperationResult {
+        let raw: TerraneFilesystemResult;
+        raw = terrane_temporary_delete(
+            self.entry.take().expect("required field initialized"),
+        );
+        return FilesystemOperationResult::terrane_construct(
+            terrane_filesystem_result_failed(&raw),
+            terrane_filesystem_result_message(&raw),
+            Some(terrane_filesystem_result_error_kind(&raw)),
+        );
+    }
+    pub fn keep(mut self) -> Path {
+        return Path::terrane_construct(
+            terrane_temporary_keep(
+                self.entry.take().expect("required field initialized"),
+            ),
+        );
     }
 }
 #[derive(Clone)]
@@ -2520,7 +2644,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
-                0 /* terrane-site: core/streams.trn:381:23-381:50 */,
+                3 /* terrane-site: core/streams.trn:381:23-381:50 */,
             )?
         };
         return Ok(
@@ -2589,7 +2713,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&data, __terrane_string_argument_0),
-                1 /* terrane-site: core/streams.trn:403:23-403:46 */,
+                4 /* terrane-site: core/streams.trn:403:23-403:46 */,
             )?
         };
         return Ok(
@@ -2654,7 +2778,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&data, __terrane_string_argument_0),
-                2 /* terrane-site: core/streams.trn:422:23-422:46 */,
+                5 /* terrane-site: core/streams.trn:422:23-422:46 */,
             )?
         };
         return Ok(

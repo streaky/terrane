@@ -1,0 +1,9 @@
+namespace app
+class item
+  function run int;
+    function helper int;
+      return 7
+    return helper;
+function main;
+  value = instance item;
+  value.helper;

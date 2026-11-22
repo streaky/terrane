@@ -346,7 +346,7 @@ pub(super) fn object_destructor_chain<'a>(
         })
         .map_or_else(Vec::new, |base| object_destructor_chain(unit, base));
     if let Some(destructor) = unit.functions.iter().find(|method| {
-        method.owner.as_deref() == Some(object.name.as_str()) && method.name == "destruct"
+        method.owner_identity.as_ref() == Some(&object.identity) && method.name == "destruct"
     }) {
         destructors.push(destructor);
     }
@@ -381,7 +381,7 @@ pub(super) fn effective_object_methods<'a>(
         for method in unit
             .functions
             .iter()
-            .filter(|method| method.owner.as_deref() == Some(object.identity.name.as_str()))
+            .filter(|method| method.owner_identity.as_ref() == Some(&object.identity))
         {
             if let Some(index) = methods.iter().position(|existing| {
                 existing.name == method.name
@@ -768,6 +768,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
         ValueType::FilesystemAuthority => "TerraneFilesystemAuthority".to_owned(),
         ValueType::PlatformFilesystemResult => "TerraneFilesystemResult".to_owned(),
+        ValueType::PlatformTemporaryPath => "TerraneTemporaryPath".to_owned(),
         ValueType::PlatformOpenResult => "TerranePlatformOpenResult".to_owned(),
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),

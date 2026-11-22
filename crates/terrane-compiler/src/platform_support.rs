@@ -54,6 +54,10 @@ pub fn write_platform_support(directory: &Path) -> io::Result<()> {
             "signals.rs",
             include_bytes!("../../terrane-platform-support/src/signals.rs").as_slice(),
         ),
+        (
+            "temporary.rs",
+            include_bytes!("../../terrane-platform-support/src/temporary.rs").as_slice(),
+        ),
     ] {
         write_if_changed(&platform.join("src").join(name), bytes)?;
     }

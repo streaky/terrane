@@ -156,6 +156,11 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/filesystem",
         "system",
         [
+            "filesystem-temporary-create",
+            "filesystem-temporary-status",
+            "filesystem-temporary-location",
+            "filesystem-temporary-delete",
+            "filesystem-temporary-keep",
             "filesystem-create-directory",
             "filesystem-create-directories",
             "filesystem-list-directory",

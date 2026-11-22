@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi, terrane-platform-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -22,6 +22,7 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
+    Custom(DescriptorId),
 }
 impl TerraneErrorKind {
     fn display_name(self) -> &'static str {
@@ -37,6 +38,9 @@ impl TerraneErrorKind {
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
             Self::SourceError => "error",
+            Self::Custom(descriptor) => {
+                __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)]
+            }
         }
     }
     fn default_message(self) -> &'static str {
@@ -56,6 +60,7 @@ impl TerraneErrorKind {
                 "integer shift count cannot be represented on this target"
             }
             Self::SourceError => "source error",
+            Self::Custom(_) => "source error",
         }
     }
 }
@@ -129,6 +134,15 @@ impl TerraneError {
                 }),
             ),
         }
+    }
+    #[cold]
+    #[inline(never)]
+    fn custom_raised(
+        descriptor: DescriptorId,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
     }
     #[cold]
     #[inline(never)]
@@ -451,7 +465,7 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
+    pub static DESCRIPTORS: [&str; 1] = ["/core/filesystem::temporary-path-error"];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -462,9 +476,15 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 2] = ["case.trn", "core/paths.trn"];
-    pub static FUNCTIONS: [&str; 7] = [
+    pub static FILES: [&str; 3] = ["case.trn", "core/filesystem.trn", "core/paths.trn"];
+    pub static FUNCTIONS: [&str; 13] = [
         "/conformance/filesystem-facilities::exercise-directory-operations",
+        "/conformance/filesystem-facilities::dropped-file",
+        "/conformance/filesystem-facilities::exercise-temporary-paths",
+        "/conformance/filesystem-facilities::main",
+        "/core/filesystem::create-temporary-path",
+        "/core/filesystem::filesystem-create-temporary-directory",
+        "/core/filesystem::filesystem-create-temporary-file",
         "/core/filesystem/paths::path-components",
         "/core/filesystem/paths::normalise-path",
         "/core/filesystem/paths::path-name",
@@ -472,33 +492,57 @@ mod __terrane_trace {
         "/core/filesystem/paths::path-stem",
         "/core/filesystem/paths::path-extension",
     ];
-    pub static SITES: [Site; 13] = [
-        /* terrane-site-row: site 0: /conformance/filesystem-facilities::exercise-directory-operations (case.trn:29:16-29:34) */
-        { Site { function: 0, file: 0, line: 29, column: 16, end_line: 29, end_column: 34 } },
-        /* terrane-site-row: site 1: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
-        { Site { function: 1, file: 1, line: 16, column: 16, end_line: 16, end_column: 28 } },
-        /* terrane-site-row: site 2: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
-        { Site { function: 2, file: 1, line: 32, column: 16, end_line: 32, end_column: 33 } },
-        /* terrane-site-row: site 3: /core/filesystem/paths::normalise-path (core/paths.trn:35:34-35:49) */
-        { Site { function: 2, file: 1, line: 35, column: 34, end_line: 35, end_column: 49 } },
-        /* terrane-site-row: site 4: /core/filesystem/paths::normalise-path (core/paths.trn:40:29-40:50) */
-        { Site { function: 2, file: 1, line: 40, column: 29, end_line: 40, end_column: 50 } },
-        /* terrane-site-row: site 5: /core/filesystem/paths::normalise-path (core/paths.trn:46:21-46:42) */
-        { Site { function: 2, file: 1, line: 46, column: 21, end_line: 46, end_column: 42 } },
-        /* terrane-site-row: site 6: /core/filesystem/paths::normalise-path (core/paths.trn:56:33-56:44) */
-        { Site { function: 2, file: 1, line: 56, column: 33, end_line: 56, end_column: 44 } },
-        /* terrane-site-row: site 7: /core/filesystem/paths::path-name (core/paths.trn:69:12-69:35) */
-        { Site { function: 3, file: 1, line: 69, column: 12, end_line: 69, end_column: 35 } },
-        /* terrane-site-row: site 8: /core/filesystem/paths::path-parent (core/paths.trn:83:33-83:45) */
-        { Site { function: 4, file: 1, line: 83, column: 33, end_line: 83, end_column: 45 } },
-        /* terrane-site-row: site 9: /core/filesystem/paths::path-stem (core/paths.trn:95:31-95:40) */
-        { Site { function: 5, file: 1, line: 95, column: 31, end_line: 95, end_column: 40 } },
-        /* terrane-site-row: site 10: /core/filesystem/paths::path-stem (core/paths.trn:102:33-102:46) */
-        { Site { function: 5, file: 1, line: 102, column: 33, end_line: 102, end_column: 46 } },
-        /* terrane-site-row: site 11: /core/filesystem/paths::path-extension (core/paths.trn:111:31-111:40) */
-        { Site { function: 6, file: 1, line: 111, column: 31, end_line: 111, end_column: 40 } },
-        /* terrane-site-row: site 12: /core/filesystem/paths::path-extension (core/paths.trn:113:12-113:37) */
-        { Site { function: 6, file: 1, line: 113, column: 12, end_line: 113, end_column: 37 } },
+    pub static SITES: [Site; 25] = [
+        /* terrane-site-row: site 0: /conformance/filesystem-facilities::exercise-directory-operations (case.trn:30:16-30:34) */
+        { Site { function: 0, file: 0, line: 30, column: 16, end_line: 30, end_column: 34 } },
+        /* terrane-site-row: site 1: /conformance/filesystem-facilities::dropped-file (case.trn:82:12-82:56) */
+        { Site { function: 1, file: 0, line: 82, column: 12, end_line: 82, end_column: 56 } },
+        /* terrane-site-row: site 2: /conformance/filesystem-facilities::exercise-temporary-paths (case.trn:86:17-86:80) */
+        { Site { function: 2, file: 0, line: 86, column: 17, end_line: 86, end_column: 80 } },
+        /* terrane-site-row: site 3: /conformance/filesystem-facilities::exercise-temporary-paths (case.trn:90:12-90:59) */
+        { Site { function: 2, file: 0, line: 90, column: 12, end_line: 90, end_column: 59 } },
+        /* terrane-site-row: site 4: /conformance/filesystem-facilities::exercise-temporary-paths (case.trn:91:15-91:62) */
+        { Site { function: 2, file: 0, line: 91, column: 15, end_line: 91, end_column: 62 } },
+        /* terrane-site-row: site 5: /conformance/filesystem-facilities::exercise-temporary-paths (case.trn:99:15-99:42) */
+        { Site { function: 2, file: 0, line: 99, column: 15, end_line: 99, end_column: 42 } },
+        /* terrane-site-row: site 6: /conformance/filesystem-facilities::exercise-temporary-paths (case.trn:105:9-105:56) */
+        { Site { function: 2, file: 0, line: 105, column: 9, end_line: 105, end_column: 56 } },
+        /* terrane-site-row: site 7: /conformance/filesystem-facilities::exercise-temporary-paths (case.trn:109:15-109:51) */
+        { Site { function: 2, file: 0, line: 109, column: 15, end_line: 109, end_column: 51 } },
+        /* terrane-site-row: site 8: /conformance/filesystem-facilities::exercise-temporary-paths (case.trn:114:16-114:52) */
+        { Site { function: 2, file: 0, line: 114, column: 16, end_line: 114, end_column: 52 } },
+        /* terrane-site-row: site 9: /conformance/filesystem-facilities::main (case.trn:158:5-158:53) */
+        { Site { function: 3, file: 0, line: 158, column: 5, end_line: 158, end_column: 53 } },
+        /* terrane-site-row: site 10: /core/filesystem::create-temporary-path (core/filesystem.trn:80:9-80:53) */
+        { Site { function: 4, file: 1, line: 80, column: 9, end_line: 80, end_column: 53 } },
+        /* terrane-site-row: site 11: /core/filesystem::filesystem-create-temporary-directory (core/filesystem.trn:84:12-84:47) */
+        { Site { function: 5, file: 1, line: 84, column: 12, end_line: 84, end_column: 47 } },
+        /* terrane-site-row: site 12: /core/filesystem::filesystem-create-temporary-file (core/filesystem.trn:87:12-87:48) */
+        { Site { function: 6, file: 1, line: 87, column: 12, end_line: 87, end_column: 48 } },
+        /* terrane-site-row: site 13: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
+        { Site { function: 7, file: 2, line: 16, column: 16, end_line: 16, end_column: 28 } },
+        /* terrane-site-row: site 14: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
+        { Site { function: 8, file: 2, line: 32, column: 16, end_line: 32, end_column: 33 } },
+        /* terrane-site-row: site 15: /core/filesystem/paths::normalise-path (core/paths.trn:35:34-35:49) */
+        { Site { function: 8, file: 2, line: 35, column: 34, end_line: 35, end_column: 49 } },
+        /* terrane-site-row: site 16: /core/filesystem/paths::normalise-path (core/paths.trn:40:29-40:50) */
+        { Site { function: 8, file: 2, line: 40, column: 29, end_line: 40, end_column: 50 } },
+        /* terrane-site-row: site 17: /core/filesystem/paths::normalise-path (core/paths.trn:46:21-46:42) */
+        { Site { function: 8, file: 2, line: 46, column: 21, end_line: 46, end_column: 42 } },
+        /* terrane-site-row: site 18: /core/filesystem/paths::normalise-path (core/paths.trn:56:33-56:44) */
+        { Site { function: 8, file: 2, line: 56, column: 33, end_line: 56, end_column: 44 } },
+        /* terrane-site-row: site 19: /core/filesystem/paths::path-name (core/paths.trn:69:12-69:35) */
+        { Site { function: 9, file: 2, line: 69, column: 12, end_line: 69, end_column: 35 } },
+        /* terrane-site-row: site 20: /core/filesystem/paths::path-parent (core/paths.trn:83:33-83:45) */
+        { Site { function: 10, file: 2, line: 83, column: 33, end_line: 83, end_column: 45 } },
+        /* terrane-site-row: site 21: /core/filesystem/paths::path-stem (core/paths.trn:95:31-95:40) */
+        { Site { function: 11, file: 2, line: 95, column: 31, end_line: 95, end_column: 40 } },
+        /* terrane-site-row: site 22: /core/filesystem/paths::path-stem (core/paths.trn:102:33-102:46) */
+        { Site { function: 11, file: 2, line: 102, column: 33, end_line: 102, end_column: 46 } },
+        /* terrane-site-row: site 23: /core/filesystem/paths::path-extension (core/paths.trn:111:31-111:40) */
+        { Site { function: 12, file: 2, line: 111, column: 31, end_line: 111, end_column: 40 } },
+        /* terrane-site-row: site 24: /core/filesystem/paths::path-extension (core/paths.trn:113:12-113:37) */
+        { Site { function: 12, file: 2, line: 113, column: 12, end_line: 113, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1055,6 +1099,56 @@ pub fn terrane_filesystem_write_atomic(
         Err(error) => terrane_io_error(error),
     }
 }
+pub type TerraneTemporaryPath = std::io::Result<
+    terrane_platform_support::temporary::TemporaryPath,
+>;
+pub fn terrane_temporary_create(
+    parent: Option<String>,
+    directory: bool,
+) -> TerraneTemporaryPath {
+    use terrane_platform_support::temporary::TemporaryPath;
+    let parent = parent.as_deref().map(std::path::Path::new);
+    let owner = if directory {
+        TemporaryPath::directory(parent)?
+    } else {
+        TemporaryPath::file(parent)?.0
+    };
+    if owner.path().to_str().is_none() {
+        return Err(
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "temporary path is not valid UTF-8",
+            ),
+        );
+    }
+    Ok(owner)
+}
+pub fn terrane_temporary_status(entry: &TerraneTemporaryPath) -> Option<String> {
+    entry.as_ref().err().map(ToString::to_string)
+}
+pub fn terrane_temporary_location(entry: &TerraneTemporaryPath) -> String {
+    entry
+        .as_ref()
+        .expect("checked temporary creation")
+        .path()
+        .to_str()
+        .expect("checked temporary path encoding")
+        .to_owned()
+}
+pub fn terrane_temporary_delete(entry: TerraneTemporaryPath) -> TerraneFilesystemResult {
+    match entry.and_then(terrane_platform_support::temporary::TemporaryPath::delete) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+pub fn terrane_temporary_keep(entry: TerraneTemporaryPath) -> String {
+    entry
+        .expect("checked temporary creation")
+        .keep()
+        .into_os_string()
+        .into_string()
+        .expect("checked temporary path encoding")
+}
 pub fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
     match std::fs::remove_file(path) {
         Ok(()) => TerraneFilesystemResult::default(),
@@ -1332,6 +1426,136 @@ impl PathResult {
             self.error_kind = __terrane_value;
         }
     }
+}
+#[derive(Clone)]
+pub struct TemporaryPathError {
+    pub message: String,
+}
+impl TemporaryPathError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(detail);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, detail: String) {
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+pub struct TemporaryPath {
+    pub entry: Option<TerraneTemporaryPath>,
+}
+impl TemporaryPath {
+    pub fn terrane_construct(entry: TerraneTemporaryPath) -> Self {
+        let mut __terrane_constructed_value = Self { entry: None };
+        __terrane_constructed_value.construct(entry);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, entry: TerraneTemporaryPath) {
+        {
+            let __terrane_value: TerraneTemporaryPath = entry;
+            self.entry = Some(__terrane_value);
+        }
+    }
+    pub fn location(&self) -> Path {
+        return Path::terrane_construct(
+            terrane_temporary_location(
+                &self.entry.as_ref().expect("required field initialized"),
+            ),
+        );
+    }
+    pub fn delete(mut self) -> FilesystemOperationResult {
+        let raw: TerraneFilesystemResult;
+        raw = terrane_temporary_delete(
+            self.entry.take().expect("required field initialized"),
+        );
+        return FilesystemOperationResult::terrane_construct(
+            terrane_filesystem_result_failed(&raw),
+            terrane_filesystem_result_message(&raw),
+            Some(terrane_filesystem_result_error_kind(&raw)),
+        );
+    }
+    pub fn keep(mut self) -> Path {
+        return Path::terrane_construct(
+            terrane_temporary_keep(
+                self.entry.take().expect("required field initialized"),
+            ),
+        );
+    }
+}
+pub fn create_temporary_path(
+    parent: Option<Path>,
+    directory: bool,
+) -> Result<TemporaryPath, TerraneError> {
+    let mut parent_text: Option<String>;
+    let entry: TerraneTemporaryPath;
+    let problem: Option<String>;
+    parent_text = None;
+    if (&parent).is_some() {
+        parent_text = Some(
+            match &parent {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            }
+                .text
+                .clone(),
+        );
+    }
+    entry = terrane_temporary_create(parent_text, directory);
+    problem = terrane_temporary_status(&entry);
+    if (&problem).is_some() {
+        return Err({
+            let value = TemporaryPathError::terrane_construct(
+                match problem {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                },
+            );
+            let rendered = value.render();
+            let original = &value.message;
+            let (message, rendered) = if &rendered == original {
+                (rendered, None)
+            } else {
+                (original.clone(), Some(rendered))
+            };
+            TerraneError::raised_with_rendered_message(
+                TerraneErrorKind::Custom(DescriptorId(0)),
+                message,
+                rendered,
+                10 /* terrane-site: core/filesystem.trn:80:9-80:53 */,
+            )
+        });
+    }
+    return Ok(TemporaryPath::terrane_construct(entry));
+}
+pub fn filesystem_create_temporary_directory(
+    capability: Filesystem,
+    parent: Option<Path>,
+) -> Result<TemporaryPath, TerraneError> {
+    let _ = &capability;
+    return Ok(
+        __terrane_traced_err(
+            create_temporary_path(parent, true),
+            11 /* terrane-site: core/filesystem.trn:84:12-84:47 */,
+        )?,
+    );
+}
+pub fn filesystem_create_temporary_file(
+    capability: Filesystem,
+    parent: Option<Path>,
+) -> Result<TemporaryPath, TerraneError> {
+    let _ = &capability;
+    return Ok(
+        __terrane_traced_err(
+            create_temporary_path(parent, false),
+            12 /* terrane-site: core/filesystem.trn:87:12-87:48 */,
+        )?,
+    );
 }
 #[derive(Clone)]
 pub struct FileMetadata {
@@ -2149,6 +2373,50 @@ impl Path {
         }
     }
 }
+pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
+    let parts: Vec<String>;
+    let mut result: terrane_collection_support::List<String>;
+    let mut index: terrane_int_support::Int;
+    let mut part: String;
+    parts = {
+        let __terrane_string_argument_0 = "/";
+        terrane_string_support::split(
+            &subject.text,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
+    result = terrane_collection_support::List::<String>::new(vec![]);
+    index = terrane_int_support::Int::from(0_i128);
+    {
+        let __terrane_list_append_0 = result.make_unique();
+        while index < terrane_int_support::Int::from(parts.len() as i128) {
+            part = __terrane_raised(
+                {
+                    let __terrane_receiver = &parts;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(&index.clone()),
+                        13 /* terrane-site: core/paths.trn:16:16-16:28 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                13 /* terrane-site: core/paths.trn:16:16-16:28 */,
+            );
+            if part.as_str() != "" {
+                {
+                    let __terrane_collection_argument_0 = part;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
+            }
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
+        }
+    }
+    return result;
+}
 pub fn path_is_absolute(subject: Path) -> bool {
     return {
         let __terrane_string_argument_0 = "/";
@@ -2185,7 +2453,7 @@ pub fn normalise_path(subject: Path) -> Path {
                 let __terrane_receiver = &parts;
                 let __terrane_index = __terrane_raised(
                     terrane_collection_support::index_from_int(&part_index.clone()),
-                    2 /* terrane-site: core/paths.trn:32:16-32:33 */,
+                    14 /* terrane-site: core/paths.trn:32:16-32:33 */,
                 );
                 __terrane_receiver
                     .get(__terrane_index)
@@ -2194,7 +2462,7 @@ pub fn normalise_path(subject: Path) -> Path {
                         __terrane_index,
                     ))
             },
-            2 /* terrane-site: core/paths.trn:32:16-32:33 */,
+            14 /* terrane-site: core/paths.trn:32:16-32:33 */,
         );
         if part.as_str() != "" && part.as_str() != "." {
             if part.as_str() == ".." {
@@ -2206,10 +2474,10 @@ pub fn normalise_path(subject: Path) -> Path {
                                         terrane_collection_support::index_from_int(
                                             &(count.clone() - terrane_int_support::Int::from(1_i128)),
                                         ),
-                                        3 /* terrane-site: core/paths.trn:35:34-35:49 */,
+                                        15 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                     ),
                                 ),
-                            3 /* terrane-site: core/paths.trn:35:34-35:49 */,
+                            15 /* terrane-site: core/paths.trn:35:34-35:49 */,
                         )
                         .as_str() != ".."
                 {
@@ -2220,7 +2488,7 @@ pub fn normalise_path(subject: Path) -> Path {
                             {
                                 let __terrane_collection_argument_0 = __terrane_raised(
                                     terrane_collection_support::index_from_int(&count.clone()),
-                                    4 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                                    16 /* terrane-site: core/paths.trn:40:29-40:50 */,
                                 );
                                 let __terrane_collection_argument_1 = part;
                                 __terrane_raised(
@@ -2229,7 +2497,7 @@ pub fn normalise_path(subject: Path) -> Path {
                                             __terrane_collection_argument_0,
                                             __terrane_collection_argument_1,
                                         ),
-                                    4 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                                    16 /* terrane-site: core/paths.trn:40:29-40:50 */,
                                 );
                             };
                         } else {
@@ -2246,7 +2514,7 @@ pub fn normalise_path(subject: Path) -> Path {
                     {
                         let __terrane_collection_argument_0 = __terrane_raised(
                             terrane_collection_support::index_from_int(&count.clone()),
-                            5 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                            17 /* terrane-site: core/paths.trn:46:21-46:42 */,
                         );
                         let __terrane_collection_argument_1 = part;
                         __terrane_raised(
@@ -2255,7 +2523,7 @@ pub fn normalise_path(subject: Path) -> Path {
                                     __terrane_collection_argument_0,
                                     __terrane_collection_argument_1,
                                 ),
-                            5 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                            17 /* terrane-site: core/paths.trn:46:21-46:42 */,
                         );
                     };
                 } else {
@@ -2295,10 +2563,10 @@ pub fn normalise_path(subject: Path) -> Path {
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                6 /* terrane-site: core/paths.trn:56:33-56:44 */,
+                                18 /* terrane-site: core/paths.trn:56:33-56:44 */,
                             ),
                         ),
-                    6 /* terrane-site: core/paths.trn:56:33-56:44 */,
+                    18 /* terrane-site: core/paths.trn:56:33-56:44 */,
                 ),
                 &mut __terrane_text,
             );
@@ -2319,6 +2587,78 @@ pub fn normalise_path(subject: Path) -> Path {
     }
     if result.as_str() == "" && absolute {
         result = String::from("/");
+    }
+    return Path::terrane_construct(result);
+}
+pub fn path_parent(subject: Path) -> Path {
+    let normal: Path;
+    let parts: terrane_collection_support::List<String>;
+    let mut result: String;
+    let mut index: terrane_int_support::Int;
+    let absolute: bool;
+    normal = normalise_path(subject);
+    parts = path_components(normal.clone());
+    if terrane_int_support::Int::from(parts.length())
+        == terrane_int_support::Int::from(0_i128)
+    {
+        return normal;
+    }
+    if terrane_int_support::Int::from(parts.length())
+        == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
+    {
+        return Path::terrane_construct(String::from("."));
+    }
+    result = String::from("");
+    index = terrane_int_support::Int::from(0_i128);
+    while index
+        < terrane_int_support::Int::from(parts.length())
+            - terrane_int_support::Int::from(1_i128)
+    {
+        if result.as_str() != "" {
+            result = {
+                let mut __terrane_text = String::with_capacity(1);
+                terrane_scalar_support::ScalarDisplay::write_scalar(
+                    &result,
+                    &mut __terrane_text,
+                );
+                __terrane_text.push_str("/");
+                __terrane_text
+            };
+        }
+        result = {
+            let mut __terrane_text = String::with_capacity(0);
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &result,
+                &mut __terrane_text,
+            );
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &__terrane_raised(
+                    parts
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(&index.clone()),
+                                20 /* terrane-site: core/paths.trn:83:33-83:45 */,
+                            ),
+                        ),
+                    20 /* terrane-site: core/paths.trn:83:33-83:45 */,
+                ),
+                &mut __terrane_text,
+            );
+            __terrane_text
+        };
+        index = index.clone() + terrane_int_support::Int::from(1_i128);
+    }
+    absolute = path_is_absolute(normal);
+    if absolute {
+        result = {
+            let mut __terrane_text = String::with_capacity(1);
+            __terrane_text.push_str("/");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &result,
+                &mut __terrane_text,
+            );
+            __terrane_text
+        };
     }
     return Path::terrane_construct(result);
 }
