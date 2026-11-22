@@ -20,7 +20,7 @@ documentation:
 security:
   audiences: [application]
   invariant: |-
-    Temporary names use OS randomness and no caller-supplied name components. Creation is exclusive and requests mode 0700 for directories or 0600 for files. File creation returns the original descriptor to native streaming callers. Cleanup unlinks files or delegates recursive deletion to the host without following symlinks found in a tree.
+    Temporary names use OS randomness and no caller-supplied name components. Creation is exclusive and requests mode 0700 for directories or 0600 for files. Cleanup unlinks files or delegates recursive deletion to the host without following symlinks found in a tree.
   threats:
     - A predictable name or nonexclusive open can allow a pre-existing file or symlink to receive private data.
     - Permissions on new entries must not expose scratch data to other users.
@@ -30,12 +30,14 @@ security:
     - The caller trusts the parent directory and keeps its resolution stable. The path is not reassigned or replaced while the owner is live.
   limitations:
     - A temporary owner is not directory-handle confinement and cannot authenticate a replaced pathname. It does not prevent mount traversal, partial failure, or loss from host temporary-file cleaners.
+    - The Terrane API closes the creation descriptor before returning its pathname owner. Terrane callers open the path separately under the trusted-parent assumption.
     - Drop cannot report errors and is not guaranteed on abrupt process termination. Evidence does not force collisions or simulate adversarial concurrent path changes.
   guidance: |-
     Use a trusted parent. Keep the owner alive while other work uses its pathname. Use explicit deletion to detect errors or keep to take over cleanup responsibility.
   review:
     considerations:
-      - Preserve OS randomness, exclusive creation at the requested mode, and direct host recursive deletion. Do not reopen a freshly created file in the native upload path.
+      - Preserve OS randomness, exclusive creation at the requested mode, and direct host recursive deletion.
+      - The separate HTTP-server package's native multipart staging bridge writes through the original file descriptor returned by the host helper. Preserve that behavior when changing the helper or bridge; the package is not part of this repository's conformance evidence.
   files:
     - path: crates/terrane-platform-support/src/temporary.rs
       role: enforcement

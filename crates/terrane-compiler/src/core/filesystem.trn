@@ -61,21 +61,21 @@ class temporary-path
         this.entry = entry
 
     function location path;
-        return instance path; (host-temporary-location; this.entry)
+        return instance path; (host-filesystem-temporary-location; this.entry)
 
     consuming function delete filesystem-operation-result;
-        raw = host-temporary-delete; move this.entry
+        raw = host-filesystem-temporary-delete; move this.entry
         return instance filesystem-operation-result; (host-result-failed; raw), (host-result-message; raw), (host-result-error-kind; raw)
 
     consuming function keep path;
-        return instance path; (host-temporary-keep; move this.entry)
+        return instance path; (host-filesystem-temporary-keep; move this.entry)
 
 private function create-temporary-path temporary-path throws temporary-path-error; parent path|none, directory bool
     parent-text string|none = none
     if parent != none
         parent-text = parent.text
-    entry = host-temporary-create; parent-text, directory
-    problem = host-temporary-status; entry
+    entry = host-filesystem-temporary-create; parent-text, directory
+    problem = host-filesystem-temporary-status; entry
     if problem != none
         throw instance temporary-path-error; problem
     return instance temporary-path; entry

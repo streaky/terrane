@@ -1781,11 +1781,9 @@ impl Emitter<'_> {
                 "acquire-filesystem-authority",
                 "acquire_filesystem_authority",
             ),
-            ("temporary-create", "temporary_create"),
-            ("temporary-status", "temporary_status"),
-            ("temporary-location", "temporary_location"),
-            ("temporary-delete", "temporary_delete"),
-            ("temporary-keep", "temporary_keep"),
+            ("filesystem-temporary-create", "temporary_create"),
+            ("filesystem-temporary-delete", "temporary_delete"),
+            ("filesystem-temporary-keep", "temporary_keep"),
             ("filesystem-create-directory", "filesystem_create_directory"),
             (
                 "filesystem-create-directories",
@@ -1807,6 +1805,13 @@ impl Emitter<'_> {
             ("filesystem-write-atomic", "filesystem_write_atomic"),
             ("filesystem-rename", "filesystem_rename"),
             ("filesystem-remove", "filesystem_remove"),
+            ("process-arguments", "process_arguments"),
+            ("environment-entries", "environment_entries"),
+            ("process-exit", "process_exit"),
+        ];
+        let borrowed_system_call = [
+            ("filesystem-temporary-status", "temporary_status"),
+            ("filesystem-temporary-location", "temporary_location"),
             ("result-failed", "filesystem_result_failed"),
             ("result-error-kind", "filesystem_result_error_kind"),
             ("result-message", "filesystem_result_message"),
@@ -1821,16 +1826,20 @@ impl Emitter<'_> {
             ("platform-value-bytes", "platform_value_bytes"),
             ("platform-value-from-bytes", "platform_value_from_bytes"),
             ("platform-value-from-text", "platform_value_from_text"),
-            ("process-arguments", "process_arguments"),
-            ("environment-entries", "environment_entries"),
-            ("process-exit", "process_exit"),
-        ]
-        .into_iter()
-        .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("intrinsic:system::{terrane}"))
-                .then_some(rust)
-        });
-        if let Some(function) = system_call {
+        ];
+        let system_call = system_call
+            .into_iter()
+            .map(|(source, rust)| (source, rust, false))
+            .chain(
+                borrowed_system_call
+                    .into_iter()
+                    .map(|(source, rust)| (source, rust, true)),
+            )
+            .find_map(|(source, rust, borrowed)| {
+                self.is_builtin(callee, &format!("intrinsic:system::{source}"))
+                    .then_some((rust, borrowed))
+            });
+        if let Some((function, borrowed)) = system_call {
             let values = argument_values
                 .iter()
                 .enumerate()
@@ -1846,10 +1855,7 @@ impl Emitter<'_> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            if function.starts_with("filesystem_result_")
-                || function.starts_with("platform_value_")
-                || matches!(function, "temporary_status" | "temporary_location")
-            {
+            if borrowed {
                 return format!("terrane_{function}(&({values}))");
             }
             return format!("terrane_{function}({values})");

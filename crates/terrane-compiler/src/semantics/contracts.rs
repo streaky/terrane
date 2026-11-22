@@ -61,7 +61,12 @@ pub(super) fn collect_type_declarations(
     }
     if is_function_node(node) {
         let visible = visible_descriptor_aliases(aliases, unit.source.id(), node.span.start);
-        functions.push(analyze_function_contract(unit, node, &visible)?);
+        functions.push(analyze_function_contract(
+            unit,
+            node,
+            &visible,
+            scope.is_some(),
+        )?);
     }
     let child_scope = is_function_node(node).then_some(node.span).or(scope);
     for child in &node.children {
@@ -494,6 +499,7 @@ pub(super) fn analyze_function_contract(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
+    local: bool,
 ) -> Result<FunctionContract, SemanticFailure> {
     fn contains_direct_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         node.children.iter().any(|child| {
@@ -621,8 +627,14 @@ pub(super) fn analyze_function_contract(
             });
         }
     }
+    // Lexical class context still applies to `self` inside a local function,
+    // but only a declaration outside another callable can be a method.
+    let owner = (!local && node.kind == SyntaxKind::FunctionDeclaration)
+        .then(|| object_name_containing(unit, node.span))
+        .flatten();
     if name_node.is_some_and(|name| node_text(&unit.source, name) == "main")
-        && object_name_containing(unit, node.span).is_none()
+        && !local
+        && owner.is_none()
         && !parameters.is_empty()
     {
         return Err(failure(
@@ -649,10 +661,12 @@ pub(super) fn analyze_function_contract(
     let is_static = node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "static"
     });
-    let lifecycle_mode = name_node.and_then(|name| match node_text(&unit.source, name) {
-        "construct" => Some(InvocationMode::Mutable),
-        "destruct" => Some(InvocationMode::Consuming),
-        _ => None,
+    let lifecycle_mode = name_node.filter(|_| owner.is_some()).and_then(|name| {
+        match node_text(&unit.source, name) {
+            "construct" => Some(InvocationMode::Mutable),
+            "destruct" => Some(InvocationMode::Consuming),
+            _ => None,
+        }
     });
     let is_destructor = lifecycle_mode == Some(InvocationMode::Consuming)
         && name_node.is_some_and(|name| node_text(&unit.source, name) == "destruct");
@@ -709,9 +723,6 @@ pub(super) fn analyze_function_contract(
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
     });
-    let owner = (node.kind == SyntaxKind::FunctionDeclaration)
-        .then(|| object_name_containing(unit, node.span))
-        .flatten();
     let owner_identity = owner
         .as_ref()
         .map(|owner| ObjectIdentity::new(&unit.namespace, owner));

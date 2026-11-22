@@ -155,6 +155,8 @@ Terrane package
     │   ├── existence-result                   exists / failed / message / error-kind
     │   ├── file-handle                        inferred resource-owning file stream
     │   ├── directory-handle                   inferred resource-owning directory anchor
+    │   ├── temporary-path                     move-only owner: location / delete / keep; cleanup on drop
+    │   ├── temporary-path-error               temporary file or directory creation failure
     │   ├── open-file(filesystem, path, …) -> file-handle; exclusive creation and append
     │   ├── file-read(filesystem, file-handle, limit) / file-write(filesystem, file-handle, data, offset)
     │   ├── file-flush(filesystem, file-handle) / file-sync-data(filesystem, file-handle)
@@ -166,6 +168,7 @@ Terrane package
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   ├── filesystem-rename / filesystem-remove
     │   ├── filesystem-create-directory / filesystem-create-directories
+    │   ├── filesystem-create-temporary-directory / filesystem-create-temporary-file -> temporary-path
     │   ├── filesystem-list-directory -> directory-listing (bounded names)
     │   ├── filesystem-remove-directory / filesystem-remove-directory-tree
     │   └── filesystem-create-symlink / filesystem-create-hard-link

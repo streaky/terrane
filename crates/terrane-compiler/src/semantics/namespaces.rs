@@ -879,18 +879,6 @@ pub(super) fn resolved_object_span(
         .map(|object| object.span)
 }
 
-pub(super) fn enclosing_function_contract(
-    unit: &SemanticUnit,
-    offset: usize,
-) -> Option<&FunctionContract> {
-    let span = unit
-        .enclosing_function_spans
-        .get(&offset)
-        .copied()
-        .flatten()?;
-    unit.functions.iter().find(|contract| contract.span == span)
-}
-
 pub(super) fn is_implicit_object_receiver(unit: &SemanticUnit, offset: usize, name: &str) -> bool {
     let Some(function_span) = unit
         .enclosing_function_spans
@@ -951,9 +939,7 @@ pub(crate) fn class_designator_identity(
         return None;
     }
     if name == "self" {
-        let owner = enclosing_function_contract(unit, designator.span.start)?
-            .owner
-            .as_deref()?;
+        let owner = object_name_containing(unit, designator.span)?;
         return unit
             .descriptors
             .iter()

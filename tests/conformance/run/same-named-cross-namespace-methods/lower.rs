@@ -13,6 +13,9 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&first.value()),
         terrane_scalar_support::scalar_text(&second.value())
     );
+    println!("{}", terrane_scalar_support::scalar_text(&first.local_helper()));
+    first.local_destructor();
+    println!("{}", String::from("end"));
     println!("{}", terrane_scalar_support::scalar_text(&first.foreign_value()));
 }
 // Source: first/item.trn
@@ -22,6 +25,18 @@ pub struct TerraneNsFirstDuplicateIdentity2F6669727374006475706C6963617465 {}
 impl TerraneNsFirstDuplicateIdentity2F6669727374006475706C6963617465 {
     pub fn terrane_construct() -> Self {
         Self {}
+    }
+    pub fn local_helper(&self) -> terrane_int_support::Int {
+        fn helper() -> terrane_int_support::Int {
+            return terrane_int_support::Int::from(7_i128);
+        }
+        return helper();
+    }
+    pub fn local_destructor(&self) {
+        fn destruct() {
+            println!("{}", String::from("local destruct ran"));
+        }
+        destruct();
     }
     pub fn value(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(1_i128);

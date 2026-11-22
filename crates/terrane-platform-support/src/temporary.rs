@@ -52,7 +52,7 @@ impl TemporaryPath {
         for _ in 0..16 {
             let mut random = [0; 16];
             getrandom::fill(&mut random).map_err(|error| io::Error::other(error.to_string()))?;
-            for (pair, byte) in name[8..].chunks_exact_mut(2).zip(random) {
+            for (pair, byte) in name[8..].as_chunks_mut::<2>().0.iter_mut().zip(random) {
                 pair[0] = digits[usize::from(byte >> 4)];
                 pair[1] = digits[usize::from(byte & 15)];
             }

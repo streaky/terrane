@@ -536,7 +536,8 @@ pub(super) fn analyze_descriptor_contracts(
             ObjectKind::Class => fields.iter().any(|field| {
                 matches!(
                     field.value_type,
-                    ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
+                    ValueType::PlatformStreamHandle
+                        | ValueType::PlatformResourceHandle
                         | ValueType::PlatformTemporaryPath
                 )
             }),
@@ -3552,6 +3553,9 @@ pub(super) fn prepare_type_declarations(
             None,
         )?;
         for function in &mut functions {
+            if function.owner.is_none() {
+                continue;
+            }
             if let Some(identity) = unit
                 .descriptors
                 .iter()

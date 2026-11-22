@@ -1,6 +1,16 @@
 namespace first
 from /second import duplicate as other-duplicate
 class duplicate
+  function local-helper int;
+    function helper int;
+      return 7
+    return helper;
+
+  function local-destructor;
+    function destruct;
+      print; 'local destruct ran'
+    destruct;
+
   function value int;
     return 1
 

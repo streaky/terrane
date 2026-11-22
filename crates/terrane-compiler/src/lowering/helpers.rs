@@ -378,10 +378,11 @@ pub(super) fn effective_object_methods<'a>(
                 collect(unit, reused, methods);
             }
         }
-        for method in unit.functions.iter().filter(|method| {
-            // A nested callable can have a lexical class identity without being a method.
-            method.owner.is_some() && method.owner_identity.as_ref() == Some(&object.identity)
-        }) {
+        for method in unit
+            .functions
+            .iter()
+            .filter(|method| method.owner_identity.as_ref() == Some(&object.identity))
+        {
             if let Some(index) = methods.iter().position(|existing| {
                 existing.name == method.name
                     && existing.is_static == method.is_static
