@@ -915,8 +915,9 @@ multi_replace: list of string searches plus paired list of strings or one broadc
 multi_replace_empty: empty patterns compete in ordinary list priority only at unconsumed original grapheme boundaries; an empty winner inserts and advances one original scalar unchanged; nonempty matches skip interior boundaries
 family_rule: a family is modes of ONE operation, not a bucket of related operations; group by subject uses a namespace instead
 case_search: no case-insensitive child; apply explicit case-fold to both operands
-regex: never a child of contains; regex stays match/matches; no member dispatches on whether its argument is a pattern object
-string_views: length defaults to graphemes; bytes/scalars/graphemes explicit; text-range retains immutable source with checked byte/scalar/grapheme views
+regex: /core/regex compiles reusable Unicode text patterns with lookaround and backreferences; matches/match/captures throw regex-match-error on execution failure; compile throws regex-error; contains and find stay literal; no string member dispatches on whether its argument is a pattern object
+regex_unicode: matching is scalar-based, does not normalize, and uses the regex engine's simple case folding and Unicode data (regex-syntax tables are Unicode 16.0.0 in the workspace lock), outside unicode_profile; an ICU4X upgrade affects grapheme views of ranges, not regex matching
+string_views: length defaults to graphemes; bytes/scalars/graphemes explicit; text-range is a writable type name for an immutable source-backed range with checked byte/scalar/grapheme views
 bytes: immutable octets, distinct from string; b'...' literals; only \\, \', \n, \r, \t, \0, \xHH escapes; iteration -> uint8
 encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decode validates all input and throws decode-error, never replacement text
 ```

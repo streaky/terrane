@@ -1,0 +1,76 @@
+namespace core-regex
+
+from /core/regex import compile, regex-pattern, regex-error, regex-match-error
+
+function first-match text-range|none throws regex-match-error; pattern regex-pattern, text string
+  return pattern.match; text
+
+function test-scenario;
+  pattern = compile; '([0-9]+)?(?<call>[a-z]+)()\(', case-insensitive=true
+  source = 'é OPEN('
+  print; (pattern.matches; source)
+  print; (pattern.matches; 'é ?')
+  first text-range|none = first-match; pattern, source
+  if first != none
+    print; first.bytes.start
+    print; first.scalars.start
+    print; first.text
+  found = pattern.captures; source
+  if found != none
+    source = 'reassigned'
+    full = found.group; 0
+    if full != none
+      print; full.bytes.end
+    print; ((found.group; 1) == none)
+    call = found.named-group; 'call'
+    if call != none
+      print; call.text
+    empty = found.group; 3
+    if empty != none
+      print; empty.text == ''
+    print; ((found.group; -1) == none)
+    print; ((found.named-group; 'unknown') == none)
+    print; source
+  try
+    _ = compile; '['
+  catch regex-error as error
+    print; error.message != ''
+
+  lookaround = compile; '(?<=HTTP/1\.1 )(?<status>[0-9]+)(?= OK)'
+  response = lookaround.captures; 'read: HTTP/1.1 200 OK'
+  if response != none
+    status = response.named-group; 'status'
+    if status != none
+      print; status.text
+      print; status.bytes.start
+  print; (lookaround.matches; 'HTTP/1.1 200 Failed')
+
+  repeated = compile; '\A(?<word>[a-z]+) \k<word>\z'
+  print; (repeated.matches; 'word word')
+  print; (repeated.matches; 'word other')
+  positional = compile; '\A([a-z]+) \1\z'
+  print; (positional.matches; 'word word')
+
+  expensive = compile; '\A(a|aa)+\1b\z'
+  input = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacb'
+  try
+    _ = expensive.matches; input
+  catch regex-match-error as error
+    print; error.message != ''
+  try
+    _ = expensive.match; input
+  catch regex-match-error
+    print; 'match limit'
+  try
+    _ = expensive.captures; input
+  catch regex-match-error
+    print; 'captures limit'
+  print; (expensive.matches; 'aab')
+
+  sharp-s = compile; '\Astraße\z', case-insensitive=true
+  print; (sharp-s.matches; 'STRASSE')
+  print; ('straße'.case-fold;) == ('STRASSE'.case-fold;)
+  scalar = compile; '\A.\z'
+  decomposed = "e\u{301}"
+  print; (scalar.matches; decomposed)
+  print; decomposed.length

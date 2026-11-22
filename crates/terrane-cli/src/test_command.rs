@@ -480,6 +480,7 @@ fn build_native_compilation(
             role,
             panic: package.profile.panic,
             uses_platform_support,
+            uses_regex_support: compilation.requires_regex_support,
             uses_child_process: compilation.requires_child_process,
             uses_async_runtime: includes_test_runtime || compilation.requires_async_runtime,
             uses_tokio_blocking,

@@ -984,6 +984,9 @@ pub(super) fn declared_value_type_with_visible_objects(
         "host-platform-capability" => return Ok(ValueType::PlatformCapability),
         "host-platform-resource-handle" => return Ok(ValueType::PlatformResourceHandle),
         "host-platform-result" => return Ok(ValueType::PlatformResult),
+        "text-range" => return Ok(ValueType::TextRange),
+        "host-regex-pattern" if unit.bundled => return Ok(ValueType::RegexPattern),
+        "host-regex-captures" if unit.bundled => return Ok(ValueType::RegexCaptures),
         _ => {}
     }
     if type_name == "encoding" {

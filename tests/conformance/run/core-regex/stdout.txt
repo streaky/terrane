@@ -1,0 +1,27 @@
+true
+false
+3
+2
+OPEN(
+8
+true
+OPEN
+true
+true
+true
+reassigned
+true
+200
+15
+false
+true
+false
+true
+true
+match limit
+captures limit
+true
+false
+true
+false
+1

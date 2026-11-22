@@ -71,6 +71,8 @@ pub struct Compilation {
     require_canonical_rust: bool,
     entry_span: Span,
     pub requires_platform_support: bool,
+    /// Whether emitted code uses Terrane's bundled regex engine.
+    pub requires_regex_support: bool,
     pub requires_child_process: bool,
     pub requires_async_runtime: bool,
     pub requires_blocking_runtime: bool,
@@ -781,6 +783,7 @@ pub(crate) fn compile_analyzed_package(
         sources,
         rust,
         review_rust,
+        requires_regex_support: rendered_rust.requires_regex_support(),
         rendered_rust,
         debug_symbols: options.debug_build.enabled().then(|| {
             crate::debugging::DebugSymbols::from_semantic(
@@ -1214,6 +1217,7 @@ fn lower_test_tier(
             review.push_str(&embedded_authored_rust);
             review
         },
+        requires_regex_support: rendered_rust.requires_regex_support(),
         rendered_rust,
         authored_rust_modules: package.authored_rust_modules.clone(),
         debug_symbols: options.debug_build.enabled().then(|| {

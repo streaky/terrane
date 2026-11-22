@@ -296,6 +296,13 @@ pub struct TextRange {
 }
 
 impl TextRange {
+    /// Makes a range over a shared source. Invalid UTF-8 boundaries are rejected.
+    #[must_use]
+    pub fn from_shared(source: Arc<str>, start: usize, end: usize) -> Option<Self> {
+        source.get(start..end)?;
+        Some(Self { source, start, end })
+    }
+
     #[must_use]
     pub fn text(&self) -> &str {
         &self.source[self.start..self.end]

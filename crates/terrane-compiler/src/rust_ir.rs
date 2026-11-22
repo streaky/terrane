@@ -182,7 +182,7 @@ pub(crate) struct RenderedProgram {
     support: RenderedFragment,
     standalone: RenderedFragment,
     application: RenderedFragment,
-    vendored_support: u8,
+    vendored_support: u16,
     review: RenderedFragment,
 }
 pub(crate) fn rust_type_constructor(rust: &str) -> Option<String> {
@@ -1049,7 +1049,7 @@ impl Item {
     }
 }
 
-const VENDORED_SUPPORT_CRATES: [(&str, &str); 7] = [
+const VENDORED_SUPPORT_CRATES: [(&str, &str); 8] = [
     ("terrane_int_support", "terrane-int-support"),
     ("terrane_collection_support", "terrane-collection-support"),
     ("terrane_scalar_support", "terrane-scalar-support"),
@@ -1057,12 +1057,20 @@ const VENDORED_SUPPORT_CRATES: [(&str, &str); 7] = [
     ("terrane_document_support", "terrane-document-support"),
     ("terrane_stream_abi", "terrane-stream-abi"),
     ("terrane_platform_support", "terrane-platform-support"),
+    ("terrane_regex_support", "terrane-regex-support"),
 ];
 
-const SIGNAL_SUPPORT_BIT: u8 = 1 << VENDORED_SUPPORT_CRATES.len();
+const SIGNAL_SUPPORT_BIT: u16 = 1 << VENDORED_SUPPORT_CRATES.len();
+const REGEX_SUPPORT_BIT: u16 = 1 << 7;
+const _: () = assert!(matches!(
+    VENDORED_SUPPORT_CRATES[REGEX_SUPPORT_BIT.trailing_zeros() as usize]
+        .0
+        .as_bytes(),
+    b"terrane_regex_support"
+));
 
-fn vendored_support_mask(tokens: TokenStream, mask: &mut u8) {
-    const ALL: u8 = SIGNAL_SUPPORT_BIT - 1;
+fn vendored_support_mask(tokens: TokenStream, mask: &mut u16) {
+    const ALL: u16 = SIGNAL_SUPPORT_BIT - 1;
     for token in tokens {
         match token {
             TokenTree::Group(group) => vendored_support_mask(group.stream(), mask),
@@ -1096,6 +1104,10 @@ fn push_manifest_line<'a>(output: &mut String, label: &str, values: impl Iterato
 }
 
 impl RenderedProgram {
+    pub(crate) fn requires_regex_support(&self) -> bool {
+        self.vendored_support & REGEX_SUPPORT_BIT != 0
+    }
+
     pub(crate) fn standalone_file(&self, path: &str) -> RenderedFile {
         let mut contents = format!(
             "// Generated deterministically by Terrane {}.\n",

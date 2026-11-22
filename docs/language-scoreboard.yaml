@@ -1634,6 +1634,18 @@ features:
   notes: Gzip, zlib, raw deflate, and zstd require explicit codecs and bounded decompression limits.
   sources:
   - docs/compiler-plan.md#Milestone 23
+- id: regex
+  name: Compiled regular expressions
+  category: stdlib
+  status: done
+  completion: 100
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/standard-library/regex.yaml
+  notes: Reusable patterns with lookaround and backreferences; typed compile and match errors; source-backed capture ranges.
+  sources:
+  - tests/conformance/run/core-regex/case.toml
 - id: uuid
   name: UUID parsing and generation
   category: stdlib

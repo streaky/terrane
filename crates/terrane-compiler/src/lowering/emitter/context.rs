@@ -1117,8 +1117,7 @@ impl<'unit> Emitter<'unit> {
                 continue;
             }
             if let Some(default) = parameter.children.last() {
-                let borrowed_key =
-                    crate::semantics::interpolatable::borrows_key(self.unit, contract);
+                let borrowed_key = self.borrows_text_parameter(contract, index);
                 let text = &owner.source.text()[default.span.start..default.span.end];
                 if borrowed_key
                     && default.kind == SyntaxKind::Literal

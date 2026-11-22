@@ -740,6 +740,9 @@ pub enum ValueType {
     PlatformResourceHandle,
     PlatformResult,
     PlatformTemporaryPath,
+    RegexPattern,
+    RegexOutcome(ElementType),
+    RegexCaptures,
     Object(ObjectIdentity),
     Reference(ElementType),
     MutableReference(ElementType),
@@ -858,6 +861,9 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformResourceHandle
         | ValueType::PlatformResult
         | ValueType::PlatformTemporaryPath
+        | ValueType::RegexPattern
+        | ValueType::RegexOutcome(_)
+        | ValueType::RegexCaptures
         | ValueType::Object(_)
         | ValueType::Reference(_)
         | ValueType::MutableReference(_)
@@ -1074,6 +1080,11 @@ impl std::fmt::Display for ValueType {
             Self::PlatformResourceHandle => formatter.write_str("platform-resource-handle"),
             Self::PlatformResult => formatter.write_str("platform-result"),
             Self::PlatformTemporaryPath => formatter.write_str("platform-temporary-path"),
+            Self::RegexPattern => formatter.write_str("host-regex-pattern"),
+            Self::RegexOutcome(value) => {
+                write!(formatter, "host-regex-outcome of {}", value.value_type())
+            }
+            Self::RegexCaptures => formatter.write_str("host-regex-captures"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::MutableReference(item) => write!(formatter, "mutable ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
