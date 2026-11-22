@@ -1,4 +1,11 @@
 namespace first
+from /second import duplicate as other-duplicate
 class duplicate
   function value int;
     return 1
+
+  function foreign-value int;
+    seed = function int;
+      return 3
+    other = instance other-duplicate; (seed;)
+    return other.value;

@@ -346,7 +346,7 @@ pub(super) fn object_destructor_chain<'a>(
         })
         .map_or_else(Vec::new, |base| object_destructor_chain(unit, base));
     if let Some(destructor) = unit.functions.iter().find(|method| {
-        method.owner.as_deref() == Some(object.name.as_str()) && method.name == "destruct"
+        method.owner_identity.as_ref() == Some(&object.identity) && method.name == "destruct"
     }) {
         destructors.push(destructor);
     }
@@ -378,11 +378,10 @@ pub(super) fn effective_object_methods<'a>(
                 collect(unit, reused, methods);
             }
         }
-        for method in unit
-            .functions
-            .iter()
-            .filter(|method| method.owner.as_deref() == Some(object.identity.name.as_str()))
-        {
+        for method in unit.functions.iter().filter(|method| {
+            // A nested callable can have a lexical class identity without being a method.
+            method.owner.is_some() && method.owner_identity.as_ref() == Some(&object.identity)
+        }) {
             if let Some(index) = methods.iter().position(|existing| {
                 existing.name == method.name
                     && existing.is_static == method.is_static

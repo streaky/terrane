@@ -1,4 +1,12 @@
 namespace second
 class duplicate
+  private stored int
+
+  function construct; value int
+    this.stored = value
+
   function value int;
-    return 2
+    return this.stored
+
+  function destruct;
+    print; 'd', this.stored
