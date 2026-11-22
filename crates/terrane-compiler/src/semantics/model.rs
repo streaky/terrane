@@ -72,6 +72,12 @@ pub(super) struct NativeTypeCapabilities {
 type DescriptorPositions = BTreeMap<String, BTreeMap<String, Vec<(usize, usize)>>>;
 
 #[derive(Clone, Debug)]
+pub(super) struct DescriptorIndex {
+    positions: DescriptorPositions,
+    rust_names: std::sync::OnceLock<crate::lowering::helpers::ObjectNames>,
+}
+
+#[derive(Clone, Debug)]
 pub struct SemanticPackage {
     pub identity: String,
     pub prelude: bool,
@@ -89,8 +95,8 @@ pub struct SemanticPackage {
     pub prelude_bindings: BTreeMap<String, Symbol>,
     pub descriptor_constructs: BTreeMap<String, Symbol>,
     pub units: Vec<SemanticUnit>,
-    pub(crate) rust_object_names: std::sync::OnceLock<crate::lowering::helpers::ObjectNames>,
-    pub(super) descriptor_positions: Option<DescriptorPositions>,
+    // Keep the late-built indexes off the stack when moving semantic packages.
+    pub(super) descriptor_index: Option<Box<DescriptorIndex>>,
     pub(super) binding_events: BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
     pub(super) metadata_constant_reads: BTreeMap<(u32, usize, usize), Span>,
     /// Ordered, typed modifier applications selected before region lowering.
@@ -114,7 +120,23 @@ impl SemanticPackage {
                     .push((unit, index));
             }
         }
-        self.descriptor_positions = Some(positions);
+        if let Some(index) = &mut self.descriptor_index {
+            index.positions = positions;
+            index.rust_names.take();
+        } else {
+            self.descriptor_index = Some(Box::new(DescriptorIndex {
+                positions,
+                rust_names: std::sync::OnceLock::new(),
+            }));
+        }
+    }
+
+    pub(crate) fn rust_object_names(&self) -> &crate::lowering::helpers::ObjectNames {
+        self.descriptor_index
+            .as_ref()
+            .expect("descriptor inventory is indexed before lowering")
+            .rust_names
+            .get_or_init(|| crate::lowering::helpers::ObjectNames::new(self))
     }
 
     pub(super) fn find_nominal_descriptor(
@@ -125,8 +147,9 @@ impl SemanticPackage {
         let matches = |descriptor: &&DescriptorContract| {
             descriptor.identity.nominal_key() == identity.nominal_key() && matches(descriptor)
         };
-        if let Some(index) = &self.descriptor_positions {
+        if let Some(index) = &self.descriptor_index {
             index
+                .positions
                 .get(identity.namespace.as_str())?
                 .get(identity.name.as_str())?
                 .iter()

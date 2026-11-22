@@ -1085,7 +1085,7 @@ pub(crate) struct ObjectNames {
 }
 
 impl ObjectNames {
-    fn new(package: &SemanticPackage) -> Self {
+    pub(crate) fn new(package: &SemanticPackage) -> Self {
         let mut exact = std::collections::BTreeMap::new();
         let mut protocol_stems = std::collections::BTreeSet::new();
         for object in package.units.iter().flat_map(|unit| &unit.descriptors) {
@@ -1129,10 +1129,7 @@ pub(crate) fn rust_object_type_base_name(
     let rendered = rust_rendered_object_name(identity);
     let collides = rust_prelude_type_name(&rendered)
         || rendered.starts_with("Terrane")
-        || package
-            .rust_object_names
-            .get_or_init(|| ObjectNames::new(package))
-            .collides(&rendered, identity);
+        || package.rust_object_names().collides(&rendered, identity);
     if collides {
         let mut qualified =
             String::with_capacity(18 + identity.namespace.len() * 3 + identity.name.len() * 3);

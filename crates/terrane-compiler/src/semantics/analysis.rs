@@ -108,27 +108,12 @@ pub(super) fn parse_unit(
     if let Some(expected) = expected_namespace
         && namespace != expected
     {
-        let span = parsed
-            .tree
-            .root
-            .children
-            .iter()
-            .find(|node| node.kind == SyntaxKind::NamespaceDeclaration)
-            .map_or(Span::new(source.id(), 0, source.text().len()), |node| {
-                node.span
-            });
-        let diagnostic = Diagnostic::error(
-            "S2020",
-            format!(
-                "declared namespace `{namespace}` does not match `{expected}` required by its source directory"
-            ),
-            span,
-        )
-        .with_help(format!("declare `namespace {}`", expected.trim_start_matches('/')));
-        return Err(SemanticFailure {
-            source: source.clone(),
-            diagnostics: vec![diagnostic],
-        });
+        return Err(namespace_mismatch(
+            source,
+            &parsed.tree,
+            &namespace,
+            expected,
+        ));
     }
     let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
     let mut unsafe_rust_spans = Vec::new();
@@ -186,6 +171,34 @@ pub(super) fn parse_unit(
         evaluation_steps: Vec::new(),
         selections: Vec::new(),
     })
+}
+
+fn namespace_mismatch(
+    source: &SourceFile,
+    tree: &crate::syntax::SyntaxTree,
+    namespace: &str,
+    expected: &str,
+) -> SemanticFailure {
+    let span = tree
+        .root
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::NamespaceDeclaration)
+        .map_or(Span::new(source.id(), 0, source.text().len()), |node| {
+            node.span
+        });
+    let diagnostic = Diagnostic::error(
+        "S2020",
+        format!(
+            "declared namespace `{namespace}` does not match `{expected}` required by its source directory"
+        ),
+        span,
+    )
+    .with_help(format!("declare `namespace {}`", expected.trim_start_matches('/')));
+    SemanticFailure {
+        source: source.clone(),
+        diagnostics: vec![diagnostic],
+    }
 }
 
 fn parse_authored_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
@@ -1118,8 +1131,7 @@ fn analyze_parsed_with_projection(
         prelude_bindings,
         descriptor_constructs,
         units,
-        rust_object_names: std::sync::OnceLock::new(),
-        descriptor_positions: None,
+        descriptor_index: None,
         projection,
         native_capabilities: BTreeMap::new(),
         binding_events: BTreeMap::new(),
@@ -1533,7 +1545,7 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
         added |= !aliases.is_empty();
         unit.descriptors.extend(aliases);
     }
-    if added && package.descriptor_positions.is_some() {
+    if added && package.descriptor_index.is_some() {
         package.index_descriptors();
     }
 }
