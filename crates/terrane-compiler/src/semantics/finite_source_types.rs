@@ -2,6 +2,17 @@
 use super::capabilities::walk_value_type;
 use super::prelude::*;
 
+type ClassKey<'a> = (&'a str, &'a str, bool);
+
+fn class_key(identity: &ObjectIdentity) -> ClassKey<'_> {
+    (&identity.namespace, &identity.name, identity.is_unsafe)
+}
+
+struct Layouts<'a> {
+    package: &'a SemanticPackage,
+    classes: BTreeMap<ClassKey<'a>, &'a DescriptorContract>,
+}
+
 fn application_size(identity: &ObjectIdentity) -> usize {
     let mut size = 0;
     for argument in identity.type_arguments.iter().chain(
@@ -17,31 +28,19 @@ fn application_size(identity: &ObjectIdentity) -> usize {
 }
 
 fn inline_cycle(
-    package: &SemanticPackage,
+    layouts: &Layouts<'_>,
     value: &ValueType,
     span: Span,
     active: &mut Vec<(ObjectIdentity, usize)>,
     complete: &mut BTreeSet<ObjectIdentity>,
 ) -> Option<(Span, String)> {
     match value {
-        ValueType::Optional(inner) => inline_cycle(package, inner, span, active, complete),
+        ValueType::Optional(inner) => inline_cycle(layouts, inner, span, active, complete),
         ValueType::Union(arms) => arms
             .iter()
-            .find_map(|arm| inline_cycle(package, arm, span, active, complete)),
+            .find_map(|arm| inline_cycle(layouts, arm, span, active, complete)),
         ValueType::Object(identity) => {
-            let descriptor = package
-                .units
-                .iter()
-                .flat_map(|unit| &unit.descriptors)
-                .find(|candidate| {
-                    candidate.kind == ObjectKind::Class
-                        && candidate.identity.base() == identity.base()
-                        && candidate.identity.native_projection.is_none()
-                        && package
-                            .projection
-                            .item(&identity.namespace, &identity.name)
-                            .is_none()
-                })?;
+            let descriptor = layouts.classes.get(&class_key(identity))?;
             if complete.contains(identity) {
                 return None;
             }
@@ -50,7 +49,7 @@ fn inline_cycle(
             // their arguments strictly shrink. Re-entering a declaration with
             // equal or larger arguments cannot terminate an inline layout.
             if active.iter().any(|(owner, previous_size)| {
-                owner.base() == identity.base() && size >= *previous_size
+                class_key(owner) == class_key(identity) && size >= *previous_size
             }) {
                 return Some((span, descriptor.name.clone()));
             }
@@ -69,13 +68,13 @@ fn inline_cycle(
                 )
                 .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
                 .collect();
-            for effective in effective_object_fields(package, descriptor)
+            for effective in effective_object_fields(layouts.package, descriptor)
                 .into_iter()
                 .filter(|field| !field.is_static)
             {
                 let field_type = substitute_value_type(&effective.value_type, &substitutions);
                 if let Some(cycle) =
-                    inline_cycle(package, &field_type, effective.span, active, complete)
+                    inline_cycle(layouts, &field_type, effective.span, active, complete)
                 {
                     return Some(cycle);
                 }
@@ -90,13 +89,22 @@ fn inline_cycle(
 }
 
 pub(super) fn validate(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    let roots = || {
+        package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.descriptors)
+            .filter(|descriptor| descriptor.kind == ObjectKind::Class)
+    };
+    let mut classes = BTreeMap::new();
+    for descriptor in roots().filter(|descriptor| descriptor.identity.native_projection.is_none()) {
+        let key = class_key(&descriptor.identity);
+        classes.entry(key).or_insert(descriptor);
+    }
+    classes.retain(|&(namespace, name, _), _| package.projection.item(namespace, name).is_none());
+    let layouts = Layouts { package, classes };
     let mut complete = BTreeSet::new();
-    for descriptor in package
-        .units
-        .iter()
-        .flat_map(|unit| &unit.descriptors)
-        .filter(|descriptor| descriptor.kind == ObjectKind::Class)
-    {
+    for descriptor in roots() {
         let identity = descriptor.identity.clone().with_type_arguments(
             descriptor
                 .generic_parameters
@@ -105,7 +113,7 @@ pub(super) fn validate(package: &SemanticPackage) -> Result<(), SemanticFailure>
                 .collect(),
         );
         if let Some((span, name)) = inline_cycle(
-            package,
+            &layouts,
             &ValueType::Object(identity),
             descriptor.span,
             &mut Vec::new(),
