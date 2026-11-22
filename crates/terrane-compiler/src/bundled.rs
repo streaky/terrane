@@ -4,6 +4,19 @@ pub(crate) struct BundledSource {
     pub text: &'static str,
 }
 
+/// Source spellings and their Rust adapter functions. The lowering site owns
+/// argument conversions; the same spellings register private semantic symbols.
+pub(crate) const REGEX_HOST_FUNCTIONS: [(&str, &str); 8] = [
+    ("compile", "compile"),
+    ("result-error", "result_error"),
+    ("result-value", "result_value"),
+    ("matches", "matches"),
+    ("first-match", "first_match"),
+    ("captures", "captures"),
+    ("capture", "capture"),
+    ("named-capture", "named_capture"),
+];
+
 const SOURCES: &[BundledSource] = &[
     BundledSource {
         namespace: "/core/display",

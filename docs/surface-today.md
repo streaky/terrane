@@ -114,6 +114,7 @@ Terrane package
 │   │   ├── /core/networking/native            native TCP interoperability namespace
 │   │   ├── /core/process                      public facility namespace
 │   │   ├── /core/random                       public facility namespace
+│   │   ├── /core/regex                        public facility namespace
 │   │   ├── /core/streams                      public facility namespace
 │   │   ├── /core/networking/tls               public facility namespace
 │   │   ├── /core/urls                         public facility namespace
@@ -250,6 +251,10 @@ Terrane package
     │   ├── gzip / zlib / deflate-raw / zstd   explicit codecs; no auto-detection
     │   ├── compression-options                level and deterministic-output policy
     │   └── decompression-limits               mandatory output, ratio, and work limits
+    ├── /core/regex                            reusable compiled text patterns
+    │   ├── compile / regex-pattern            matches, match, captures
+    │   ├── regex-captures                     numbered and named text-range values
+    │   └── regex-error / regex-match-error    compile and execution errors
     ├── /core/random/uuid                      UUID values; requires `entropy`
     │   └── parse-uuid / random-uuid / time-uuid strict canonical parsing plus v4 and v7 generation
     ├── /core/networking                       sockets and DNS; requires `networking`
@@ -544,6 +549,7 @@ string value
 │   ├── .find; pattern -> text-range or none
 │   ├── .find.all; pattern -> iterable read-only list of text-range
 │   ├── .find.count; pattern -> int
+│   ├── text-range                            nameable source-backed result type
 │   ├── .upper[.first|.words]; / .lower[.first]; / .case-fold; -> string
 │   ├── .normalise.nfc|nfd|nfkc|nfkd; -> string
 │   ├── .split; pattern -> iterable read-only list of string

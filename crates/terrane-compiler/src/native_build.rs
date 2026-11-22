@@ -415,16 +415,10 @@ fn write_generated_support(
 pub fn write_regex_support(directory: &Path) -> std::io::Result<()> {
     let regex = directory.join("terrane-regex-support");
     fs::create_dir_all(regex.join("src"))?;
-    let dependencies = include_str!("../../terrane-regex-support/Cargo.toml")
-        .split_once("[dependencies]")
-        .and_then(|(_, rest)| rest.split_once("[lints]"))
-        .expect("regex support manifest has a dependencies section")
-        .0;
-    let manifest = format!(
-        "[package]\nname = \"terrane-regex-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]{dependencies}",
-        crate::BUILD_TOOLCHAIN
-    );
-    write_if_changed(&regex.join("Cargo.toml"), manifest.as_bytes())?;
+    write_if_changed(
+        &regex.join("Cargo.toml"),
+        crate::regex_support_manifest().as_bytes(),
+    )?;
     write_if_changed(
         &regex.join("src/lib.rs"),
         include_bytes!("../../terrane-regex-support/src/lib.rs"),

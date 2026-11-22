@@ -7,6 +7,9 @@ use crate::{
 };
 
 impl Emitter<'_> {
+    // These source signatures stay `string`: `ref string` requires an
+    // owner-proven place and rejects literals and temporaries (T0064). Borrow
+    // in the native ABI without imposing those source-level loan semantics.
     pub(super) fn borrows_text_parameter(&self, contract: &FunctionContract, index: usize) -> bool {
         index == 0
             && (interpolatable::borrows_key(self.unit, contract)
@@ -16,9 +19,12 @@ impl Emitter<'_> {
                         ("regex-pattern", "matches" | "match" | "captures")
                             | ("regex-captures", "named-group")
                     ),
-                    None if contract.name == "compile" => self.package.units.iter().any(|unit| {
-                        unit.source.id() == contract.span.file && unit.namespace == "/core/regex"
-                    }),
+                    None if contract.name == "compile" => self
+                        .package
+                        .namespaces
+                        .get("/core/regex")
+                        .and_then(|namespace| namespace.symbols.get("compile"))
+                        .is_some_and(|symbol| symbol.declaration_span == Some(contract.span)),
                     _ => false,
                 })
     }

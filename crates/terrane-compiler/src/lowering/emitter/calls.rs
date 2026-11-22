@@ -1529,13 +1529,12 @@ impl Emitter<'_> {
                 .resolve_name_at(self.unit, callee.span.start, self.text(callee))
                 .and_then(|symbol| symbol.compiler_identity().strip_prefix("intrinsic:regex::"))
         {
-            let function = match name {
-                "result-error" => "result_error",
-                "result-value" => "result_value",
-                "first-match" => "first_match",
-                "named-capture" => "named_capture",
-                _ => name,
-            };
+            let function = crate::bundled::REGEX_HOST_FUNCTIONS
+                .iter()
+                .find_map(|&(source, rust)| (source == name).then_some(rust))
+                .expect("registered regex host function");
+            // Host search inputs lend storage. Only the checked outcome is
+            // consumed; numeric group indices cross through a checked usize.
             let args = argument_values
                 .iter()
                 .enumerate()

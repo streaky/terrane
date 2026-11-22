@@ -1061,7 +1061,13 @@ const VENDORED_SUPPORT_CRATES: [(&str, &str); 8] = [
 ];
 
 const SIGNAL_SUPPORT_BIT: u16 = 1 << VENDORED_SUPPORT_CRATES.len();
-const REGEX_SUPPORT_BIT: u16 = SIGNAL_SUPPORT_BIT >> 1;
+const REGEX_SUPPORT_BIT: u16 = 1 << 7;
+const _: () = assert!(matches!(
+    VENDORED_SUPPORT_CRATES[REGEX_SUPPORT_BIT.trailing_zeros() as usize]
+        .0
+        .as_bytes(),
+    b"terrane_regex_support"
+));
 
 fn vendored_support_mask(tokens: TokenStream, mask: &mut u16) {
     const ALL: u16 = SIGNAL_SUPPORT_BIT - 1;

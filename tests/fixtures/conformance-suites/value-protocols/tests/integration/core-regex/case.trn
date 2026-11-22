@@ -1,13 +1,16 @@
 namespace core-regex
 
-from /core/regex import compile, regex-error, regex-match-error
+from /core/regex import compile, regex-pattern, regex-error, regex-match-error
+
+function first-match text-range|none throws regex-match-error; pattern regex-pattern, text string
+  return pattern.match; text
 
 function test-scenario;
   pattern = compile; '([0-9]+)?(?<call>[a-z]+)()\(', case-insensitive=true
   source = 'é OPEN('
   print; (pattern.matches; source)
   print; (pattern.matches; 'é ?')
-  first = pattern.match; source
+  first text-range|none = first-match; pattern, source
   if first != none
     print; first.bytes.start
     print; first.scalars.start
@@ -63,3 +66,11 @@ function test-scenario;
   catch regex-match-error
     print; 'captures limit'
   print; (expensive.matches; 'aab')
+
+  sharp-s = compile; '\Astraße\z', case-insensitive=true
+  print; (sharp-s.matches; 'STRASSE')
+  print; ('straße'.case-fold;) == ('STRASSE'.case-fold;)
+  scalar = compile; '\A.\z'
+  decomposed = "e\u{301}"
+  print; (scalar.matches; decomposed)
+  print; decomposed.length

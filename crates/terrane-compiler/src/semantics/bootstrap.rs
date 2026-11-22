@@ -50,16 +50,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         &mut namespaces,
         "/core/regex",
         "regex",
-        [
-            "compile",
-            "result-error",
-            "result-value",
-            "matches",
-            "first-match",
-            "captures",
-            "capture",
-            "named-capture",
-        ],
+        crate::bundled::REGEX_HOST_FUNCTIONS.map(|(source, _)| source),
     );
     add_private_host_bindings(
         &mut namespaces,

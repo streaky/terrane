@@ -79,17 +79,28 @@ pub fn platform_support_manifest() -> String {
 }
 
 fn platform_support_manifest_from(source: &str) -> String {
+    let dependencies = support_manifest_dependencies(source);
+    format!(
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[features]\ndefault = []\nchild-process = [\"tokio/process\"]\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n"
+    )
+}
+
+fn support_manifest_dependencies(source: &str) -> String {
     let (_, rest) = source
         .split_once("[dependencies]")
-        .expect("platform support manifest must declare dependencies");
-    let dependencies = rest
-        .lines()
+        .expect("support manifest must declare dependencies");
+    rest.lines()
         .skip_while(|line| line.trim().is_empty())
         .take_while(|line| !line.trim_start().starts_with('['))
         .collect::<Vec<_>>()
-        .join("\n");
+        .join("\n")
+}
+
+pub(crate) fn regex_support_manifest() -> String {
+    let dependencies =
+        support_manifest_dependencies(include_str!("../../terrane-regex-support/Cargo.toml"));
     format!(
-        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[features]\ndefault = []\nchild-process = [\"tokio/process\"]\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n"
+        "[package]\nname = \"terrane-regex-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[dependencies]\n{dependencies}"
     )
 }
 
