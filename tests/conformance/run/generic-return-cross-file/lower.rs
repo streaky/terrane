@@ -18,8 +18,22 @@ fn make() -> Slot<String> {
     return Slot::<String>::terrane_construct();
 }
 fn main() {
+    let mut numeric: Slot<terrane_int_support::Int>;
+    let number: Option<terrane_int_support::Int>;
     let mut made: Slot<String>;
     let value: Option<String>;
+    numeric = other();
+    {
+        let __terrane_value = Some(terrane_int_support::Int::from(42_i128));
+        numeric.value = __terrane_value;
+    }
+    number = numeric.value;
+    if (&number).is_some() {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&match &number { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
+        );
+    }
     made = make();
     {
         let __terrane_value = Some(String::from("ready"));
@@ -35,7 +49,6 @@ fn main() {
 }
 // Source: src/other.trn
 // Namespace: generic-return-cross-file
-#[allow(dead_code)]
 fn other() -> Slot<terrane_int_support::Int> {
     return Slot::<terrane_int_support::Int>::terrane_construct();
 }

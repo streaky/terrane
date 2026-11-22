@@ -1708,10 +1708,12 @@ impl Default for TerranePlatformStreamHandle {
         Self(std::sync::Arc::new(0))
     }
 }
-impl TerranePlatformStreamHandle {
-    fn new(handle: terrane_stream_abi::StreamHandle) -> Self {
+impl From<terrane_stream_abi::StreamHandle> for TerranePlatformStreamHandle {
+    fn from(handle: terrane_stream_abi::StreamHandle) -> Self {
         Self(std::sync::Arc::new(handle.id()))
     }
+}
+impl TerranePlatformStreamHandle {
     fn abi_handle(&self) -> terrane_stream_abi::StreamHandle {
         terrane_stream_abi::StreamHandle::from_id(*self.0)
     }
@@ -2095,13 +2097,13 @@ fn terrane_platform_stream_options(
     }
 }
 pub fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
+    terrane_stream_abi::acquire_stdin().into()
 }
 pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
+    terrane_stream_abi::acquire_stdout().into()
 }
 pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
+    terrane_stream_abi::acquire_stderr().into()
 }
 pub fn terrane_unhex(text: &str) -> Vec<u8> {
     fn digit(byte: u8) -> Option<u8> {

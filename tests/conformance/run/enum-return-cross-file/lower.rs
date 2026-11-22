@@ -18,24 +18,37 @@ fn make() -> TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2
     };
 }
 fn main() {
+    let number: TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2D63726F73732D66696C6500726573756C74<
+        terrane_int_support::Int,
+    >;
+    let value: terrane_int_support::Int;
     let item: TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2D63726F73732D66696C6500726573756C74<
         String,
     >;
-    let value: String;
-    item = make();
-    let __terrane_match_value_440 = item.clone();
-    match __terrane_match_value_440 {
+    let value_2: String;
+    number = other();
+    let __terrane_match_value_443 = number.clone();
+    match __terrane_match_value_443 {
         TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2D63726F73732D66696C6500726573756C74::Success(
-            __terrane_pattern_459_value,
+            __terrane_pattern_464_value,
         ) => {
-            value = __terrane_pattern_459_value;
+            value = __terrane_pattern_464_value;
             println!("{}", terrane_scalar_support::scalar_text(&value));
+        }
+    }
+    item = make();
+    let __terrane_match_value_538 = item.clone();
+    match __terrane_match_value_538 {
+        TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2D63726F73732D66696C6500726573756C74::Success(
+            __terrane_pattern_557_value,
+        ) => {
+            value_2 = __terrane_pattern_557_value;
+            println!("{}", terrane_scalar_support::scalar_text(&value_2));
         }
     }
 }
 // Source: src/other.trn
 // Namespace: enum-return-cross-file
-#[allow(dead_code)]
 fn other() -> TerraneNsEnumReturnCrossFileResultIdentity2F656E756D2D72657475726E2D63726F73732D66696C6500726573756C74<
     terrane_int_support::Int,
 > {

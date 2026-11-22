@@ -952,6 +952,112 @@ fn native_test_listing_and_empty_selection_do_not_build_runners() {
 }
 
 #[test]
+fn cached_test_discovery_rechecks_changed_library_sources() {
+    let package = TempPackage::new();
+    let manifest = package.0.join("package.toml");
+    let mut text = fs::read_to_string(&manifest).unwrap();
+    text.push_str("\n[terrane-dependencies.fixture.library]\npath = \"library\"\n");
+    fs::write(manifest, text).unwrap();
+    fs::create_dir_all(package.0.join("library/src")).unwrap();
+    fs::write(
+        package.0.join("library/package.toml"),
+        "package = \"fixture/library\"\nartifact = \"library\"\n[namespaces]\n\"fixture/library\" = \"src\"\n",
+    )
+    .unwrap();
+    let library = package.0.join("library/src/lib.trn");
+    fs::write(
+        &library,
+        "namespace fixture/library\npublic function answer int;\n    return 1\n",
+    )
+    .unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(
+        package.0.join("tests/unit/case.trn"),
+        "namespace cli/app\nfunction test-present;\n    return\n",
+    )
+    .unwrap();
+    let list = || {
+        Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["test", "--list"])
+            .arg(&package.0)
+            .output()
+            .unwrap()
+    };
+    for _ in 0..2 {
+        let output = list();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(output.stdout, b"/cli/app::test-present [unit]\n");
+    }
+    fs::write(
+        &library,
+        "namespace fixture/library\npublic function answer int;\n    return 'wrong type'\n",
+    )
+    .unwrap();
+    let output = list();
+    assert!(!output.status.success(), "{output:?}");
+    assert!(output.stdout.is_empty(), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("lib.trn:3:"),
+        "{output:?}"
+    );
+}
+
+#[test]
+fn demand_keeps_indirect_calls_and_prunes_unused_core_operations() {
+    let package = TempPackage::new();
+    let source = package.0.join("app/main.trn");
+    let lowered = package.0.join("lower.rs");
+    fs::write(
+        &source,
+        concat!(
+            "namespace cli/app\n",
+            "from /core/output import print\n",
+            "from /core/documents/json import parse-json, canonical-json, default-json-options\n",
+            "function parse-probe bool;\n",
+            "    parsed = parse-json; '[1, 2]', (default-json-options;)\n",
+            "    return parsed.failed\n",
+            "function dormant-probe bool;\n",
+            "    parsed = parse-json; '[1, 2]', (default-json-options;)\n",
+            "    canonical = canonical-json; parsed.value\n",
+            "    return canonical.failed\n",
+            "function main;\n",
+            "    callback = parse-probe\n",
+            "    print; (callback;)\n",
+        ),
+    )
+    .unwrap();
+    let lower = || {
+        Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["rust", "-o"])
+            .arg(&lowered)
+            .arg(&package.0)
+            .output()
+            .unwrap()
+    };
+    let output = lower();
+    assert!(output.status.success(), "{output:?}");
+    let main = fs::read_to_string(&lowered).unwrap();
+    let support = fs::read_to_string(package.0.join("lower.support.rs")).unwrap();
+    assert!(main.contains("fn parse_probe("));
+    assert!(!main.contains("fn dormant_probe("));
+    assert!(support.contains("fn terrane_json_parse("));
+    assert!(!support.contains("fn terrane_json_canonical("));
+    assert!(!support.contains("fn terrane_json_stringify("));
+
+    let invalid = fs::read_to_string(&source)
+        .unwrap()
+        .replace("return canonical.failed", "return 'wrong type'");
+    fs::write(&source, invalid).unwrap();
+    let output = lower();
+    assert!(!output.status.success(), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("error[T0015]: function `dormant-probe` must return `bool`"),
+        "{output:?}"
+    );
+}
+
+#[test]
 fn end_to_end_artifact_passes_inputs_and_drains_large_output() {
     let package = TempPackage::new();
     fs::write(

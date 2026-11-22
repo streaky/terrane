@@ -583,16 +583,6 @@ pub fn terrane_make_document_integer(
 ) -> terrane_document_support::DataResult {
     terrane_document_support::document_integer(&value)
 }
-pub fn terrane_make_document_decimal(
-    value: String,
-) -> terrane_document_support::DataResult {
-    terrane_document_support::document_decimal(&value)
-}
-pub fn terrane_make_document_list<'a>(
-    items: impl IntoIterator<Item = &'a terrane_document_support::DataResult>,
-) -> terrane_document_support::DataResult {
-    terrane_document_support::document_list(items)
-}
 pub fn terrane_make_document_map<'a>(
     entries: impl IntoIterator<
         Item = (&'a str, &'a terrane_document_support::DataResult),
@@ -709,28 +699,6 @@ pub fn terrane_json_canonical(
 ) -> terrane_document_support::DataResult {
     terrane_document_support::canonical_json(value)
 }
-pub fn terrane_json_stringify(
-    value: &terrane_document_support::DataResult,
-    max_depth: terrane_int_support::Int,
-    max_bytes: terrane_int_support::Int,
-) -> terrane_document_support::DataResult {
-    terrane_document_support::stringify_json_bounded(
-        value,
-        terrane_limit(&max_depth),
-        terrane_limit(&max_bytes),
-    )
-}
-fn __terrane_uninitialized_binding(
-    name: &str,
-    path: &str,
-    line: usize,
-    column: usize,
-) -> ! {
-    eprintln!(
-        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
-    );
-    std::process::exit(1);
-}
 // Source: core/json.trn
 // Namespace: core/documents/json
 #[derive(Clone)]
@@ -780,34 +748,10 @@ pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
     );
     return make_document_result(raw);
 }
-pub fn stringify_json(value: DocumentValue, options: JsonOptions) -> DocumentResult {
-    let raw: terrane_document_support::DataResult;
-    raw = terrane_json_stringify(
-        &value.raw,
-        options.max_depth.clone(),
-        options.max_bytes.clone(),
-    );
-    return make_document_result(raw);
-}
 pub fn canonical_json(value: DocumentValue) -> DocumentResult {
     let raw: terrane_document_support::DataResult;
     raw = terrane_json_canonical(&value.raw);
     return make_document_result(raw);
-}
-pub fn decode_json(
-    input: String,
-    mapping: Deserializable,
-    options: JsonOptions,
-) -> DocumentResult {
-    let parsed: DocumentResult;
-    parsed = parse_json(input, options);
-    if parsed.failed {
-        return parsed;
-    }
-    return deserialize_document(parsed.value.clone(), mapping);
-}
-pub fn encode_json(value: Serializable, options: JsonOptions) -> DocumentResult {
-    return stringify_json(serialize_document(value), options);
 }
 // Source: core/annotations.trn
 // Namespace: core/annotations
@@ -1232,15 +1176,6 @@ impl From<DocumentMapping> for Deserializable {
         Self(Box::new(value))
     }
 }
-pub fn serialize_document(value: Serializable) -> DocumentValue {
-    return value.to_document();
-}
-pub fn deserialize_document(
-    value: DocumentValue,
-    destination: Deserializable,
-) -> DocumentResult {
-    return destination.from_document(value);
-}
 pub fn make_document_result(
     raw: terrane_document_support::DataResult,
 ) -> DocumentResult {
@@ -1263,9 +1198,6 @@ pub fn make_document_string(value: String) -> DocumentValue {
 }
 pub fn make_document_integer(value: String) -> DocumentResult {
     return make_document_result(terrane_make_document_integer(value));
-}
-pub fn make_document_decimal(value: String) -> DocumentResult {
-    return make_document_result(terrane_make_document_decimal(value));
 }
 #[derive(Clone)]
 pub struct DocumentMapEntries {
@@ -1293,21 +1225,6 @@ impl DocumentMapEntries {
             self.entries.append(__terrane_collection_argument_0);
         };
     }
-}
-pub fn append_document_map_entry(
-    mut entries: DocumentMapEntries,
-    key: String,
-    value: DocumentValue,
-) -> DocumentMapEntries {
-    entries.append(key, value);
-    return entries;
-}
-pub fn make_document_list(
-    values: terrane_collection_support::List<DocumentValue>,
-) -> DocumentResult {
-    return make_document_result(
-        terrane_make_document_list(values.as_slice().iter().map(|item| &item.raw)),
-    );
 }
 pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
     return make_document_result(

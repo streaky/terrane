@@ -30,7 +30,6 @@ impl TerraneNsCheckedReentryBoxIdentity2F636865636B65642D7265656E74727900626F78 
         };
     }
 }
-#[allow(dead_code)]
 fn invoke(
     first: std::sync::Arc<
         TerraneSharedCell<
@@ -98,6 +97,7 @@ fn main() {
     );
     ha = a.clone();
     hb = b.clone();
+    invoke(ha.clone(), hb.clone());
     copy = hb.clone();
     other = hb.clone();
     let __terrane_iterable_0 = terrane_collection_support::List::<

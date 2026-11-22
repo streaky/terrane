@@ -71,9 +71,12 @@ fn main() {
         let __terrane_collection_argument_1 = Point::terrane_construct();
         points.set(__terrane_collection_argument_0, __terrane_collection_argument_1);
     };
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&describe(String::from("camera")))
+    );
     borrowed = __terrane_traced(
         locate(&points, 1),
-        2 /* terrane-site: src/main.trn:15:16-15:33 */,
+        2 /* terrane-site: src/main.trn:16:16-16:33 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = borrowed
@@ -91,7 +94,6 @@ impl Point {
         Self { latitude: 51.5 }
     }
 }
-#[allow(dead_code)]
 fn describe(name: String) -> String {
     return {
         let mut __terrane_text = String::with_capacity(32);

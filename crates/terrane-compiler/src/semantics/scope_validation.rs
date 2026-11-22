@@ -387,7 +387,7 @@ pub(super) fn validate_assignment_block(
     Ok(())
 }
 
-pub(super) fn validate_assigned_reads(
+fn validate_assigned_reads(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     declared: &BTreeSet<String>,

@@ -1693,17 +1693,6 @@ fn terrane_time_deadline_expired(_target: &terrane_int_support::Int) -> bool {
 async fn terrane_time_sleep_until(_target: terrane_int_support::Int) {
     std::future::pending::<()>().await;
 }
-fn __terrane_uninitialized_binding(
-    name: &str,
-    path: &str,
-    line: usize,
-    column: usize,
-) -> ! {
-    eprintln!(
-        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
-    );
-    std::process::exit(1);
-}
 // Source: <terrane>/projected/deps/terrane-sequence-witness.trn
 // Namespace: deps/terrane-sequence-witness
 pub use terrane_sequence_witness::QueueSequence;

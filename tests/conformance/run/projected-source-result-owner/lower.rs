@@ -2,7 +2,6 @@
 include!("lower.support.rs");
 // Source: helpers/maker.trn
 // Namespace: helpers
-#[allow(dead_code)]
 fn make() -> Holder {
     return __terrane_raised(
         terrane_static_trn_486f6c646572_new(),
@@ -16,12 +15,7 @@ fn same(h: Holder) -> Holder {
 }
 fn main() {
     let y: Holder;
-    y = same(
-        __terrane_raised(
-            terrane_static_trn_486f6c646572_new(),
-            1 /* terrane-site: src/main.trn:9:14-9:26 */,
-        ),
-    );
+    y = same(make());
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
         crate ::TerraneForeignError > { { let value = match
@@ -30,6 +24,6 @@ fn main() {
         Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane-query-witness", "terrane_query_witness::Holder::label_len")) }; Ok:: <
         _, crate ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as
-        u128)) } } (), 2 /* terrane-site: src/main.trn:10:11-10:23 */))
+        u128)) } } (), 1 /* terrane-site: src/main.trn:11:11-11:23 */))
     );
 }

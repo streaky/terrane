@@ -6,6 +6,10 @@ mod inference_scope;
 pub(super) fn count_inference_work() {
     inference_scope::count_computation();
 }
+#[cfg(test)]
+pub(super) fn inference_work_limit_active() -> bool {
+    inference_scope::work_limit_active()
+}
 
 pub(super) fn validate_applied_collection_type_value(
     unit: &SemanticUnit,

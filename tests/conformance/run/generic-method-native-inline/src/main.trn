@@ -18,6 +18,8 @@ function free-both of (B) Box of B; value B
 function unbox of (T) T; box Box of T
     return box.take;
 function main;
+    free = unbox; (free-both; (Holder::new;))
+    print; (free.label_len;)
     factory = instance Factory;
     value = unbox; (factory.both; (Holder::new;))
     print; (value.label_len;)

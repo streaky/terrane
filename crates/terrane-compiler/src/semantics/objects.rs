@@ -3645,10 +3645,15 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
         unit.flow_types.clear();
         unit.rust_storage_names.take();
     }
+    let work = package
+        .units
+        .iter()
+        .map(|unit| unit.source.text().len())
+        .sum();
     let mut first_pass = true;
     loop {
         let mut changed = false;
-        for index in 0..package.units.len() {
+        let results = super::parallel::map_ordered(package.units.len(), work, |index| {
             let unit = &package.units[index];
             let matches = super::enums::MatchContext::new(package, unit, &enums);
             let mut bindings = Vec::new();
@@ -3660,8 +3665,12 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
                 &mut visible_bindings,
                 &mut bindings,
                 None,
-            )?;
-            if bindings != unit.typed_bindings {
+            )
+            .map(|()| bindings)
+        });
+        for (index, result) in results.into_iter().enumerate() {
+            let bindings = result?;
+            if bindings != package.units[index].typed_bindings {
                 package.units[index].rust_storage_names.take();
                 package.units[index].typed_bindings = bindings;
                 changed = true;
@@ -10022,11 +10031,11 @@ pub(super) fn validate_descriptor_value_node(
     }
     if !descriptor_context
         && node.kind == SyntaxKind::MemberExpression
+        && package.reflection == crate::package::ReflectionProfile::Minimal
         && node.children.first().is_some_and(|receiver| {
             descriptor_expression_type(package, unit, receiver).is_some()
                 || descriptor_expression_category(package, unit, receiver).is_some()
         })
-        && package.reflection == crate::package::ReflectionProfile::Minimal
     {
         return Err(failure(
             &unit.source,

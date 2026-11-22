@@ -1819,9 +1819,6 @@ fn terrane_time_deadline_expired(_target: &terrane_int_support::Int) -> bool {
 async fn terrane_time_sleep_until(_target: terrane_int_support::Int) {
     std::future::pending::<()>().await;
 }
-pub fn terrane_limit(value: &terrane_int_support::Int) -> usize {
-    value.as_usize().unwrap_or(0)
-}
 pub fn terrane_index(value: &terrane_int_support::Int) -> Option<usize> {
     value.as_usize()
 }
@@ -1831,35 +1828,10 @@ pub fn terrane_empty_document() -> terrane_document_support::DataResult {
 pub fn terrane_make_document_none() -> terrane_document_support::DataResult {
     terrane_document_support::document_none()
 }
-pub fn terrane_make_document_bool(value: bool) -> terrane_document_support::DataResult {
-    terrane_document_support::document_bool(value)
-}
 pub fn terrane_make_document_string(
     value: String,
 ) -> terrane_document_support::DataResult {
     terrane_document_support::document_string(value)
-}
-pub fn terrane_make_document_integer(
-    value: String,
-) -> terrane_document_support::DataResult {
-    terrane_document_support::document_integer(&value)
-}
-pub fn terrane_make_document_decimal(
-    value: String,
-) -> terrane_document_support::DataResult {
-    terrane_document_support::document_decimal(&value)
-}
-pub fn terrane_make_document_list<'a>(
-    items: impl IntoIterator<Item = &'a terrane_document_support::DataResult>,
-) -> terrane_document_support::DataResult {
-    terrane_document_support::document_list(items)
-}
-pub fn terrane_make_document_map<'a>(
-    entries: impl IntoIterator<
-        Item = (&'a str, &'a terrane_document_support::DataResult),
-    >,
-) -> terrane_document_support::DataResult {
-    terrane_document_support::document_map(entries)
 }
 pub fn terrane_data_failed(result: &terrane_document_support::DataResult) -> bool {
     result.failed
@@ -1985,12 +1957,6 @@ pub fn terrane_platform_i128(
             )
         })
 }
-pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
-    if value < terrane_int_support::Int::from(0_i128) {
-        return -1;
-    }
-    i128::from(terrane_int_support::coerce::<u64>(&value).unwrap_or(u64::MAX))
-}
 macro_rules! terrane_platform_i128 {
     ($value:expr, $label:literal) => {
         match terrane_platform_i128(&$value, $label) { Ok(value) => value, Err(error) =>
@@ -1998,32 +1964,12 @@ macro_rules! terrane_platform_i128 {
     };
 }
 #[allow(dead_code)]
-fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
-    terrane_platform_support::cancellation_token()
-}
-#[allow(dead_code)]
 fn terrane_platform_no_resource() -> TerranePlatformCapability {
     TerranePlatformCapability::default()
 }
 #[allow(dead_code)]
-fn terrane_platform_failed_result() -> TerranePlatformResult {
-    TerranePlatformResult::error("uninitialized platform value")
-}
-#[allow(dead_code)]
-fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
-    terrane_platform_support::cancel(token)
-}
-#[allow(dead_code)]
 fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
     result.failed
-}
-#[allow(dead_code)]
-fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool {
-    result.resource_limit
-}
-#[allow(dead_code)]
-fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
-    result.truncated
 }
 #[allow(dead_code)]
 fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
@@ -2032,18 +1978,6 @@ fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> 
 #[allow(dead_code)]
 fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
     result.message.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
-    result.text.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
-    result.detail.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
-    result.data.clone()
 }
 #[allow(dead_code)]
 fn terrane_platform_result_int(
@@ -2184,17 +2118,6 @@ struct TerraneDescriptor {
     kind: &'static str,
     inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
-}
-fn __terrane_uninitialized_binding(
-    name: &str,
-    path: &str,
-    line: usize,
-    column: usize,
-) -> ! {
-    eprintln!(
-        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
-    );
-    std::process::exit(1);
 }
 // Source: core/concurrency.trn
 // Namespace: core/concurrency
@@ -2437,21 +2360,6 @@ impl MemoryOrder {
             self.name = __terrane_value;
         }
     }
-}
-pub fn relaxed_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("relaxed"));
-}
-pub fn acquire_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("acquire"));
-}
-pub fn release_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("release"));
-}
-pub fn acquire_release_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("acquire-release"));
-}
-pub fn sequentially_consistent_order() -> MemoryOrder {
-    return MemoryOrder::terrane_construct(String::from("sequentially-consistent"));
 }
 #[derive(Clone)]
 pub struct AtomicInt64 {
@@ -2974,15 +2882,6 @@ impl From<DocumentMapping> for Deserializable {
         Self(Box::new(value))
     }
 }
-pub fn serialize_document(value: Serializable) -> DocumentValue {
-    return value.to_document();
-}
-pub fn deserialize_document(
-    value: DocumentValue,
-    destination: Deserializable,
-) -> DocumentResult {
-    return destination.from_document(value);
-}
 pub fn make_document_result(
     raw: terrane_document_support::DataResult,
 ) -> DocumentResult {
@@ -2997,17 +2896,8 @@ pub fn make_document_result(
 pub fn make_document_none() -> DocumentValue {
     return DocumentValue::terrane_construct(terrane_make_document_none());
 }
-pub fn make_document_bool(value: bool) -> DocumentValue {
-    return DocumentValue::terrane_construct(terrane_make_document_bool(value));
-}
 pub fn make_document_string(value: String) -> DocumentValue {
     return DocumentValue::terrane_construct(terrane_make_document_string(value));
-}
-pub fn make_document_integer(value: String) -> DocumentResult {
-    return make_document_result(terrane_make_document_integer(value));
-}
-pub fn make_document_decimal(value: String) -> DocumentResult {
-    return make_document_result(terrane_make_document_decimal(value));
 }
 #[derive(Clone)]
 pub struct DocumentMapEntries {
@@ -3035,32 +2925,6 @@ impl DocumentMapEntries {
             self.entries.append(__terrane_collection_argument_0);
         };
     }
-}
-pub fn append_document_map_entry(
-    mut entries: DocumentMapEntries,
-    key: String,
-    value: DocumentValue,
-) -> DocumentMapEntries {
-    entries.append(key, value);
-    return entries;
-}
-pub fn make_document_list(
-    values: terrane_collection_support::List<DocumentValue>,
-) -> DocumentResult {
-    return make_document_result(
-        terrane_make_document_list(values.as_slice().iter().map(|item| &item.raw)),
-    );
-}
-pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
-    return make_document_result(
-        terrane_make_document_map(
-            entries
-                .entries
-                .as_slice()
-                .iter()
-                .map(|entry| (entry.key.as_str(), &entry.value)),
-        ),
-    );
 }
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
@@ -3307,12 +3171,6 @@ impl LogLevel {
         }
     }
 }
-pub fn trace_level() -> LogLevel {
-    return LogLevel::terrane_construct(
-        String::from("trace"),
-        terrane_int_support::Int::from(10_i128),
-    );
-}
 pub fn debug_level() -> LogLevel {
     return LogLevel::terrane_construct(
         String::from("debug"),
@@ -3325,22 +3183,10 @@ pub fn info_level() -> LogLevel {
         terrane_int_support::Int::from(30_i128),
     );
 }
-pub fn warning_level() -> LogLevel {
-    return LogLevel::terrane_construct(
-        String::from("warning"),
-        terrane_int_support::Int::from(40_i128),
-    );
-}
 pub fn error_level() -> LogLevel {
     return LogLevel::terrane_construct(
         String::from("error"),
         terrane_int_support::Int::from(50_i128),
-    );
-}
-pub fn critical_level() -> LogLevel {
-    return LogLevel::terrane_construct(
-        String::from("critical"),
-        terrane_int_support::Int::from(60_i128),
     );
 }
 pub trait LogValueProtocol: Send + Sync {
@@ -3474,14 +3320,8 @@ impl From<ErrorLogValue> for LogValue {
         Self(Box::new(value))
     }
 }
-pub fn log_document(value: DocumentValue) -> LogValue {
-    return <LogValue>::from(DocumentLogValue::terrane_construct(value));
-}
 pub fn log_text(value: String) -> LogValue {
     return <LogValue>::from(TextLogValue::terrane_construct(value));
-}
-pub fn log_error(value: TerraneError) -> LogValue {
-    return <LogValue>::from(ErrorLogValue::terrane_construct(value.render()));
 }
 #[derive(Clone)]
 pub struct LogField {
@@ -3541,12 +3381,6 @@ pub fn field_at(
 }
 pub fn field(name: String, value: LogValue) -> LogField {
     return field_at(name, value, false, String::from("builtin://core/logging.trn"));
-}
-pub fn secret_field(name: String, value: LogValue) -> LogField {
-    return field_at(name, value, true, String::from("builtin://core/logging.trn"));
-}
-pub fn empty_log_fields() -> terrane_collection_support::List<LogField> {
-    return terrane_collection_support::List::new(Vec::new());
 }
 #[derive(Clone)]
 pub struct LogSink {
@@ -3913,18 +3747,6 @@ pub fn default_logger(sink: LogSink) -> Logger {
         ),
     );
 }
-pub fn named_logger(sink: LogSink, target: String) -> Logger {
-    return make_logger(
-        sink,
-        make_logger_options(
-            info_level(),
-            target.clone(),
-            target,
-            terrane_int_support::Int::from(64_i128),
-            terrane_int_support::Int::from(65536_i128),
-        ),
-    );
-}
 pub fn with_field(value: Logger, addition: LogField) -> Logger {
     return Logger::terrane_construct(
         value.sink.clone(),
@@ -4025,18 +3847,6 @@ pub fn make_event_at(
     fields: terrane_collection_support::List<LogField>,
 ) -> LogEvent {
     return LogEvent::terrane_construct(level, message, source, fields);
-}
-pub fn make_event(
-    level: LogLevel,
-    message: String,
-    fields: terrane_collection_support::List<LogField>,
-) -> LogEvent {
-    return make_event_at(
-        level,
-        message,
-        String::from("builtin://core/logging.trn"),
-        fields,
-    );
 }
 pub fn emit_at(
     v: Logger,
@@ -4168,33 +3978,6 @@ pub fn emit_at(
         terrane_platform_result_message(&raw),
     );
 }
-pub fn emit(
-    value: Logger,
-    level: LogLevel,
-    message: String,
-    fields: terrane_collection_support::List<LogField>,
-) -> LogOutcome {
-    return emit_at(
-        value,
-        level,
-        message,
-        String::from("builtin://core/logging.trn"),
-        fields,
-    );
-}
-pub fn debug(
-    value: Logger,
-    message: String,
-    fields: terrane_collection_support::List<LogField>,
-) -> LogOutcome {
-    return emit_at(
-        value,
-        debug_level(),
-        message,
-        "core/logging.trn:246:12".to_owned(),
-        fields,
-    );
-}
 pub fn write_event(value: Logger, event: LogEvent) -> LogOutcome {
     return emit_at(
         value,
@@ -4202,43 +3985,6 @@ pub fn write_event(value: Logger, event: LogEvent) -> LogOutcome {
         event.message.clone(),
         event.source.clone(),
         event.fields.clone(),
-    );
-}
-pub fn install_dependency_bridge(value: Logger) -> LogOutcome {
-    let raw: TerranePlatformResult;
-    raw = terrane_platform_support::logging_install_dependency_bridge(
-        &value.sink.handle,
-    );
-    return LogOutcome::terrane_construct(
-        false,
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_message(&raw),
-    );
-}
-pub fn info(
-    value: Logger,
-    message: String,
-    fields: terrane_collection_support::List<LogField>,
-) -> LogOutcome {
-    return emit_at(
-        value,
-        info_level(),
-        message,
-        "core/logging.trn:256:12".to_owned(),
-        fields,
-    );
-}
-pub fn warning(
-    value: Logger,
-    message: String,
-    fields: terrane_collection_support::List<LogField>,
-) -> LogOutcome {
-    return emit_at(
-        value,
-        warning_level(),
-        message,
-        "core/logging.trn:259:12".to_owned(),
-        fields,
     );
 }
 pub fn error(
@@ -4252,11 +3998,6 @@ pub fn error(
         message,
         "core/logging.trn:262:12".to_owned(),
         fields,
-    );
-}
-pub fn discarded_count(value: Logger) -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(
-        i128::from(terrane_platform_support::logging_discarded_count(&value.sink.handle)),
     );
 }
 pub fn drain_memory(value: Logger) -> terrane_collection_support::List<String> {

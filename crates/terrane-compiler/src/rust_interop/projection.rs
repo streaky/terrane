@@ -2497,23 +2497,28 @@ impl Projection {
             ProjectedType::Foreign { name, .. } => Some(name.as_str()),
             _ => None,
         };
-        let canonical_owner = self.canonical_native_type(owner);
-        self.dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .filter(|item| {
-                projected_owner_path_matches(&item.rust_path, owner)
-                    || projected_owner_path_matches(
-                        &self.canonical_native_type(&item.rust_path),
-                        &canonical_owner,
-                    )
-            })
-            .min_by_key(|item| {
-                (
-                    // Canonical native equivalence must not replace an advertised source slot.
-                    !projected_owner_path_matches(&item.rust_path, owner),
-                    preferred_name.is_some_and(|name| item.name != name),
-                )
+        let items = || {
+            self.dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items)
+        };
+        let name_rank =
+            |item: &&ProjectedItem| preferred_name.is_some_and(|name| item.name != name);
+        // An advertised source slot always wins over a canonical equivalent.
+        // Do not parse and rewrite every other Rust path when it exists.
+        items()
+            .filter(|item| projected_owner_path_matches(&item.rust_path, owner))
+            .min_by_key(name_rank)
+            .or_else(|| {
+                let canonical_owner = self.canonical_native_type(owner);
+                items()
+                    .filter(|item| {
+                        projected_owner_path_matches(
+                            &self.canonical_native_type(&item.rust_path),
+                            &canonical_owner,
+                        )
+                    })
+                    .min_by_key(name_rank)
             })
             .map(|item| (item.namespace.clone(), item.name.clone()))
     }

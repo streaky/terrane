@@ -27,6 +27,14 @@ pub fn with_compilation_progress<T>(action: impl FnOnce() -> T) -> T {
     let _scope = ReportingScope(REPORTING.replace(true));
     action()
 }
+pub(crate) fn reporting() -> bool {
+    REPORTING.get()
+}
+
+pub(crate) fn with_reporting<T>(reporting: bool, action: impl FnOnce() -> T) -> T {
+    let _scope = ReportingScope(REPORTING.replace(reporting));
+    action()
+}
 
 pub(crate) fn note(message: &'static str, target: impl Display) {
     if REPORTING.get() {

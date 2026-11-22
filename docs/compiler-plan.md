@@ -93,6 +93,52 @@ entry therefore has `milestone: null`.
 8. **Narrow runtime.** Statically known fixed-width scalars and functions lower directly to Rust types and calls where Rust preserves the complete Terrane contract; core `int` uses the narrowest exact representation required by its adaptive semantics. The first compiler must not introduce a universal boxed `Value` as a shortcut.
 9. **Standard facilities are written in Terrane.** The Rust core stays deliberately minimal. Document formats, networking protocols, compression framing, date and time arithmetic, paths, CLI parsing, logging, and application testing are Terrane packages over that core, not Rust support crates. A Rust support crate is permanently opaque to the compiler, so implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever; it also loses the readable Terrane frames the diagnostics contract requires. The boundary runs per layer rather than per facility: Rust owns the layer that is a syscall or ABI boundary, carries a guarantee the optimiser would destroy, is a large audited security-critical implementation, or is generated data — and a language-visible facility uses that minimum layer from ordinary Terrane source. Every layer implemented in Rust must state which justification applies. “Performance” alone is insufficient without a measurement proving the Terrane implementation cannot lower equivalently.
 
+### Build reuse and semantic work boundaries
+
+Terrane currently composes dependency sources into the consumer before namespace,
+projection, and semantic analysis. A dependency still receives full frontend
+checking even if the consumer calls none of its functions. Consumer-local
+compilation and test-tier caches reuse exact results; neither is a checked
+library artifact that can be shared across consumers.
+
+A candidate separate-compilation boundary is a package-owned checked interface
+and body artifact. It would need stable declaration identities, canonical
+inferred types, effects and ownership contracts, dependency interface
+fingerprints, and proof that consumer-selected Rust projection and build
+profiles agree with the artifact. Rebind source provenance at composition:
+numeric source IDs belong to the consumer graph. Keep graph-wide namespace,
+global initialization and native ABI reconciliation at that boundary. Prove
+reuse with two independent consumers and exercise changes to a library body,
+an exported contract, a transitive dependency, and a local Rust dependency.
+Do not treat skipping analysis of unreferenced bodies as a substitute for
+validating the owning package.
+
+Code-emission reachability is a separate concern. The support sidecar contains
+selected runtime slices, bundled source and projected Rust bindings; ordinary
+Terrane library code is normally emitted with application modules. Pruning
+generated items needs roots for callable values, dynamic dispatch, globals,
+reflection, test entrypoints and opaque Rust. A Cargo `include!` sidecar is
+still part of the same Rust crate, not a separate compilation or reuse boundary.
+
+Executable lowering reconciles reachability across source, bundled and
+native-support functions after semantic checking. It retains entrypoints,
+test dispatch, non-function items and linked or expansion-sensitive
+definitions as roots. It does not prune library artifacts, source-debug
+builds, or builds with opaque Rust. An optional trusted `TERRANE_DEMAND_CACHE`
+directory shares exact generated-token summaries across CLI consumers.
+These entries are disposable and do not replace frontend analysis. Moving the
+boundary earlier requires resolved declaration edges and the facts that
+selected them; equal Rust identifier spelling is not source identity.
+Rust consumers that append code after lowering must request retained
+definitions through `CompilerOptions::retain_rust_definitions`, as the
+conformance harness does for dependency-panic tests.
+
+Runtime bundle selection and Cargo dependency binding precede this pass.
+For example, an unused async function may still bring in Tokio even if the
+function itself is pruned. Reducing that overhead requires reachability-aware
+runtime requirements, including support for roots such as destructors and
+global initialization; the post-lowering pass alone does not establish them.
+
 ## 4. Proposed repository layout
 
 ```text

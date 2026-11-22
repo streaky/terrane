@@ -9,6 +9,7 @@ mod generics;
 mod initialization;
 mod matching;
 mod model;
+pub(crate) mod parallel;
 mod projected_demand;
 mod written_types;
 

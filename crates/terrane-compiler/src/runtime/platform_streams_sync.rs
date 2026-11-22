@@ -9,11 +9,13 @@ impl Default for TerranePlatformStreamHandle {
     }
 }
 
-impl TerranePlatformStreamHandle {
-    fn new(handle: terrane_stream_abi::StreamHandle) -> Self {
+impl From<terrane_stream_abi::StreamHandle> for TerranePlatformStreamHandle {
+    fn from(handle: terrane_stream_abi::StreamHandle) -> Self {
         Self(std::sync::Arc::new(handle.id()))
     }
+}
 
+impl TerranePlatformStreamHandle {
     fn abi_handle(&self) -> terrane_stream_abi::StreamHandle {
         terrane_stream_abi::StreamHandle::from_id(*self.0)
     }

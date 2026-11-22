@@ -33,7 +33,7 @@ impl Fingerprint {
 }
 
 /// External inputs are captured independently of in-memory source and options.
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Inputs(String);
 
 pub(super) fn current(package: &Package) -> Option<Inputs> {
@@ -130,6 +130,13 @@ pub(super) fn key(package: &Package, options: CompilerOptions, inputs: &Inputs) 
     serde_json::to_writer(&mut hash, &options).ok()?;
     Some(hash.finish_hex())
 }
+
+pub(super) fn derived_key(base: &str, context: &impl Serialize) -> Option<String> {
+    let mut hash = crate::cache_io::HashWriter::new();
+    hash.part(base.as_bytes());
+    serde_json::to_writer(&mut hash, context).ok()?;
+    Some(hash.finish_hex())
+}
 #[derive(Deserialize, Serialize)]
 struct Envelope<T> {
     format: u32,
@@ -144,10 +151,14 @@ pub(super) fn load<T: serde::de::DeserializeOwned>(
     kind: &str,
     key: &str,
 ) -> Option<T> {
+    load_file(&root.join(".trn/cache").join(format!("{kind}.json")), key)
+}
+
+pub(super) fn load_file<T: serde::de::DeserializeOwned>(path: &Path, key: &str) -> Option<T> {
     if !crate::cache_scope::enabled() {
         return None;
     }
-    let bytes = fs::read(root.join(".trn/cache").join(format!("{kind}.json"))).ok()?;
+    let bytes = fs::read(path).ok()?;
     let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
     let entry: Envelope<&serde_json::value::RawValue> =
         Envelope::deserialize(&mut deserializer).ok()?;
@@ -163,6 +174,14 @@ pub(super) fn load<T: serde::de::DeserializeOwned>(
 }
 
 pub(super) fn store<T: Serialize>(root: &Path, kind: &str, key: &str, value: &T) {
+    store_file(
+        &root.join(".trn/cache").join(format!("{kind}.json")),
+        key,
+        value,
+    );
+}
+
+pub(super) fn store_file<T: Serialize>(path: &Path, key: &str, value: &T) {
     if !crate::cache_scope::enabled() {
         return;
     }
@@ -183,10 +202,7 @@ pub(super) fn store<T: Serialize>(root: &Path, kind: &str, key: &str, value: &T)
     bytes.extend_from_slice(b",\"value\":");
     bytes.extend_from_slice(value.as_bytes());
     bytes.push(b'}');
-    crate::cache_io::atomic_write(
-        &root.join(".trn/cache").join(format!("{kind}.json")),
-        &bytes,
-    );
+    crate::cache_io::atomic_write(path, &bytes);
 }
 
 // Diagnostic codes are owned by Diagnostic, so future codes round-trip without a cache-side list.

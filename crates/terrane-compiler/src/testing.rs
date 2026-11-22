@@ -4,11 +4,11 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::{
     CapabilityProfile, Diagnostic, Package, PackageLoadError, PanicProfile, SourceFile, SourceUnit,
-    Span, semantics::SemanticPackage,
+    Span,
 };
 
 /// Conventional isolation tier for a Terrane test source.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum TestTier {
     Unit,
     Integration,
@@ -76,7 +76,7 @@ pub struct TestPackage {
 }
 
 /// One compiler-discovered ordinary Terrane test function.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TestCase {
     pub identity: String,
     pub tier: TestTier,
@@ -96,7 +96,7 @@ pub struct TestTierDiscovery {
     pub warnings: Vec<Diagnostic>,
     pub sources: Vec<SourceFile>,
     pub(crate) package: Package,
-    pub(crate) semantic: SemanticPackage,
+    pub(crate) analysis: crate::compiler::TestTierAnalysis,
 }
 
 /// One independently analyzed and lowered test tier.

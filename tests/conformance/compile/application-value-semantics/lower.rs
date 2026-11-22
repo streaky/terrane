@@ -2,7 +2,6 @@
 include!("lower.support.rs");
 // Source: case.trn
 // Namespace: application-value-semantics
-#[allow(dead_code)]
 fn close_or_read(authority: Filesystem, handle: FileHandle, should_close: bool) {
     let outcome: FilesystemOperationResult;
     let read: FileData;
@@ -19,6 +18,7 @@ fn main() {
     let target: Path;
     let mut index: terrane_int_support::Int;
     let mut outcome: ExistenceResult;
+    let handle: FileHandle;
     authority = filesystem_capability();
     target = Path::terrane_construct(
         String::from("missing-application-value-semantics"),
@@ -29,7 +29,7 @@ fn main() {
             terrane_int_support::Int::from(2_i128),
             terrane_int_support::Int::from(1_i64),
         ),
-        0 /* terrane-site: case.trn:16:17-16:28 */,
+        0 /* terrane-site: case.trn:18:17-18:28 */,
     );
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
@@ -43,4 +43,15 @@ fn main() {
         outcome = filesystem_exists(authority.clone(), target.clone());
         let _ = &outcome;
     }
+    handle = open_file(
+        authority.clone(),
+        target,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+    );
+    close_or_read(authority, handle, true);
 }

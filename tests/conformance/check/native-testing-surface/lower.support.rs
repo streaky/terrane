@@ -1058,12 +1058,6 @@ fn terrane_hex(bytes: &[u8]) -> String {
 pub fn terrane_platform_value(value: std::ffi::OsString) -> String {
     terrane_platform_support::platform_value(value)
 }
-fn terrane_platform_value_from_text(value: &str) -> String {
-    format!("text:{value}")
-}
-fn terrane_platform_value_from_bytes(value: &[u8]) -> String {
-    format!("raw:{}", terrane_hex(value))
-}
 pub fn terrane_platform_value_is_text(value: &str) -> bool {
     value.starts_with("text:")
 }
@@ -1302,106 +1296,8 @@ fn terrane_test_render_int(value: terrane_int_support::Int) -> String {
 fn terrane_test_render_float64(value: f64) -> String {
     value.to_string()
 }
-fn terrane_test_render_bytes(value: Vec<u8>) -> String {
-    format!("0x{}", terrane_hex(&value))
-}
-fn terrane_test_render_bool(value: bool) -> String {
-    value.to_string()
-}
-fn terrane_test_deadline_nanoseconds() -> terrane_int_support::Int {
-    let value = std::env::var("TERRANE_TEST_DEADLINE_NANOSECONDS")
-        .ok()
-        .and_then(|value| value.parse::<u128>().ok())
-        .unwrap_or_default();
-    terrane_int_support::Int::from_u128(value)
-}
-fn terrane_test_time_advance(nanoseconds: terrane_int_support::Int) -> bool {
-    let Some(nanoseconds) = terrane_int_support::checked_coerce::<u64>(&nanoseconds)
-    else {
-        return false;
-    };
-    if TERRANE_TEST_TIME_NANOS
-        .try_update(
-            std::sync::atomic::Ordering::AcqRel,
-            std::sync::atomic::Ordering::Acquire,
-            |current| current.checked_add(nanoseconds),
-        )
-        .is_err()
-    {
-        return false;
-    }
-    true
-}
 pub type TerranePlatformCapability = terrane_platform_support::Capability;
 pub type TerranePlatformResult = terrane_platform_support::ResultValue;
-#[allow(dead_code)]
-fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
-    terrane_platform_support::cancellation_token()
-}
-#[allow(dead_code)]
-fn terrane_platform_no_resource() -> TerranePlatformCapability {
-    TerranePlatformCapability::default()
-}
-#[allow(dead_code)]
-fn terrane_platform_failed_result() -> TerranePlatformResult {
-    TerranePlatformResult::error("uninitialized platform value")
-}
-#[allow(dead_code)]
-fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
-    terrane_platform_support::cancel(token)
-}
-#[allow(dead_code)]
-fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
-    result.failed
-}
-#[allow(dead_code)]
-fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool {
-    result.resource_limit
-}
-#[allow(dead_code)]
-fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
-    result.truncated
-}
-#[allow(dead_code)]
-fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
-    result.deadline_exceeded
-}
-#[allow(dead_code)]
-fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
-    result.message.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
-    result.text.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
-    result.detail.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
-    result.data.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_int(
-    result: &TerranePlatformResult,
-) -> terrane_int_support::Int {
-    terrane_int_support::Int::from(result.number)
-}
-#[allow(dead_code)]
-fn terrane_platform_result_bool(result: &TerranePlatformResult) -> bool {
-    result.flag
-}
-#[allow(dead_code)]
-fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String> {
-    result.entries.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_capability(
-    result: &TerranePlatformResult,
-) -> TerranePlatformCapability {
-    result.capability.clone().unwrap_or_default()
-}
 fn terrane_platform_time_wall() -> TerranePlatformResult {
     terrane_platform_support::wall_time()
 }
@@ -1470,17 +1366,6 @@ struct TerraneDescriptor {
     kind: &'static str,
     inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
-}
-fn __terrane_uninitialized_binding(
-    name: &str,
-    path: &str,
-    line: usize,
-    column: usize,
-) -> ! {
-    eprintln!(
-        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
-    );
-    std::process::exit(1);
 }
 // Source: core/testing.trn
 // Namespace: core/testing
@@ -1689,17 +1574,6 @@ pub fn fail_comparison(
             .with_structured_details(details)
     });
 }
-pub fn fail_values(
-    failure_message: String,
-    actual: TestValue,
-    expected: TestValue,
-) -> Result<(), TerraneError> {
-    __terrane_traced_err(
-        fail_comparison(failure_message, actual.render(), expected.render()),
-        15 /* terrane-site: core/testing.trn:67:5-67:75 */,
-    )?;
-    return Ok(());
-}
 pub fn fail_near(
     actual: f64,
     expected: f64,
@@ -1786,22 +1660,6 @@ pub fn assert_equal_int(
     }
     return Ok(());
 }
-pub fn assert_not_equal_int(
-    actual: terrane_int_support::Int,
-    expected: terrane_int_support::Int,
-) -> Result<(), TerraneError> {
-    if actual == expected {
-        __terrane_traced_err(
-            fail_comparison(
-                String::from("integer values unexpectedly match"),
-                terrane_test_render_int(actual.clone()),
-                terrane_test_render_int(expected.clone()),
-            ),
-            18 /* terrane-site: core/testing.trn:86:9-86:127 */,
-        )?;
-    }
-    return Ok(());
-}
 pub fn assert_equal_string(
     actual: String,
     expected: String,
@@ -1830,112 +1688,6 @@ pub fn assert_not_equal_string(
     }
     return Ok(());
 }
-pub fn assert_equal_bool(actual: bool, expected: bool) -> Result<(), TerraneError> {
-    if actual != expected {
-        __terrane_traced_err(
-            fail_comparison(
-                String::from("boolean values differ"),
-                terrane_test_render_bool(actual),
-                terrane_test_render_bool(expected),
-            ),
-            21 /* terrane-site: core/testing.trn:101:9-101:117 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_not_equal_bool(actual: bool, expected: bool) -> Result<(), TerraneError> {
-    if actual == expected {
-        __terrane_traced_err(
-            fail_comparison(
-                String::from("boolean values unexpectedly match"),
-                terrane_test_render_bool(actual),
-                terrane_test_render_bool(expected),
-            ),
-            22 /* terrane-site: core/testing.trn:106:9-106:129 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_equal_float64(actual: f64, expected: f64) -> Result<(), TerraneError> {
-    if actual != expected {
-        __terrane_traced_err(
-            fail_comparison(
-                String::from("floating values differ"),
-                terrane_test_render_float64(actual),
-                terrane_test_render_float64(expected),
-            ),
-            23 /* terrane-site: core/testing.trn:111:9-111:124 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_not_equal_float64(actual: f64, expected: f64) -> Result<(), TerraneError> {
-    if actual == expected {
-        __terrane_traced_err(
-            fail_comparison(
-                String::from("floating values unexpectedly match"),
-                terrane_test_render_float64(actual),
-                terrane_test_render_float64(expected),
-            ),
-            24 /* terrane-site: core/testing.trn:116:9-116:136 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_equal_bytes(
-    actual: Vec<u8>,
-    expected: Vec<u8>,
-) -> Result<(), TerraneError> {
-    if actual != expected {
-        __terrane_traced_err(
-            fail_comparison(
-                String::from("byte values differ"),
-                terrane_test_render_bytes(actual),
-                terrane_test_render_bytes(expected),
-            ),
-            25 /* terrane-site: core/testing.trn:121:9-121:116 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_not_equal_bytes(
-    actual: Vec<u8>,
-    expected: Vec<u8>,
-) -> Result<(), TerraneError> {
-    if actual == expected {
-        __terrane_traced_err(
-            fail_comparison(
-                String::from("byte values unexpectedly match"),
-                terrane_test_render_bytes(actual),
-                terrane_test_render_bytes(expected),
-            ),
-            26 /* terrane-site: core/testing.trn:126:9-126:128 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_present_int(
-    actual: Option<terrane_int_support::Int>,
-) -> Result<(), TerraneError> {
-    if (&actual).is_none() {
-        __terrane_traced_err(
-            fail(String::from("expected a present integer")),
-            27 /* terrane-site: core/testing.trn:131:9-131:43 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_none_int(
-    actual: Option<terrane_int_support::Int>,
-) -> Result<(), TerraneError> {
-    if (&actual).is_some() {
-        __terrane_traced_err(
-            fail(String::from("expected no integer")),
-            28 /* terrane-site: core/testing.trn:136:9-136:36 */,
-        )?;
-    }
-    return Ok(());
-}
 pub fn assert_present_string(actual: Option<String>) -> Result<(), TerraneError> {
     if (&actual).is_none() {
         __terrane_traced_err(
@@ -1950,60 +1702,6 @@ pub fn assert_none_string(actual: Option<String>) -> Result<(), TerraneError> {
         __terrane_traced_err(
             fail(String::from("expected no string")),
             30 /* terrane-site: core/testing.trn:146:9-146:35 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_present_bool(actual: Option<bool>) -> Result<(), TerraneError> {
-    if (&actual).is_none() {
-        __terrane_traced_err(
-            fail(String::from("expected a present boolean")),
-            31 /* terrane-site: core/testing.trn:151:9-151:43 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_none_bool(actual: Option<bool>) -> Result<(), TerraneError> {
-    if (&actual).is_some() {
-        __terrane_traced_err(
-            fail(String::from("expected no boolean")),
-            32 /* terrane-site: core/testing.trn:156:9-156:36 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_present_float64(actual: Option<f64>) -> Result<(), TerraneError> {
-    if (&actual).is_none() {
-        __terrane_traced_err(
-            fail(String::from("expected a present floating value")),
-            33 /* terrane-site: core/testing.trn:161:9-161:50 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_none_float64(actual: Option<f64>) -> Result<(), TerraneError> {
-    if (&actual).is_some() {
-        __terrane_traced_err(
-            fail(String::from("expected no floating value")),
-            34 /* terrane-site: core/testing.trn:166:9-166:43 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_present_bytes(actual: Option<Vec<u8>>) -> Result<(), TerraneError> {
-    if (&actual).is_none() {
-        __terrane_traced_err(
-            fail(String::from("expected present bytes")),
-            35 /* terrane-site: core/testing.trn:171:9-171:39 */,
-        )?;
-    }
-    return Ok(());
-}
-pub fn assert_none_bytes(actual: Option<Vec<u8>>) -> Result<(), TerraneError> {
-    if (&actual).is_some() {
-        __terrane_traced_err(
-            fail(String::from("expected no bytes")),
-            36 /* terrane-site: core/testing.trn:176:9-176:34 */,
         )?;
     }
     return Ok(());
@@ -2132,71 +1830,8 @@ pub fn context_value(name: String) -> Option<String> {
     }
     return None;
 }
-pub fn test_arguments() -> terrane_collection_support::List<NativeString> {
-    let supplied: terrane_collection_support::List<NativeString>;
-    let mut controlled: terrane_collection_support::List<NativeString>;
-    let mut index: terrane_int_support::Int;
-    supplied = arguments();
-    controlled = terrane_collection_support::List::<NativeString>::new(Vec::new());
-    index = terrane_int_support::Int::from(1_i128);
-    {
-        let __terrane_list_append_0 = controlled.make_unique();
-        while index < terrane_int_support::Int::from(supplied.length()) {
-            {
-                let __terrane_collection_argument_0 = __terrane_raised(
-                    supplied
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
-                                42 /* terrane-site: core/testing.trn:210:28-210:43 */,
-                            ),
-                        ),
-                    42 /* terrane-site: core/testing.trn:210:28-210:43 */,
-                );
-                __terrane_list_append_0.push(__terrane_collection_argument_0);
-            };
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
-        }
-    }
-    return controlled;
-}
-pub fn test_deadline() -> Result<Duration, TerraneError> {
-    return Ok(
-        __terrane_traced_err(
-            Duration::terrane_static_nanoseconds(terrane_test_deadline_nanoseconds()),
-            43 /* terrane-site: core/testing.trn:215:12-215:68 */,
-        )?,
-    );
-}
 pub fn temporary_directory() -> Option<String> {
     return context_value(String::from("TMPDIR"));
-}
-pub fn deterministic_seed() -> Option<String> {
-    return context_value(String::from("TERRANE_TEST_SEED"));
-}
-pub fn test_identity() -> Option<String> {
-    return context_value(String::from("TERRANE_TEST_ID"));
-}
-pub fn application_artifact() -> Option<String> {
-    return context_value(String::from("TERRANE_TEST_ARTIFACT"));
-}
-pub fn test_tier() -> Option<String> {
-    return context_value(String::from("TERRANE_TEST_TIER"));
-}
-pub fn advance_time(nanoseconds: terrane_int_support::Int) -> Result<(), TerraneError> {
-    if nanoseconds < terrane_int_support::Int::from(0_i128) {
-        __terrane_traced_err(
-            fail(String::from("controlled time may only advance")),
-            44 /* terrane-site: core/testing.trn:235:9-235:49 */,
-        )?;
-    }
-    if !terrane_test_time_advance(nanoseconds.clone()) {
-        __terrane_traced_err(
-            fail(String::from("controlled time advance exceeds the host clock range")),
-            45 /* terrane-site: core/testing.trn:237:9-237:69 */,
-        )?;
-    }
-    return Ok(());
 }
 // Source: core/testing_process.trn
 // Namespace: core/testing/process
@@ -2310,95 +1945,6 @@ impl ProcessResult {
         }
     }
 }
-pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneError> {
-    let mut encoded_arguments: terrane_collection_support::List<String>;
-    let mut argument: NativeString;
-    let mut encoded_environment: terrane_collection_support::List<String>;
-    let mut entry: EnvironmentEntry;
-    let raw: TerranePlatformResult;
-    encoded_arguments = terrane_collection_support::List::<String>::new(Vec::new());
-    let __terrane_iterable_0 = fixture.arguments.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
-        __terrane_iterable_0.as_slice(),
-    );
-    {
-        let __terrane_list_append_0 = encoded_arguments.make_unique();
-        loop {
-            argument = match __terrane_iterator_0.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
-            };
-            {
-                let __terrane_collection_argument_0 = encode_native_string(argument);
-                __terrane_list_append_0.push(__terrane_collection_argument_0);
-            };
-        }
-    }
-    encoded_environment = terrane_collection_support::List::<String>::new(Vec::new());
-    let __terrane_iterable_1 = fixture.environment.clone();
-    let mut __terrane_iterator_1 = terrane_collection_support::slice_iterator(
-        __terrane_iterable_1.as_slice(),
-    );
-    {
-        let __terrane_list_append_1 = encoded_environment.make_unique();
-        loop {
-            entry = match __terrane_iterator_1.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
-            };
-            {
-                let __terrane_collection_argument_0 = encode_native_string(
-                    entry.name.clone(),
-                );
-                __terrane_list_append_1.push(__terrane_collection_argument_0);
-            };
-            {
-                let __terrane_collection_argument_0 = encode_native_string(
-                    entry.value.clone(),
-                );
-                __terrane_list_append_1.push(__terrane_collection_argument_0);
-            };
-        }
-    }
-    raw = terrane_test_spawn(
-        fixture.artifact,
-        encoded_arguments,
-        encoded_environment,
-        fixture.standard_input,
-        fixture.deadline_milliseconds.clone(),
-    );
-    if terrane_test_result_failed(&raw) {
-        return Err({
-            let value = TestInfrastructureFailure::terrane_construct(
-                terrane_test_result_message(&raw),
-            );
-            let rendered = value.render();
-            let original = &value.message;
-            let (message, rendered) = if &rendered == original {
-                (rendered, None)
-            } else {
-                (original.clone(), Some(rendered))
-            };
-            TerraneError::raised_with_rendered_message(
-                TerraneErrorKind::Custom(DescriptorId(2)),
-                message,
-                rendered,
-                46 /* terrane-site: core/testing_process.trn:47:9-47:84 */,
-            )
-        });
-    }
-    return Ok(
-        ProcessResult::terrane_construct(
-            terrane_test_result_exit_code(&raw),
-            terrane_test_result_crashed(&raw),
-            terrane_test_result_deadline_exceeded(&raw),
-            terrane_test_result_stdout(&raw),
-            terrane_test_result_stderr(&raw),
-            terrane_test_result_stdout_truncated(&raw),
-            terrane_test_result_stderr_truncated(&raw),
-        ),
-    );
-}
 // Source: core/process.trn
 // Namespace: core/process
 #[derive(Clone)]
@@ -2505,16 +2051,6 @@ impl ProcessHostNameResult {
             self.value = __terrane_value;
         }
     }
-}
-pub fn process_host_name() -> ProcessHostNameResult {
-    let raw: TerranePlatformResult;
-    raw = terrane_platform_support::system_host_name();
-    return ProcessHostNameResult::terrane_construct(
-        raw.failed,
-        raw.flag,
-        raw.message.clone(),
-        NativeString::terrane_construct(raw.text.clone()),
-    );
 }
 pub fn arguments() -> terrane_collection_support::List<NativeString> {
     let encoded: Vec<String>;
@@ -2666,201 +2202,6 @@ impl CommandLine {
         }
     }
 }
-pub fn schema_has(schema: CliSchema, sought: String) -> bool {
-    let mut entry: String;
-    let __terrane_iterable_0 = schema.entries.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
-        __terrane_iterable_0.as_slice(),
-    );
-    loop {
-        entry = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if entry.as_str() == sought.as_str() {
-            return true;
-        }
-    }
-    return false;
-}
-pub fn parse_command_line(
-    schema: CliSchema,
-    supplied: terrane_collection_support::List<NativeString>,
-) -> CommandLine {
-    let mut flags: terrane_collection_support::List<String>;
-    let mut option_names: terrane_collection_support::List<String>;
-    let mut option_values: terrane_collection_support::List<NativeString>;
-    let mut positionals: terrane_collection_support::List<NativeString>;
-    let mut diagnostic_arguments: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    let mut diagnostic_messages: terrane_collection_support::List<String>;
-    let mut index: terrane_int_support::Int;
-    let mut argument: NativeString;
-    let mut flag_entry: String;
-    let mut value_entry: String;
-    let mut result: CommandLine;
-    flags = terrane_collection_support::List::<String>::new(Vec::new());
-    option_names = terrane_collection_support::List::<String>::new(Vec::new());
-    option_values = terrane_collection_support::List::<NativeString>::new(Vec::new());
-    positionals = terrane_collection_support::List::<NativeString>::new(Vec::new());
-    diagnostic_arguments = terrane_collection_support::List::<
-        terrane_int_support::Int,
-    >::new(Vec::new());
-    diagnostic_messages = terrane_collection_support::List::<String>::new(Vec::new());
-    index = terrane_int_support::Int::from(0_i128);
-    {
-        let __terrane_list_append_2 = diagnostic_arguments.make_unique();
-        let __terrane_list_append_3 = diagnostic_messages.make_unique();
-        let __terrane_list_append_4 = flags.make_unique();
-        let __terrane_list_append_5 = option_names.make_unique();
-        let __terrane_list_append_6 = option_values.make_unique();
-        let __terrane_list_append_7 = positionals.make_unique();
-        while index < terrane_int_support::Int::from(supplied.length()) {
-            argument = __terrane_raised(
-                supplied
-                    .get_or_error(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
-                            50 /* terrane-site: core/process.trn:90:20-90:35 */,
-                        ),
-                    ),
-                50 /* terrane-site: core/process.trn:90:20-90:35 */,
-            );
-            if !argument.is_text {
-                {
-                    let __terrane_collection_argument_0 = index.clone();
-                    __terrane_list_append_2.push(__terrane_collection_argument_0);
-                };
-                {
-                    let __terrane_collection_argument_0 = String::from(
-                        "command-line option is not Unicode text",
-                    );
-                    __terrane_list_append_3.push(__terrane_collection_argument_0);
-                };
-            } else {
-                flag_entry = {
-                    let mut __terrane_text = String::with_capacity(5);
-                    __terrane_text.push_str("flag:");
-                    terrane_scalar_support::ScalarDisplay::write_scalar(
-                        &argument.text,
-                        &mut __terrane_text,
-                    );
-                    __terrane_text
-                };
-                value_entry = {
-                    let mut __terrane_text = String::with_capacity(6);
-                    __terrane_text.push_str("value:");
-                    terrane_scalar_support::ScalarDisplay::write_scalar(
-                        &argument.text,
-                        &mut __terrane_text,
-                    );
-                    __terrane_text
-                };
-                if schema_has(schema.clone(), flag_entry) {
-                    {
-                        let __terrane_collection_argument_0 = argument.text.clone();
-                        __terrane_list_append_4.push(__terrane_collection_argument_0);
-                    };
-                } else if schema_has(schema.clone(), value_entry) {
-                    if index.clone() + terrane_int_support::Int::from(1_i128)
-                        >= terrane_int_support::Int::from(supplied.length())
-                    {
-                        {
-                            let __terrane_collection_argument_0 = index.clone();
-                            __terrane_list_append_2
-                                .push(__terrane_collection_argument_0);
-                        };
-                        {
-                            let __terrane_collection_argument_0 = String::from(
-                                "option requires a value",
-                            );
-                            __terrane_list_append_3
-                                .push(__terrane_collection_argument_0);
-                        };
-                    } else {
-                        {
-                            let __terrane_collection_argument_0 = argument.text.clone();
-                            __terrane_list_append_5
-                                .push(__terrane_collection_argument_0);
-                        };
-                        {
-                            let __terrane_collection_argument_0 = __terrane_raised(
-                                supplied
-                                    .get_or_error(
-                                        __terrane_raised(
-                                            terrane_collection_support::index_from_int(
-                                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
-                                            ),
-                                            51 /* terrane-site: core/process.trn:105:43-105:62 */,
-                                        ),
-                                    ),
-                                51 /* terrane-site: core/process.trn:105:43-105:62 */,
-                            );
-                            __terrane_list_append_6
-                                .push(__terrane_collection_argument_0);
-                        };
-                        index = index.clone() + terrane_int_support::Int::from(1_i128);
-                    }
-                } else if {
-                    let __terrane_string_argument_0 = "--";
-                    argument
-                        .text
-                        .starts_with(
-                            std::convert::AsRef::<
-                                str,
-                            >::as_ref(&__terrane_string_argument_0),
-                        )
-                } {
-                    {
-                        let __terrane_collection_argument_0 = index.clone();
-                        __terrane_list_append_2.push(__terrane_collection_argument_0);
-                    };
-                    {
-                        let __terrane_collection_argument_0 = String::from(
-                            "unknown option",
-                        );
-                        __terrane_list_append_3.push(__terrane_collection_argument_0);
-                    };
-                } else {
-                    {
-                        let __terrane_collection_argument_0 = argument;
-                        __terrane_list_append_7.push(__terrane_collection_argument_0);
-                    };
-                }
-            }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
-        }
-    }
-    result = CommandLine::terrane_construct();
-    {
-        let __terrane_value: terrane_collection_support::List<String> = flags;
-        result.flags = __terrane_value;
-    }
-    {
-        let __terrane_value: terrane_collection_support::List<String> = option_names;
-        result.option_names = __terrane_value;
-    }
-    {
-        let __terrane_value: terrane_collection_support::List<NativeString> = option_values;
-        result.option_values = __terrane_value;
-    }
-    {
-        let __terrane_value: terrane_collection_support::List<NativeString> = positionals;
-        result.positionals = __terrane_value;
-    }
-    {
-        let __terrane_value: terrane_collection_support::List<
-            terrane_int_support::Int,
-        > = diagnostic_arguments;
-        result.diagnostic_arguments = __terrane_value;
-    }
-    {
-        let __terrane_value: terrane_collection_support::List<String> = diagnostic_messages;
-        result.diagnostic_messages = __terrane_value;
-    }
-    return result;
-}
 #[derive(Clone)]
 pub struct ExitStatus {
     pub code: terrane_int_support::Int,
@@ -2874,60 +2215,8 @@ impl ExitStatus {
         }
     }
 }
-pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
-    let mut result: ExitStatus;
-    result = ExitStatus::terrane_construct();
-    if requested < terrane_int_support::Int::from(0_i128)
-        || requested > terrane_int_support::Int::from(255_i128)
-    {
-        {
-            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
-                255_i128,
-            );
-            result.code = __terrane_value;
-        }
-        {
-            let __terrane_value: bool = false;
-            result.valid = __terrane_value;
-        }
-    } else {
-        {
-            let __terrane_value: terrane_int_support::Int = requested.clone();
-            result.code = __terrane_value;
-        }
-    }
-    return result;
-}
 pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
-}
-pub fn native_text(value: String) -> NativeString {
-    let encoded: String;
-    encoded = terrane_platform_value_from_text(&value);
-    return NativeString::terrane_construct(encoded);
-}
-pub fn native_raw(value: Vec<u8>) -> NativeString {
-    let encoded: String;
-    encoded = terrane_platform_value_from_bytes(&value);
-    return NativeString::terrane_construct(encoded);
-}
-pub fn native_text_value(value: NativeString) -> Option<String> {
-    if value.is_text {
-        return Some(value.text.clone());
-    }
-    return None;
-}
-pub fn native_raw_value(value: NativeString) -> Vec<u8> {
-    return value.raw.clone();
-}
-pub fn environment_pair(key: NativeString, item: NativeString) -> EnvironmentEntry {
-    return EnvironmentEntry::terrane_construct(key, item);
-}
-pub fn encode_native_string(value: NativeString) -> String {
-    if value.is_text {
-        return terrane_platform_value_from_text(&value.text);
-    }
-    return terrane_platform_value_from_bytes(&value.raw);
 }
 // Source: core/time.trn
 // Namespace: core/time

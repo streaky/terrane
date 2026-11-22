@@ -8,6 +8,10 @@ function make result of string;
     return instance result::success; value = 'ready'
 
 function main;
+    number = other;
+    match number
+        case result::success; value
+            print; value
     item = make;
     match item
         case result::success; value

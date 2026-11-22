@@ -523,22 +523,8 @@ pub fn terrane_unhex(text: &str) -> Vec<u8> {
         .filter_map(|pair| Some(digit(pair[0])? << 4 | digit(pair[1])?))
         .collect()
 }
-fn terrane_hex(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    let mut encoded = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        write!(encoded, "{byte:02x}").expect("writing to a string cannot fail");
-    }
-    encoded
-}
 pub fn terrane_platform_value(value: std::ffi::OsString) -> String {
     terrane_platform_support::platform_value(value)
-}
-fn terrane_platform_value_from_text(value: &str) -> String {
-    format!("text:{value}")
-}
-fn terrane_platform_value_from_bytes(value: &[u8]) -> String {
-    format!("raw:{}", terrane_hex(value))
 }
 pub fn terrane_platform_value_is_text(value: &str) -> bool {
     value.starts_with("text:")
@@ -551,14 +537,6 @@ pub fn terrane_platform_value_bytes(value: &str) -> Vec<u8> {
 }
 pub fn terrane_process_arguments() -> Vec<String> {
     std::env::args_os().skip(1).map(terrane_platform_value).collect()
-}
-pub fn terrane_environment_entries() -> Vec<String> {
-    std::env::vars_os()
-        .flat_map(|(name, value)| [
-            terrane_platform_value(name),
-            terrane_platform_value(value),
-        ])
-        .collect()
 }
 pub fn terrane_process_exit(code: terrane_int_support::Int) {
     let code = terrane_int_support::checked_coerce::<i32>(&code).unwrap_or(255);
@@ -702,16 +680,6 @@ impl ProcessHostNameResult {
         }
     }
 }
-pub fn process_host_name() -> ProcessHostNameResult {
-    let raw: TerranePlatformResult;
-    raw = terrane_platform_support::system_host_name();
-    return ProcessHostNameResult::terrane_construct(
-        raw.failed,
-        raw.flag,
-        raw.message.clone(),
-        NativeString::terrane_construct(raw.text.clone()),
-    );
-}
 pub fn arguments() -> terrane_collection_support::List<NativeString> {
     let encoded: Vec<String>;
     let mut values: terrane_collection_support::List<NativeString>;
@@ -744,70 +712,6 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
             };
             index = index.clone() + terrane_int_support::Int::from(1_i128);
-        }
-    }
-    return values;
-}
-pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
-    let encoded: Vec<String>;
-    let mut values: terrane_collection_support::List<EnvironmentEntry>;
-    let mut index: terrane_int_support::Int;
-    let mut name: NativeString;
-    let mut value: NativeString;
-    encoded = terrane_environment_entries();
-    values = terrane_collection_support::List::<EnvironmentEntry>::new(Vec::new());
-    index = terrane_int_support::Int::from(0_i128);
-    {
-        let __terrane_list_append_1 = values.make_unique();
-        while index.clone() + terrane_int_support::Int::from(1_i128)
-            < terrane_int_support::Int::from(encoded.len() as i128)
-        {
-            name = NativeString::terrane_construct(
-                __terrane_raised(
-                    {
-                        let __terrane_receiver = &encoded;
-                        let __terrane_index = __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
-                            6 /* terrane-site: core/process.trn:54:40-54:54 */,
-                        );
-                        __terrane_receiver
-                            .get(__terrane_index)
-                            .cloned()
-                            .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                                __terrane_index,
-                            ))
-                    },
-                    6 /* terrane-site: core/process.trn:54:40-54:54 */,
-                ),
-            );
-            value = NativeString::terrane_construct(
-                __terrane_raised(
-                    {
-                        let __terrane_receiver = &encoded;
-                        let __terrane_index = __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
-                            ),
-                            7 /* terrane-site: core/process.trn:55:41-55:59 */,
-                        );
-                        __terrane_receiver
-                            .get(__terrane_index)
-                            .cloned()
-                            .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                                __terrane_index,
-                            ))
-                    },
-                    7 /* terrane-site: core/process.trn:55:41-55:59 */,
-                ),
-            );
-            {
-                let __terrane_collection_argument_0 = EnvironmentEntry::terrane_construct(
-                    name,
-                    value,
-                );
-                __terrane_list_append_1.push(__terrane_collection_argument_0);
-            };
-            index = index.clone() + terrane_int_support::Int::from(2_i128);
         }
     }
     return values;
@@ -1070,58 +974,6 @@ impl ExitStatus {
         }
     }
 }
-pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
-    let mut result: ExitStatus;
-    result = ExitStatus::terrane_construct();
-    if requested < terrane_int_support::Int::from(0_i128)
-        || requested > terrane_int_support::Int::from(255_i128)
-    {
-        {
-            let __terrane_value: terrane_int_support::Int = terrane_int_support::Int::from(
-                255_i128,
-            );
-            result.code = __terrane_value;
-        }
-        {
-            let __terrane_value: bool = false;
-            result.valid = __terrane_value;
-        }
-    } else {
-        {
-            let __terrane_value: terrane_int_support::Int = requested.clone();
-            result.code = __terrane_value;
-        }
-    }
-    return result;
-}
 pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
-}
-pub fn native_text(value: String) -> NativeString {
-    let encoded: String;
-    encoded = terrane_platform_value_from_text(&value);
-    return NativeString::terrane_construct(encoded);
-}
-pub fn native_raw(value: Vec<u8>) -> NativeString {
-    let encoded: String;
-    encoded = terrane_platform_value_from_bytes(&value);
-    return NativeString::terrane_construct(encoded);
-}
-pub fn native_text_value(value: NativeString) -> Option<String> {
-    if value.is_text {
-        return Some(value.text.clone());
-    }
-    return None;
-}
-pub fn native_raw_value(value: NativeString) -> Vec<u8> {
-    return value.raw.clone();
-}
-pub fn environment_pair(key: NativeString, item: NativeString) -> EnvironmentEntry {
-    return EnvironmentEntry::terrane_construct(key, item);
-}
-pub fn encode_native_string(value: NativeString) -> String {
-    if value.is_text {
-        return terrane_platform_value_from_text(&value.text);
-    }
-    return terrane_platform_value_from_bytes(&value.raw);
 }

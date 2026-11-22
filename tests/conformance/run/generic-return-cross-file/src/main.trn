@@ -8,6 +8,11 @@ function make slot of string;
     return instance slot;
 
 function main;
+    numeric = other;
+    numeric.value = 42
+    number = numeric.value
+    if number != none
+        print; number
     made = make;
     made.value = 'ready'
     value = made.value

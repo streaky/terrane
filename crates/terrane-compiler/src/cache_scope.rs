@@ -24,3 +24,14 @@ pub fn with_compilation_cache<T>(action: impl FnOnce() -> T) -> T {
 pub(crate) fn enabled() -> bool {
     ENABLED.get()
 }
+pub(crate) fn with_enabled<T>(enabled: bool, action: impl FnOnce() -> T) -> T {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            ENABLED.set(self.0);
+        }
+    }
+    let previous = ENABLED.replace(enabled);
+    let _restore = Restore(previous);
+    action()
+}
