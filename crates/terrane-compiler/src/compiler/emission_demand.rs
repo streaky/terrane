@@ -46,6 +46,16 @@ pub(super) fn select(
         );
         return;
     }
+    // A raw item may contain edges we cannot discover. Check before splitting
+    // runtime fragments so declining pruning leaves the program untouched.
+    if std::iter::once(program.globals.as_slice())
+        .chain(program.runtime.iter().map(|module| module.items.as_slice()))
+        .chain(program.modules.iter().map(|module| module.items.as_slice()))
+        .flatten()
+        .any(Item::is_opaque)
+    {
+        return;
+    }
     let stage =
         crate::compilation_progress::start("reconciling emission demand", &package.identity);
     let cache_dir = crate::cache_scope::enabled()
@@ -63,34 +73,18 @@ pub(super) fn select(
         .chain(program.runtime.iter().map(|module| module.items.as_slice()))
         .chain(program.modules.iter().map(|module| module.items.as_slice()))
         .collect::<Vec<_>>();
-    let sources = groups
-        .iter()
-        .map(|items| items.iter().map(Item::demand_source).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    let bytes = sources.iter().flatten().map(String::len).sum();
-    let answers = crate::semantics::parallel::map_ordered(sources.len(), bytes, |index| {
-        let sources = &sources[index];
-        match cache_dir.as_deref() {
-            Some(directory) => {
-                crate::with_compilation_cache(|| summarize_group(sources, Some(directory)))
-            }
-            None => summarize_group(sources, None),
-        }
-    });
-    let hits = answers.iter().filter(|answer| answer.1).count();
-    let Some(references) = answers
-        .into_iter()
-        .map(|answer| answer.0)
-        .collect::<Option<Vec<_>>>()
-    else {
-        return;
-    };
+    let mut hits = 0;
+    let mut references = Vec::new();
+    for items in &groups {
+        let (summary, hit) = summarize_group(items, cache_dir.as_deref());
+        hits += usize::from(hit);
+        references.extend(summary);
+    }
     let candidates = groups
         .into_iter()
         .flatten()
         .map(Item::discardable_function)
         .collect::<Vec<_>>();
-    let references = references.into_iter().flatten().collect::<ItemReferences>();
     let retained = reachable(&candidates, &references);
     let removed = retained.iter().filter(|keep| !**keep).count();
     let mut keep = retained.into_iter();
@@ -146,33 +140,38 @@ fn contains_inline_rust(node: &SyntaxNode) -> bool {
 // with different peers. Exact rendered content is the only input to this query.
 type ItemReferences = Vec<Vec<String>>;
 
-fn summarize_group(sources: &[String], cache_dir: Option<&Path>) -> (Option<ItemReferences>, bool) {
-    let key = cache_dir.filter(|_| !sources.is_empty()).map(|dir| {
-        let mut hash = crate::cache_io::HashWriter::new();
-        for source in sources {
-            hash.part(source.as_bytes());
-        }
-        let key = hash.finish_hex();
-        let path = dir.join(&key[..2]).join(format!("{key}.json"));
-        (path, key)
-    });
-    if let Some((path, key)) = &key
-        && let Some(summary) = cache::load_file::<ItemReferences>(path, key)
-        && summary.len() == sources.len()
-    {
-        return (Some(summary), true);
-    }
-    let summary = sources
-        .iter()
-        .map(|source| {
-            let mut identifiers = BTreeSet::new();
-            collect_identifiers(source.parse().ok()?, &mut identifiers);
-            Some(identifiers.into_iter().collect::<Vec<_>>())
+fn summarize_group(items: &[Item], cache_dir: Option<&Path>) -> (ItemReferences, bool) {
+    // proc_macro2 tokens cannot move to workers. Walk them directly rather
+    // than formatting and re-lexing every item to make the work transferable.
+    let collect = |stream: TokenStream| {
+        let mut identifiers = BTreeSet::new();
+        collect_identifiers(stream, &mut identifiers);
+        identifiers.into_iter().collect()
+    };
+    let streams = || {
+        items.iter().map(|item| {
+            item.demand_tokens()
+                .expect("opaque items excluded before demand selection")
         })
-        .collect::<Option<Vec<_>>>();
-    if let (Some((path, key)), Some(summary)) = (&key, &summary) {
-        cache::store_file(path, key, summary);
+    };
+    let Some(dir) = cache_dir.filter(|_| !items.is_empty()) else {
+        return (streams().map(collect).collect(), false);
+    };
+    let mut hash = crate::cache_io::HashWriter::new();
+    hash.part(b"direct-token-identifiers-v1");
+    let streams = streams().collect::<Vec<_>>();
+    for stream in &streams {
+        hash.part(stream.to_string().as_bytes());
     }
+    let key = hash.finish_hex();
+    let path = dir.join(&key[..2]).join(format!("{key}.json"));
+    if let Some(summary) = cache::load_file::<ItemReferences>(&path, &key)
+        && summary.len() == items.len()
+    {
+        return (summary, true);
+    }
+    let summary: ItemReferences = streams.into_iter().map(collect).collect();
+    cache::store_file(&path, &key, &summary);
     (summary, false)
 }
 

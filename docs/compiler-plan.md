@@ -133,15 +133,11 @@ Rust consumers that append code after lowering must request retained
 definitions through `CompilerOptions::retain_rust_definitions`, as the
 conformance harness does for dependency-panic tests.
 
-The same cache directory also enables pre-lowering assignment tickets.
-These cache a function body's successful definite-assignment check for exact
-unit text, body position and incoming declared/assigned names. Each ticket
-records the reads that needed an exemption; replay checks them against the
-consumer's current lexical and reaching-flow facts rather than trusting the
-producer's file IDs. Use a trusted directory. Assignment diagnostics and
-emitted Rust are unchanged. Reaching-flow inference, type checking and
-lowering still run; this is not a package-wide checked-body artifact or
-permission to skip unused declarations.
+Runtime bundle selection and Cargo dependency binding precede this pass.
+For example, an unused async function may still bring in Tokio even if the
+function itself is pruned. Reducing that overhead requires reachability-aware
+runtime requirements, including support for roots such as destructors and
+global initialization; the post-lowering pass alone does not establish them.
 
 ## 4. Proposed repository layout
 

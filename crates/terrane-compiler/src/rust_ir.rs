@@ -976,11 +976,15 @@ impl Item {
         self.body.render(output);
     }
 
-    pub(crate) fn demand_source(&self) -> String {
+    pub(crate) fn demand_tokens(&self) -> Option<TokenStream> {
         match &self.body.body {
-            BlockBody::Parsed(file) => file.to_token_stream().to_string(),
-            BlockBody::Raw(raw) => raw.clone(),
+            BlockBody::Parsed(file) => Some(file.to_token_stream()),
+            BlockBody::Raw(_) => None,
         }
+    }
+
+    pub(crate) fn is_opaque(&self) -> bool {
+        matches!(self.body.body, BlockBody::Raw(_))
     }
 
     /// Only ordinary named definitions can be discarded. Attributes that may
