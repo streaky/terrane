@@ -1,4 +1,8 @@
-use super::{prelude::*, types::ungrouped_expression};
+use super::{
+    mutation::{ClosureWrites, binding_span_is_mutated_in},
+    prelude::*,
+    types::ungrouped_expression,
+};
 mod callable_captures;
 #[cfg(test)]
 mod evaluation_tests;

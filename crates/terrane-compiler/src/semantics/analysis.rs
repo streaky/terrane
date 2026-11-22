@@ -144,6 +144,7 @@ pub(super) fn parse_unit(
         scopes: Vec::new(),
         declaration_metadata: Vec::new(),
         typed_bindings: Vec::new(),
+        mutations: super::mutation::MutationState::default(),
         functions: Vec::new(),
         source_enums: Vec::new(),
         source_enum_registry: std::sync::Arc::from([]),
@@ -1148,6 +1149,7 @@ fn analyze_parsed_with_projection(
     }
     super::throw_construction::normalize(&mut semantic);
     super::interpolation::normalize_keys(&mut semantic)?;
+    super::mutation::prepare_sites(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     super::ownership::validate_reference_expression_sites(&semantic)?;
@@ -1264,6 +1266,7 @@ fn analyze_parsed_with_projection(
     super::scoped_regions::record_completion_capture_slots(&mut semantic);
     super::statement_owners::record(&mut semantic);
     stage.finish();
+    super::mutation::finalize(&mut semantic);
     Ok(semantic)
 }
 

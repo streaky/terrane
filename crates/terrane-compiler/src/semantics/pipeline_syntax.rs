@@ -5,6 +5,16 @@ use super::prelude::*;
 
 pub(super) fn normalize(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for unit in &mut package.units {
+        unit.mutations.normalized |=
+            package
+                .declaration_modifiers
+                .iter()
+                .any(|(span, modifiers)| {
+                    span.file == unit.source.id()
+                        && modifiers.iter().any(|modifier| {
+                            modifier.operation == ModifierOperation::PipelineSequential
+                        })
+                });
         rewrite(
             &unit.source,
             &mut unit.tree.root,

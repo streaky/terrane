@@ -106,6 +106,51 @@ fn manifest_discovers_sources_in_deterministic_path_order() {
 }
 
 #[test]
+fn unchanged_caller_mutability_tracks_an_edited_callee() {
+    let fixture = TempPackage::new();
+    fixture.write(
+        "package.toml",
+        "package = \"example.mutation-cache\"\n[namespaces]\nexample = \"src\"\n",
+    );
+    fixture.write(
+        "src/main.trn",
+        "namespace example\nfunction main;\n  local = 1\n  print; (update; local)\n",
+    );
+    let validate = |expected| {
+        let package = Package::load(&fixture.0).unwrap();
+        let semantic = terrane_compiler::with_compilation_cache(|| analyze(&package)).unwrap();
+        let caller = semantic
+            .units
+            .iter()
+            .find(|unit| unit.source_path.ends_with("main.trn"))
+            .unwrap();
+        let local = caller
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.name == "local")
+            .unwrap();
+        assert_eq!(local.mutable, expected);
+        let cached =
+            terrane_compiler::with_compilation_cache(|| compile_package(&package)).unwrap();
+        let clean = compile_package(&package).unwrap();
+        assert_eq!(cached.rust, clean.rust);
+    };
+
+    fixture.write(
+        "src/update.trn",
+        "namespace example\nfunction update int; value ref int\n  return value\n",
+    );
+    validate(false);
+    // The unchanged caller also gets a different composition-local file ID.
+    fixture.write("src/first.trn", "namespace example\n");
+    fixture.write(
+        "src/update.trn",
+        "namespace example\nfunction update int; value mutable ref int\n  value = 2\n  return value\n",
+    );
+    validate(true);
+}
+
+#[test]
 fn manifest_can_explicitly_use_the_system_rust_toolchain() {
     let package = TempPackage::new();
     package.write(

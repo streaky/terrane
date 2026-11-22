@@ -275,6 +275,7 @@ pub(super) fn normalize(package: &mut SemanticPackage) -> Result<(), SemanticFai
             &mut registered,
         )?;
         reject_shadowing(unit, &registered)?;
+        unit.mutations.normalized |= !registered.is_empty();
         rewrite_keys(&unit.source, &mut unit.tree.root, &registered)?;
     }
     Ok(())

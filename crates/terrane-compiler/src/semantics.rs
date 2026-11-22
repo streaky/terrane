@@ -54,6 +54,7 @@ mod bindings;
 pub(crate) use bindings::projected_macro_for_call;
 mod diagnostics;
 mod field_moves;
+mod mutation;
 mod objects;
 pub(crate) use objects::collection_uses_unique_storage;
 mod ownership;
@@ -125,10 +126,7 @@ pub(crate) use contracts::{
 pub(crate) use descriptors::{
     descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,
 };
-pub(crate) use diagnostics::{
-    ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in, member_invocation_mode_at,
-    warnings,
-};
+pub(crate) use diagnostics::{member_invocation_mode_at, warnings};
 pub(crate) use display::display_method;
 pub(crate) use enums::projected_enum_payload_type;
 pub(crate) use field_moves::field_access_transfers;
@@ -149,6 +147,7 @@ pub(crate) use model::{
     FloatMemberOperation, SourceEnumContract, StringFamily, canonical_default,
     float_member_contract, value_type_contains_nonclone_foreign,
 };
+pub(crate) use mutation::{ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in};
 pub(crate) use namespaces::class_designator_identity;
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::application_is_resource_owning;

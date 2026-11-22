@@ -1912,6 +1912,7 @@ pub struct SemanticUnit {
 
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,
+    pub(super) mutations: super::mutation::MutationState,
     /// Lazily rendered backend identifiers; invalidated when flow storage is rebuilt.
     pub(crate) rust_storage_names: std::sync::OnceLock<crate::lowering::StorageNames>,
     pub flow_types: BTreeMap<(u32, usize, usize), ValueType>,

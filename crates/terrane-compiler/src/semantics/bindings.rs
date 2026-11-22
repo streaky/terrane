@@ -10,11 +10,11 @@ use crate::{
 };
 
 use super::{
-    diagnostics::{
-        ClosureWrites, binding_span_has_interior_mutation, binding_span_is_mutated, failure,
-        node_text, unary_operator_text,
-    },
+    diagnostics::{failure, node_text, unary_operator_text},
     model::{SemanticFailure, SemanticPackage, SemanticUnit, SymbolKind, TypedBinding, ValueType},
+    mutation::{
+        ClosureWrites, MutationIndex, binding_span_has_interior_mutation, binding_span_is_mutated,
+    },
     scopes::lexical_scope_chain,
 };
 
@@ -516,15 +516,22 @@ pub(super) fn first_write_to<'a>(
 }
 
 pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
+    let phase = crate::compilation_progress::start(
+        "reconciling binding mutability",
+        package.root.display(),
+    );
     let mut pending = Vec::new();
-    loop {
+    let indexes = loop {
+        let indexes: Vec<_> = package
+            .units
+            .iter()
+            .map(|unit| MutationIndex::resolve(package, unit))
+            .collect();
         for (unit_index, unit) in package.units.iter().enumerate() {
             for (function_index, function) in unit.functions.iter().enumerate() {
                 for (parameter_index, parameter) in function.parameters.iter().enumerate() {
                     if !parameter.mutable
-                        && binding_span_is_mutated(
-                            package,
-                            unit,
+                        && indexes[unit_index].is_mutated(
                             parameter.span,
                             true,
                             ClosureWrites::Include,
@@ -536,28 +543,23 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
             }
         }
         if pending.is_empty() {
-            break;
+            break indexes;
         }
         for (unit, function, parameter) in pending.drain(..) {
             package.units[unit].functions[function].parameters[parameter].mutable = true;
         }
-    }
+    };
     let mutable_bindings = package
         .units
         .iter()
-        .map(|unit| {
+        .zip(indexes)
+        .map(|(unit, index)| {
             unit.typed_bindings
                 .iter()
                 .map(|binding| {
                     let initially_assigned =
                         unit.source.text()[binding.span.start..binding.span.end].contains('=');
-                    binding_span_is_mutated(
-                        package,
-                        unit,
-                        binding.span,
-                        initially_assigned,
-                        ClosureWrites::Include,
-                    )
+                    index.is_mutated(binding.span, initially_assigned, ClosureWrites::Include)
                 })
                 .collect::<Vec<_>>()
         })
@@ -568,6 +570,7 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
             binding.mutable = mutable;
         }
     }
+    phase.finish();
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1437,12 +1440,7 @@ pub(crate) fn binding_stores_are_independent(
             .functions
             .iter()
             .any(|function| function.captures.contains(&binding.name))
-        || super::diagnostics::binding_span_has_interior_mutation(
-            package,
-            unit,
-            binding.span,
-            ClosureWrites::Include,
-        )
+        || binding_span_has_interior_mutation(package, unit, binding.span, ClosureWrites::Include)
     {
         return false;
     }
