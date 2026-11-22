@@ -1,0 +1,49 @@
+namespace core/regex
+
+from /core/errors import throwable
+
+class regex-error implements throwable
+    message string = ''
+
+    private function construct; detail string
+        this.message = detail
+
+    function render string;
+        return this.message
+
+class regex-captures
+    private value host-regex-captures
+
+    private function construct; value host-regex-captures
+        this.value = value
+
+    function group text-range|none; index int
+        return host-capture; this.value, index
+
+    function named-group text-range|none; name string
+        return host-named-capture; this.value, name
+
+class regex-pattern
+    private value host-regex-pattern
+
+    private function construct; value host-regex-pattern
+        this.value = value
+
+    function matches bool; text string
+        return host-matches; this.value, text
+
+    function match text-range|none; text string
+        return host-first-match; this.value, text
+
+    function captures regex-captures|none; text string
+        found = host-captures; this.value, text
+        if found != none
+            return instance regex-captures; found
+        return none
+
+function compile regex-pattern throws regex-error; pattern string, case-insensitive bool = false
+    result = host-compile; pattern, case-insensitive
+    detail = host-compile-error; result
+    if detail != none
+        throw instance regex-error; move detail
+    return instance regex-pattern; (host-compiled-pattern; move result)

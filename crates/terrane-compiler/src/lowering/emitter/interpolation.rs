@@ -7,6 +7,22 @@ use crate::{
 };
 
 impl Emitter<'_> {
+    pub(super) fn borrows_text_parameter(&self, contract: &FunctionContract, index: usize) -> bool {
+        index == 0
+            && (interpolatable::borrows_key(self.unit, contract)
+                || match contract.owner_identity.as_ref() {
+                    Some(owner) if owner.namespace == "/core/regex" => matches!(
+                        (owner.name.as_str(), contract.name.as_str()),
+                        ("regex-pattern", "matches" | "match" | "captures")
+                            | ("regex-captures", "named-group")
+                    ),
+                    None if contract.name == "compile" => self.package.units.iter().any(|unit| {
+                        unit.source.id() == contract.span.file && unit.namespace == "/core/regex"
+                    }),
+                    _ => false,
+                })
+    }
+
     pub(super) fn borrowed_key_name(&self, mut node: &SyntaxNode) -> Option<&str> {
         while node.kind == SyntaxKind::GroupExpression
             && let [inner] = node.children.as_slice()

@@ -1985,6 +1985,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "terrane-regex-support"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "terrane-string-support",
+]
+
+[[package]]
 name = "terrane-rust-analysis"
 version = "0.1.0"
 dependencies = [

@@ -722,7 +722,7 @@ impl Emitter<'_> {
                     |value_type| rust_value_type(self.package, value_type),
                 ),
             };
-            let ty = if crate::semantics::interpolatable::borrows_key(self.unit, contract) {
+            let ty = if self.borrows_text_parameter(contract, index) {
                 "&str".to_owned()
             } else {
                 ty
@@ -815,7 +815,7 @@ impl Emitter<'_> {
             self.unit.namespace.trim_end_matches('/'),
             contract.name
         ));
-        let borrowed_key = crate::semantics::interpolatable::borrows_key(self.unit, contract);
+        let borrowed_key = self.borrows_text_parameter(contract, 0);
         let materialize_key = borrowed_key && {
             let parameter = &contract.parameters[0];
             self.parameter_needs_shared_storage(parameter)

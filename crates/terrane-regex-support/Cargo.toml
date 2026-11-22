@@ -1,0 +1,13 @@
+[package]
+name = "terrane-regex-support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+regex = "1"
+terrane-string-support = { path = "../terrane-string-support" }
+
+[lints]
+workspace = true

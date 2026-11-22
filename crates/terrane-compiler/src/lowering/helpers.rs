@@ -780,6 +780,9 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             "TerranePlatformCapability".to_owned()
         }
         ValueType::PlatformResult => "TerranePlatformResult".to_owned(),
+        ValueType::RegexPattern => "terrane_regex_support::Pattern".to_owned(),
+        ValueType::RegexCompilation => "terrane_regex_support::Compilation".to_owned(),
+        ValueType::RegexCaptures => "terrane_regex_support::Captures".to_owned(),
         ValueType::Object(identity)
             if identity.namespace == "/core/errors" && identity.name == "throwable" =>
         {

@@ -81,6 +81,11 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/codecs.trn"),
     },
     BundledSource {
+        namespace: "/core/regex",
+        path: "core/regex.trn",
+        text: include_str!("core/regex.trn"),
+    },
+    BundledSource {
         namespace: "/core/compression",
         path: "core/compression.trn",
         text: include_str!("core/compression.trn"),

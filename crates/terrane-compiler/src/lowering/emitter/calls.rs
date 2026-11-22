@@ -1522,6 +1522,46 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
+        if self.unit.namespace == "/core/regex"
+            && callee.kind == SyntaxKind::Name
+            && let Some(name) = self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .and_then(|symbol| symbol.compiler_identity().strip_prefix("intrinsic:regex::"))
+        {
+            let function = match name {
+                "compile-error" => "compile_error",
+                "compiled-pattern" => "compiled_pattern",
+                "first-match" => "first_match",
+                "named-capture" => "named_capture",
+                _ => name,
+            };
+            let args = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| match (function, index) {
+                    ("compiled_pattern", _) | ("compile", 1) => self.expression(value),
+                    _ => {
+                        if let Some(name) = self.borrowed_key_name(value) {
+                            return name.to_owned();
+                        }
+                        let (setup, reference) = self.operand_reference_parts(value, false);
+                        let expression = if function == "capture" && index == 1 {
+                            format!("terrane_int_support::coerce::<usize>({reference}).ok()")
+                        } else {
+                            reference
+                        };
+                        if setup.is_empty() {
+                            expression
+                        } else {
+                            format!("{{ {setup}{expression} }}")
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_regex_support::{function}({args})");
+        }
         let capability_call = [
             ("no-capability", "platform_no_resource"),
             ("secure-random", "platform_secure_random"),
@@ -2288,7 +2328,7 @@ impl Emitter<'_> {
                 );
                 let value = argument.children.last().unwrap_or(argument);
                 let parameter = &contract.parameters[index];
-                if crate::semantics::interpolatable::borrows_key(self.unit, contract) {
+                if self.borrows_text_parameter(contract, index) {
                     let expression = if let Some(literal) = self.borrowed_string_literal(value) {
                         literal
                     } else if self.read_borrow_is_stable_in(value, node) {
@@ -2298,7 +2338,13 @@ impl Emitter<'_> {
                     } else {
                         let expression =
                             self.expression_as(value, ValueType::Scalar(ScalarType::String));
-                        let name = self.fresh_read_binding_name("interpolation_key");
+                        let stem =
+                            if crate::semantics::interpolatable::borrows_key(self.unit, contract) {
+                                "interpolation_key"
+                            } else {
+                                "borrowed_text"
+                            };
+                        let name = self.fresh_read_binding_name(stem);
                         write!(shared_argument_setup, "let {name} = {expression}; ").unwrap();
                         format!("AsRef::<str>::as_ref(&{name})")
                     };

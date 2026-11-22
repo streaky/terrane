@@ -1413,6 +1413,17 @@ fn infer_nonbinary_value_type(
                 && let Some(identity) = resolved_compiler_identity(unit, callee)
             {
                 let platform_result = match identity {
+                    "intrinsic:regex::compile" => Some(ValueType::RegexCompilation),
+                    "intrinsic:regex::compiled-pattern" => Some(ValueType::RegexPattern),
+                    "intrinsic:regex::matches" => Some(ValueType::Scalar(ScalarType::Bool)),
+                    "intrinsic:regex::first-match"
+                    | "intrinsic:regex::capture"
+                    | "intrinsic:regex::named-capture" => {
+                        Some(ValueType::Optional(Box::new(ValueType::TextRange)))
+                    }
+                    "intrinsic:regex::captures" => {
+                        Some(ValueType::Optional(Box::new(ValueType::RegexCaptures)))
+                    }
                     "intrinsic:streams::acquire-stdin"
                     | "intrinsic:streams::acquire-stdout"
                     | "intrinsic:streams::acquire-stderr" => Some(ValueType::PlatformStreamHandle),
@@ -1612,7 +1623,8 @@ fn infer_nonbinary_value_type(
                     "intrinsic:system::filesystem-temporary-create" => {
                         Some(ValueType::PlatformTemporaryPath)
                     }
-                    "intrinsic:system::filesystem-temporary-status" => Some(ValueType::Optional(
+                    "intrinsic:regex::compile-error"
+                    | "intrinsic:system::filesystem-temporary-status" => Some(ValueType::Optional(
                         Box::new(ValueType::Scalar(ScalarType::String)),
                     )),
                     "intrinsic:system::filesystem-temporary-delete"

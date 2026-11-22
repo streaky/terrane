@@ -95,7 +95,7 @@ impl Emitter<'_> {
         method: &FunctionContract,
         index: usize,
     ) -> String {
-        if crate::semantics::interpolatable::borrows_key(self.unit, method) {
+        if self.borrows_text_parameter(method, index) {
             return "&str".to_owned();
         }
         let parameter = &method.parameters[index];

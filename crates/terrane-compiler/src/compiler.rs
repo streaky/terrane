@@ -141,6 +141,12 @@ fn compilation_sources(
 }
 
 impl Compilation {
+    /// Whether emitted code uses Terrane's bundled regex engine.
+    #[must_use]
+    pub fn requires_regex_support(&self) -> bool {
+        self.rendered_rust.requires_regex_support()
+    }
+
     /// Exact resolved native input identity, including local dependency source contents.
     ///
     /// Native artifact caches must include this even when generated Rust is unchanged.

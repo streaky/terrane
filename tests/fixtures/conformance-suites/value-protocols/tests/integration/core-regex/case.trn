@@ -1,0 +1,34 @@
+namespace core-regex
+
+from /core/regex import compile, regex-error
+
+function test-scenario;
+  pattern = compile; '([0-9]+)?(?<call>[a-z]+)()\(', case-insensitive=true
+  source = 'é OPEN('
+  print; (pattern.matches; source)
+  print; (pattern.matches; 'é ?')
+  first = pattern.match; source
+  if first != none
+    print; first.bytes.start
+    print; first.scalars.start
+    print; first.text
+  found = pattern.captures; source
+  if found != none
+    source = 'reassigned'
+    full = found.group; 0
+    if full != none
+      print; full.bytes.end
+    print; ((found.group; 1) == none)
+    call = found.named-group; 'call'
+    if call != none
+      print; call.text
+    empty = found.group; 3
+    if empty != none
+      print; empty.text == ''
+    print; ((found.group; -1) == none)
+    print; ((found.named-group; 'unknown') == none)
+    print; source
+  try
+    _ = compile; '(?<=left)right'
+  catch regex-error as error
+    print; error.message != ''

@@ -90,6 +90,7 @@ pub struct GeneratedCrateOptions {
     pub panic: crate::PanicProfile,
     pub uses_child_process: bool,
     pub uses_platform_support: bool,
+    pub uses_regex_support: bool,
     pub uses_async_runtime: bool,
     pub uses_tokio_blocking: bool,
     pub uses_tokio_sync: bool,
@@ -189,16 +190,18 @@ pub fn write_generated_crate(
     remove_obsolete_generated_sources(directory, rust_files).map_err(|error| {
         NativeBuildError::backend(format!("cannot remove obsolete source: {error}"))
     })?;
-    if !options.uses_platform_support {
-        for name in ["terrane-platform-support", "terrane-signal-support"] {
-            let obsolete = directory.join("support").join(name);
-            if obsolete.is_dir() {
-                fs::remove_dir_all(obsolete).map_err(|error| {
-                    NativeBuildError::backend(format!(
-                        "cannot remove obsolete generated support: {error}"
-                    ))
-                })?;
-            }
+    for (name, required) in [
+        ("terrane-platform-support", options.uses_platform_support),
+        ("terrane-signal-support", options.uses_platform_support),
+        ("terrane-regex-support", options.uses_regex_support),
+    ] {
+        let obsolete = directory.join("support").join(name);
+        if !required && obsolete.is_dir() {
+            fs::remove_dir_all(obsolete).map_err(|error| {
+                NativeBuildError::backend(format!(
+                    "cannot remove obsolete generated support: {error}"
+                ))
+            })?;
         }
     }
     let mut manifest = base_generated_manifest(options.unsafe_code, options.role);
@@ -239,7 +242,7 @@ pub fn write_generated_crate(
             NativeBuildError::backend(format!("cannot remove generated toolchain pin: {error}"))
         })?;
     }
-    write_generated_support(directory, options.uses_platform_support).map_err(|error| {
+    write_generated_support(directory, options).map_err(|error| {
         NativeBuildError::backend(format!("cannot write generated runtime support: {error}"))
     })?;
     for rust_file in rust_files {
@@ -291,6 +294,9 @@ fn write_runtime_dependencies(
             "terrane-platform-support = { path = \"support/terrane-platform-support\", default-features = false }\n"
         });
     }
+    if options.uses_regex_support {
+        manifest.push_str("terrane-regex-support = { path = \"support/terrane-regex-support\" }\n");
+    }
     let dependencies =
         if options.uses_async_runtime || options.uses_tokio_blocking || options.uses_tokio_sync {
             let mut required_features = vec!["rt"];
@@ -316,7 +322,10 @@ fn write_rust_dependency(manifest: &mut String, dependency: &crate::RustDependen
     manifest.push_str(&dependency.cargo_dependency_spec());
 }
 
-fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
+fn write_generated_support(
+    directory: &Path,
+    options: GeneratedCrateOptions,
+) -> std::io::Result<()> {
     let int = directory.join("support/terrane-int-support");
     let collection = directory.join("support/terrane-collection-support");
     let scalar = directory.join("support/terrane-scalar-support");
@@ -385,10 +394,41 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
         &stream.join("src/lib.rs"),
         include_bytes!("../../terrane-stream-abi/src/lib.rs"),
     )?;
-    if uses_platform_support {
+    if options.uses_platform_support {
         crate::write_platform_support(&directory.join("support"))?;
     }
+    if options.uses_regex_support {
+        write_regex_support(&directory.join("support"))?;
+    }
     Ok(())
+}
+
+/// Publishes the bundled regex adapter beside the other generated support crates.
+///
+/// # Errors
+///
+/// Returns an I/O error if the support directory cannot be written.
+///
+/// # Panics
+///
+/// Panics if the embedded support manifest has no dependency section.
+pub fn write_regex_support(directory: &Path) -> std::io::Result<()> {
+    let regex = directory.join("terrane-regex-support");
+    fs::create_dir_all(regex.join("src"))?;
+    let dependencies = include_str!("../../terrane-regex-support/Cargo.toml")
+        .split_once("[dependencies]")
+        .and_then(|(_, rest)| rest.split_once("[lints]"))
+        .expect("regex support manifest has a dependencies section")
+        .0;
+    let manifest = format!(
+        "[package]\nname = \"terrane-regex-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]{dependencies}",
+        crate::BUILD_TOOLCHAIN
+    );
+    write_if_changed(&regex.join("Cargo.toml"), manifest.as_bytes())?;
+    write_if_changed(
+        &regex.join("src/lib.rs"),
+        include_bytes!("../../terrane-regex-support/src/lib.rs"),
+    )
 }
 
 /// Prepare a native Cargo process using the same fetch, containment and toolchain

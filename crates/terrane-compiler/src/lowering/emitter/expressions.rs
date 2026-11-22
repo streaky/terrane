@@ -1581,7 +1581,7 @@ impl Emitter<'_> {
                     .filter(|contract| {
                         parameters.iter().enumerate().any(|(index, _)| {
                             self.interface_read_parameter(contract, index).is_some()
-                                || crate::semantics::interpolatable::borrows_key(self.unit, contract)
+                                || self.borrows_text_parameter(contract, index)
                         })
                     })
                     .map(|contract| {
@@ -1590,7 +1590,7 @@ impl Emitter<'_> {
                             .enumerate()
                             .map(|(index, parameter)| {
                                 let name = format!("argument_{index}");
-                                if crate::semantics::interpolatable::borrows_key(self.unit, contract) {
+                                if self.borrows_text_parameter(contract, index) {
                                     return format!("&{name}");
                                 }
                                 if self.interface_read_parameter(contract, index).is_some_and(
@@ -1656,16 +1656,23 @@ impl Emitter<'_> {
                 if let Some(contract) = self.contract_for_call(node, false) {
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
+                    let borrows_text = self.borrows_text_parameter(contract, 0);
                     let function = if node.kind == SyntaxKind::StaticMemberExpression {
                         self.static_member(node)
                     } else {
                         function_name(self.package, contract)
                     };
                     if expected_mode == InvocationMode::Shared
+                        && !borrows_text
                         && (!expected_throws || actual_throws)
                     {
                         format!("std::sync::Arc::new({function})")
                     } else {
+                        let arguments = if borrows_text {
+                            format!("&{arguments}")
+                        } else {
+                            arguments
+                        };
                         let call = format!("{function}({arguments})");
                         let body = if expected_throws && !actual_throws {
                             format!("Ok({call})")

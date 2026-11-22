@@ -418,6 +418,7 @@ fn write_host_workspace(
             role: GeneratedCrateRole::ConsumerTool,
             panic: package.profile.panic,
             uses_platform_support: compilation.requires_platform_support,
+            uses_regex_support: compilation.requires_regex_support(),
             uses_child_process: compilation.requires_child_process,
             uses_async_runtime: compilation.requires_async_runtime,
             uses_tokio_blocking: compilation.requires_blocking_runtime,

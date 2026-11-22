@@ -48,6 +48,21 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
     );
     add_private_host_bindings(
         &mut namespaces,
+        "/core/regex",
+        "regex",
+        [
+            "compile",
+            "compile-error",
+            "compiled-pattern",
+            "matches",
+            "first-match",
+            "captures",
+            "capture",
+            "named-capture",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
         "/core/compression",
         "capabilities",
         [

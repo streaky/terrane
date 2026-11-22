@@ -125,6 +125,10 @@ impl ConformanceBuild {
                 self.support.join("terrane-string-support"),
             ),
             (
+                "terrane-regex-support",
+                self.support.join("terrane-regex-support"),
+            ),
+            (
                 "terrane-document-support",
                 self.support.join("terrane-document-support"),
             ),
@@ -232,6 +236,7 @@ pub(super) fn write_if_changed(
 }
 
 fn write_support_crates(directory: &Path) -> io::Result<()> {
+    terrane_compiler::native_build::write_regex_support(directory)?;
     let int = directory.join("terrane-int-support");
     let collection = directory.join("terrane-collection-support");
     let scalar = directory.join("terrane-scalar-support");
