@@ -154,7 +154,7 @@ pub(super) fn load<T: serde::de::DeserializeOwned>(
     load_file(&root.join(".trn/cache").join(format!("{kind}.json")), key)
 }
 
-pub(crate) fn load_file<T: serde::de::DeserializeOwned>(path: &Path, key: &str) -> Option<T> {
+pub(super) fn load_file<T: serde::de::DeserializeOwned>(path: &Path, key: &str) -> Option<T> {
     if !crate::cache_scope::enabled() {
         return None;
     }
@@ -181,7 +181,7 @@ pub(super) fn store<T: Serialize>(root: &Path, kind: &str, key: &str, value: &T)
     );
 }
 
-pub(crate) fn store_file<T: Serialize>(path: &Path, key: &str, value: &T) {
+pub(super) fn store_file<T: Serialize>(path: &Path, key: &str, value: &T) {
     if !crate::cache_scope::enabled() {
         return;
     }

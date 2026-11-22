@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-pub(crate) mod cache;
+mod cache;
 mod emission_demand;
 use crate::{
     AuthoredRustModule, Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
