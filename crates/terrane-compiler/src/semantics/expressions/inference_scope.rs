@@ -108,6 +108,11 @@ pub(super) fn count_computation() {
     });
 }
 
+#[cfg(test)]
+pub(super) fn work_limit_active() -> bool {
+    WORK_LIMIT.with_borrow(Option::is_some)
+}
+
 // Follow only the receiver dependency that destination-directed call detection
 // already evaluates before the remaining call probes. Cached selected calls are
 // barriers: their receiver must not be eagerly validated merely to warm a memo.

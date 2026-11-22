@@ -15,7 +15,11 @@ pub(crate) fn map_ordered<T: Send>(
     work: usize,
     operation: impl Fn(usize) -> T + Sync,
 ) -> Vec<T> {
-    if len < MIN_ITEMS || work < MIN_WORK {
+    #[cfg(test)]
+    let work_limit_active = crate::semantics::expressions::inference_work_limit_active();
+    #[cfg(not(test))]
+    let work_limit_active = false;
+    if len < MIN_ITEMS || work < MIN_WORK || work_limit_active {
         return (0..len).map(operation).collect();
     }
     let workers = std::thread::available_parallelism()
@@ -26,30 +30,42 @@ pub(crate) fn map_ordered<T: Send>(
         return (0..len).map(operation).collect();
     }
 
+    let cache_enabled = crate::cache_scope::enabled();
+    let reporting = crate::compilation_progress::reporting();
     let next = AtomicUsize::new(0);
     let (sender, receiver) = mpsc::channel();
     let mut results = std::iter::repeat_with(|| None)
         .take(len)
         .collect::<Vec<_>>();
     std::thread::scope(|scope| {
-        for _ in 0..workers {
+        for worker in 0..workers {
             let sender = sender.clone();
             let operation = &operation;
             let next = &next;
-            std::thread::Builder::new()
+            if std::thread::Builder::new()
                 .stack_size(WORKER_STACK_SIZE)
                 .spawn_scoped(scope, move || {
-                    loop {
-                        let index = next.fetch_add(1, Ordering::Relaxed);
-                        if index >= len {
-                            break;
-                        }
-                        if sender.send((index, operation(index))).is_err() {
-                            break;
-                        }
-                    }
+                    crate::cache_scope::with_enabled(cache_enabled, || {
+                        crate::compilation_progress::with_reporting(reporting, || {
+                            loop {
+                                let index = next.fetch_add(1, Ordering::Relaxed);
+                                if index >= len || sender.send((index, operation(index))).is_err() {
+                                    break;
+                                }
+                            }
+                        });
+                    });
                 })
-                .expect("failed to spawn semantic analysis worker");
+                .is_err()
+            {
+                if worker == 0 {
+                    // No job has been claimed; let the caller do the whole batch.
+                    for (index, result) in results.iter_mut().enumerate() {
+                        *result = Some(operation(index));
+                    }
+                }
+                break;
+            }
         }
         drop(sender);
         for (index, result) in receiver {
