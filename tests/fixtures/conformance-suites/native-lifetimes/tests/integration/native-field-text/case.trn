@@ -1,11 +1,15 @@
 namespace native-field-text
-from /deps/terrane-query-witness import OriginalTarget
+from /deps/terrane-query-witness import OriginalTarget, ResponseCode
 
 # OriginalUri.0 lends a URI whose path is a borrowed string slice.
-function original-path string; original ref OriginalTarget
-    return (original.n0).path;
+function original-path string; original ref OriginalTarget, n0 ref ResponseCode
+    # The unrelated binding named n0 is not the owner of original.n0.
+    if (n0.canonical_reason;) != none
+        return (original.n0).path;
+    return ''
 
 function test-scenario;
     original = OriginalTarget::new; '/mounted/path'
-    print; (original-path; original)
+    status = ResponseCode::new; 200
+    print; (original-path; original, status)
     print; (OriginalTarget::clones;)

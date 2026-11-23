@@ -12,6 +12,9 @@ function snapshot MetadataTable of MetadataText; request ref MetadataRequest
     captured MetadataTable of MetadataText = (request.metadata;).clone;
     return captured
 
+function snapshot-text string; captured ref (MetadataTable of MetadataText)
+    return captured.snapshot_text;
+
 function own-found string; value ref MetadataText
     return value.contents;
 
@@ -27,7 +30,7 @@ function test-scenario;
     print; (MetadataText::copies;)
     request = MetadataRequest::new; 'snapshot label'
     captured = snapshot; request
-    print; (captured.snapshot_text;)
+    print; (snapshot-text; captured)
     print; (MetadataText::copies;)
     print; ((record.metadata; false).contents;)
     print; ((record.metadata; true).contents;)

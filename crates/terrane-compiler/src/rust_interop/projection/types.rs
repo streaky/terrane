@@ -227,7 +227,7 @@ fn project_borrowed_graph_value(
             if matches!(
                 resolved_path_name(path, paths).as_str(),
                 "core::option::Option" | "std::option::Option"
-            ) && type_contains_borrowed_ref(ty) =>
+            ) && type_contains_borrowed_ref_after_aliases(ty, index, paths, generics)? =>
         {
             let arguments = type_arguments(ty);
             let [value] = arguments.as_slice() else {
@@ -1413,7 +1413,7 @@ fn type_contains_borrowed_ref_alias_inner(
         ),
         Type::Generic(name) => Ok(generics
             .get(name)
-            .is_some_and(ProjectedType::needs_borrowed_leaf_conversion)),
+            .is_some_and(ProjectedType::contains_borrowed_result)),
         Type::FunctionPointer(_)
         | Type::DynTrait(_)
         | Type::Primitive(_)

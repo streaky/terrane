@@ -290,16 +290,22 @@ pub trait Describe {
 
 pub struct TypedRecord(MetadataText);
 
+pub type Lookup<T> = Option<T>;
+
 impl TypedRecord {
     pub fn new(label: &str) -> Self {
         Self(MetadataText(label.to_owned()))
     }
 
-    pub fn find(&self, label: &str) -> Option<&MetadataText> {
+    pub fn find(&self, label: &str) -> Lookup<&MetadataText> {
         if label == "panic" {
             std::panic::resume_unwind(Box::new("native lookup failed"));
         }
         (self.0.contents() == label).then_some(&self.0)
+    }
+
+    pub async fn find_async(&self, label: &str) -> Lookup<&MetadataText> {
+        self.find(label)
     }
 
     pub fn metadata(&self, owned: bool) -> std::borrow::Cow<'_, MetadataText> {

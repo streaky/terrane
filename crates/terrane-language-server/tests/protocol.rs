@@ -547,6 +547,8 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
             .is_some_and(|message| message.contains("invalid-name"))
     );
 
+    assert_generated_native_bridge(&mut stdin, &mut stdout);
+
     send(
         &mut stdin,
         &json!({"jsonrpc": "2.0", "id": 12, "method": "shutdown", "params": null}),
@@ -558,6 +560,85 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
     );
     drop(stdin);
     assert!(child.wait().unwrap().success());
+}
+
+fn assert_generated_native_bridge(stdin: &mut ChildStdin, stdout: &mut BufReader<ChildStdout>) {
+    use std::{fs, path::Path};
+
+    struct FixtureCopy(std::path::PathBuf);
+    impl Drop for FixtureCopy {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+    let fixture = FixtureCopy(
+        std::env::temp_dir().join(format!("terrane-lsp-native-bridge-{}", std::process::id())),
+    );
+    fs::create_dir(&fixture.0).unwrap();
+    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/reject/native-guarded-iterator-escape");
+    for relative in [
+        "package.toml",
+        ".cargo/config.toml",
+        "fixture-registry/terrane-query-witness-0.1.0/Cargo.toml",
+        "fixture-registry/terrane-query-witness-0.1.0/src/lib.rs",
+    ] {
+        let destination = fixture.0.join(relative);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(source.join(relative), destination).unwrap();
+    }
+    let text = "namespace app\nfrom /deps/terrane-query-witness import TypedRecord, MetadataText\n\nfunction own-text string; value ref MetadataText\n    return value.contents;\n\nfunction main;\n    record = shared ref (TypedRecord::new; 'label')\n    key = 'label'\n    text string|none = (record.find; key).map; own-text\n    print; text != none\n";
+    let path = fixture.0.join("src/main.trn");
+    fs::create_dir(path.parent().unwrap()).unwrap();
+    fs::write(&path, text).unwrap();
+    let uri = format!("file://{}", path.display());
+    send(
+        stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "method": "textDocument/didOpen",
+            "params": {"textDocument": {
+                "uri": uri, "languageId": "terrane", "version": 1, "text": text
+            }}
+        }),
+    );
+    let diagnostics = receive_notification(stdout, "textDocument/publishDiagnostics");
+    assert_eq!(diagnostics["params"]["diagnostics"], json!([]));
+    send(
+        stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 15,
+            "method": "terrane/generatedRust",
+            "params": {"textDocument": {"uri": uri}, "position": {"line": 9, "character": 32}}
+        }),
+    );
+    let generated = receive_response(stdout, 15);
+    let location = generated["result"]["availability"]["known"]
+        .as_array()
+        .and_then(|locations| {
+            locations.iter().find(|location| {
+                location["rust"].as_str().is_some_and(|rust| {
+                    rust.contains(".lock()")
+                        && rust.contains("TypedRecord::find")
+                        && rust.contains(".map(")
+                })
+            })
+        })
+        .unwrap_or_else(|| panic!("native bridge missing: {generated}"));
+    let package = terrane_compiler::package::Package::load(&fixture.0).unwrap();
+    let compiled = terrane_compiler::compile_package(&package).unwrap();
+    let files = compiled
+        .rust_files_for(Path::new(location["path"].as_str().unwrap()))
+        .unwrap();
+    let contents = &files
+        .iter()
+        .find(|file| Some(file.path.as_str()) == location["path"].as_str())
+        .unwrap()
+        .contents;
+    let start = usize::try_from(location["span"]["start"].as_u64().unwrap()).unwrap();
+    let end = usize::try_from(location["span"]["end"].as_u64().unwrap()).unwrap();
+    assert_eq!(location["rust"], &contents[start..end]);
 }
 
 #[expect(

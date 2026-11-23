@@ -1,0 +1,13 @@
+namespace app
+from /deps/terrane-query-witness import TypedRecord, MetadataText
+
+async function lookup-key string;
+    return 'record label'
+
+function own-text string; value ref MetadataText
+    return value.contents;
+
+async function main;
+    record = shared ref (TypedRecord::new; 'record label')
+    found string|none = (record.find; (await lookup-key;)).map; own-text
+    print; found != none

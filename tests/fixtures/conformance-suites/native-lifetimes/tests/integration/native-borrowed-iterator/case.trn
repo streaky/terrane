@@ -10,6 +10,13 @@ function nonempty string|none; value ref MetadataText
 function first-text string|none; records shared ref Records
     return ((records.values;).iter;).find_map; nonempty
 
+function first-text-borrowed string|none; records ref Records
+    return ((records.values;).iter;).find_map; nonempty
+
+function first-text-owned string|none;
+    records = Records::new; true
+    return ((records.values;).iter;).find_map; nonempty
+
 function test-scenario;
     records = shared ref (Records::new; true)
     found = first-text; records
@@ -17,4 +24,15 @@ function test-scenario;
         print; found
     missing = shared ref (Records::new; false)
     print; (first-text; missing) == none
+    plain = Records::new; true
+    borrowed = first-text-borrowed; plain
+    if borrowed != none
+        print; borrowed
+    owned = first-text-owned;
+    if owned != none
+        print; owned
+    view = plain.values;
+    bound string|none = (view.iter;).find_map; nonempty
+    if bound != none
+        print; bound
     print; (MetadataText::copies;)

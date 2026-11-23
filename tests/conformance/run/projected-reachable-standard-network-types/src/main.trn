@@ -19,9 +19,12 @@ function main;
     socket SocketAddr = SocketAddr::new; address, 3210
     print; (socket.port;)
     network IpNet = IpNet::from_str; '192.0.2.44/32'
-    payload IpAddr = bridge-ip; socket
+    payload IpAddr = socket.ip;
     borrowed-payload = ref payload
     print; (network.contains; borrowed-payload)
+    bridge-payload IpAddr = bridge-ip; socket
+    borrowed-bridge-payload = ref bridge-payload
+    print; (network.contains; borrowed-bridge-payload)
     try
         _invalid = IpAddr::from_str; 'not-an-address'
         print; 'unexpected parse success'

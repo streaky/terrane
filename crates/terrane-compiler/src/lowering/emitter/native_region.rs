@@ -12,6 +12,7 @@ use crate::{
 pub(super) struct NativeRegion {
     producers: Vec<Producer>,
     prelude: String,
+    stage_views: bool,
 }
 
 struct Producer {
@@ -25,6 +26,12 @@ impl Emitter<'_> {
         let [head, _] = exit.children.as_slice() else {
             return None;
         };
+        let mut receiver = head.type_designator_head()?;
+        if receiver.kind != SyntaxKind::MemberExpression
+            || ungrouped_expression(receiver.children.first()?).kind != SyntaxKind::CallExpression
+        {
+            return None;
+        }
         let mut operation = self.projected_function_for_call(head, call_is_unsafe(exit))?;
         if operation.is_async
             || operation.into_future
@@ -35,16 +42,15 @@ impl Emitter<'_> {
         {
             return None;
         }
-        let mut head = head.type_designator_head()?;
         let mut producers = Vec::new();
-        while head.kind == SyntaxKind::MemberExpression {
-            let receiver = ungrouped_expression(head.children.first()?);
-            if receiver.kind != SyntaxKind::CallExpression {
+        while receiver.kind == SyntaxKind::MemberExpression {
+            let lender = ungrouped_expression(receiver.children.first()?);
+            if lender.kind != SyntaxKind::CallExpression {
                 break;
             }
-            let receiver_head = receiver.children.first()?;
+            let receiver_head = lender.children.first()?;
             let Some(producer) =
-                self.projected_function_for_call(receiver_head, call_is_unsafe(receiver))
+                self.projected_function_for_call(receiver_head, call_is_unsafe(lender))
             else {
                 break;
             };
@@ -52,25 +58,29 @@ impl Emitter<'_> {
                 producer.chain_role,
                 Some(ChainRole::Root | ChainRole::Continue)
             ) && !matches!(
-                self.value_type(receiver),
-                Some(ValueType::InvocationScopedNative {
-                    expression_scoped: true,
-                    ..
-                })
+                (operation.receiver, self.value_type(lender)),
+                (
+                    Some(Receiver::Borrow | Receiver::MutableBorrow),
+                    Some(ValueType::InvocationScopedNative { .. })
+                )
             ) {
                 break;
             }
             producers.push(Producer {
-                site: receiver.span,
+                site: lender.span,
                 mutable: operation.receiver == Some(Receiver::MutableBorrow),
                 staged: None,
             });
             operation = producer;
-            head = receiver_head.type_designator_head()?;
+            receiver = receiver_head.type_designator_head()?;
         }
+        // A mutable receiver may need a local that outlives the stage that
+        // borrows it. Stage its lenders too, even without shared-guard setup.
+        let stage_views = producers.iter().any(|producer| producer.mutable);
         (!producers.is_empty()).then_some(NativeRegion {
             producers,
             prelude: String::new(),
+            stage_views,
         })
     }
 
@@ -108,7 +118,7 @@ impl Emitter<'_> {
         };
         let region = self.native_regions.last().expect("planned native region");
         // Nested expressions retain joint Rust inference until setup needs a lexical home.
-        if setup.is_empty() && region.prelude.is_empty() {
+        if !region.stage_views && setup.is_empty() && region.prelude.is_empty() {
             return call;
         }
         let call = if self.package.profile.panic == crate::package::PanicProfile::Abort {

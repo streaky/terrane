@@ -510,7 +510,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::peer-ip", "/app::main"];
-    pub static SITES: [Site; 8] = [
+    pub static SITES: [Site; 10] = [
         /* terrane-site-row: site 0: /app::peer-ip (src/main.trn:12:12-12:22) */
         { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 22 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:18:22-18:52) */
@@ -521,12 +521,16 @@ mod __terrane_trace {
         { Site { function: 1, file: 0, line: 20, column: 13, end_line: 20, end_column: 25 } },
         /* terrane-site-row: site 4: /app::main (src/main.trn:21:21-21:53) */
         { Site { function: 1, file: 0, line: 21, column: 21, end_line: 21, end_column: 53 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:24:13-24:47) */
+        /* terrane-site-row: site 5: /app::main (src/main.trn:22:22-22:32) */
+        { Site { function: 1, file: 0, line: 22, column: 22, end_line: 22, end_column: 32 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:24:13-24:47) */
         { Site { function: 1, file: 0, line: 24, column: 13, end_line: 24, end_column: 47 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:26:20-26:54) */
-        { Site { function: 1, file: 0, line: 26, column: 20, end_line: 26, end_column: 54 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:33:28-33:60) */
-        { Site { function: 1, file: 0, line: 33, column: 28, end_line: 33, end_column: 60 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:27:13-27:54) */
+        { Site { function: 1, file: 0, line: 27, column: 13, end_line: 27, end_column: 54 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:29:20-29:54) */
+        { Site { function: 1, file: 0, line: 29, column: 20, end_line: 29, end_column: 54 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:36:28-36:60) */
+        { Site { function: 1, file: 0, line: 36, column: 28, end_line: 36, end_column: 60 } },
     ];
     #[cold]
     #[inline(never)]

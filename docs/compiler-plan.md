@@ -1442,12 +1442,13 @@ Use the [HTTP Rust-usage audit](docs/dump/http-server-rust-usage.md) **note: thi
 implementation contract. Reproduce and reduce the findings before deciding their causes.
 
 The generated borrow-region lowering selects a native receiver place before materializing
-an owned result. A synchronous chain with setup has one enclosing Rust region: establish
-the lender (including a shared guard), stage each needed native producer once, and keep the
-region alive through the owned exit. Setup-free chains remain nested Rust expressions for
-joint type inference. Grouped fields, direct native forwarding, borrowed scalar conversions,
-and typed snapshots use the same native call and representation machinery. A guarded loan
-is receiver-only and cannot escape into storage, an argument, or a suspension.
+an owned result. A synchronous chain with guard setup or a mutable intermediate
+receiver has one enclosing Rust region: establish the lender, stage each needed
+native producer once, and keep the region alive through the owned exit. Other
+setup-free chains remain nested for joint Rust inference. Grouped fields, direct
+native forwarding, borrowed scalar conversions, and typed snapshots use the same
+native call and representation machinery. A guarded loan is receiver-only and
+cannot escape into storage, an argument, or a suspension.
 
 The `native-lifetimes` witnesses cover grouped fields, direct and aliased optional/fallible
 text and byte results, forwarded `Cow` methods, defaulted generic snapshots, one guarded
