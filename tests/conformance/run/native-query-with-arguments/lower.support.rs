@@ -509,7 +509,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 7] = [
+    pub static SITES: [Site; 8] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:6:16-6:32) */
         { Site { function: 0, file: 0, line: 6, column: 16, end_line: 6, end_column: 32 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:7:15-7:30) */
@@ -518,11 +518,13 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 8, column: 3, end_line: 8, end_column: 21 } },
         /* terrane-site-row: site 3: /app::main (src/main.trn:9:18-9:41) */
         { Site { function: 0, file: 0, line: 9, column: 18, end_line: 9, end_column: 41 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:10:30-10:103) */
+        /* terrane-site-row: site 4: /app::main (src/main.trn:10:31-10:82) */
+        { Site { function: 0, file: 0, line: 10, column: 31, end_line: 10, end_column: 82 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:10:30-10:103) */
         { Site { function: 0, file: 0, line: 10, column: 30, end_line: 10, end_column: 103 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:11:11-11:32) */
+        /* terrane-site-row: site 6: /app::main (src/main.trn:11:11-11:32) */
         { Site { function: 0, file: 0, line: 11, column: 11, end_line: 11, end_column: 32 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:12:11-12:29) */
+        /* terrane-site-row: site 7: /app::main (src/main.trn:12:11-12:29) */
         { Site { function: 0, file: 0, line: 12, column: 11, end_line: 12, end_column: 29 } },
     ];
     #[cold]

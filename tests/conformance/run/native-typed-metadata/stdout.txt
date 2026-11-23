@@ -1,0 +1,16 @@
+record label
+0
+record label
+1
+snapshot label
+2
+record label
+transient label
+2
+record label
+true
+record label
+true
+2
+true
+record label

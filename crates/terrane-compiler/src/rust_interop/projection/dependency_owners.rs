@@ -1321,6 +1321,7 @@ pub(super) fn rewrite_projected_rust_root(
         | ProjectedType::Char
         | ProjectedType::String
         | ProjectedType::BorrowedString
+        | ProjectedType::BorrowedBytes
         | ProjectedType::Bytes
         | ProjectedType::AsyncSinkOutcome => {}
     }

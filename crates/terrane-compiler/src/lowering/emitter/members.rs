@@ -364,6 +364,8 @@ impl Emitter<'_> {
         receiver: &SyntaxNode,
         mutable: bool,
     ) -> String {
+        // A grouped native receiver is still a place, not an owned expression.
+        let receiver = crate::semantics::ungrouped_expression(receiver);
         if let [holder, member] = receiver.children.as_slice()
             && receiver.kind == SyntaxKind::MemberExpression
             && let Some(ValueType::Object(identity)) = self.receiver_value_type(holder)

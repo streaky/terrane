@@ -1,0 +1,17 @@
+namespace native-borrowed-bytes
+from /deps/terrane-query-witness import Octets
+from /core/errors import dependency-error
+
+function test-scenario;
+    source = shared ref (Octets::new;)
+    all bytes = source.bytes;
+    print; all == b'\xf1\x00a'
+    selected bytes|none = source.select; 1
+    if selected != none
+        print; selected.length
+    absent bytes|none = source.select; 3
+    print; absent == none
+    try
+        source.select; 4
+    catch dependency-error
+        print; 'native error'

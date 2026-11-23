@@ -1441,6 +1441,21 @@ Use the [HTTP Rust-usage audit](docs/dump/http-server-rust-usage.md) **note: thi
 (G1–G13, last checked just after PR #107), not as a permanent dependency or an HTTP-specific
 implementation contract. Reproduce and reduce the findings before deciding their causes.
 
+The generated borrow-region lowering selects a native receiver place before materializing
+an owned result. A synchronous chain with guard setup or a mutable intermediate
+receiver has one enclosing Rust region: establish the lender, stage each needed
+native producer once, and keep the region alive through the owned exit. Other
+setup-free chains remain nested for joint Rust inference. Grouped fields, direct
+native forwarding, borrowed scalar conversions, and typed snapshots use the same
+native call and representation machinery. A guarded loan is receiver-only and
+cannot escape into storage, an argument, or a suspension.
+
+The `native-lifetimes` witnesses cover grouped fields, direct and aliased optional/fallible
+text and byte results, forwarded `Cow` methods, defaulted generic snapshots, one guarded
+lookup including dependency panic attribution, and `Iterator<Item = &T>::find_map`.
+The guard-escape rejection is an independent conformance case. Generated source locations
+return the exact Rust containing the bridge, not a separate documentation rendering.
+
 #### Review scope
 
 - Preserve read-only loans through native fields, projected receivers/arguments,

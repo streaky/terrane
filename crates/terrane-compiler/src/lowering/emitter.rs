@@ -11,6 +11,7 @@ mod items;
 mod members;
 mod native_arguments;
 mod native_callable;
+mod native_region;
 pub(super) mod pipeline;
 mod pipelines;
 mod read_access;
@@ -228,6 +229,7 @@ pub(super) struct Emitter<'a> {
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
     list_append_borrows: Vec<ListAppendBorrow>,
     borrowed_receiver_overrides: Vec<(crate::Span, String)>,
+    native_regions: Vec<native_region::NativeRegion>,
     read_place_counter: usize,
     direct_await_operand: Option<crate::Span>,
     fresh_empty_lists: Vec<crate::Span>,
@@ -275,6 +277,7 @@ impl<'a> Emitter<'a> {
             bounded_integer_ranges: Vec::new(),
             list_append_borrows: Vec::new(),
             borrowed_receiver_overrides: Vec::new(),
+            native_regions: Vec::new(),
             read_place_counter: 0,
             direct_await_operand: None,
             fresh_empty_lists: Vec::new(),

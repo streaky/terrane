@@ -126,7 +126,11 @@ fn projected_expression_owners_with_receiver(
             .flatten()
             .collect::<BTreeSet<_>>();
         return if result.is_empty() {
-            bindings.get(member).cloned().unwrap_or_default()
+            source_results
+                .member_result_owner_for_source(source, node, imported)
+                .map(|owner| BTreeSet::from([owner]))
+                .or_else(|| bindings.get(member).cloned())
+                .unwrap_or_default()
         } else {
             result
         };

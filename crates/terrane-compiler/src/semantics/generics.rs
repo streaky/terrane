@@ -877,8 +877,15 @@ fn substitute_object_identity(
         .iter()
         .map(|(name, argument)| (name.clone(), substitute_value_type(argument, substitutions)))
         .collect();
+    let native_arguments_changed = result.native_arguments != identity.native_arguments;
     result.native_arguments_key =
         (!result.native_arguments.is_empty()).then(|| format!("{:?}", result.native_arguments));
+    // The physical projection string embeds its concrete Rust generic arguments.
+    // Without a projection context those arguments cannot be safely re-rendered;
+    // retaining it after changing semantic bindings would make the identity stale.
+    if native_arguments_changed {
+        result.native_projection = None;
+    }
     result
 }
 

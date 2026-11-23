@@ -1152,7 +1152,8 @@ pub(super) fn projected_result_expression(
         crate::rust_interop::projection::ProjectedType::RustInt(_) => {
             format!("terrane_int_support::Int::from({value} as i128)")
         }
-        crate::rust_interop::projection::ProjectedType::BorrowedString => {
+        crate::rust_interop::projection::ProjectedType::BorrowedString
+        | crate::rust_interop::projection::ProjectedType::BorrowedBytes => {
             format!("{value}.to_owned()")
         }
         crate::rust_interop::projection::ProjectedType::Char => format!("{value}.to_string()"),

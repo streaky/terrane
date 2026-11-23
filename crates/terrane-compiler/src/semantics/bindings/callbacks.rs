@@ -356,6 +356,12 @@ fn projected_chain_role(
     let callee = callee.type_designator_head()?;
     let function =
         projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))?;
+    if let Some(receiver) = callee.children.first()
+        && callee.kind == SyntaxKind::MemberExpression
+        && guard_lends_native_result(unit, receiver, function)
+    {
+        return Some(crate::rust_interop::projection::ChainRole::Root);
+    }
     function.chain_role.or_else(|| {
         let receiver = callee.children.first()?;
         if matches!(
@@ -387,6 +393,24 @@ fn projected_chain_role(
         )
         .then_some(crate::rust_interop::projection::ChainRole::Terminal)
     })
+}
+
+pub(in crate::semantics) fn guard_lends_native_result(
+    unit: &SemanticUnit,
+    receiver: &SyntaxNode,
+    operation: &crate::rust_interop::projection::ProjectedFunction,
+) -> bool {
+    use crate::rust_interop::projection::ProjectedType;
+    !operation.is_async
+        && !operation.into_future
+        && operation.receiver_lifetime.is_some()
+        && matches!(operation.result, ProjectedType::InvocationScoped { .. })
+        && matches!(
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten(),
+            Some(ValueType::SharedReference(_))
+        )
 }
 
 fn collect_chain_receivers(
@@ -1538,6 +1562,7 @@ fn validate_invocation_scoped_node(
             || (region == InvocationScopedRegion::Unbound && !region_local_function)
             || region == InvocationScopedRegion::Expression
         {
+            validate_guarded_native_storage(package, unit, value)?;
             return Err(failure(
                 &unit.source,
                 "T0119",
@@ -1622,6 +1647,119 @@ pub(in crate::semantics) fn projected_argument_for_parameter<'a>(
     })
 }
 
+// Resolve the path back from the guarded producer. Only receiver edges can
+// extend its temporary loan; a source argument or binding cannot own it.
+fn guarded_chain_has_exit(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    producer: Span,
+) -> (bool, bool) {
+    use crate::rust_interop::projection::{ChainRole, ProjectedType};
+    if node.span == producer && node.kind == SyntaxKind::CallExpression {
+        return (true, false);
+    }
+    let Some((index, child)) =
+        node.children.iter().enumerate().find(|(_, child)| {
+            child.span.start <= producer.start && producer.end <= child.span.end
+        })
+    else {
+        return (false, false);
+    };
+    let (is_receiver, has_exit) = guarded_chain_has_exit(package, unit, child, producer);
+    if has_exit || !is_receiver || index != 0 {
+        return (false, has_exit);
+    }
+    match node.kind {
+        SyntaxKind::GroupExpression
+        | SyntaxKind::MemberExpression
+        | SyntaxKind::TypeExpression
+        | SyntaxKind::AppliedType => (true, false),
+        SyntaxKind::CallExpression => {
+            let Some(method) = child.type_designator_head().and_then(|head| {
+                projected_function_for_call(
+                    package,
+                    unit,
+                    head,
+                    crate::syntax::call_is_unsafe(node),
+                )
+            }) else {
+                return (false, false);
+            };
+            if method.is_async
+                || method.into_future
+                || node
+                    .children
+                    .get(1)
+                    .is_some_and(|args| crate::syntax::contains_await(args, unit.source.text()))
+            {
+                return (false, false);
+            }
+            let continues = matches!(method.result, ProjectedType::InvocationScoped { .. })
+                || matches!(
+                    method.chain_role,
+                    Some(ChainRole::Root | ChainRole::Continue)
+                );
+            (continues, !continues)
+        }
+        _ => (false, false),
+    }
+}
+
+fn validate_guarded_native_chain(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if let [callee, arguments] = node.children.as_slice()
+        && node.kind == SyntaxKind::CallExpression
+        && let Some(head) = callee.type_designator_head()
+        && head.kind == SyntaxKind::MemberExpression
+        && let Some(receiver) = head.children.first()
+        && let Some(method) =
+            projected_function_for_call(package, unit, head, crate::syntax::call_is_unsafe(node))
+        && guard_lends_native_result(unit, receiver, method)
+        && (crate::syntax::contains_await(arguments, unit.source.text())
+            || !guarded_chain_has_exit(package, unit, &unit.tree.root, node.span).1)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            "guard-backed native loan must end in a synchronous receiver chain",
+            node.span,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_guarded_native_storage(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    // Storage is validated before the call walk reaches its initializer.
+    // Preserve the more specific diagnostic for the guard that lends it.
+    let mut receiver = crate::semantics::ungrouped_expression(value);
+    while receiver.kind == SyntaxKind::CallExpression {
+        validate_guarded_native_chain(package, unit, receiver)?;
+        let Some(head) = receiver
+            .children
+            .first()
+            .and_then(SyntaxNode::type_designator_head)
+        else {
+            break;
+        };
+        if head.kind != SyntaxKind::MemberExpression {
+            break;
+        }
+        let Some(next) = head.children.first() else {
+            break;
+        };
+        receiver = crate::semantics::ungrouped_expression(next);
+    }
+    Ok(())
+}
+
 fn validate_projected_callback_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1631,6 +1769,7 @@ fn validate_projected_callback_node(
     immediately_awaited: bool,
     chain_receivers: &BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
+    validate_guarded_native_chain(package, unit, node)?;
     validate_invocation_scoped_node(package, unit, node)?;
     if matches!(
         projected_chain_role(package, unit, node),

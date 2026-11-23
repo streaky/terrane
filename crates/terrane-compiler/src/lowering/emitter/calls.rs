@@ -258,6 +258,16 @@ impl Emitter<'_> {
     }
 
     pub(super) fn call(&mut self, node: &SyntaxNode) -> String {
+        if let Some(binding) = self.staged_native_producer(node.span) {
+            return binding.to_owned();
+        }
+        if !self.native_producer(node.span)
+            && let Some(region) = self.plan_native_region(node)
+        {
+            self.native_regions.push(region);
+            let result = self.call_with_order(node, false);
+            return self.finish_native_region(result);
+        }
         self.call_with_order(node, false)
     }
 
@@ -2218,6 +2228,7 @@ impl Emitter<'_> {
         } else {
             None
         };
+        let region_producer = self.native_producer(node.span);
         let guarded_method_receiver = if contract.as_ref().is_some_and(|contract| {
             contract.owner.is_some()
                 && !contract.is_static
@@ -2229,7 +2240,17 @@ impl Emitter<'_> {
         }) && let [receiver, _] = callee.children.as_slice()
             && self.receiver_needs_live_guard(receiver)
         {
-            Some(self.live_receiver_parts(receiver))
+            if let Some(function) = projected_function.as_ref()
+                && (region_producer || function.result.needs_borrowed_leaf_conversion())
+            {
+                Some(self.projected_receiver_guard(
+                    receiver,
+                    function.receiver
+                        == Some(crate::rust_interop::projection::Receiver::MutableBorrow),
+                ))
+            } else {
+                Some(self.live_receiver_parts(receiver))
+            }
         } else {
             None
         };
@@ -3010,6 +3031,7 @@ impl Emitter<'_> {
             && let Some(projected) = projected_function.as_ref()
             && let Some(native_path) = &projected.native_path
         {
+            let receiver = crate::semantics::ungrouped_expression(receiver);
             let stage_receiver = stage_native_inputs
                 || (receiver.kind != SyntaxKind::Name
                     && projected.chain_role.is_none()
@@ -3023,72 +3045,24 @@ impl Emitter<'_> {
                         })
                     ));
             let receiver = match projected.receiver {
-                Some(crate::rust_interop::projection::Receiver::Borrow) => {
-                    if let Some((_, receiver)) = &guarded_method_receiver {
-                        format!("&*({receiver})")
-                    } else if let Some(narrowed) =
-                        self.narrowed_storage_name(receiver, false, false)
-                        && !stage_receiver
-                    {
-                        narrowed
-                    } else if stage_receiver
-                        && receiver.kind == SyntaxKind::MemberExpression
-                        && let [holder, member] = receiver.children.as_slice()
-                        && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
-                            receiver,
-                            holder,
-                            member,
-                            false,
-                            GuardScope::Place,
-                        )
-                    {
-                        native_receiver_setup.push_str(&setup);
-                        if borrowed {
-                            stage_native_input(place)
-                        } else {
-                            stage_native_input(format!("&({place})"))
-                        }
+                Some(
+                    mode @ (crate::rust_interop::projection::Receiver::Borrow
+                    | crate::rust_interop::projection::Receiver::MutableBorrow),
+                ) => {
+                    let mutable = mode == crate::rust_interop::projection::Receiver::MutableBorrow;
+                    if let Some((_, guard)) = &guarded_method_receiver {
+                        let borrow = if mutable { "&mut " } else { "&" };
+                        format!("{borrow}*({guard})")
                     } else {
-                        let receiver = self.native_receiver_expression(receiver, false);
-                        if stage_receiver {
-                            // Establish the owner's type before a qualified method
-                            // imposes its forwarded Deref target as a coercion context.
-                            stage_native_input(format!("&({receiver})"))
-                        } else {
-                            format!("&({receiver})")
-                        }
-                    }
-                }
-                Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
-                    if let Some((_, receiver)) = &guarded_method_receiver {
-                        format!("&mut *({receiver})")
-                    } else if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true)
-                        && !stage_receiver
-                    {
-                        narrowed
-                    } else if stage_receiver
-                        && receiver.kind == SyntaxKind::MemberExpression
-                        && let [holder, member] = receiver.children.as_slice()
-                        && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
-                            receiver,
-                            holder,
-                            member,
-                            true,
-                            GuardScope::Place,
-                        )
-                    {
+                        let (setup, loan) =
+                            self.native_receiver_loan(receiver, mutable, stage_receiver);
                         native_receiver_setup.push_str(&setup);
-                        stage_native_input(if borrowed {
-                            place
-                        } else {
-                            format!("&mut ({place})")
-                        })
-                    } else {
-                        let receiver = self.native_receiver_expression(receiver, true);
                         if stage_receiver {
-                            stage_native_input(format!("&mut ({receiver})"))
+                            // Establish the lender's type before a qualified native
+                            // invocation imposes its deref target as a coercion context.
+                            stage_native_input(loan)
                         } else {
-                            format!("&mut ({receiver})")
+                            loan
                         }
                     }
                 }
@@ -3536,6 +3510,7 @@ impl Emitter<'_> {
             values.insert(0, "__terrane_shared_call_handle".to_owned());
             shared_argument_setup.insert_str(0, handle_setup);
         }
+        let uses_direct_native_receiver = native_member_receiver.is_some();
         if let Some(receiver) = native_member_receiver {
             values.insert(0, receiver);
         }
@@ -3747,6 +3722,7 @@ impl Emitter<'_> {
             // Native field assembly already supplies its conversion Result.
             None
         } else if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+            || (contract.is_none() && uses_direct_native_receiver)
         {
             projected_function.as_ref()
         } else {
@@ -3830,6 +3806,16 @@ impl Emitter<'_> {
                         _ => None,
                     })
             });
+        if region_producer {
+            let guard = guarded_method_receiver
+                .as_ref()
+                .map_or("", |(setup, _)| setup.as_str());
+            let setup = format!(
+                "{guard}{shared_argument_setup}{native_receiver_setup}{native_input_setup}"
+            );
+            let method = projected_function.as_ref().expect("planned native call");
+            return self.emit_native_producer(node, &setup, call, method);
+        }
         if matches!(
             chain_role,
             Some(
@@ -4122,17 +4108,17 @@ impl Emitter<'_> {
             }
         };
         if let Some((setup, _)) = guarded_method_receiver {
-            format!(
-                "{{ {setup}{shared_argument_setup}{native_receiver_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
+            Self::render_native_region(
+                &format!(
+                    "{setup}{shared_argument_setup}{native_receiver_setup}{native_input_setup}let __terrane_call_result = {result}; "
+                ),
+                "__terrane_call_result".to_owned(),
             )
-        } else if shared_async_receiver.is_some() || !shared_argument_setup.is_empty() {
-            format!(
-                "{{ {shared_argument_setup}{native_receiver_setup}{native_input_setup}{result} }}"
-            )
-        } else if native_input_setup.is_empty() && native_receiver_setup.is_empty() {
-            result
         } else {
-            format!("{{ {native_receiver_setup}{native_input_setup}{result} }}")
+            Self::render_native_region(
+                &format!("{shared_argument_setup}{native_receiver_setup}{native_input_setup}"),
+                result,
+            )
         }
     }
 }

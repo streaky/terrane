@@ -831,6 +831,7 @@ fn projected_selector_type_name(
         | ProjectedType::String
         | ProjectedType::BorrowedString
         | ProjectedType::Bytes
+        | ProjectedType::BorrowedBytes
         | ProjectedType::None => Some(ty.terrane_name()),
         ProjectedType::Foreign {
             rust_path,

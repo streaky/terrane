@@ -1,11 +1,11 @@
 //! Projects Rust types and borrowed/invocation-scoped type shapes.
 use super::{
-    AssocItemConstraintKind, BTreeMap, GenericArg, GenericArgs, GenericBound, GenericParamDefKind,
-    HashMap, Id, Item, ItemEnum, ItemSummary, OwningCarrier, ProjectedAssociatedBinding,
-    ProjectedType, RustdocPath, Term, Type, alias_type_substitutions, instantiated_nominal_name,
-    nominal_generics, project_interface, render_generic_bound, render_resolved_path,
-    render_rust_type, resolved_path_name, rust_lifetimes, rust_path_owner, trait_bound_name,
-    type_contains_lifetime_argument,
+    AssocItemConstraintKind, BTreeMap, BTreeSet, GenericArg, GenericArgs, GenericBound,
+    GenericParamDefKind, HashMap, Id, Item, ItemEnum, ItemSummary, OwningCarrier,
+    ProjectedAssociatedBinding, ProjectedType, RustdocPath, Term, Type, alias_type_substitutions,
+    instantiated_nominal_name, nominal_generics, project_interface, render_generic_bound,
+    render_resolved_path, render_rust_type, resolved_path_name, rust_lifetimes, rust_path_owner,
+    trait_bound_name, type_contains_lifetime_argument,
 };
 
 pub(super) fn projectable_interface_bound<'a>(
@@ -163,9 +163,9 @@ pub(super) fn project_borrowed_graph_type(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
-    let projected = project_type(ty, index, paths, generics)?;
-    if matches!(projected, ProjectedType::String) {
-        return Ok(ProjectedType::BorrowedString);
+    let projected = project_borrowed_graph_value(ty, index, paths, generics)?;
+    if projected.needs_borrowed_leaf_conversion() {
+        return Ok(projected);
     }
     let rust_type = if let Type::BorrowedRef {
         type_,
@@ -185,17 +185,60 @@ pub(super) fn project_borrowed_graph_type(
     } else {
         render_rust_type(ty, index, paths, generics)?
     };
+    let is_optional = matches!(projected, ProjectedType::Optional(_));
+    let lifetimes = rust_lifetimes(&rust_type);
     Ok(ProjectedType::InvocationScoped {
-        name: if matches!(projected, ProjectedType::Optional(_)) {
+        name: if is_optional {
             "borrowed-option".to_owned()
         } else {
             projected.terrane_name()
         },
-        lifetimes: rust_lifetimes(&rust_type),
+        lifetimes,
         rust_type,
         expression_scoped: true,
         owned: Box::new(projected),
     })
+}
+
+fn project_borrowed_graph_value(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    match ty {
+        Type::BorrowedRef { type_, .. } => match type_.as_ref() {
+            Type::Primitive(name) if name == "str" => Ok(ProjectedType::BorrowedString),
+            Type::Slice(element) if matches!(element.as_ref(), Type::Primitive(name) if name == "u8") => {
+                Ok(ProjectedType::BorrowedBytes)
+            }
+            _ => project_type(ty, index, paths, generics),
+        },
+        Type::ResolvedPath(path)
+            if index
+                .get(&path.id)
+                .is_some_and(|item| matches!(item.inner, ItemEnum::TypeAlias(_))) =>
+        {
+            let (expanded, substitutions) =
+                super::expand_output_alias(ty.clone(), index, paths, generics.clone())?;
+            project_borrowed_graph_value(&expanded, index, paths, &substitutions)
+        }
+        Type::ResolvedPath(path)
+            if matches!(
+                resolved_path_name(path, paths).as_str(),
+                "core::option::Option" | "std::option::Option"
+            ) && type_contains_borrowed_ref_after_aliases(ty, index, paths, generics)? =>
+        {
+            let arguments = type_arguments(ty);
+            let [value] = arguments.as_slice() else {
+                return Err("Option does not have exactly one value type".to_owned());
+            };
+            Ok(ProjectedType::Optional(Box::new(
+                project_borrowed_graph_value(value, index, paths, generics)?,
+            )))
+        }
+        _ => project_type(ty, index, paths, generics),
+    }
 }
 
 pub(super) fn project_invocation_scoped_type(
@@ -1284,6 +1327,98 @@ pub(super) fn type_contains_borrowed_ref(ty: &Type) -> bool {
         | Type::ImplTrait(_)
         | Type::Infer => false,
         Type::QualifiedPath { self_type, .. } => type_contains_borrowed_ref(self_type),
+    }
+}
+
+pub(super) fn type_contains_borrowed_ref_after_aliases(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<bool, String> {
+    type_contains_borrowed_ref_alias_inner(ty, index, paths, generics, &mut BTreeSet::new())
+}
+
+fn type_contains_borrowed_ref_alias_inner(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    active_aliases: &mut BTreeSet<Id>,
+) -> Result<bool, String> {
+    match ty {
+        Type::ResolvedPath(path)
+            if index
+                .get(&path.id)
+                .is_some_and(|item| matches!(item.inner, ItemEnum::TypeAlias(_))) =>
+        {
+            if !active_aliases.insert(path.id) {
+                return Err("recursive Rust type alias in projected output".to_owned());
+            }
+            let expanded = super::expand_output_alias(ty.clone(), index, paths, generics.clone());
+            let result = match expanded {
+                Ok((expanded, substitutions)) => type_contains_borrowed_ref_alias_inner(
+                    &expanded,
+                    index,
+                    paths,
+                    &substitutions,
+                    active_aliases,
+                ),
+                Err(reason) => Err(reason),
+            };
+            active_aliases.remove(&path.id);
+            result
+        }
+        Type::ResolvedPath(_) => {
+            for argument in type_arguments(ty) {
+                if type_contains_borrowed_ref_alias_inner(
+                    argument,
+                    index,
+                    paths,
+                    generics,
+                    active_aliases,
+                )? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+        Type::BorrowedRef { .. } => Ok(true),
+        Type::Tuple(items) => {
+            for item in items {
+                if type_contains_borrowed_ref_alias_inner(
+                    item,
+                    index,
+                    paths,
+                    generics,
+                    active_aliases,
+                )? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+        Type::Slice(item)
+        | Type::Array { type_: item, .. }
+        | Type::Pat { type_: item, .. }
+        | Type::RawPointer { type_: item, .. } => {
+            type_contains_borrowed_ref_alias_inner(item, index, paths, generics, active_aliases)
+        }
+        Type::QualifiedPath { self_type, .. } => type_contains_borrowed_ref_alias_inner(
+            self_type,
+            index,
+            paths,
+            generics,
+            active_aliases,
+        ),
+        Type::Generic(name) => Ok(generics
+            .get(name)
+            .is_some_and(ProjectedType::contains_borrowed_result)),
+        Type::FunctionPointer(_)
+        | Type::DynTrait(_)
+        | Type::Primitive(_)
+        | Type::ImplTrait(_)
+        | Type::Infer => Ok(false),
     }
 }
 

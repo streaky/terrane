@@ -1,5 +1,8 @@
 //! Admits projected Rust function signatures and invocation-scoped results.
-use super::types::{invocation_scoped_sequence_impl_trait_input, structural_impl_trait_input};
+use super::types::{
+    invocation_scoped_sequence_impl_trait_input, structural_impl_trait_input,
+    type_contains_borrowed_ref_after_aliases,
+};
 use super::{
     AssocItemConstraintKind, BTreeMap, BTreeSet, ChainRole, Function, GenericArgs, GenericBound,
     GenericMonomorphisations, GenericParamDefKind, HashMap, Id, Item, ItemEnum, ItemSummary,
@@ -793,11 +796,13 @@ pub(super) fn project_function_inner(
         }
         None => (None, output_generic_types),
     };
-    if (function.header.is_async || returns_future)
-        && effective_output
-            .as_ref()
-            .is_some_and(type_contains_borrowed_ref)
-    {
+    let output_contains_borrowed_ref = match effective_output.as_ref() {
+        Some(output) => {
+            type_contains_borrowed_ref_after_aliases(output, index, paths, &output_generic_types)?
+        }
+        None => false,
+    };
+    if (function.header.is_async || returns_future) && output_contains_borrowed_ref {
         return Err("borrowed result values cannot cross a projected boundary".to_owned());
     }
     if function
@@ -807,7 +812,7 @@ pub(super) fn project_function_inner(
         .any(|(_, ty)| input_has_owned_borrowed_view(ty, index, paths).unwrap_or(false))
         && effective_output
             .as_ref()
-            .is_some_and(|ty| type_contains_lifetime_argument(ty) || type_contains_borrowed_ref(ty))
+            .is_some_and(|ty| type_contains_lifetime_argument(ty) || output_contains_borrowed_ref)
         && !effective_output
             .as_ref()
             .is_some_and(|ty| borrowed_str_parameter(ty, index))
@@ -833,7 +838,7 @@ pub(super) fn project_function_inner(
         let (ty, generics) = expanded
             .as_ref()
             .map_or(original, |(ty, generics)| (ty, generics));
-        if type_contains_borrowed_ref(ty) {
+        if type_contains_borrowed_ref_after_aliases(ty, index, paths, generics)? {
             return project_borrowed_graph_type(ty, index, paths, generics);
         }
         if allow_lifetime_output && type_contains_lifetime_argument(ty) {
@@ -865,8 +870,9 @@ pub(super) fn project_function_inner(
                     ProjectedType::InvocationScoped {
                         expression_scoped: true,
                         ..
-                    } | ProjectedType::BorrowedString
+                    }
                 )
+                && !projected.needs_borrowed_leaf_conversion()
             {
                 return Err("borrowed result values cannot cross a projected boundary".to_owned());
             }
@@ -877,7 +883,7 @@ pub(super) fn project_function_inner(
                 })
                 .or_else(|| Some("Error".to_owned()));
             projected
-        } else if type_contains_borrowed_ref(output) {
+        } else if output_contains_borrowed_ref {
             project_output(output, &output_generic_types)?
         } else if output_is_named(output, paths, "Option") {
             let arguments = type_arguments(output);

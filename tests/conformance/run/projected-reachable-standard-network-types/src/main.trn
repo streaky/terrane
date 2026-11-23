@@ -3,9 +3,16 @@ namespace app
 from /deps/ipnet import IpAddr, IpNet, AddrParseError
 from /deps/tokio/net import SocketAddr
 from /core/errors import dependency-error
+from /core/networking/native import native-socket-address
 
 class socket-addr
     value int = 7
+
+function peer-ip IpAddr; socket ref SocketAddr
+    return socket.ip;
+
+function bridge-ip IpAddr; socket ref native-socket-address
+    return peer-ip; socket
 
 function main;
     address IpAddr = IpAddr::from_str; '192.0.2.44'
@@ -15,6 +22,9 @@ function main;
     payload IpAddr = socket.ip;
     borrowed-payload = ref payload
     print; (network.contains; borrowed-payload)
+    bridge-payload IpAddr = bridge-ip; socket
+    borrowed-bridge-payload = ref bridge-payload
+    print; (network.contains; borrowed-bridge-payload)
     try
         _invalid = IpAddr::from_str; 'not-an-address'
         print; 'unexpected parse success'

@@ -25,8 +25,9 @@ pub(super) use async_tasks::{
 };
 pub(crate) use callbacks::{callback_contract, projected_macro_for_call};
 pub(in crate::semantics) use callbacks::{
-    projected_argument_for_parameter, projected_function_for_call, projected_receiver_chain_role,
-    validate_native_expression_lender, validate_projected_callback_arguments,
+    guard_lends_native_result, projected_argument_for_parameter, projected_function_for_call,
+    projected_receiver_chain_role, validate_native_expression_lender,
+    validate_projected_callback_arguments,
 };
 
 pub(super) fn validate_constant_reassignment(
