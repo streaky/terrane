@@ -1586,10 +1586,10 @@ mod __terrane_trace {
         { Site { function: 110, file: 54, line: 210, column: 28, end_line: 210, end_column: 43 } },
         /* terrane-site-row: site 447: /core/testing::test-deadline (core/testing.trn:215:12-215:68) */
         { Site { function: 111, file: 54, line: 215, column: 12, end_line: 215, end_column: 68 } },
-        /* terrane-site-row: site 448: /core/testing::advance-time (core/testing.trn:235:9-235:49) */
-        { Site { function: 112, file: 54, line: 235, column: 9, end_line: 235, end_column: 49 } },
-        /* terrane-site-row: site 449: /core/testing::advance-time (core/testing.trn:237:9-237:69) */
-        { Site { function: 112, file: 54, line: 237, column: 9, end_line: 237, end_column: 69 } },
+        /* terrane-site-row: site 448: /core/testing::advance-time (core/testing.trn:241:9-241:49) */
+        { Site { function: 112, file: 54, line: 241, column: 9, end_line: 241, end_column: 49 } },
+        /* terrane-site-row: site 449: /core/testing::advance-time (core/testing.trn:243:9-243:69) */
+        { Site { function: 112, file: 54, line: 243, column: 9, end_line: 243, end_column: 69 } },
         /* terrane-site-row: site 450: /core/documents::mapping-required-fields (core/documents.trn:147:17-147:30) */
         { Site { function: 113, file: 55, line: 147, column: 17, end_line: 147, end_column: 30 } },
         /* terrane-site-row: site 451: /core/documents::mapping-required-fields (core/documents.trn:151:16-151:47) */
@@ -5191,11 +5191,17 @@ pub fn application_artifact() -> Option<String> {
 pub fn test_tier() -> Option<String> {
     return context_value(String::from("TERRANE_TEST_TIER"));
 }
+pub fn test_package_root() -> Option<String> {
+    return context_value(String::from("TERRANE_TEST_PACKAGE_ROOT"));
+}
+pub fn test_compiler() -> Option<String> {
+    return context_value(String::from("TERRANE_TEST_COMPILER"));
+}
 pub fn advance_time(nanoseconds: terrane_int_support::Int) -> Result<(), TerraneError> {
     if nanoseconds < terrane_int_support::Int::from(0_i128) {
         __terrane_traced_err(
             fail_terrane_core_testing(String::from("controlled time may only advance")),
-            448 /* terrane-site: core/testing.trn:235:9-235:49 */,
+            448 /* terrane-site: core/testing.trn:241:9-241:49 */,
         )?;
     }
     if !terrane_test_time_advance(nanoseconds.clone()) {
@@ -5203,7 +5209,7 @@ pub fn advance_time(nanoseconds: terrane_int_support::Int) -> Result<(), Terrane
             fail_terrane_core_testing(
                 String::from("controlled time advance exceeds the host clock range"),
             ),
-            449 /* terrane-site: core/testing.trn:237:9-237:69 */,
+            449 /* terrane-site: core/testing.trn:243:9-243:69 */,
         )?;
     }
     return Ok(());
