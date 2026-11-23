@@ -1237,7 +1237,6 @@ fn merge_library(
     Ok(())
 }
 
-#[derive(Clone, Debug)]
 struct ParsedManifest {
     identity: String,
     prelude: bool,
