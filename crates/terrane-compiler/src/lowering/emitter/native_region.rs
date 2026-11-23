@@ -43,6 +43,7 @@ impl Emitter<'_> {
             return None;
         }
         let mut producers = Vec::new();
+        let mut has_local_loan = false;
         while receiver.kind == SyntaxKind::MemberExpression {
             let lender = ungrouped_expression(receiver.children.first()?);
             if lender.kind != SyntaxKind::CallExpression {
@@ -54,18 +55,28 @@ impl Emitter<'_> {
             else {
                 break;
             };
-            if !matches!(
+            let chain_producer = matches!(
                 producer.chain_role,
                 Some(ChainRole::Root | ChainRole::Continue)
-            ) && !matches!(
-                (operation.receiver, self.value_type(lender)),
-                (
-                    Some(Receiver::Borrow | Receiver::MutableBorrow),
-                    Some(ValueType::InvocationScopedNative { .. })
-                )
-            ) {
+            );
+            let scoped_receiver = self.value_type(lender);
+            let lends_scoped_receiver = matches!(
+                operation.receiver,
+                Some(Receiver::Borrow | Receiver::MutableBorrow)
+            ) && matches!(
+                scoped_receiver,
+                Some(ValueType::InvocationScopedNative { .. })
+            );
+            if !chain_producer && !lends_scoped_receiver {
                 break;
             }
+            has_local_loan |= matches!(
+                scoped_receiver,
+                Some(ValueType::InvocationScopedNative {
+                    expression_scoped: false,
+                    ..
+                })
+            );
             producers.push(Producer {
                 site: lender.span,
                 mutable: operation.receiver == Some(Receiver::MutableBorrow),
@@ -74,9 +85,12 @@ impl Emitter<'_> {
             operation = producer;
             receiver = receiver_head.type_designator_head()?;
         }
-        // A mutable receiver may need a local that outlives the stage that
-        // borrows it. Stage its lenders too, even without shared-guard setup.
-        let stage_views = producers.iter().any(|producer| producer.mutable);
+        // A local loan chained through another producer can need a lexical lender
+        // even without a guard. Already expression-scoped chains keep their joint
+        // inference and panic boundary, including calls that mutably borrow their owner.
+        let stage_views = has_local_loan
+            && producers.len() > 1
+            && producers.iter().any(|producer| producer.mutable);
         (!producers.is_empty()).then_some(NativeRegion {
             producers,
             prelude: String::new(),

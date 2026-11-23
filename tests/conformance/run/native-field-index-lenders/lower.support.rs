@@ -514,7 +514,7 @@ mod __terrane_trace {
         "/app::observe_native",
         "/app::main",
     ];
-    pub static SITES: [Site; 19] = [
+    pub static SITES: [Site; 18] = [
         /* terrane-site-row: site 0: /app::callback_view (src/main.trn:18:10-18:24) */
         { Site { function: 0, file: 0, line: 18, column: 10, end_line: 18, end_column: 24 } },
         /* terrane-site-row: site 1: /app::observe_cfg (src/main.trn:21:10-21:24) */
@@ -545,13 +545,11 @@ mod __terrane_trace {
         { Site { function: 3, file: 0, line: 40, column: 10, end_line: 40, end_column: 29 } },
         /* terrane-site-row: site 14: /app::main (src/main.trn:41:11-41:21) */
         { Site { function: 3, file: 0, line: 41, column: 11, end_line: 41, end_column: 21 } },
-        /* terrane-site-row: site 15: /app::main (src/main.trn:42:12-42:31) */
-        { Site { function: 3, file: 0, line: 42, column: 12, end_line: 42, end_column: 31 } },
-        /* terrane-site-row: site 16: /app::main (src/main.trn:42:11-42:38) */
+        /* terrane-site-row: site 15: /app::main (src/main.trn:42:11-42:38) */
         { Site { function: 3, file: 0, line: 42, column: 11, end_line: 42, end_column: 38 } },
-        /* terrane-site-row: site 17: /app::main (src/main.trn:44:16-44:28) */
+        /* terrane-site-row: site 16: /app::main (src/main.trn:44:16-44:28) */
         { Site { function: 3, file: 0, line: 44, column: 16, end_line: 44, end_column: 28 } },
-        /* terrane-site-row: site 18: /app::main (src/main.trn:45:11-45:44) */
+        /* terrane-site-row: site 17: /app::main (src/main.trn:45:11-45:44) */
         { Site { function: 3, file: 0, line: 45, column: 11, end_line: 45, end_column: 44 } },
     ];
     #[cold]

@@ -344,30 +344,24 @@ fn main() {
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_2 =
-        &__terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let value
-        = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
-        crate ::TerraneForeignError > { Ok((&* wrapped.inner.as_ref()
-        .expect("required field initialized")).view()) })) { Ok(result) => result ?,
-        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
-        "terrane-query-witness", "terrane_query_witness::Holder::view")) }; Ok:: < _,
-        crate ::TerraneForeignError > (value) } } (), 15 /* terrane-site: src/main.trn:42:12-42:31 */); let __terrane_native_input_0 =
-        &__terrane_receiver_value_2; __terrane_raised(| | -> Result < _, crate
-        ::TerraneForeignError > { { let value = match
+        &(&* wrapped.inner.as_ref().expect("required field initialized")).view(); let
+        __terrane_native_input_0 = &__terrane_receiver_value_2; __terrane_raised(| | ->
+        Result < _, crate ::TerraneForeignError > { { let value = match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
         ::TerraneForeignError > { Ok(__terrane_native_input_0.size()) })) { Ok(result) =>
         result ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane-query-witness", "terrane_query_witness::View::size")) }; Ok:: < _, crate
         ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
-        (), 16 /* terrane-site: src/main.trn:42:11-42:38 */) })
+        (), 15 /* terrane-site: src/main.trn:42:11-42:38 */) })
     );
     observe_native(&wrapped);
     native_cfg = __terrane_raised(
         terrane_static_trn_436f6e666967_new(),
-        17 /* terrane-site: src/main.trn:44:16-44:28 */,
+        16 /* terrane-site: src/main.trn:44:16-44:28 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_1 =
         callback_view; __terrane_raised(render(&native_cfg,
-        __terrane_conversion_input_1), 18 /* terrane-site: src/main.trn:45:11-45:44 */) })
+        __terrane_conversion_input_1), 17 /* terrane-site: src/main.trn:45:11-45:44 */) })
     );
 }
