@@ -1562,6 +1562,7 @@ fn validate_invocation_scoped_node(
             || (region == InvocationScopedRegion::Unbound && !region_local_function)
             || region == InvocationScopedRegion::Expression
         {
+            validate_guarded_native_storage(package, unit, value)?;
             return Err(failure(
                 &unit.source,
                 "T0119",
@@ -1727,6 +1728,34 @@ fn validate_guarded_native_chain(
             "guard-backed native loan must end in a synchronous receiver chain",
             node.span,
         ));
+    }
+    Ok(())
+}
+
+fn validate_guarded_native_storage(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    // Storage is validated before the call walk reaches its initializer.
+    // Preserve the more specific diagnostic for the guard that lends it.
+    let mut receiver = crate::semantics::ungrouped_expression(value);
+    while receiver.kind == SyntaxKind::CallExpression {
+        validate_guarded_native_chain(package, unit, receiver)?;
+        let Some(head) = receiver
+            .children
+            .first()
+            .and_then(SyntaxNode::type_designator_head)
+        else {
+            break;
+        };
+        if head.kind != SyntaxKind::MemberExpression {
+            break;
+        }
+        let Some(next) = head.children.first() else {
+            break;
+        };
+        receiver = crate::semantics::ungrouped_expression(next);
     }
     Ok(())
 }
