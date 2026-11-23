@@ -229,6 +229,12 @@ function application-artifact string|none;
 function test-tier string|none;
     return context-value; 'TERRANE_TEST_TIER'
 
+function test-package-root string|none;
+    return context-value; 'TERRANE_TEST_PACKAGE_ROOT'
+
+function test-compiler string|none;
+    return context-value; 'TERRANE_TEST_COMPILER'
+
 
 function advance-time none throws test-failure; nanoseconds int
     if nanoseconds < 0

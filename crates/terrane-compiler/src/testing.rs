@@ -49,6 +49,11 @@ impl PartialOrd for TestTier {
 /// Manifest-selected roots and capability profile used by `terrane test`.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct TestConfiguration {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suite: Option<PathBuf>,
+    pub compiler: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_ms: Option<u64>,
     pub roots: BTreeMap<TestTier, PathBuf>,
     pub profile: CapabilityProfile,
 }
@@ -57,6 +62,9 @@ impl TestConfiguration {
     #[must_use]
     pub fn conventional(profile: CapabilityProfile) -> Self {
         Self {
+            suite: None,
+            compiler: false,
+            timeout_ms: None,
             roots: BTreeMap::from([
                 (TestTier::Unit, PathBuf::from("tests/unit")),
                 (TestTier::Integration, PathBuf::from("tests/integration")),
@@ -118,7 +126,7 @@ impl TestPackage {
     ///
     /// Returns package, manifest, containment, or source-read diagnostics.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Vec<PackageLoadError>> {
-        let package = Package::load(path)?;
+        let package = Package::load_for_testing(path.as_ref())?;
         let root = package.root.clone();
         let configuration = package.testing.clone();
 
@@ -206,13 +214,15 @@ pub(crate) fn parse_configuration(
     table: &toml::Table,
     ordinary_profile: &CapabilityProfile,
 ) -> Result<TestConfiguration, Vec<PackageLoadError>> {
+    let Some(testing) = table.get("testing") else {
+        return Ok(TestConfiguration::conventional(ordinary_profile.clone()));
+    };
     let TestConfiguration {
+        suite,
         mut roots,
         mut profile,
+        ..
     } = TestConfiguration::conventional(ordinary_profile.clone());
-    let Some(testing) = table.get("testing") else {
-        return Ok(TestConfiguration { roots, profile });
-    };
     let Some(testing) = testing.as_table() else {
         return Err(vec![manifest_test_error(
             manifest_path,
@@ -225,7 +235,7 @@ pub(crate) fn parse_configuration(
     for key in testing.keys() {
         if !matches!(
             key.as_str(),
-            "unit" | "integration" | "end-to-end" | "profile"
+            "suite" | "compiler" | "timeout-ms" | "unit" | "integration" | "end-to-end" | "profile"
         ) {
             errors.push(manifest_test_error(
                 manifest_path,
@@ -235,13 +245,77 @@ pub(crate) fn parse_configuration(
             ));
         }
     }
+    if let Some(suite) = testing.get("suite") {
+        let manifest = suite
+            .as_str()
+            .and_then(normalized_relative_path)
+            .filter(|path| {
+                path.file_name().is_some_and(|name| name == "package.toml")
+                    && path.components().count() > 1
+            });
+        if manifest.is_none() {
+            errors.push(manifest_test_error(
+                manifest_path,
+                text,
+                "`testing.suite` must be a bounded relative path to a nested package.toml",
+                "suite",
+            ));
+        }
+        if testing.keys().any(|key| key != "suite") {
+            errors.push(manifest_test_error(
+                manifest_path,
+                text,
+                "`testing.suite` cannot be combined with other testing settings",
+                "suite",
+            ));
+        }
+        return if errors.is_empty() {
+            Ok(TestConfiguration {
+                suite: manifest,
+                compiler: false,
+                timeout_ms: None,
+                roots,
+                profile,
+            })
+        } else {
+            Err(errors)
+        };
+    }
+    let compiler = match testing.get("compiler") {
+        None => false,
+        Some(toml::Value::Boolean(enabled)) => *enabled,
+        Some(_) => {
+            errors.push(manifest_test_error(
+                manifest_path,
+                text,
+                "`testing.compiler` must be a boolean",
+                "compiler",
+            ));
+            false
+        }
+    };
+    let timeout_ms = testing.get("timeout-ms").and_then(|value| {
+        let timeout = value
+            .as_integer()
+            .and_then(|value| u64::try_from(value).ok())
+            .filter(|value| *value > 0);
+        if timeout.is_none() {
+            errors.push(manifest_test_error(
+                manifest_path,
+                text,
+                "`testing.timeout-ms` must be a positive integer",
+                "timeout-ms",
+            ));
+        }
+        timeout
+    });
     for (key, tier) in [
         ("unit", TestTier::Unit),
         ("integration", TestTier::Integration),
         ("end-to-end", TestTier::EndToEnd),
     ] {
         if let Some(value) = testing.get(key) {
-            match value.as_str().and_then(normalized_relative_directory) {
+            match value.as_str().and_then(normalized_relative_path) {
                 Some(path) => {
                     roots.insert(tier, path);
                 }
@@ -262,11 +336,7 @@ pub(crate) fn parse_configuration(
                 "testing `profile` must be a table",
                 "profile",
             ));
-            return if errors.is_empty() {
-                Ok(TestConfiguration { roots, profile })
-            } else {
-                Err(errors)
-            };
+            return Err(errors);
         };
         for key in fields.keys() {
             if !matches!(key.as_str(), "name" | "capabilities" | "panic") {
@@ -326,13 +396,19 @@ pub(crate) fn parse_configuration(
         }
     }
     if errors.is_empty() {
-        Ok(TestConfiguration { roots, profile })
+        Ok(TestConfiguration {
+            suite,
+            compiler,
+            timeout_ms,
+            roots,
+            profile,
+        })
     } else {
         Err(errors)
     }
 }
 
-fn normalized_relative_directory(value: &str) -> Option<PathBuf> {
+fn normalized_relative_path(value: &str) -> Option<PathBuf> {
     let path = Path::new(value);
     if value.is_empty()
         || path.is_absolute()
@@ -425,7 +501,7 @@ fn manifest_test_error(
     }
 }
 
-fn test_load_error(path: PathBuf, message: String) -> PackageLoadError {
+pub(crate) fn test_load_error(path: PathBuf, message: String) -> PackageLoadError {
     PackageLoadError {
         source: SourceFile::new(u32::MAX, path, String::new()),
         diagnostic: Diagnostic::unlocated_error("S2050", message),

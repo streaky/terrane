@@ -19,6 +19,9 @@ const CAPTURE_LIMIT: usize = 1024 * 1024;
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const OUTPUT_CLOSE_TIMEOUT: Duration = Duration::from_millis(250);
 const REPORT_SCHEMA_VERSION: &str = "1.2.0";
+const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(30);
+const TEST_COMPILER_ENVIRONMENT: &[&str] =
+    &["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN"];
 
 #[derive(Clone, Debug)]
 enum TestSelector {
@@ -77,9 +80,43 @@ struct TestOptions {
     show_output: bool,
     tiers: BTreeSet<TestTier>,
     jobs: usize,
-    timeout: Duration,
+    timeout: Option<Duration>,
     report: Option<PathBuf>,
     arguments: Vec<OsString>,
+}
+
+impl TestOptions {
+    fn timeout(&self) -> Duration {
+        self.timeout.unwrap_or(DEFAULT_TEST_TIMEOUT)
+    }
+}
+
+struct TestCompiler {
+    executable: PathBuf,
+    environment: Vec<(&'static str, OsString)>,
+}
+
+impl TestCompiler {
+    fn capture() -> Result<Self, CliFailure> {
+        let executable = std::env::current_exe().map_err(|error| {
+            CliFailure::backend(format!("cannot resolve invoking Terrane executable: {error}"))
+        })?;
+        let environment = TEST_COMPILER_ENVIRONMENT
+            .iter()
+            .filter_map(|&key| std::env::var_os(key).map(|value| (key, value)))
+            .collect();
+        Ok(Self {
+            executable,
+            environment,
+        })
+    }
+}
+
+struct CasePaths<'a> {
+    application_artifact: Option<&'a Path>,
+    package_root: &'a Path,
+    run_root: &'a Path,
+    compiler: Option<&'a TestCompiler>,
 }
 
 struct SelectedTestCases {
@@ -146,7 +183,7 @@ struct TestResult {
     cause: Option<TestCause>,
 }
 
-fn load_test_package(options: &mut TestOptions) -> Result<(PathBuf, TestPackage), CliFailure> {
+fn load_test_package(options: &mut TestOptions) -> Result<TestPackage, CliFailure> {
     let package_root = fs::canonicalize(&options.input).map_err(|error| {
         CliFailure::backend(format!("cannot resolve test package path: {error}"))
     })?;
@@ -162,7 +199,11 @@ fn load_test_package(options: &mut TestOptions) -> Result<(PathBuf, TestPackage)
             .tiers
             .extend(test_package.tier_packages.keys().copied());
     }
-    Ok((package_root, test_package))
+    options.timeout = options.timeout.or(test_package
+        .configuration
+        .timeout_ms
+        .map(Duration::from_millis));
+    Ok(test_package)
 }
 
 fn emit_discovery_warnings(discovered_tiers: &[TestTierDiscovery]) {
@@ -259,7 +300,7 @@ fn compile_selected_tiers(
 
 pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let mut options = parse_test_options(arguments)?;
-    let (package_root, test_package) = load_test_package(&mut options)?;
+    let test_package = load_test_package(&mut options)?;
     let Some(selected) = discover_selected_cases(&test_package, &options)? else {
         return Ok(ExitCode::SUCCESS);
     };
@@ -267,19 +308,12 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     let compiled_tiers = compile_selected_tiers(selected.discovered_tiers, &cases, &options)?;
 
     let application_artifact = if cases.iter().any(|case| case.tier == TestTier::EndToEnd) {
-        let application_package = Package::load(&package_root).map_err(|errors| CliFailure {
-            code: 3,
-            message: errors
-                .into_iter()
-                .map(|error| error.diagnostic.render(&error.source))
-                .collect(),
-        })?;
         let application = terrane_compiler::with_compilation_cache(|| {
-            terrane_compiler::compile_package(&application_package)
+            terrane_compiler::compile_package(&test_package.package)
         })
         .map_err(CliFailure::compilation)?;
         Some(build_native_compilation(
-            &application_package,
+            &test_package.package,
             &application,
             false,
             GeneratedCrateRole::Application,
@@ -303,7 +337,16 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
             )?,
         );
     }
-    let run_root = test_package.package.root.join(".trn/test/run");
+    let compiler = test_package
+        .configuration
+        .compiler
+        .then(TestCompiler::capture)
+        .transpose()?;
+    let run_root = test_package
+        .package
+        .root
+        .join(".trn/test/run")
+        .join(std::process::id().to_string());
     fs::create_dir_all(&run_root).map_err(|error| {
         CliFailure::backend(format!(
             "cannot create isolated test run directory: {error}"
@@ -311,8 +354,12 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     })?;
     let results = execute_cases(
         &executables,
-        application_artifact.as_deref(),
-        &run_root,
+        &CasePaths {
+            application_artifact: application_artifact.as_deref(),
+            package_root: &test_package.package.root,
+            run_root: &run_root,
+            compiler: compiler.as_ref(),
+        },
         &cases,
         &options,
     );
@@ -352,7 +399,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
     let mut show_output = false;
     let mut tiers = BTreeSet::new();
     let mut jobs = std::thread::available_parallelism().map_or(1, usize::from);
-    let mut timeout = Duration::from_secs(30);
+    let mut timeout = None;
     let mut report = None;
     let mut test_arguments = Vec::new();
     let mut index = 1;
@@ -402,7 +449,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
             }
             "--timeout" => {
                 index += 1;
-                timeout = parse_test_timeout(arguments.get(index))?;
+                timeout = Some(parse_test_timeout(arguments.get(index))?);
             }
             "--argument" => {
                 index += 1;
@@ -428,7 +475,7 @@ fn parse_test_options(arguments: &[OsString]) -> Result<TestOptions, CliFailure>
         index += 1;
     }
     Ok(TestOptions {
-        input: input.ok_or_else(CliFailure::usage)?,
+        input: input.unwrap_or_else(|| PathBuf::from(".")),
         filter,
         list,
         fail_fast,
@@ -515,23 +562,14 @@ fn build_native_compilation(
 
 fn execute_cases(
     executables: &std::collections::BTreeMap<TestTier, PathBuf>,
-    application_artifact: Option<&Path>,
-    run_root: &Path,
+    paths: &CasePaths<'_>,
     cases: &[TestCase],
     options: &TestOptions,
 ) -> Vec<TestResult> {
     if options.fail_fast || options.jobs == 1 {
         let mut results = Vec::new();
         for (index, case) in cases.iter().enumerate() {
-            let result = execute_case(
-                executables,
-                application_artifact,
-                run_root,
-                index,
-                case,
-                options.timeout,
-                &options.arguments,
-            );
+            let result = execute_case(executables, paths, index, case, options);
             let stop = options.fail_fast && !result.status.successful();
             results.push(result);
             if stop {
@@ -552,15 +590,7 @@ fn execute_cases(
                     let Some(case) = cases.get(index) else {
                         break;
                     };
-                    let result = execute_case(
-                        executables,
-                        application_artifact,
-                        run_root,
-                        index,
-                        case,
-                        options.timeout,
-                        &options.arguments,
-                    );
+                    let result = execute_case(executables, paths, index, case, options);
                     results
                         .lock()
                         .expect("test results lock poisoned")
@@ -579,42 +609,44 @@ fn execute_cases(
 
 fn execute_case(
     executables: &std::collections::BTreeMap<TestTier, PathBuf>,
-    application_artifact: Option<&Path>,
-    run_root: &Path,
+    paths: &CasePaths<'_>,
     work_index: usize,
     case: &TestCase,
-    timeout: Duration,
-    arguments: &[OsString],
+    options: &TestOptions,
 ) -> TestResult {
-    let directory = run_root.join(format!("{}-{work_index}", std::process::id()));
+    let directory = paths.run_root.join(work_index.to_string());
     let _ = fs::remove_dir_all(&directory);
     if let Err(error) = fs::create_dir_all(&directory) {
         return infrastructure_result(case, &format!("cannot create test directory: {error}"));
     }
     let started = Instant::now();
+    let timeout = options.timeout();
     let Some(executable) = executables.get(&case.tier) else {
         return infrastructure_result(case, "test tier runner is unavailable");
     };
     let mut command = Command::new(executable);
     command
         .arg(case.selector.to_string())
-        .args(arguments)
+        .args(&options.arguments)
         .current_dir(&directory)
         .env_clear()
         .env("TERRANE_TEST_ID", &case.identity)
         .env("TERRANE_TEST_TIER", case.tier.name())
+        .env("TERRANE_TEST_PACKAGE_ROOT", paths.package_root)
         .env("TERRANE_TEST_SEED", deterministic_seed(&case.identity))
         .env("TMPDIR", &directory)
-        .env(
-            "TERRANE_TEST_DEADLINE_NANOSECONDS",
-            timeout.as_nanos().to_string(),
-        )
+        .env("TERRANE_TEST_DEADLINE_NANOSECONDS", timeout.as_nanos().to_string())
         .env("TERRANE_TEST_RESULT", directory.join(".terrane-result"))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     forward_coverage_environment(&mut command);
-    if let Some(artifact) = application_artifact {
+    if let Some(compiler) = paths.compiler {
+        command
+            .env("TERRANE_TEST_COMPILER", &compiler.executable)
+            .envs(compiler.environment.iter().map(|(key, value)| (key, value)));
+    }
+    if let Some(artifact) = paths.application_artifact {
         command.env("TERRANE_TEST_ARTIFACT", artifact);
     }
     let spawn = command.spawn();
@@ -999,7 +1031,7 @@ fn report_run_metadata(options: &TestOptions, status: &str) -> serde_json::Value
         "filter": options.filter.as_ref().map(TestSelector::report),
         "tiers": options.tiers.iter().map(|tier| tier.name()).collect::<Vec<_>>(),
         "jobs": options.jobs,
-        "timeout_milliseconds": u64::try_from(options.timeout.as_millis())
+        "timeout_milliseconds": u64::try_from(options.timeout().as_millis())
             .expect("parsed timeout fits unsigned 64-bit milliseconds"),
         "fail_fast": options.fail_fast,
         "show_output": options.show_output,

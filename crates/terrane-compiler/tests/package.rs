@@ -1052,6 +1052,86 @@ fn test_manifest_roots_are_bounded_and_profiled() {
 }
 
 #[test]
+fn invalid_test_manifest_settings_are_rejected() {
+    let package = TempPackage::new();
+    let prefix = "package = \"outer\"\n[namespaces]\nouter = \"src\"\n[testing]\n";
+    for (setting, message) in [
+        ("suite = \"../x/package.toml\"", "bounded relative path"),
+        ("suite = \"package.toml\"", "bounded relative path"),
+        (
+            "suite = \"suite/package.toml\"\nunit = \"spec\"",
+            "cannot be combined",
+        ),
+        ("timeout-ms = 0", "positive integer"),
+        ("timeout-ms = -5", "positive integer"),
+        ("compiler = \"yes\"", "must be a boolean"),
+        ("compiler = 1", "must be a boolean"),
+    ] {
+        package.write("package.toml", &format!("{prefix}{setting}\n"));
+        let errors = Package::load(&package.0).unwrap_err();
+        assert_eq!(errors[0].diagnostic.code, "S2050", "{setting}");
+        assert!(errors[0].diagnostic.message.contains(message), "{errors:?}");
+    }
+}
+
+#[test]
+fn test_suite_resolution_is_contained_and_test_only() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        concat!(
+            "package = \"outer\"\n[namespaces]\nouter = \"src\"\n",
+            "[testing]\nsuite = \"suite/package.toml\"\n",
+        ),
+    );
+    package.write("src/main.trn", "namespace outer\nfunction main;\n");
+    let rejected = |message: &str| {
+        let errors = TestPackage::load(&package.0).unwrap_err();
+        assert_eq!(errors[0].diagnostic.code, "S2050");
+        assert!(errors[0].diagnostic.message.contains(message), "{errors:?}");
+    };
+    Package::load(&package.0).unwrap();
+    rejected("cannot resolve testing suite manifest");
+
+    #[cfg(unix)]
+    {
+        let external = TempPackage::new();
+        external.write(
+            "package.toml",
+            "package = \"external\"\n[namespaces]\nexternal = \"src\"\n",
+        );
+        std::os::unix::fs::symlink(&external.0, package.0.join("suite")).unwrap();
+        rejected("must be a manifest in a subdirectory");
+        fs::remove_file(package.0.join("suite")).unwrap();
+    }
+
+    package.write(
+        "suite/package.toml",
+        concat!(
+            "package = \"suite\"\n[namespaces]\nsuite = \"src\"\n",
+            "[testing]\nsuite = \"another/package.toml\"\n",
+        ),
+    );
+    rejected("cannot select another suite");
+}
+
+#[test]
+fn outer_suite_manifest_validation_precedes_source_and_dependency_loading() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"suite-outer\"\n[namespaces]\napp = \"missing-source\"\n[terrane-dependencies.acme.missing]\npath = \"missing-dependency\"\n[testing]\nsuite = \"suite/package.toml\"\n",
+    );
+    package.write(
+        "suite/package.toml",
+        "package = \"suite-inner\"\n[namespaces]\napp = \"src\"\n",
+    );
+    package.write("suite/src/main.trn", "namespace app\nfunction main;\n");
+    let loaded = TestPackage::load(&package.0).unwrap();
+    assert_eq!(loaded.package.identity, "suite-inner");
+}
+
+#[test]
 fn integration_tests_cannot_import_private_package_bindings() {
     let package = TempPackage::new();
     package.write(

@@ -82,6 +82,110 @@ fn wait_for_test_runner(process: u32, timeout: Duration) -> Option<u32> {
 }
 
 #[test]
+fn bare_test_runs_manifest_suite_with_its_fixture_root() {
+    let package = TempPackage::new();
+    fs::write(
+        package.0.join("package.toml"),
+        concat!(
+            "package = \"outer\"\n[namespaces]\nouter = \"missing-source\"\n",
+            "[terrane-dependencies.acme.missing]\npath = \"missing-dependency\"\n",
+            "[testing]\nsuite = \"suite/package.toml\"\n",
+        ),
+    )
+    .unwrap();
+    let suite = package.0.join("suite");
+    fs::create_dir_all(suite.join("src")).unwrap();
+    fs::create_dir_all(suite.join("tests/unit")).unwrap();
+    fs::write(
+        suite.join("package.toml"),
+        concat!(
+            "package = \"cli-suite\"\n",
+            "[namespaces]\n\"cli-suite\" = \"src\"\n",
+            "[profile]\ncapabilities = [\"filesystem\", \"process\"]\n",
+            "[testing]\ncompiler = true\ntimeout-ms = 123000\n",
+        ),
+    )
+    .unwrap();
+    fs::write(
+        suite.join("src/main.trn"),
+        "namespace cli-suite\nfunction main;\n",
+    )
+    .unwrap();
+    fs::write(suite.join("fixture.txt"), "suite only").unwrap();
+    fs::write(
+        suite.join("tests/unit/cases.trn"),
+        concat!(
+            "namespace cli-suite\n",
+            "from /core/collections import list\n",
+            "from /core/filesystem import filesystem-capability, filesystem-read-bounded\n",
+            "from /core/filesystem/paths import path\n",
+            "from /core/process import environment, native-text\n",
+            "from /core/testing import assert, assert-equal-bytes, assert-equal-int, deny, fail, test-arguments, test-compiler, test-deadline, test-package-root\n",
+            "from /core/testing/process import process-fixture, run-process\n",
+            "function test-real-fixture;\n",
+            "    root = test-package-root;\n",
+            "    if root == none\n",
+            "        fail; 'missing suite root'\n",
+            "    target = instance path; root + '/fixture.txt'\n",
+            "    result = filesystem-read-bounded; (filesystem-capability;), target, 32\n",
+            "    assert-equal-bytes; result.data, b'suite only'\n",
+            "    compiler = test-compiler;\n",
+            "    if compiler != none\n",
+            "        child = instance process-fixture; compiler\n",
+            "        child.arguments = list; (native-text; '--version')\n",
+            "        version = run-process; child\n",
+            "        assert-equal-int; version.exit-code, 0\n",
+            "        output = version.stdout.decode; utf8\n",
+            "        assert; (output.contains.start; 'terrane ')\n",
+            "    else\n",
+            "        fail; 'missing test compiler'\n",
+            "    deadline = test-deadline;\n",
+            "    supplied = test-arguments;\n",
+            "    if supplied.length == 0\n",
+            "        assert-equal-int; deadline.total-nanoseconds, 123000000000\n",
+            "    else\n",
+            "        assert-equal-int; deadline.total-nanoseconds, 240000000000\n",
+            "    for setting in (environment;)\n",
+            "        deny; setting.name.text == 'TERRANE_TEST_UNRELATED'\n",
+        ),
+    )
+    .unwrap();
+
+    let report_path = package.0.join("report.json");
+    for (timeout_args, expected_ms) in [
+        (&[][..], 123_000),
+        (
+            &["--timeout", "240s", "--argument", "override"][..],
+            240_000,
+        ),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .args(timeout_args)
+            .arg("--report")
+            .arg(&report_path)
+            .current_dir(&package.0)
+            .env("TERRANE_TEST_UNRELATED", "do not forward")
+            .env("TERRANE_TEST_COMPILER", "/not/the/invoking/compiler")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .contains("passed /cli-suite::test-real-fixture")
+        );
+        let report: serde_json::Value =
+            serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+        assert_eq!(report["run"]["timeout_milliseconds"], expected_ms);
+    }
+}
+
+#[test]
 fn declaration_interface_export_survives_removal_of_original_source() {
     let package = TempPackage::new();
     fs::write(package.0.join("app/main.trn"), "namespace cli/app\n/// Public command documentation.\npublic function command int; count int = 7\n  return count\n").unwrap();
@@ -633,8 +737,9 @@ const DETERMINISTIC_TEST_CASES: &str = concat!(
     "from /core/process import exit, make-exit-status, native-text-value\n",
     "from /core/output import print\n",
     "from /core/streams import stderr\n",
-    "from /core/testing import assert, assert-equal-int, assert-equal-string, fail, skip, test-arguments, test-deadline, test-failure, test-skip\n",
+    "from /core/testing import assert, assert-equal-int, assert-equal-string, assert-none-string, fail, skip, test-arguments, test-compiler, test-deadline, test-failure, test-skip\n",
     "function test-pass none throws throwable;\n",
+    "    assert-none-string; (test-compiler;)\n",
     "    supplied = test-arguments;\n",
     "    assert-equal-int; supplied.length, 1\n",
     "    first = native-text-value; supplied[0]\n",
