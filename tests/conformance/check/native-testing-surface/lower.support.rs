@@ -626,10 +626,10 @@ mod __terrane_trace {
         { Site { function: 31, file: 1, line: 210, column: 28, end_line: 210, end_column: 43 } },
         /* terrane-site-row: site 43: /core/testing::test-deadline (core/testing.trn:215:12-215:68) */
         { Site { function: 32, file: 1, line: 215, column: 12, end_line: 215, end_column: 68 } },
-        /* terrane-site-row: site 44: /core/testing::advance-time (core/testing.trn:235:9-235:49) */
-        { Site { function: 33, file: 1, line: 235, column: 9, end_line: 235, end_column: 49 } },
-        /* terrane-site-row: site 45: /core/testing::advance-time (core/testing.trn:237:9-237:69) */
-        { Site { function: 33, file: 1, line: 237, column: 9, end_line: 237, end_column: 69 } },
+        /* terrane-site-row: site 44: /core/testing::advance-time (core/testing.trn:241:9-241:49) */
+        { Site { function: 33, file: 1, line: 241, column: 9, end_line: 241, end_column: 49 } },
+        /* terrane-site-row: site 45: /core/testing::advance-time (core/testing.trn:243:9-243:69) */
+        { Site { function: 33, file: 1, line: 243, column: 9, end_line: 243, end_column: 69 } },
         /* terrane-site-row: site 46: /core/testing/process::run-process (core/testing_process.trn:47:9-47:84) */
         { Site { function: 34, file: 2, line: 47, column: 9, end_line: 47, end_column: 84 } },
         /* terrane-site-row: site 47: /core/process::arguments (core/process.trn:45:49-45:63) */
