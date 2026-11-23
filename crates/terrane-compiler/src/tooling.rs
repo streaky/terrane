@@ -268,6 +268,9 @@ pub struct GeneratedLocation {
     pub build_id: String,
     pub path: String,
     pub span: PublicSpan,
+    /// The exact rendered Rust associated with this span in this build.
+    #[serde(default)]
+    pub rust: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
@@ -1371,6 +1374,8 @@ impl ToolingEngine {
                             start: association.generated_start,
                             end: association.generated_end,
                         },
+                        rust: file.contents[association.generated_start..association.generated_end]
+                            .to_owned(),
                     });
                 }
             }

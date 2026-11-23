@@ -1,0 +1,51 @@
+namespace native-typed-metadata
+from /deps/terrane-query-witness import TypedRecord, MetadataText, MetadataRequest, MetadataTable
+from /core/errors import dependency-panic
+
+function own-label MetadataText; record ref TypedRecord
+    return (record.raw_label;).clone;
+
+function type-name string; record ref TypedRecord
+    return record.type_name;
+
+function snapshot MetadataTable of MetadataText; request ref MetadataRequest
+    captured MetadataTable of MetadataText = (request.metadata;).clone;
+    return captured
+
+function own-found string; value ref MetadataText
+    return value.contents;
+
+function find-text string|none; record shared ref TypedRecord, key ref string
+    return (record.find; key).map; own-found
+
+function test-scenario;
+    record = TypedRecord::new; 'record label'
+    print; (type-name; record)
+    print; (MetadataText::copies;)
+    owned = own-label; record
+    print; (owned.contents;)
+    print; (MetadataText::copies;)
+    request = MetadataRequest::new; 'snapshot label'
+    captured = snapshot; request
+    print; (captured.snapshot_text;)
+    print; (MetadataText::copies;)
+    print; ((record.metadata; false).contents;)
+    print; ((record.metadata; true).contents;)
+    print; (MetadataText::copies;)
+    shared-record = shared ref (TypedRecord::new; 'record label')
+    key = 'record label'
+    found = find-text; shared-record, key
+    if found != none
+        print; found
+    missing = 'other'
+    print; (find-text; shared-record, missing) == none
+    print; (MetadataText::copies;)
+    panicking = 'panic'
+    try
+        unexpected string|none = (shared-record.find; panicking).map; own-found
+        print; unexpected == none
+    catch dependency-panic as failure
+        print; (failure.message.contains; 'TypedRecord::find')
+    found-again = find-text; shared-record, key
+    if found-again != none
+        print; found-again

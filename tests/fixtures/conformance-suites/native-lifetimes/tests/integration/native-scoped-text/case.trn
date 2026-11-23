@@ -1,0 +1,37 @@
+namespace native-scoped-text
+from /deps/terrane-query-witness import OriginalTarget, TargetParts
+from /core/errors import dependency-error
+
+function parts-text string; parts ref TargetParts
+    return parts.text;
+
+# A public native field is the lender for an optional opaque native object.
+function target-text string; original ref OriginalTarget
+    selected string|none = ((original.n0).parts;).map; parts-text
+    if selected != none
+        return selected
+    return '/'
+
+function accepted-text string|none; parts ref TargetParts
+    try
+        return parts.checked_text;
+    catch dependency-error
+        return none
+
+# Like the Host fallback, reject a value through its native policy, not a
+# separate string validator; absence and failed validation both yield none.
+function optional-text string|none; original ref OriginalTarget
+    return ((original.n0).parts;).and_then; accepted-text
+
+function test-scenario;
+    original = OriginalTarget::new; '/mounted/path?q=1'
+    missing = OriginalTarget::new; ''
+    invalid = OriginalTarget::new; 'café'
+    print; (target-text; original)
+    print; (target-text; missing)
+    accepted = optional-text; original
+    if accepted != none
+        print; accepted
+    print; (optional-text; missing) == none
+    print; (optional-text; invalid) == none
+    print; (OriginalTarget::clones;)

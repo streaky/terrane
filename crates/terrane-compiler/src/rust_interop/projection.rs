@@ -165,7 +165,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "374";
+const PROJECTION_SCHEMA: &str = "383";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
@@ -857,6 +857,7 @@ pub enum ProjectedType {
     Char,
     String,
     BorrowedString,
+    BorrowedBytes,
     Bytes,
     Sequence {
         rust_path: String,
@@ -1014,6 +1015,7 @@ impl ProjectedType {
             Self::Char => "char".to_owned(),
             Self::String => "String".to_owned(),
             Self::BorrowedString => "&str".to_owned(),
+            Self::BorrowedBytes => "&[u8]".to_owned(),
             Self::Bytes => "Vec<u8>".to_owned(),
             Self::Reference {
                 inner,
@@ -1216,7 +1218,7 @@ impl ProjectedType {
             Self::Float => "float64".to_owned(),
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String | Self::BorrowedString => "string".to_owned(),
-            Self::Bytes => "bytes".to_owned(),
+            Self::Bytes | Self::BorrowedBytes => "bytes".to_owned(),
             Self::OwnedInterface { name, .. }
             | Self::Foreign { name, .. }
             | Self::InvocationScoped { name, .. } => name.clone(),
@@ -1332,9 +1334,18 @@ impl ProjectedType {
         })
     }
 
+    pub(crate) fn needs_borrowed_leaf_conversion(&self) -> bool {
+        match self {
+            Self::BorrowedString | Self::BorrowedBytes => true,
+            Self::Optional(inner) => inner.needs_borrowed_leaf_conversion(),
+            _ => false,
+        }
+    }
+
     pub(crate) fn contains_borrowed_result(&self) -> bool {
         match self {
             Self::BorrowedString
+            | Self::BorrowedBytes
             | Self::Reference { .. }
             | Self::InvocationScoped {
                 expression_scoped: true,

@@ -1620,6 +1620,87 @@ fn project_chain_owner_methods(
                 ..
             }
         );
+    if invocation_scoped && !methods.iter().any(|method| method.name == "find_map") {
+        for id in &structure.impls {
+            let Some(Item {
+                inner: ItemEnum::Impl(implementation),
+                ..
+            }) = index.get(id)
+            else {
+                continue;
+            };
+            let Some((trait_path, _)) = implementation
+                .trait_
+                .as_ref()
+                .and_then(|trait_| implementation_trait_path(trait_, paths))
+            else {
+                continue;
+            };
+            if trait_path != "core::iter::traits::iterator::Iterator" {
+                continue;
+            }
+            let mut binders = BTreeSet::new();
+            let whole_family = matches!(&implementation.for_, Type::ResolvedPath(_))
+                && type_arguments(&implementation.for_).into_iter().all(
+                    |argument| matches!(argument, Type::Generic(name) if binders.insert(name)),
+                )
+                && implementation
+                    .generics
+                    .params
+                    .iter()
+                    .all(|parameter| match &parameter.kind {
+                        GenericParamDefKind::Lifetime { .. } => true,
+                        GenericParamDefKind::Type { bounds, .. } => bounds
+                            .iter()
+                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                        GenericParamDefKind::Const { .. } => false,
+                    })
+                && implementation.generics.where_predicates.iter().all(
+                    |predicate| match predicate {
+                        WherePredicate::LifetimePredicate { .. } => true,
+                        WherePredicate::BoundPredicate { bounds, .. } => bounds
+                            .iter()
+                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                        _ => false,
+                    },
+                );
+            if !whole_family {
+                continue;
+            }
+            let Some(item_type) = implementation.items.iter().find_map(|id| {
+                let item = index.get(id)?;
+                let ItemEnum::AssocType {
+                    type_:
+                        Some(Type::BorrowedRef {
+                            is_mutable: false,
+                            type_,
+                            ..
+                        }),
+                    ..
+                } = &item.inner
+                else {
+                    return None;
+                };
+                (item.name.as_deref() == Some("Item")).then_some(type_.as_ref())
+            }) else {
+                continue;
+            };
+            let implementation_generics =
+                aliases::implementation_owner_generics(implementation, index, owner_generics);
+            if let Ok(item) = project_type(item_type, index, paths, &implementation_generics)
+                && matches!(
+                    item,
+                    ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
+                )
+            {
+                methods.push(super::borrowed_graph::iterator_find_map(
+                    item,
+                    &scoped_self.rust_type(),
+                ));
+                break;
+            }
+        }
+    }
     methods.retain_mut(|method| {
         if method.receiver.is_none() {
             return false;
@@ -1661,6 +1742,41 @@ pub(super) fn alias_type_substitutions(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<BTreeMap<String, ProjectedType>, String> {
+    alias_type_substitutions_with_borrowed_output(ty, parameters, index, paths, generics, false)
+}
+
+fn output_alias_type_substitutions(
+    ty: &Type,
+    parameters: &[GenericParamDef],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<BTreeMap<String, ProjectedType>, String> {
+    alias_type_substitutions_with_borrowed_output(ty, parameters, index, paths, generics, true)
+}
+
+fn alias_type_substitutions_with_borrowed_output(
+    ty: &Type,
+    parameters: &[GenericParamDef],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    borrowed_output: bool,
+) -> Result<BTreeMap<String, ProjectedType>, String> {
+    let project_alias_type = |ty: &Type, substitutions: &BTreeMap<String, ProjectedType>| {
+        if borrowed_output
+            && super::types::type_contains_borrowed_ref_after_aliases(
+                ty,
+                index,
+                paths,
+                substitutions,
+            )?
+        {
+            super::types::project_borrowed_graph_type(ty, index, paths, substitutions)
+        } else {
+            project_type(ty, index, paths, substitutions)
+        }
+    };
     let arguments = type_arguments(ty);
     let mut substitutions = generics.clone();
     for (position, parameter) in parameters
@@ -1669,13 +1785,13 @@ pub(super) fn alias_type_substitutions(
         .enumerate()
     {
         let projected = if let Some(argument) = arguments.get(position) {
-            project_type(argument, index, paths, generics)?
+            project_alias_type(argument, generics)?
         } else if let GenericParamDefKind::Type {
             default: Some(default),
             ..
         } = &parameter.kind
         {
-            project_type(default, index, paths, &substitutions)?
+            project_alias_type(default, &substitutions)?
         } else {
             return Err(format!(
                 "type alias parameter `{}` has no argument or default",
@@ -1720,8 +1836,13 @@ pub(super) fn expand_output_alias(
             }
             return Ok((output, generics));
         };
-        generics =
-            alias_type_substitutions(&output, &alias.generics.params, index, paths, &generics)?;
+        generics = output_alias_type_substitutions(
+            &output,
+            &alias.generics.params,
+            index,
+            paths,
+            &generics,
+        )?;
         output = alias.type_.clone();
     }
 }

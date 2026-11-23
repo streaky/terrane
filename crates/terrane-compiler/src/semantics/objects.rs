@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::rust_interop::projection::instantiate_projected_container;
+use crate::rust_interop::projection::{ChainRole, instantiate_projected_container};
 
 mod native_associated;
 
@@ -3972,7 +3972,8 @@ fn scoped_receiver_result(
         if matches!(
             super::bindings::projected_receiver_chain_role(package, unit, receiver),
             Some(ChainRole::Root | ChainRole::Continue)
-        ) {
+        ) || super::bindings::guard_lends_native_result(unit, receiver, function)
+        {
             // A nominal family can also be reached through a proven local
             // lender. The actual producer graph, not whichever family was
             // published first, determines expression-only continuation here.
@@ -4386,6 +4387,12 @@ fn refine_projected_call_result(
                         .any(|lifetime| lifetime != "'static" && lifetime == receiver_lifetime)
                 })
                 && let Some(receiver) = callee.children.first()
+                && !(*expression_scoped
+                    && (matches!(receiver_type, Some(ValueType::SharedReference(_)))
+                        || super::bindings::projected_receiver_chain_role(package, unit, receiver)
+                            .is_some_and(|role| {
+                                matches!(role, ChainRole::Root | ChainRole::Continue)
+                            })))
             {
                 super::bindings::validate_native_expression_lender(package, unit, receiver)?;
             }
@@ -4618,6 +4625,7 @@ fn collect_projected_generic_names(
         | ProjectedType::Char
         | ProjectedType::String
         | ProjectedType::BorrowedString
+        | ProjectedType::BorrowedBytes
         | ProjectedType::Bytes
         | ProjectedType::AsyncSinkOutcome
         | ProjectedType::OwnedInterface {
@@ -8515,7 +8523,8 @@ fn closed_projected_value_type_with_context(
         | ProjectedType::Float
         | ProjectedType::Float32
         | ProjectedType::Char
-        | ProjectedType::Bytes => {
+        | ProjectedType::Bytes
+        | ProjectedType::BorrowedBytes => {
             ValueType::Scalar(ScalarType::from_source_name(&projected.terrane_name())?)
         }
         ProjectedType::Sequence { item, .. } => ValueType::List(ElementType::new(

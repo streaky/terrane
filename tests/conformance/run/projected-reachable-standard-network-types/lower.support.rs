@@ -509,24 +509,24 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/app::main"];
+    pub static FUNCTIONS: [&str; 2] = ["/app::peer-ip", "/app::main"];
     pub static SITES: [Site; 8] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:11:22-11:52) */
-        { Site { function: 0, file: 0, line: 11, column: 22, end_line: 11, end_column: 52 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:12:25-12:55) */
-        { Site { function: 0, file: 0, line: 12, column: 25, end_line: 12, end_column: 55 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:13:13-13:25) */
-        { Site { function: 0, file: 0, line: 13, column: 13, end_line: 13, end_column: 25 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:14:21-14:53) */
-        { Site { function: 0, file: 0, line: 14, column: 21, end_line: 14, end_column: 53 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:15:22-15:32) */
-        { Site { function: 0, file: 0, line: 15, column: 22, end_line: 15, end_column: 32 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:17:13-17:47) */
-        { Site { function: 0, file: 0, line: 17, column: 13, end_line: 17, end_column: 47 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:19:20-19:54) */
-        { Site { function: 0, file: 0, line: 19, column: 20, end_line: 19, end_column: 54 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:26:28-26:60) */
-        { Site { function: 0, file: 0, line: 26, column: 28, end_line: 26, end_column: 60 } },
+        /* terrane-site-row: site 0: /app::peer-ip (src/main.trn:12:12-12:22) */
+        { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 22 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:18:22-18:52) */
+        { Site { function: 1, file: 0, line: 18, column: 22, end_line: 18, end_column: 52 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:19:25-19:55) */
+        { Site { function: 1, file: 0, line: 19, column: 25, end_line: 19, end_column: 55 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:20:13-20:25) */
+        { Site { function: 1, file: 0, line: 20, column: 13, end_line: 20, end_column: 25 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:21:21-21:53) */
+        { Site { function: 1, file: 0, line: 21, column: 21, end_line: 21, end_column: 53 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:24:13-24:47) */
+        { Site { function: 1, file: 0, line: 24, column: 13, end_line: 24, end_column: 47 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:26:20-26:54) */
+        { Site { function: 1, file: 0, line: 26, column: 20, end_line: 26, end_column: 54 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:33:28-33:60) */
+        { Site { function: 1, file: 0, line: 33, column: 28, end_line: 33, end_column: 60 } },
     ];
     #[cold]
     #[inline(never)]
@@ -636,3 +636,10 @@ pub fn terrane_static_trn_54657272616e654e7344657073546f6b696f4e6574536f636b6574
         }
     }
 }
+// Source: core/networking_native.trn
+// Namespace: core/networking/native
+pub type NativeTcpListener = tokio::net::TcpListener;
+pub type NativeTcpStream = tokio::net::TcpStream;
+pub type NativeSocketAddress = std::net::SocketAddr;
+pub type HostListenerTransfer = std::io::Result<tokio::net::TcpListener>;
+pub type HostStreamTransfer = std::io::Result<tokio::net::TcpStream>;

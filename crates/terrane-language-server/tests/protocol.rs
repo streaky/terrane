@@ -482,7 +482,11 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
     assert!(
         generated["result"]["availability"]["known"]
             .as_array()
-            .is_some_and(|locations| !locations.is_empty())
+            .is_some_and(|locations| locations.iter().any(|location| {
+                location["rust"]
+                    .as_str()
+                    .is_some_and(|rust| rust.contains("fn main"))
+            }))
     );
 
     send(

@@ -121,6 +121,48 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
     }
 }
 
+/// A scoped iterator with a shared borrowed item lends directly to a synchronous
+/// visitor; neither the item nor the iterator owner is cloned.
+pub(super) fn iterator_find_map(item: ProjectedType, native_owner: &str) -> ProjectedFunction {
+    let result = ProjectedType::Optional(Box::new(ProjectedType::Generic("U".to_owned())));
+    let native_item = format!("&{}", item.rust_type());
+    let mut method = optional_method("find_map", result.clone(), "U", Vec::new());
+    method.native_owner = Some(native_owner.to_owned());
+    method.native_path = Some("std::iter::Iterator::find_map".to_owned());
+    method.receiver = Some(Receiver::MutableBorrow);
+    method.parameters.push(ProjectedParameter {
+        name: "operation".to_owned(),
+        ty: ProjectedType::Callback {
+            carrier: None,
+            rust_name: "F".to_owned(),
+            parameters: vec![item],
+            native_bound: Some(format!("FnMut({native_item}) -> Option<U>")),
+            native_method: None,
+            native_result: None,
+            native_substitutions: BTreeMap::new(),
+            parameter_rust_types: vec![native_item],
+            parameter_borrows: vec![true],
+            admitted_shapes: Vec::new(),
+            parameters_destination_selected: false,
+            result: Box::new(result),
+            invocation_mode: InvocationMode::Shared,
+            is_async: false,
+            retained: false,
+            send: false,
+            sync: false,
+        },
+        borrow_lifetime: None,
+        borrowed: false,
+        mutable_borrow: false,
+        borrowed_str: false,
+        generic_parameter: Some("F".to_owned()),
+        generic_bounds: Vec::new(),
+        generic_interface: None,
+        associated_type: None,
+    });
+    method
+}
+
 fn optional_method(
     name: &str,
     result: ProjectedType,

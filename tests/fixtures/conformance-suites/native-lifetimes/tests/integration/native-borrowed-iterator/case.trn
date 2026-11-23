@@ -1,0 +1,20 @@
+namespace native-borrowed-iterator
+from /deps/terrane-query-witness import Records, MetadataText
+
+function nonempty string|none; value ref MetadataText
+    text = value.searched_contents;
+    if text == ''
+        return none
+    return text
+
+function first-text string|none; records shared ref Records
+    return ((records.values;).iter;).find_map; nonempty
+
+function test-scenario;
+    records = shared ref (Records::new; true)
+    found = first-text; records
+    if found != none
+        print; found
+    missing = shared ref (Records::new; false)
+    print; (first-text; missing) == none
+    print; (MetadataText::copies;)

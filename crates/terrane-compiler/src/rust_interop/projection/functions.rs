@@ -13,8 +13,7 @@ use super::{
     project_associated_binding, project_borrowed_graph_type, project_callable_adapter_bounds,
     project_interface, project_invocation_scoped_type, project_struct_fields, project_type,
     projectable_interface_bound, receiver_kind, render_generic_bound, render_generic_bounds,
-    resolved_name, resolved_path_name, type_contains_borrowed_ref,
-    type_contains_lifetime_argument,
+    resolved_name, resolved_path_name, type_contains_borrowed_ref, type_contains_lifetime_argument,
 };
 use super::{expand_output_alias, projected_error_name, type_arguments, type_mentions_generic};
 
@@ -798,12 +797,9 @@ pub(super) fn project_function_inner(
         None => (None, output_generic_types),
     };
     let output_contains_borrowed_ref = match effective_output.as_ref() {
-        Some(output) => type_contains_borrowed_ref_after_aliases(
-            output,
-            index,
-            paths,
-            &output_generic_types,
-        )?,
+        Some(output) => {
+            type_contains_borrowed_ref_after_aliases(output, index, paths, &output_generic_types)?
+        }
         None => false,
     };
     if (function.header.is_async || returns_future) && output_contains_borrowed_ref {
@@ -814,9 +810,9 @@ pub(super) fn project_function_inner(
         .inputs
         .iter()
         .any(|(_, ty)| input_has_owned_borrowed_view(ty, index, paths).unwrap_or(false))
-        && effective_output.as_ref().is_some_and(|ty| {
-            type_contains_lifetime_argument(ty) || output_contains_borrowed_ref
-        })
+        && effective_output
+            .as_ref()
+            .is_some_and(|ty| type_contains_lifetime_argument(ty) || output_contains_borrowed_ref)
         && !effective_output
             .as_ref()
             .is_some_and(|ty| borrowed_str_parameter(ty, index))

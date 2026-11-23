@@ -10,6 +10,38 @@ struct HeaderType {
     arguments: Vec<HeaderType>,
 }
 
+fn projected_field_header(
+    projection: &crate::rust_interop::projection::Projection,
+    ty: &crate::rust_interop::projection::ProjectedType,
+    substitutions: &BTreeMap<String, HeaderType>,
+) -> HeaderType {
+    use crate::rust_interop::projection::ProjectedType;
+    match ty {
+        ProjectedType::Generic(name) if substitutions.contains_key(name) => {
+            substitutions[name].clone()
+        }
+        ProjectedType::Foreign {
+            name, arguments, ..
+        } => HeaderType {
+            name: name.clone(),
+            owner: projection.owner_for_projected_type(ty),
+            arguments: arguments
+                .iter()
+                .map(|argument| projected_field_header(projection, argument, substitutions))
+                .collect(),
+        },
+        ProjectedType::Reference { inner, .. }
+        | ProjectedType::InvocationScoped { owned: inner, .. } => {
+            projected_field_header(projection, inner, substitutions)
+        }
+        _ => HeaderType {
+            name: ty.terrane_name(),
+            owner: None,
+            arguments: Vec::new(),
+        },
+    }
+}
+
 impl SourceResults<'_> {
     fn header_type(
         &self,
@@ -88,6 +120,18 @@ impl SourceResults<'_> {
         let unit = &self.units[*self.unit_indices.get(&source.id())?];
         self.index_result_owner(unit, node, imported)
     }
+
+    pub(super) fn member_result_owner_for_source(
+        &self,
+        source: &SourceFile,
+        node: &SyntaxNode,
+        imported: &BTreeMap<String, ProjectedOwner>,
+    ) -> Option<ProjectedOwner> {
+        let unit = &self.units[*self.unit_indices.get(&source.id())?];
+        self.expression_header(unit, node, imported, &mut BTreeSet::new())?
+            .owner
+    }
+
     pub(super) fn iteration_owners(
         &self,
         source: &SourceFile,
@@ -235,6 +279,40 @@ impl SourceResults<'_> {
             };
             let receiver = self.expression_header(unit, receiver, imported, visited)?;
             let owner = receiver.owner.as_ref()?;
+            if let Some((_, fields, borrowed)) =
+                self.projection.projected_struct(&owner.0, &owner.1)
+            {
+                if let Some(field) = fields
+                    .iter()
+                    .find(|field| field.name == node_text(&unit.source, member))
+                    .filter(|field| !borrowed || !field.conversion.has_borrowed_leaves())
+                {
+                    let substitutions = self
+                        .projection
+                        .item(&owner.0, &owner.1)
+                        .and_then(|item| match &item.kind {
+                            crate::rust_interop::projection::ProjectedKind::ForeignType {
+                                generic_parameters,
+                                ..
+                            } => Some(
+                                generic_parameters
+                                    .iter()
+                                    .zip(receiver.arguments.iter())
+                                    .map(|(parameter, argument)| {
+                                        (parameter.name.clone(), argument.clone())
+                                    })
+                                    .collect::<BTreeMap<_, _>>(),
+                            ),
+                            _ => None,
+                        })
+                        .unwrap_or_default();
+                    return Some(projected_field_header(
+                        self.projection,
+                        &field.ty,
+                        &substitutions,
+                    ));
+                }
+            }
             for declaring_unit in self.units.iter().filter(|unit| unit.namespace == owner.0) {
                 let Some(class) = declaring_unit.tree.root.children.iter().find(|class| {
                     matches!(

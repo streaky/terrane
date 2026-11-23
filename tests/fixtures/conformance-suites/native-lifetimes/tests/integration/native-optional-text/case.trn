@@ -1,0 +1,29 @@
+namespace native-optional-text
+from /deps/terrane-query-witness import ResponseCode, ReasonPhrase, choose_reason as choose-reason
+from /core/errors import throwable
+
+# StatusCode::canonical_reason returns optional native text, not Option<String>.
+function status-reason string; code ref ResponseCode
+    reason string|none = code.canonical_reason;
+    if reason != none
+        return reason
+    return 'HTTP error'
+
+function test-scenario;
+    known = ResponseCode::new; 200
+    unknown = ResponseCode::new; 299
+    print; (status-reason; known)
+    print; (status-reason; unknown)
+    phrase = shared ref (ReasonPhrase::new; 'owned after guard')
+    owned string|none = phrase.get;
+    if owned != none
+        print; owned
+    selected string|none = choose-reason; 200, 'borrowed argument'
+    if selected != none
+        print; selected
+    absent string|none = choose-reason; 299, 'ignored'
+    print; absent == none
+    try
+        choose-reason; 1, 'invalid'
+    catch throwable
+        print; 'native error'

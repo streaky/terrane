@@ -1,0 +1,11 @@
+namespace native-field-text
+from /deps/terrane-query-witness import OriginalTarget
+
+# OriginalUri.0 lends a URI whose path is a borrowed string slice.
+function original-path string; original ref OriginalTarget
+    return (original.n0).path;
+
+function test-scenario;
+    original = OriginalTarget::new; '/mounted/path'
+    print; (original-path; original)
+    print; (OriginalTarget::clones;)
