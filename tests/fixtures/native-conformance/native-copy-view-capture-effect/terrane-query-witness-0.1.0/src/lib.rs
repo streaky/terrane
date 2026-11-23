@@ -297,15 +297,19 @@ impl TypedRecord {
         Self(MetadataText(label.to_owned()))
     }
 
-    pub fn find(&self, label: &str) -> Lookup<&MetadataText> {
+    pub fn find(&self, label: &str) -> Option<&MetadataText> {
         if label == "panic" {
             std::panic::resume_unwind(Box::new("native lookup failed"));
         }
         (self.0.contents() == label).then_some(&self.0)
     }
 
-    pub async fn find_async(&self, label: &str) -> Lookup<&MetadataText> {
+    pub fn find_aliased(&self, label: &str) -> Lookup<&MetadataText> {
         self.find(label)
+    }
+
+    pub async fn find_async(&self, label: &str) -> Lookup<&MetadataText> {
+        self.find_aliased(label)
     }
 
     pub fn metadata(&self, owned: bool) -> std::borrow::Cow<'_, MetadataText> {

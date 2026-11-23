@@ -571,10 +571,22 @@ fn assert_generated_native_bridge(stdin: &mut ChildStdin, stdout: &mut BufReader
             let _ = fs::remove_dir_all(&self.0);
         }
     }
-    let fixture = FixtureCopy(
-        std::env::temp_dir().join(format!("terrane-lsp-native-bridge-{}", std::process::id())),
-    );
-    fs::create_dir(&fixture.0).unwrap();
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR"));
+    fs::create_dir_all(root).unwrap();
+    let pid = std::process::id();
+    let fixture = (0..)
+        .find_map(|attempt| {
+            let path = root.join(format!("terrane-lsp-native-bridge-{pid}-{attempt}"));
+            match fs::create_dir(&path) {
+                Ok(()) => Some(FixtureCopy(path)),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => None,
+                Err(error) => panic!(
+                    "cannot stage native bridge fixture at {}: {error}",
+                    path.display()
+                ),
+            }
+        })
+        .unwrap();
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/conformance/reject/native-guarded-iterator-escape");
     for relative in [

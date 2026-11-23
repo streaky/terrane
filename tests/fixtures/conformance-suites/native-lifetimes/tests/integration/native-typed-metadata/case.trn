@@ -21,6 +21,9 @@ function own-found string; value ref MetadataText
 function find-text string|none; record shared ref TypedRecord, key ref string
     return (record.find; key).map; own-found
 
+function find-text-aliased string|none; record shared ref TypedRecord, key ref string
+    return (record.find_aliased; key).map; own-found
+
 function test-scenario;
     record = TypedRecord::new; 'record label'
     print; (type-name; record)
@@ -42,6 +45,10 @@ function test-scenario;
         print; found
     missing = 'other'
     print; (find-text; shared-record, missing) == none
+    aliased = find-text-aliased; shared-record, key
+    if aliased != none
+        print; aliased
+    print; (find-text-aliased; shared-record, missing) == none
     print; (MetadataText::copies;)
     panicking = 'panic'
     try
