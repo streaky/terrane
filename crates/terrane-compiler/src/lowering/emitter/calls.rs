@@ -3722,9 +3722,8 @@ impl Emitter<'_> {
             // Native field assembly already supplies its conversion Result.
             None
         } else if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+            || (contract.is_none() && uses_direct_native_receiver)
         {
-            projected_function.as_ref()
-        } else if contract.is_none() && uses_direct_native_receiver {
             projected_function.as_ref()
         } else {
             contract.as_ref().and_then(|contract| {

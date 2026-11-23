@@ -1705,14 +1705,10 @@ fn guarded_chain_has_exit(
     }
 }
 
-fn validate_projected_callback_node(
+fn validate_guarded_native_chain(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
-    extracted_channel_endpoints: &mut BTreeSet<(u32, usize, usize, String)>,
-    immediately_awaited: bool,
-    chain_receivers: &BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
     if let [callee, arguments] = node.children.as_slice()
         && node.kind == SyntaxKind::CallExpression
@@ -1732,6 +1728,19 @@ fn validate_projected_callback_node(
             node.span,
         ));
     }
+    Ok(())
+}
+
+fn validate_projected_callback_node(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
+    extracted_channel_endpoints: &mut BTreeSet<(u32, usize, usize, String)>,
+    immediately_awaited: bool,
+    chain_receivers: &BTreeSet<(u32, usize, usize)>,
+) -> Result<(), SemanticFailure> {
+    validate_guarded_native_chain(package, unit, node)?;
     validate_invocation_scoped_node(package, unit, node)?;
     if matches!(
         projected_chain_role(package, unit, node),

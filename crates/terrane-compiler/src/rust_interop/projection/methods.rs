@@ -1621,85 +1621,14 @@ fn project_chain_owner_methods(
             }
         );
     if invocation_scoped && !methods.iter().any(|method| method.name == "find_map") {
-        for id in &structure.impls {
-            let Some(Item {
-                inner: ItemEnum::Impl(implementation),
-                ..
-            }) = index.get(id)
-            else {
-                continue;
-            };
-            let Some((trait_path, _)) = implementation
-                .trait_
-                .as_ref()
-                .and_then(|trait_| implementation_trait_path(trait_, paths))
-            else {
-                continue;
-            };
-            if trait_path != "core::iter::traits::iterator::Iterator" {
-                continue;
-            }
-            let mut binders = BTreeSet::new();
-            let whole_family = matches!(&implementation.for_, Type::ResolvedPath(_))
-                && type_arguments(&implementation.for_).into_iter().all(
-                    |argument| matches!(argument, Type::Generic(name) if binders.insert(name)),
-                )
-                && implementation
-                    .generics
-                    .params
-                    .iter()
-                    .all(|parameter| match &parameter.kind {
-                        GenericParamDefKind::Lifetime { .. } => true,
-                        GenericParamDefKind::Type { bounds, .. } => bounds
-                            .iter()
-                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
-                        GenericParamDefKind::Const { .. } => false,
-                    })
-                && implementation.generics.where_predicates.iter().all(
-                    |predicate| match predicate {
-                        WherePredicate::LifetimePredicate { .. } => true,
-                        WherePredicate::BoundPredicate { bounds, .. } => bounds
-                            .iter()
-                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
-                        _ => false,
-                    },
-                );
-            if !whole_family {
-                continue;
-            }
-            let Some(item_type) = implementation.items.iter().find_map(|id| {
-                let item = index.get(id)?;
-                let ItemEnum::AssocType {
-                    type_:
-                        Some(Type::BorrowedRef {
-                            is_mutable: false,
-                            type_,
-                            ..
-                        }),
-                    ..
-                } = &item.inner
-                else {
-                    return None;
-                };
-                (item.name.as_deref() == Some("Item")).then_some(type_.as_ref())
-            }) else {
-                continue;
-            };
-            let implementation_generics =
-                aliases::implementation_owner_generics(implementation, index, owner_generics);
-            if let Ok(item) = project_type(item_type, index, paths, &implementation_generics)
-                && matches!(
-                    item,
-                    ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
-                )
-            {
-                methods.push(super::borrowed_graph::iterator_find_map(
-                    item,
-                    &scoped_self.rust_type(),
-                ));
-                break;
-            }
-        }
+        project_borrowed_iterator_terminal(
+            structure,
+            owner_generics,
+            scoped_self,
+            index,
+            paths,
+            &mut methods,
+        );
     }
     methods.retain_mut(|method| {
         if method.receiver.is_none() {
@@ -1722,6 +1651,95 @@ fn project_chain_owner_methods(
         return None;
     }
     Some((methods, cloneable, expression_only))
+}
+
+fn project_borrowed_iterator_terminal(
+    structure: &rustdoc_types::Struct,
+    owner_generics: &BTreeMap<String, ProjectedType>,
+    scoped_self: &ProjectedType,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    methods: &mut Vec<ProjectedFunction>,
+) {
+    for id in &structure.impls {
+        let Some(Item {
+            inner: ItemEnum::Impl(implementation),
+            ..
+        }) = index.get(id)
+        else {
+            continue;
+        };
+        let Some((trait_path, _)) = implementation
+            .trait_
+            .as_ref()
+            .and_then(|trait_| implementation_trait_path(trait_, paths))
+        else {
+            continue;
+        };
+        if trait_path != "core::iter::traits::iterator::Iterator" {
+            continue;
+        }
+        let mut binders = BTreeSet::new();
+        let whole_family = matches!(&implementation.for_, Type::ResolvedPath(_))
+            && type_arguments(&implementation.for_).into_iter().all(
+                |argument| matches!(argument, Type::Generic(name) if binders.insert(name)),
+            )
+            && implementation
+                .generics
+                .params
+                .iter()
+                .all(|parameter| match &parameter.kind {
+                    GenericParamDefKind::Lifetime { .. } => true,
+                    GenericParamDefKind::Type { bounds, .. } => bounds
+                        .iter()
+                        .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                    GenericParamDefKind::Const { .. } => false,
+                })
+            && implementation.generics.where_predicates.iter().all(
+                |predicate| match predicate {
+                    WherePredicate::LifetimePredicate { .. } => true,
+                    WherePredicate::BoundPredicate { bounds, .. } => bounds
+                        .iter()
+                        .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                    WherePredicate::EqPredicate { .. } => false,
+                },
+            );
+        if !whole_family {
+            continue;
+        }
+        let Some(item_type) = implementation.items.iter().find_map(|id| {
+            let item = index.get(id)?;
+            let ItemEnum::AssocType {
+                type_:
+                    Some(Type::BorrowedRef {
+                        is_mutable: false,
+                        type_,
+                        ..
+                    }),
+                ..
+            } = &item.inner
+            else {
+                return None;
+            };
+            (item.name.as_deref() == Some("Item")).then_some(type_.as_ref())
+        }) else {
+            continue;
+        };
+        let implementation_generics =
+            aliases::implementation_owner_generics(implementation, index, owner_generics);
+        if let Ok(item) = project_type(item_type, index, paths, &implementation_generics)
+            && matches!(
+                item,
+                ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
+            )
+        {
+            methods.push(super::borrowed_graph::iterator_find_map(
+                item,
+                &scoped_self.rust_type(),
+            ));
+            break;
+        }
+    }
 }
 
 pub(super) fn resolved_nominal_id(ty: &Type, index: &HashMap<Id, Item>) -> Option<Id> {

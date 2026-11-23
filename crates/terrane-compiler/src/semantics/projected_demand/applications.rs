@@ -281,37 +281,35 @@ impl SourceResults<'_> {
             let owner = receiver.owner.as_ref()?;
             if let Some((_, fields, borrowed)) =
                 self.projection.projected_struct(&owner.0, &owner.1)
-            {
-                if let Some(field) = fields
+                && let Some(field) = fields
                     .iter()
                     .find(|field| field.name == node_text(&unit.source, member))
                     .filter(|field| !borrowed || !field.conversion.has_borrowed_leaves())
-                {
-                    let substitutions = self
-                        .projection
-                        .item(&owner.0, &owner.1)
-                        .and_then(|item| match &item.kind {
-                            crate::rust_interop::projection::ProjectedKind::ForeignType {
-                                generic_parameters,
-                                ..
-                            } => Some(
-                                generic_parameters
-                                    .iter()
-                                    .zip(receiver.arguments.iter())
-                                    .map(|(parameter, argument)| {
-                                        (parameter.name.clone(), argument.clone())
-                                    })
-                                    .collect::<BTreeMap<_, _>>(),
-                            ),
-                            _ => None,
-                        })
-                        .unwrap_or_default();
-                    return Some(projected_field_header(
-                        self.projection,
-                        &field.ty,
-                        &substitutions,
-                    ));
-                }
+            {
+                let substitutions = self
+                    .projection
+                    .item(&owner.0, &owner.1)
+                    .and_then(|item| match &item.kind {
+                        crate::rust_interop::projection::ProjectedKind::ForeignType {
+                            generic_parameters,
+                            ..
+                        } => Some(
+                            generic_parameters
+                                .iter()
+                                .zip(receiver.arguments.iter())
+                                .map(|(parameter, argument)| {
+                                    (parameter.name.clone(), argument.clone())
+                                })
+                                .collect::<BTreeMap<_, _>>(),
+                        ),
+                        _ => None,
+                    })
+                    .unwrap_or_default();
+                return Some(projected_field_header(
+                    self.projection,
+                    &field.ty,
+                    &substitutions,
+                ));
             }
             for declaring_unit in self.units.iter().filter(|unit| unit.namespace == owner.0) {
                 let Some(class) = declaring_unit.tree.root.children.iter().find(|class| {

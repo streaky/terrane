@@ -3969,16 +3969,12 @@ fn scoped_receiver_result(
         expression_scoped, ..
     } = &mut projected
     {
-        if matches!(
+        // The actual producer, not the nominal family's discovery order,
+        // determines whether the loan can leave the expression.
+        *expression_scoped |= matches!(
             super::bindings::projected_receiver_chain_role(package, unit, receiver),
             Some(ChainRole::Root | ChainRole::Continue)
-        ) || super::bindings::guard_lends_native_result(unit, receiver, function)
-        {
-            // A nominal family can also be reached through a proven local
-            // lender. The actual producer graph, not whichever family was
-            // published first, determines expression-only continuation here.
-            *expression_scoped = true;
-        }
+        ) || super::bindings::guard_lends_native_result(unit, receiver, function);
         return projected;
     }
     let ProjectedType::Foreign {
