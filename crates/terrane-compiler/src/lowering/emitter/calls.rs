@@ -4110,9 +4110,9 @@ impl Emitter<'_> {
         if let Some((setup, _)) = guarded_method_receiver {
             Self::render_native_region(
                 &format!(
-                    "{setup}{shared_argument_setup}{native_receiver_setup}{native_input_setup}"
+                    "{setup}{shared_argument_setup}{native_receiver_setup}{native_input_setup}let __terrane_call_result = {result}; "
                 ),
-                format!("let __terrane_call_result = {result}; __terrane_call_result"),
+                "__terrane_call_result".to_owned(),
             )
         } else {
             Self::render_native_region(
