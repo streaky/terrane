@@ -1735,15 +1735,23 @@ pub(super) fn validate_object_conformance(
             })
     }
     for unit in &package.units {
+        let mut generic_methods = BTreeMap::new();
+        for method in &unit.functions {
+            if !method.generic_parameters.is_empty()
+                && let Some(owner) = &method.owner_identity
+            {
+                generic_methods.entry(owner).or_insert(method);
+            }
+        }
+        if generic_methods.is_empty() {
+            continue;
+        }
         for interface in unit
             .descriptors
             .iter()
             .filter(|descriptor| descriptor.kind == ObjectKind::Interface)
         {
-            if let Some(method) = unit.functions.iter().find(|method| {
-                method.owner_identity.as_ref() == Some(&interface.identity)
-                    && !method.generic_parameters.is_empty()
-            }) {
+            if let Some(method) = generic_methods.get(&interface.identity) {
                 return Err(failure(
                     &unit.source,
                     "T0012",
@@ -1754,12 +1762,18 @@ pub(super) fn validate_object_conformance(
         }
     }
 
+    let mut checked_classes = BTreeSet::new();
     for unit in &package.units {
         for object in unit
             .descriptors
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
+            // Imported descriptors resolve to the same declaration below.
+            // Validate once at the first occurrence to preserve diagnostic order.
+            if !checked_classes.insert((object.span.file, &object.identity)) {
+                continue;
+            }
             let declaration_unit = package
                 .units
                 .iter()
@@ -2313,6 +2327,9 @@ pub(super) fn validate_object_conformance(
                 }
             }
 
+            if object.traits.is_empty() {
+                continue;
+            }
             let own_methods = declaration_unit
                 .functions
                 .iter()
