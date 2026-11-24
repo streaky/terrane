@@ -218,6 +218,9 @@ pub struct SemanticObject {
     pub inheritance: Availability<Vec<String>>,
     pub generic_parameters: Availability<Vec<String>>,
     pub type_arguments: Availability<Vec<String>>,
+    /// Exact Rust target of a proven native bridge, at its source callee.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_target: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
@@ -1054,7 +1057,15 @@ impl ToolingEngine {
         let Some((node, id, _)) = smallest_node_at(&document.tree.root, offset, 0) else {
             return Ok(None);
         };
-        Ok(Some(semantic_object(snapshot, document, node, id, None)))
+        let mut object = semantic_object(snapshot, document, node, id, None);
+        object.native_target = snapshot.semantic.as_ref().and_then(|semantic| {
+            let unit = semantic
+                .units
+                .iter()
+                .find(|unit| unit.source.id() == node.span.file)?;
+            native_target_at(unit, node.span).map(str::to_owned)
+        });
+        Ok(Some(object))
     }
 
     /// Resolves a call signature using the same closed contract as semantic checking.
@@ -2107,6 +2118,24 @@ fn semantic_object(
             snapshot,
             value_type.as_ref().and_then(type_argument_facts),
         ),
+        native_target: None,
+    }
+}
+
+fn native_target_at(unit: &crate::semantics::SemanticUnit, at: Span) -> Option<&str> {
+    let contains = |node: &SyntaxNode| node.span.start <= at.start && at.end <= node.span.end;
+    let mut node = &unit.tree.root;
+    loop {
+        if node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(contains)
+            && let Some(target) = unit
+                .projected_call_specializations
+                .get(&(node.span.file, node.span.start, node.span.end))
+                .and_then(|plan| plan.native_target.as_deref())
+        {
+            return Some(target);
+        }
+        node = node.syntax_children().find(|child| contains(child))?;
     }
 }
 

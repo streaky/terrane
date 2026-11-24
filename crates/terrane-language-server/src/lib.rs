@@ -1008,6 +1008,9 @@ fn semantic_hover(
     {
         let _ = write!(content, "\n\nSelected types: `{}`", arguments.join(", "));
     }
+    if let Some(native_target) = object.native_target {
+        let _ = write!(content, "\n\nNative bridge: `{native_target}`");
+    }
     if let terrane_compiler::tooling::Availability::Known(safety) = object.safety {
         let _ = write!(content, "\n\nSafety: {safety}");
     }

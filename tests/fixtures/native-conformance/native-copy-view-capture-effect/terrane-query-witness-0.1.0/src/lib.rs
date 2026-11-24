@@ -406,3 +406,39 @@ impl<'a, T> Iterator for RecordIter<'a, T> {
         self.0.next()
     }
 }
+pub struct FromText(String);
+impl From<&str> for FromText {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+impl From<String> for FromText {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl FromText {
+    pub fn text(&self) -> &str {
+        &self.0
+    }
+    pub fn allocation_id(&self) -> usize {
+        self.0.as_ptr() as usize
+    }
+}
+pub fn string_allocation_id(value: &String) -> usize {
+    value.as_ptr() as usize
+}
+
+pub struct IntoOnly;
+
+impl IntoOnly {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Into<FromText> for IntoOnly {
+    fn into(self) -> FromText {
+        FromText("only Into".to_owned())
+    }
+}

@@ -599,7 +599,7 @@ fn assert_generated_native_bridge(stdin: &mut ChildStdin, stdout: &mut BufReader
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
         fs::copy(source.join(relative), destination).unwrap();
     }
-    let text = "namespace app\nfrom /deps/terrane-query-witness import TypedRecord, MetadataText\n\nfunction own-text string; value ref MetadataText\n    return value.contents;\n\nfunction main;\n    record = shared ref (TypedRecord::new; 'label')\n    key = 'label'\n    text string|none = (record.find; key).map; own-text\n    print; text != none\n";
+    let text = "namespace app\nfrom /deps/terrane-query-witness import TypedRecord, MetadataText, FromText\n\nfunction own-text string; value ref MetadataText\n    return value.contents;\n\nfunction main;\n    record = shared ref (TypedRecord::new; 'label')\n    key = 'label'\n    text string|none = (record.find; key).map; own-text\n    print; text != none\n    converted = convert-text; key\n    print; (converted.text;)\n\nfunction convert-text FromText; text ref string\n    return FromText::from; text\n";
     let path = fixture.0.join("src/main.trn");
     fs::create_dir(path.parent().unwrap()).unwrap();
     fs::write(&path, text).unwrap();
@@ -638,19 +638,73 @@ fn assert_generated_native_bridge(stdin: &mut ChildStdin, stdout: &mut BufReader
             })
         })
         .unwrap_or_else(|| panic!("native bridge missing: {generated}"));
+    let bridge_location = location;
+    let conversion_location = generated_native_from(stdin, stdout, &uri);
     let package = terrane_compiler::package::Package::load(&fixture.0).unwrap();
     let compiled = terrane_compiler::compile_package(&package).unwrap();
-    let files = compiled
-        .rust_files_for(Path::new(location["path"].as_str().unwrap()))
-        .unwrap();
-    let contents = &files
-        .iter()
-        .find(|file| Some(file.path.as_str()) == location["path"].as_str())
-        .unwrap()
-        .contents;
-    let start = usize::try_from(location["span"]["start"].as_u64().unwrap()).unwrap();
-    let end = usize::try_from(location["span"]["end"].as_u64().unwrap()).unwrap();
-    assert_eq!(location["rust"], &contents[start..end]);
+    for location in [bridge_location, &conversion_location] {
+        let files = compiled
+            .rust_files_for(Path::new(location["path"].as_str().unwrap()))
+            .unwrap();
+        let contents = &files
+            .iter()
+            .find(|file| Some(file.path.as_str()) == location["path"].as_str())
+            .unwrap()
+            .contents;
+        let start = usize::try_from(location["span"]["start"].as_u64().unwrap()).unwrap();
+        let end = usize::try_from(location["span"]["end"].as_u64().unwrap()).unwrap();
+        assert_eq!(location["rust"], &contents[start..end]);
+    }
+    assert_native_from_hover(stdin, stdout, &uri);
+}
+
+fn generated_native_from(
+    stdin: &mut ChildStdin,
+    stdout: &mut BufReader<ChildStdout>,
+    uri: &str,
+) -> Value {
+    send(
+        stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 16,
+            "method": "terrane/generatedRust",
+            "params": {"textDocument": {"uri": uri}, "position": {"line": 15, "character": 22}}
+        }),
+    );
+    let generated = receive_response(stdout, 16);
+    generated["result"]["availability"]["known"]
+        .as_array()
+        .and_then(|locations| {
+            locations.iter().find(|location| {
+                location["rust"].as_str().is_some_and(|rust| {
+                    let compact = rust.split_whitespace().collect::<String>();
+                    compact.contains("FromTextas::core::convert::From<&str,>>::from")
+                        || compact.contains("FromTextas::core::convert::From<&str>>::from")
+                })
+            })
+        })
+        .unwrap_or_else(|| panic!("native From conversion missing: {generated}"))
+        .clone()
+}
+
+fn assert_native_from_hover(stdin: &mut ChildStdin, stdout: &mut BufReader<ChildStdout>, uri: &str) {
+    send(
+        stdin,
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 17,
+            "method": "textDocument/hover",
+            "params": {"textDocument": {"uri": uri}, "position": {"line": 15, "character": 22}}
+        }),
+    );
+    let hover = receive_response(stdout, 17);
+    assert!(
+        hover["result"]["contents"]
+            .as_str()
+            .is_some_and(|text| text.contains("FromText as ::core::convert::From<&str>>::from")),
+        "{hover}"
+    );
 }
 
 #[expect(

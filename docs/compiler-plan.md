@@ -1456,6 +1456,13 @@ lookup including dependency panic attribution, and `Iterator<Item = &T>::find_ma
 The guard-escape rejection is an independent conformance case. Generated source locations
 return the exact Rust containing the bridge, not a separate documentation rendering.
 
+The checked native `From` bridge uses the existing projected argument and proof
+pipeline to select a concrete trait-qualified Rust operation. The native-lifetimes
+witness checks both borrowed text and transfer of the original string allocation.
+The reject witness distinguishes a missing `From` implementation from an `Into`-only
+implementation, and the language-server protocol tests compare hover's selected
+target with the exact rendered Rust.
+
 #### Review scope
 
 - Preserve read-only loans through native fields, projected receivers/arguments,

@@ -54,6 +54,7 @@ mod cache_identity;
 mod callable;
 mod callback_inputs;
 mod cargo_workspace;
+pub(crate) mod conversions;
 pub(crate) mod core_native;
 mod data;
 mod dependency_owners;
@@ -165,7 +166,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "384";
+const PROJECTION_SCHEMA: &str = "385";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;

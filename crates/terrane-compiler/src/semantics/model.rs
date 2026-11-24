@@ -1783,6 +1783,7 @@ pub(crate) struct ProjectedCallSpecialization {
     pub projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     pub projected_receiver: Option<crate::rust_interop::projection::Receiver>,
     pub projected_receiver_lifetime: Option<String>,
+    pub native_target: Option<String>,
     pub direct_projected_call: bool,
     pub value_parameters: Vec<Option<ValueType>>,
     pub projected_result: crate::rust_interop::projection::ProjectedType,

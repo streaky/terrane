@@ -1074,10 +1074,17 @@ impl Parser<'_> {
         if self.text() == "static" && self.block_depth != self.class_body_depth {
             self.error_here("S1029", "`static` functions are only valid in class bodies");
         }
+        let static_member = self.at_text("static")
+            || (self.at_text("unsafe") && self.peek_text(1) == Some("static"));
         children.extend(self.parse_function_qualifiers(true));
         self.expect_text("function", "S1005", "expected `function`");
-        if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
-            self.reject_keyword_declaration_name();
+        if self.at(TokenKind::Identifier)
+            && (!self.at_text("from") || static_member)
+            && !self.at_text("to")
+        {
+            if !(static_member && self.at_text("from")) {
+                self.reject_keyword_declaration_name();
+            }
             children.push(self.leaf(SyntaxKind::Name));
             if self.at_text("of") {
                 children.push(self.parse_type_parameter_list());

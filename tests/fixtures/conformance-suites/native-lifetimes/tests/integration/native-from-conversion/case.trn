@@ -1,0 +1,15 @@
+namespace native-from-conversion
+from /deps/terrane-query-witness import FromText, string_allocation_id
+
+function borrowed-text FromText; text ref string
+    return FromText::from; text
+
+function test-scenario;
+    text = 'native/from/path'
+    borrowed = borrowed-text; text
+    print; (borrowed.text;)
+    source = 'allocation reuse'
+    allocation = (string_allocation_id; source)
+    owned = FromText::from; move source
+    print; (owned.allocation_id;) == allocation
+    print; (owned.text;)

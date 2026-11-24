@@ -2829,7 +2829,10 @@ impl Emitter<'_> {
             let applied_identity = crate::semantics::class_designator_identity(self.unit, receiver)
                 .unwrap_or_else(|| object.identity.clone());
             let rust_type = rust_source_type_application(self.package, &applied_identity);
-            if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+            if let Some(target) = specialization.and_then(|plan| plan.native_target.as_ref()) {
+                target.clone()
+            } else if specialization
+                .is_some_and(|specialization| specialization.direct_projected_call)
                 && let Some(item) = self
                     .package
                     .projection

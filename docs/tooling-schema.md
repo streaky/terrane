@@ -205,6 +205,9 @@ documentation, ordered typed annotations, and signature/field/contract snapshots
 actual declaring origin, not metadata copied onto callable value aliases or overrides. Semantic
 hover renders documentation and annotation identities from this record. Ownership is `unsupported`
 until the semantic model exposes an authoritative ownership state. Locations contain `{uri,span}`.
+At a proven native bridge callee, `locate` additionally returns `native_target`: the
+exact selected Rust callable before formatting. Hover uses this fact; `generated-rust`
+still returns the actual rendered bytes, including the surrounding call boundary.
 Definitions and references
 resolve by syntactic role and canonical semantic identity, not matching text. A reference query for
 an interface method returns sites resolved directly to that interface identity; calls through a

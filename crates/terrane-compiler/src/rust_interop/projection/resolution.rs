@@ -597,6 +597,9 @@ pub fn resolve(
     // items, members, and declined diagnostics together before hashing/publication.
     for dependency in &mut projection.dependencies {
         super::data::normalize_projected_items(&mut dependency.items, &mut dependency.declined);
+        for item in &mut dependency.items {
+            super::conversions::add_from(item);
+        }
         super::data::normalize_projected_inventory(&mut dependency.items);
     }
     write_workspace_with_bound_dependencies(
