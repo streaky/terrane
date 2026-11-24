@@ -1463,6 +1463,10 @@ The reject witness distinguishes a missing `From` implementation from an `Into`-
 implementation, and the language-server protocol tests compare hover's selected
 target with the exact rendered Rust.
 
+Native `Deref` receiver discovery indexes normalized public paths once per Rustdoc
+document, preserving all matching document-local IDs in traversal order. The index
+only narrows lookup; receiver access still requires the existing exact Rust proofs.
+
 #### Review scope
 
 - Preserve read-only loans through native fields, projected receivers/arguments,
