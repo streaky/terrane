@@ -17,6 +17,22 @@ function first-text-owned string|none;
     records = Records::new; true
     return ((records.values;).iter;).find_map; nonempty
 
+function collected-text list of string; records ref Records
+    return ((records.values;).iter;).filter_map_collect; nonempty-entry
+
+function mapped-text list of string;
+    records = Records::new; true
+    return ((records.values;).iter;).map_collect; entry-text
+
+function entry-text string; entry ref MetadataText
+    return entry.contents;
+
+function nonempty-entry string|none; entry ref MetadataText
+    text = entry.contents;
+    if text == ''
+        return none
+    return move text
+
 function test-scenario;
     records = shared ref (Records::new; true)
     found = first-text; records
@@ -35,4 +51,10 @@ function test-scenario;
     bound string|none = (view.iter;).find_map; nonempty
     if bound != none
         print; bound
+    for text in (collected-text; plain)
+        print; text
+    empty = Records::new; false
+    print; (collected-text; empty).length
+    for text in (mapped-text;)
+        print; '[' + text + ']'
     print; (MetadataText::copies;)

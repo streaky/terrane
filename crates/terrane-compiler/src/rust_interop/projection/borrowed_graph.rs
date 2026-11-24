@@ -218,6 +218,44 @@ pub(super) fn iterator_find_map(item: ProjectedType, native_owner: &str) -> Proj
     method
 }
 
+pub(super) fn iterator_collect(
+    item: ProjectedType,
+    native_owner: &str,
+    filter: bool,
+) -> ProjectedFunction {
+    let (name, native_path) = if filter {
+        (
+            "filter_map_collect",
+            "terrane_collection_support::filter_map_collect_borrowed",
+        )
+    } else {
+        (
+            "map_collect",
+            "terrane_collection_support::map_collect_borrowed",
+        )
+    };
+    let output = ProjectedType::Generic("U".to_owned());
+    let mut method = terminal_method(
+        name,
+        ProjectedType::Sequence {
+            rust_path: "std::vec::Vec<U>".to_owned(),
+            item: Box::new(output.clone()),
+        },
+        "U",
+        Vec::new(),
+    );
+    method.native_owner = Some(native_owner.to_owned());
+    method.native_path = Some(native_path.to_owned());
+    method.receiver = Some(Receiver::MutableBorrow);
+    let result = if filter {
+        ProjectedType::Optional(Box::new(output))
+    } else {
+        output
+    };
+    method.parameters.push(borrowed_visitor(item, result));
+    method
+}
+
 fn borrowed_visitor(item: ProjectedType, result: ProjectedType) -> ProjectedParameter {
     let native_item = format!("&{}", item.rust_type());
     ProjectedParameter {

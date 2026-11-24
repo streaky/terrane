@@ -1620,8 +1620,8 @@ fn project_chain_owner_methods(
                 ..
             }
         );
-    if invocation_scoped && !methods.iter().any(|method| method.name == "find_map") {
-        project_borrowed_iterator_terminal(
+    if invocation_scoped {
+        project_borrowed_iterator_terminals(
             structure,
             owner_generics,
             scoped_self,
@@ -1653,7 +1653,7 @@ fn project_chain_owner_methods(
     Some((methods, cloneable, expression_only))
 }
 
-fn project_borrowed_iterator_terminal(
+fn project_borrowed_iterator_terminals(
     structure: &rustdoc_types::Struct,
     owner_generics: &BTreeMap<String, ProjectedType>,
     scoped_self: &ProjectedType,
@@ -1680,30 +1680,31 @@ fn project_borrowed_iterator_terminal(
             continue;
         }
         let mut binders = BTreeSet::new();
-        let whole_family = matches!(&implementation.for_, Type::ResolvedPath(_))
-            && type_arguments(&implementation.for_).into_iter().all(
-                |argument| matches!(argument, Type::Generic(name) if binders.insert(name)),
-            )
-            && implementation
-                .generics
-                .params
-                .iter()
-                .all(|parameter| match &parameter.kind {
-                    GenericParamDefKind::Lifetime { .. } => true,
-                    GenericParamDefKind::Type { bounds, .. } => bounds
-                        .iter()
-                        .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
-                    GenericParamDefKind::Const { .. } => false,
-                })
-            && implementation.generics.where_predicates.iter().all(
-                |predicate| match predicate {
-                    WherePredicate::LifetimePredicate { .. } => true,
-                    WherePredicate::BoundPredicate { bounds, .. } => bounds
-                        .iter()
-                        .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
-                    WherePredicate::EqPredicate { .. } => false,
-                },
-            );
+        let whole_family =
+            matches!(&implementation.for_, Type::ResolvedPath(_))
+                && type_arguments(&implementation.for_).into_iter().all(
+                    |argument| matches!(argument, Type::Generic(name) if binders.insert(name)),
+                )
+                && implementation
+                    .generics
+                    .params
+                    .iter()
+                    .all(|parameter| match &parameter.kind {
+                        GenericParamDefKind::Lifetime { .. } => true,
+                        GenericParamDefKind::Type { bounds, .. } => bounds
+                            .iter()
+                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                        GenericParamDefKind::Const { .. } => false,
+                    })
+                && implementation.generics.where_predicates.iter().all(
+                    |predicate| match predicate {
+                        WherePredicate::LifetimePredicate { .. } => true,
+                        WherePredicate::BoundPredicate { bounds, .. } => bounds
+                            .iter()
+                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                        WherePredicate::EqPredicate { .. } => false,
+                    },
+                );
         if !whole_family {
             continue;
         }
@@ -1733,10 +1734,16 @@ fn project_borrowed_iterator_terminal(
                 ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
             )
         {
-            methods.push(super::borrowed_graph::iterator_find_map(
-                item,
-                &scoped_self.rust_type(),
-            ));
+            use super::borrowed_graph::{iterator_collect, iterator_find_map};
+            let native_owner = scoped_self.rust_type();
+            if !methods.iter().any(|method| method.name == "find_map") {
+                methods.push(iterator_find_map(item.clone(), &native_owner));
+            }
+            for (name, filter) in [("map_collect", false), ("filter_map_collect", true)] {
+                if !methods.iter().any(|method| method.name == name) {
+                    methods.push(iterator_collect(item.clone(), &native_owner, filter));
+                }
+            }
             break;
         }
     }

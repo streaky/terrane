@@ -194,6 +194,20 @@ pub fn collect_borrowed_slice<T, U>(slice: &[T], visitor: impl FnMut(&T) -> U) -
     slice.iter().map(visitor).collect()
 }
 
+pub fn map_collect_borrowed<'a, T: 'a, U>(
+    iter: &mut impl std::iter::Iterator<Item = &'a T>,
+    visitor: impl FnMut(&T) -> U,
+) -> Vec<U> {
+    iter.map(visitor).collect()
+}
+
+pub fn filter_map_collect_borrowed<'a, T: 'a, U>(
+    iter: &mut impl std::iter::Iterator<Item = &'a T>,
+    visitor: impl FnMut(&T) -> Option<U>,
+) -> Vec<U> {
+    iter.filter_map(visitor).collect()
+}
+
 pub trait Iterable {
     type Item: Clone;
     type Iter;
