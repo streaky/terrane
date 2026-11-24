@@ -138,8 +138,7 @@ pub(crate) use methods::{
 use namespace_overlays::{apply_namespace_overlays, namespace_overlays_from_metadata};
 use partial::{partial_projection, partial_projection_references};
 use reexports::{
-    ReexportRustdoc, external_reexport_rustdocs, generate_rustdoc, prefer_alias,
-    provider_fragment_public_paths,
+    ReexportRustdoc, external_reexport_rustdocs, prefer_alias, provider_fragment_public_paths,
 };
 use rustdoc_support::{
     descriptive_rust_identity, impl_trait_bounds, implementation_trait_path, implements_trait,
@@ -166,7 +165,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "385";
+const PROJECTION_SCHEMA: &str = "386";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
@@ -2068,15 +2067,24 @@ impl Projection {
     ///
     /// A duplicate name is ambiguous even when dependency iteration would otherwise provide a
     /// stable first match, so both missing and ambiguous lookups return `None`.
+    /// Resolved dependency inventories are ordered by namespace and name.
     #[must_use]
     pub fn item(&self, namespace: &str, name: &str) -> Option<&ProjectedItem> {
-        let mut matching = self
-            .dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .filter(|item| item.namespace == namespace && item.name == name);
-        let item = matching.next()?;
-        matching.next().is_none().then_some(item)
+        let key = (namespace, name);
+        let matches = |item: &ProjectedItem| (item.namespace.as_str(), item.name.as_str()) == key;
+        let mut found = None;
+        for dependency in &self.dependencies {
+            let items = &dependency.items;
+            let start =
+                items.partition_point(|item| (item.namespace.as_str(), item.name.as_str()) < key);
+            if let Some(item) = items.get(start).filter(|item| matches(item)) {
+                if found.is_some() || items.get(start + 1).is_some_and(matches) {
+                    return None;
+                }
+                found = Some(item);
+            }
+        }
+        found
     }
     /// Returns canonical admitted instance members, without static operations or declined members.
     #[must_use]

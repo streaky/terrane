@@ -13,7 +13,7 @@ use super::{
     RustDependency, aliases, apply_namespace_overlays, borrowed_graph, cache_identity,
     canonicalize_projected_type_names, containment, decline_unnameable_bound_owners,
     decline_unrepresentable_error_types, enforce_transitive_reachability,
-    external_reexport_rustdocs, fetch_remote_projection, foreign_impls, generate_rustdoc, history,
+    external_reexport_rustdocs, fetch_remote_projection, foreign_impls, history,
     namespace_overlays_from_metadata, normalize_projected_items, persist_dependency_lock,
     prefer_alias, project_external_provided_trait_methods, project_rustdoc,
     projected_bound_dependencies, projected_interface_impl_question, projection_content_hash,
@@ -66,6 +66,16 @@ pub fn resolve(
     // Local path/patch source content participates in the identity as well as manifest/lock
     // inputs: a same-version dependency edit must not reuse old projected contracts.
     let workspace = root.join(".trn/dependencies");
+    fs::create_dir_all(&workspace).map_err(super::io_error("create dependency workspace"))?;
+    let workspace_lock = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(workspace.join("resolution.lock"))
+        .map_err(super::io_error("open dependency workspace lock"))?;
+    workspace_lock
+        .lock()
+        .map_err(super::io_error("lock dependency workspace"))?;
     let dependency_workspace =
         crate::compilation_progress::start("preparing dependency workspace", root.display());
     seed_dependency_lock(root, &workspace)?;
@@ -221,7 +231,7 @@ pub fn resolve(
                     dependency.name
                 ),
             })?;
-        let document = generate_rustdoc(
+        let document = super::reexports::cached_rustdoc(
             &workspace,
             package_spec,
             crate_name,

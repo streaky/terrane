@@ -21,7 +21,7 @@ pub(crate) fn rust_type(namespace: &str, name: &str) -> Option<&'static str> {
 }
 
 pub(crate) fn augment(projection: &mut Projection) {
-    let items = [
+    let mut items = [
         "native-tcp-listener",
         "native-tcp-stream",
         "native-socket-address",
@@ -54,7 +54,8 @@ pub(crate) fn augment(projection: &mut Projection) {
             generic_parameters: Vec::new(),
         },
     })
-    .collect();
+    .collect::<Vec<_>>();
+    super::data::normalize_projected_inventory(&mut items);
     projection.dependencies.push(ProjectedDependency {
         name: "core-networking-native".to_owned(),
         package: "core-networking-native".to_owned(),

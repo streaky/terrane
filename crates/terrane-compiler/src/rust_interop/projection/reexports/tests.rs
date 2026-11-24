@@ -297,7 +297,13 @@ fn owner_mismatch_rebuilds_cache() {
         .unwrap()
     };
     let document = load();
+    let output = super::rustdoc_output_path(&workspace, Some(&host), "owner_fixture");
+    fs::remove_file(&output).unwrap();
     let cached = load();
+    assert!(
+        !output.exists(),
+        "unchanged inputs should not invoke cargo rustdoc"
+    );
     for loaded in [&document, &cached] {
         assert!(
             loaded
@@ -305,13 +311,13 @@ fn owner_mismatch_rebuilds_cache() {
                 .values()
                 .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
         );
-        assert!(
-            loaded
-                .index
-                .values()
-                .any(|item| item.name.as_deref() == Some("usable_owner_function"))
-        );
     }
+    let manifest = workspace.join("Cargo.toml");
+    let mut changed_manifest = fs::read_to_string(&manifest).unwrap();
+    changed_manifest.push_str("\n# changed generated manifest\n");
+    fs::write(&manifest, changed_manifest).unwrap();
+    let _ = load();
+    assert!(output.is_file(), "manifest changes must invalidate Rustdoc");
     fs::write(
         package.join("src/lib.rs"),
         "pub struct ChangedOwnerType;\npub fn usable_owner_function() -> bool { true }\n",

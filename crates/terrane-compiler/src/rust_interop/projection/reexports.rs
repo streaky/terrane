@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 
 use rustdoc_types::{Crate as RustdocCrate, Id, ItemKind};
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 
 use super::{
     CargoExecution, CargoToolchain, Containment, DeclinedItem, ProjectedDependency, ProjectedItem,
@@ -13,6 +12,7 @@ use super::{
     collect_foreign_function, dependency_namespace, run_cargo, rustdoc_public_paths,
     source_rendering, write_cache_atomically,
 };
+use crate::cache_io::HashWriter;
 pub(super) struct ReexportRustdoc {
     pub(super) document: RustdocCrate,
     pub(super) providers: Vec<ReexportProvider>,
@@ -100,7 +100,7 @@ fn rustdoc_output_path(workspace: &Path, target: Option<&str>, crate_name: &str)
     directory.join("doc").join(format!("{crate_name}.json"))
 }
 
-pub(super) fn generate_rustdoc(
+fn generate_rustdoc(
     workspace: &Path,
     package_spec: &str,
     crate_name: &str,
@@ -108,7 +108,7 @@ pub(super) fn generate_rustdoc(
     target: Option<&str>,
     containment: Containment,
     retain_hidden_definitions: bool,
-) -> Result<RustdocCrate, ProjectionError> {
+) -> Result<(RustdocCrate, Vec<u8>), ProjectionError> {
     let generation =
         crate::compilation_progress::start("generating Rustdoc metadata", package_spec);
     let mut rustdoc_args = vec![
@@ -154,7 +154,7 @@ pub(super) fn generate_rustdoc(
             message: error.message,
         })?;
     loading.finish();
-    Ok(document)
+    Ok((document, bytes))
 }
 
 pub(super) fn cached_owner_rustdoc(
@@ -166,52 +166,8 @@ pub(super) fn cached_owner_rustdoc(
     containment: Containment,
     metadata: &serde_json::Value,
 ) -> Result<RustdocCrate, ProjectionError> {
-    #[derive(Deserialize)]
-    struct CacheHeader<'a> {
-        #[serde(borrow)]
-        terrane_cache_identity: &'a str,
-    }
-    let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
-    let containment_fingerprint = format!("{containment:?}");
-    let mut fingerprint_hash = Sha256::new();
-    let local_sources =
-        fs::read(workspace.join("local-source-identity")).map_err(|error| ProjectionError {
-            message: error.to_string(),
-        })?;
-    fingerprint_hash.update(&local_sources);
-    for (label, value) in [
-        ("package-spec", package_spec),
-        ("crate-name", crate_name),
-        ("package-name", package_name),
-        ("target", target),
-        ("hidden-items", "true"),
-        ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN),
-        ("rustdoc-format", rustdoc_format.as_str()),
-        ("containment", containment_fingerprint.as_str()),
-    ] {
-        fingerprint_hash.update(label.len().to_le_bytes());
-        fingerprint_hash.update(label.as_bytes());
-        fingerprint_hash.update(value.len().to_le_bytes());
-        fingerprint_hash.update(value.as_bytes());
-    }
-    let fingerprint = format!("{:x}", fingerprint_hash.finalize());
-    let cache_path = workspace
-        .join("owner-rustdoc")
-        .join(format!("{crate_name}.json"));
-    let cache = crate::compilation_progress::start("checking owner Rustdoc cache", package_spec);
-    if let Ok(bytes) = fs::read(&cache_path)
-        && let Ok(header) = serde_json::from_slice::<CacheHeader<'_>>(&bytes)
-        && header.terrane_cache_identity == fingerprint
-        && let Ok(document) =
-            terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN)
-    {
-        cache.finish();
-        crate::compilation_progress::note("using cached owner Rustdoc", package_spec);
-        return Ok(document);
-    }
-    cache.finish();
     let output_target = rustdoc_target(metadata, package_spec, crate_name, package_name, target);
-    let document = generate_rustdoc(
+    cached_rustdoc(
         workspace,
         package_spec,
         crate_name,
@@ -219,14 +175,68 @@ pub(super) fn cached_owner_rustdoc(
         output_target,
         containment,
         true,
+    )
+}
+
+pub(super) fn cached_rustdoc(
+    workspace: &Path,
+    package_spec: &str,
+    crate_name: &str,
+    package_name: &str,
+    target: Option<&str>,
+    containment: Containment,
+    retain_hidden_definitions: bool,
+) -> Result<RustdocCrate, ProjectionError> {
+    #[derive(Deserialize)]
+    struct CacheHeader<'a> {
+        #[serde(borrow)]
+        terrane_cache_identity: &'a str,
+    }
+    // Lock the generated output as well as its validated copy.
+    let lock = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(workspace.join("rustdoc.lock"))
+        .map_err(super::io_error("open Rustdoc workspace lock"))?;
+    lock.lock()
+        .map_err(super::io_error("lock Rustdoc workspace"))?;
+    let fingerprint = rustdoc_fingerprint(
+        workspace,
+        package_spec,
+        crate_name,
+        package_name,
+        target,
+        containment,
+        retain_hidden_definitions,
     )?;
-    let generated_path = rustdoc_output_path(workspace, output_target, crate_name);
-    let bytes = fs::read(&generated_path).map_err(|error| ProjectionError {
-        message: format!(
-            "cannot cache owner rustdoc `{}`: {error}",
-            generated_path.display()
-        ),
-    })?;
+    let (directory, stage) = if retain_hidden_definitions {
+        ("owner-rustdoc", "checking owner Rustdoc cache")
+    } else {
+        ("dependency-rustdoc", "checking dependency Rustdoc cache")
+    };
+    let cache_path = workspace.join(directory).join(format!("{crate_name}.json"));
+    let cache = crate::compilation_progress::start(stage, package_spec);
+    if let Ok(bytes) = fs::read(&cache_path)
+        && let Ok(header) = serde_json::from_slice::<CacheHeader<'_>>(&bytes)
+        && header.terrane_cache_identity == fingerprint
+        && let Ok(document) =
+            terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN)
+    {
+        cache.finish();
+        crate::compilation_progress::note("using cached Rustdoc metadata", package_spec);
+        return Ok(document);
+    }
+    cache.finish();
+    let (document, bytes) = generate_rustdoc(
+        workspace,
+        package_spec,
+        crate_name,
+        package_name,
+        target,
+        containment,
+        retain_hidden_definitions,
+    )?;
     let mut prefix =
         Vec::with_capacity(fingerprint.len() + package_spec.len() + crate_name.len() + 96);
     prefix.push(b'{');
@@ -246,11 +256,56 @@ pub(super) fn cached_owner_rustdoc(
     }
     let Some(body) = bytes.trim_ascii_start().strip_prefix(b"{") else {
         return Err(ProjectionError {
-            message: "generated owner rustdoc is not a JSON object".to_owned(),
+            message: "generated Rustdoc is not a JSON object".to_owned(),
         });
     };
     write_cache_atomically(&cache_path, &[&prefix, body])?;
     Ok(document)
+}
+
+fn rustdoc_fingerprint(
+    workspace: &Path,
+    package_spec: &str,
+    crate_name: &str,
+    package_name: &str,
+    target: Option<&str>,
+    containment: Containment,
+    retain_hidden_definitions: bool,
+) -> Result<String, ProjectionError> {
+    let mut hash = HashWriter::new();
+    for name in ["Cargo.toml", "Cargo.lock", "local-source-identity"] {
+        hash.part(
+            &fs::read(workspace.join(name))
+                .map_err(super::io_error("fingerprint Rustdoc input"))?,
+        );
+    }
+    // Build scripts can consume inherited environment variables, not only Cargo settings.
+    let mut environment = std::env::vars_os().collect::<Vec<_>>();
+    environment.sort_unstable();
+    for (name, value) in environment {
+        hash.part(name.as_encoded_bytes());
+        hash.part(value.as_encoded_bytes());
+    }
+    for input in [
+        package_spec,
+        crate_name,
+        package_name,
+        target.unwrap_or_default(),
+        RUSTDOC_TOOLCHAIN,
+        &rustdoc_types::FORMAT_VERSION.to_string(),
+        &format!("{containment:?}"),
+        if retain_hidden_definitions {
+            "hidden"
+        } else {
+            "public"
+        },
+    ] {
+        hash.part(input.as_bytes());
+    }
+    for argument in terrane_rust_analysis::RUSTDOC_JSON_ARGS {
+        hash.part(argument.as_bytes());
+    }
+    Ok(hash.finish_hex())
 }
 pub(super) fn prefer_alias(current: &mut String, candidate: &str) {
     let mut paths = BTreeMap::from([(Id(0), current.clone())]);
