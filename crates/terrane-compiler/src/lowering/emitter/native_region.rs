@@ -9,30 +9,37 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode, call_is_unsafe},
 };
 
-pub(super) struct NativeRegion {
-    producers: Vec<Producer>,
+pub(super) struct NativeRegion<'a> {
+    producers: Vec<Producer<'a>>,
     prelude: String,
     stage_views: bool,
 }
 
-struct Producer {
+pub(super) struct Producer<'a> {
+    pub(super) operation: &'a ProjectedFunction,
     site: Span,
     mutable: bool,
-    staged: Option<String>,
+    pub(super) staged: Option<String>,
 }
 
-impl Emitter<'_> {
-    pub(super) fn plan_native_region(&self, exit: &SyntaxNode) -> Option<NativeRegion> {
-        let [head, _] = exit.children.as_slice() else {
-            return None;
-        };
+impl<'a> NativeRegion<'a> {
+    pub(super) fn producer(&self, site: Span) -> Option<&Producer<'a>> {
+        self.producers.iter().find(|producer| producer.site == site)
+    }
+}
+
+impl<'a> Emitter<'a> {
+    pub(super) fn plan_native_region(
+        &self,
+        head: &SyntaxNode,
+        mut operation: &'a ProjectedFunction,
+    ) -> Option<NativeRegion<'a>> {
         let mut receiver = head.type_designator_head()?;
         if receiver.kind != SyntaxKind::MemberExpression
             || ungrouped_expression(receiver.children.first()?).kind != SyntaxKind::CallExpression
         {
             return None;
         }
-        let mut operation = self.projected_function_for_call(head, call_is_unsafe(exit))?;
         if operation.is_async
             || operation.into_future
             || matches!(
@@ -78,6 +85,7 @@ impl Emitter<'_> {
                 })
             );
             producers.push(Producer {
+                operation: producer,
                 site: lender.span,
                 mutable: operation.receiver == Some(Receiver::MutableBorrow),
                 staged: None,
@@ -99,22 +107,10 @@ impl Emitter<'_> {
     }
 
     pub(super) fn native_producer(&self, site: Span) -> bool {
-        self.native_regions.last().is_some_and(|region| {
-            region
-                .producers
-                .iter()
-                .any(|producer| producer.site == site)
-        })
-    }
-
-    pub(super) fn staged_native_producer(&self, site: Span) -> Option<&str> {
         self.native_regions
-            .last()?
-            .producers
-            .iter()
-            .find(|producer| producer.site == site)?
-            .staged
-            .as_deref()
+            .last()
+            .and_then(|r| r.producer(site))
+            .is_some()
     }
 
     pub(super) fn emit_native_producer(

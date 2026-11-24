@@ -10,6 +10,7 @@ mod interpolation;
 mod items;
 mod members;
 mod native_arguments;
+mod native_bridge;
 mod native_callable;
 mod native_region;
 pub(super) mod pipeline;
@@ -229,7 +230,7 @@ pub(super) struct Emitter<'a> {
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
     list_append_borrows: Vec<ListAppendBorrow>,
     borrowed_receiver_overrides: Vec<(crate::Span, String)>,
-    native_regions: Vec<native_region::NativeRegion>,
+    native_regions: Vec<native_region::NativeRegion<'a>>,
     read_place_counter: usize,
     direct_await_operand: Option<crate::Span>,
     fresh_empty_lists: Vec<crate::Span>,

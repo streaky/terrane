@@ -144,8 +144,8 @@ pub use model::{
 };
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,
-    FloatMemberOperation, SourceEnumContract, StringFamily, canonical_default,
-    float_member_contract, value_type_contains_nonclone_foreign,
+    FloatMemberOperation, ProjectedCallSpecialization, SourceEnumContract, StringFamily,
+    canonical_default, float_member_contract, value_type_contains_nonclone_foreign,
 };
 pub(crate) use mutation::{ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in};
 pub(crate) use namespaces::class_designator_identity;

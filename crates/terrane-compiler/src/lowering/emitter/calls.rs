@@ -1,6 +1,7 @@
 use super::super::prelude::*;
 use super::members::GuardScope;
 use super::native_arguments::{NativeArgumentContext, NativeArgumentLifetime};
+use super::native_bridge::NativeBridgeCall;
 
 #[cfg(test)]
 mod tests;
@@ -258,28 +259,23 @@ impl Emitter<'_> {
     }
 
     pub(super) fn call(&mut self, node: &SyntaxNode) -> String {
-        if let Some(binding) = self.staged_native_producer(node.span) {
-            return binding.to_owned();
-        }
-        if !self.native_producer(node.span)
-            && let Some(region) = self.plan_native_region(node)
-        {
-            self.native_regions.push(region);
-            let result = self.call_with_order(node, false);
-            return self.finish_native_region(result);
-        }
-        self.call_with_order(node, false)
+        self.lower_bridge_call(node, false)
     }
 
     pub(super) fn interpolation_renderer_call(&mut self, node: &SyntaxNode) -> String {
-        self.call_with_order(node, true)
+        self.lower_bridge_call(node, true)
     }
 
     #[expect(
         clippy::too_many_lines,
         reason = "all call forms share one ordering and error-propagation path"
     )]
-    fn call_with_order(&mut self, node: &SyntaxNode, argument_first: bool) -> String {
+    pub(super) fn call_with_order(
+        &mut self,
+        node: &SyntaxNode,
+        argument_first: bool,
+        bridge: &NativeBridgeCall<'_>,
+    ) -> String {
         #[cfg(test)]
         tests::count_call(node.span.file);
         let [source_callee, arguments] = node.children.as_slice() else {
@@ -287,9 +283,7 @@ impl Emitter<'_> {
         };
         let is_unsafe =
             crate::syntax::call_is_unsafe(node) || crate::syntax::call_is_unsafe(source_callee);
-        let projected_application = self
-            .projected_function_for_call(source_callee, is_unsafe)
-            .is_some();
+        let projected_application = bridge.operation.is_some();
         let mut callee = source_callee;
         let mut application = source_callee;
         while matches!(
@@ -2033,50 +2027,22 @@ impl Emitter<'_> {
             );
         }
         let joint_macro_graph = native_macro_path.is_some()
-            && (self
-                .unit
-                .projected_call_specializations
-                .get(&(node.span.file, node.span.start, node.span.end))
-                .is_some_and(|selection| {
-                    matches!(
-                        selection.value_type,
-                        ValueType::InvocationScopedNative { concrete: true, .. }
-                    )
-                })
-                || self.unit.invocation_scoped_result_at(node.span).is_some());
-        let specialization = self.unit.projected_call_specializations.get(&(
-            node.span.file,
-            node.span.start,
-            node.span.end,
-        ));
-        let projected_function = self
-            .projected_function_for_call(source_callee, is_unsafe)
-            .map(|function| {
-                let receiver = source_callee
-                    .children
-                    .first()
-                    .and_then(|receiver| self.receiver_value_type(receiver));
-                let Some(ValueType::InvocationScopedNative { rust_type, .. }) = receiver else {
-                    return function.clone();
-                };
-                let arguments = specialization
-                    .into_iter()
-                    .flat_map(|specialization| &specialization.substitutions)
-                    .map(|(name, ty)| (name.clone(), ty.rust_type()))
-                    .collect();
-                crate::rust_interop::projection::instantiate_receiver_lifetimes(
-                    function, &rust_type, &arguments,
+            && (bridge.selection.is_some_and(|selection| {
+                matches!(
+                    selection.value_type,
+                    ValueType::InvocationScopedNative { concrete: true, .. }
                 )
-                .expect("analyzed native receiver lifetime instantiation")
-                .into_owned()
-            });
+            }) || self.unit.invocation_scoped_result_at(node.span).is_some());
+        let specialization = bridge.selection;
+        let projected_operation = bridge.instantiated_operation(self, source_callee);
+        let projected_function = projected_operation.as_deref();
         let (mut projected_parameters, projected_chain_role, projected_error) = projected_function
-            .as_ref()
             .map_or((None, None, false), |function| {
                 (
-                    Some(specialization.map_or_else(
-                        || function.parameters.clone(),
-                        |specialization| specialization.projected_parameters.clone(),
+                    Some(std::borrow::Cow::Borrowed(
+                        specialization.map_or(function.parameters.as_slice(), |plan| {
+                            plan.projected_parameters.as_slice()
+                        }),
                     )),
                     function.chain_role,
                     function.error.is_some(),
@@ -2164,7 +2130,7 @@ impl Emitter<'_> {
             && native_struct_view == Some(false)
             && let Some((_, fields, _)) = native_struct
         {
-            projected_parameters = Some(
+            projected_parameters = Some(std::borrow::Cow::Owned(
                 fields
                     .iter()
                     .map(
@@ -2182,7 +2148,7 @@ impl Emitter<'_> {
                         },
                     )
                     .collect(),
-            );
+            ));
         }
         let shared_async_method = contract.as_ref().is_some_and(|contract| {
             projected_function.is_none()
@@ -2240,7 +2206,7 @@ impl Emitter<'_> {
         }) && let [receiver, _] = callee.children.as_slice()
             && self.receiver_needs_live_guard(receiver)
         {
-            if let Some(function) = projected_function.as_ref()
+            if let Some(function) = projected_function
                 && (region_producer || function.result.needs_borrowed_leaf_conversion())
             {
                 Some(self.projected_receiver_guard(
@@ -2258,10 +2224,8 @@ impl Emitter<'_> {
         let mut shared_argument_index = 0;
         let prior_read_guards = self.borrowed_receiver_overrides.len();
         let retained_native_loans = projected_function
-            .as_ref()
             .is_some_and(|function| function.is_async || function.chain_role.is_some());
         let native_owned_argument_future = projected_function
-            .as_ref()
             .is_some_and(|function| function.is_async)
             && (self.direct_await_operand != Some(node.span)
                 || arguments.children.iter().any(|argument| {
@@ -2447,7 +2411,7 @@ impl Emitter<'_> {
                         })
                     )
                     && (native_struct_construction
-                        || projected_function.as_ref().is_some_and(|function| {
+                        || projected_function.is_some_and(|function| {
                             !function.is_async
                                 && !function.into_future
                                 && function.chain_role.is_none()
@@ -2558,7 +2522,6 @@ impl Emitter<'_> {
                     };
                     sequence_conversion.unwrap_or_else(|| {
                         if (projected_function
-                            .as_ref()
                             .is_some_and(|function| function.is_async || function.into_future)
                             || guarded_method_receiver.is_some()
                             || shared_async_method)
@@ -2768,7 +2731,7 @@ impl Emitter<'_> {
         // Source receiver/argument evaluation belongs to the caller's error/async
         // context, not inside the native call's synchronous panic catcher.
         let stage_native_inputs = native_macro_path.is_none()
-            && projected_function.as_ref().is_some_and(|function| {
+            && projected_function.is_some_and(|function| {
                 !function.is_async && !function.into_future && function.chain_role.is_none()
             })
             && (arguments.children.iter().any(|argument| {
@@ -2837,7 +2800,7 @@ impl Emitter<'_> {
                     .package
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
-                && let Some(projected) = self.projected_function_for_call(callee, is_unsafe)
+                && let Some(projected) = bridge.operation
             {
                 projected.native_path.clone().unwrap_or_else(|| {
                     format!(
@@ -2883,8 +2846,8 @@ impl Emitter<'_> {
                             ..
                         } if !generic_parameters.is_empty() => {
                             selected_identity.as_ref().and_then(|identity| {
-                                let generic_parameters = self
-                                    .projected_function_for_call(callee, is_unsafe)
+                                let generic_parameters = bridge
+                                    .operation
                                     .filter(|projected| projected.native_owner.is_some())
                                     .map_or(generic_parameters.as_slice(), |projected| {
                                         projected.operation_owner_generics.as_slice()
@@ -2990,7 +2953,7 @@ impl Emitter<'_> {
                     |item| item.rust_path.clone(),
                 )
         } else if let [receiver, _member] = callee.children.as_slice()
-            && let Some(projected) = projected_function.as_ref()
+            && let Some(projected) = projected_function
             && let Some(identity) = self.projected_receiver_identity(receiver)
             && let Some(path) = self
                 .package
@@ -3031,7 +2994,7 @@ impl Emitter<'_> {
                 format!("({view_name}).{}", rust_name(&projected.name))
             }
         } else if let [receiver, _member] = callee.children.as_slice()
-            && let Some(projected) = projected_function.as_ref()
+            && let Some(projected) = projected_function
             && let Some(native_path) = &projected.native_path
         {
             let receiver = crate::semantics::ungrouped_expression(receiver);
@@ -3110,7 +3073,7 @@ impl Emitter<'_> {
             native_member_receiver = Some(receiver);
             native_path.clone()
         } else if let [receiver, _member] = callee.children.as_slice()
-            && let Some(projected) = projected_function.as_ref()
+            && let Some(projected) = projected_function
             && matches!(
                 self.value_type(receiver),
                 Some(ValueType::InvocationScopedNative {
@@ -3193,11 +3156,7 @@ impl Emitter<'_> {
                         .method(&identity.namespace, &identity.name, &contract.name, false)
                         .and_then(|method| method.receiver)
                 })
-                .or_else(|| {
-                    projected_function
-                        .as_ref()
-                        .and_then(|method| method.receiver)
-                });
+                .or_else(|| projected_function.and_then(|method| method.receiver));
             let receiver_expression = if let Some((_, receiver)) = &guarded_method_receiver {
                 receiver.clone()
             } else if !contract.is_async
@@ -3302,7 +3261,7 @@ impl Emitter<'_> {
             };
             let method_name = if specialization
                 .is_some_and(|specialization| specialization.direct_projected_call)
-                && let Some(projected) = projected_function.as_ref()
+                && let Some(projected) = projected_function
             {
                 rust_name(&projected.name)
             } else {
@@ -3350,7 +3309,6 @@ impl Emitter<'_> {
             self.expression(callee)
         };
         let native_path_generics = projected_function
-            .as_ref()
             .and_then(|projected| {
                 projected
                     .native_path
@@ -3370,7 +3328,7 @@ impl Emitter<'_> {
             });
             // The receiver's instantiated identity is the canonical source of owner
             // substitutions for trait-qualified calls whose method has no own generics.
-            if let Some(projected) = projected_function.as_ref()
+            if let Some(projected) = projected_function
                 && let Some(owner) = projected.native_owner.as_deref()
                 && let [receiver, _member] = callee.children.as_slice()
                 && let Some(identity) = self.projected_receiver_identity(receiver)
@@ -3418,7 +3376,7 @@ impl Emitter<'_> {
                 .enumerate()
                 .filter_map(|(index, argument)| {
                     use crate::rust_interop::projection::ProjectedType;
-                    let projected = projected_function.as_ref();
+                    let projected = projected_function;
                     let template =
                         projected.and_then(|function| function.rust_generic_arguments.get(index));
                     // Concrete UFCS owner arguments already belong to the trait path.
@@ -3474,7 +3432,7 @@ impl Emitter<'_> {
                 Some(ValueType::InvocationScopedNative {
                     rust_type: actual, ..
                 }),
-            ) = (projected_function.as_ref(), contextual_value_type)
+            ) = (projected_function, contextual_value_type)
                 && let crate::rust_interop::projection::ProjectedType::InvocationScoped {
                     rust_type: template,
                     ..
@@ -3727,7 +3685,7 @@ impl Emitter<'_> {
         } else if specialization.is_some_and(|specialization| specialization.direct_projected_call)
             || (contract.is_none() && uses_direct_native_receiver)
         {
-            projected_function.as_ref()
+            projected_function
         } else {
             contract.as_ref().and_then(|contract| {
                 if projected_interface_dispatch
@@ -3739,7 +3697,6 @@ impl Emitter<'_> {
                     return None;
                 }
                 projected_function
-                    .as_ref()
                     .filter(|method| !contract.is_static || method.enum_operation.is_some())
             })
         };
@@ -3816,7 +3773,7 @@ impl Emitter<'_> {
             let setup = format!(
                 "{guard}{shared_argument_setup}{native_receiver_setup}{native_input_setup}"
             );
-            let method = projected_function.as_ref().expect("planned native call");
+            let method = projected_function.expect("planned native call");
             return self.emit_native_producer(node, &setup, call, method);
         }
         if matches!(
@@ -4025,9 +3982,7 @@ impl Emitter<'_> {
             && (contract.as_ref().is_some_and(|contract| contract.is_unsafe)
                 || specialization
                     .is_some_and(|specialization| specialization.direct_projected_call)
-                    && projected_function
-                        .as_ref()
-                        .is_some_and(|function| function.is_unsafe))
+                    && projected_function.is_some_and(|function| function.is_unsafe))
         {
             format!("unsafe {{ {call} }}")
         } else {
