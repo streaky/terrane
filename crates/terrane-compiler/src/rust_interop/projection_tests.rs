@@ -628,7 +628,7 @@ fn ambiguous_types_do_not_resolve() {
 }
 
 #[test]
-fn static_ref_aliases_cannot_bypass_admission() {
+fn static_ref_aliases_admit_only_shared_text() {
     let generics = Generics {
         params: Vec::new(),
         where_predicates: Vec::new(),
@@ -679,30 +679,40 @@ fn static_ref_aliases_cannot_bypass_admission() {
         has_body: true,
         default_unstable: None,
     };
-    let index = HashMap::from([(alias_id, alias)]);
-    let failure = super::project_function(
-        &function,
-        &index,
-        &HashMap::new(),
-        &BTreeMap::new(),
-        None,
-        false,
-    )
-    .unwrap_err();
-    assert!(failure.contains("requires a static reference"));
+    let mut index = HashMap::from([(alias_id, alias)]);
+    let project = |function: &rustdoc_types::Function, index: &HashMap<Id, rustdoc_types::Item>| {
+        super::project_function(
+            function,
+            index,
+            &HashMap::new(),
+            &BTreeMap::new(),
+            None,
+            false,
+        )
+    };
+    let projected = project(&function, &index).unwrap();
+    assert!(projected.parameters[0].requires_static_text_literal());
+
+    for (is_mutable, primitive) in [(true, "str"), (false, "u32")] {
+        let rustdoc_types::ItemEnum::TypeAlias(alias) =
+            &mut index.get_mut(&alias_id).unwrap().inner
+        else {
+            unreachable!("fixture defines a type alias");
+        };
+        alias.type_ = Type::BorrowedRef {
+            is_mutable,
+            lifetime: Some("'static".to_owned()),
+            type_: Box::new(Type::Primitive(primitive.to_owned())),
+        };
+        let failure = project(&function, &index).unwrap_err();
+        assert!(failure.contains("requires a static reference"));
+    }
 
     function.sig.inputs[0].1 = reference("'input");
-    let projected = super::project_function(
-        &function,
-        &index,
-        &HashMap::new(),
-        &BTreeMap::new(),
-        None,
-        false,
-    )
-    .unwrap();
+    let projected = project(&function, &index).unwrap();
     assert_eq!(projected.parameters[0].ty, ProjectedType::String);
     assert!(projected.parameters[0].borrowed);
+    assert!(!projected.parameters[0].requires_static_text_literal());
 }
 
 #[test]
