@@ -163,6 +163,50 @@ pub(super) fn project_borrowed_graph_type(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
+    if let Type::BorrowedRef {
+        type_,
+        lifetime,
+        is_mutable: false,
+    } = ty
+        && let Type::Slice(element) = type_.as_ref()
+        && let Ok(item @ ProjectedType::Foreign { .. }) =
+            project_type(element, index, paths, generics)
+        && let ProjectedType::Foreign {
+            rust_path,
+            name,
+            arguments,
+            ..
+        } = &item
+        && arguments.is_empty()
+        && !type_contains_lifetime_argument(element)
+        && !rust_path.contains('<')
+    {
+        // This is a projection-only carrier. It is never materialized as a
+        // Terrane value; only the owned output of its terminal can escape.
+        let name = super::type_rendering::instantiated_type_name(
+            &format!("borrowed-slice-of-{name}"),
+            rust_path,
+        );
+        let base_rust_path = format!("[{rust_path}]");
+        let rust_type = format!(
+            "&{}{base_rust_path}",
+            lifetime
+                .as_ref()
+                .map_or_else(String::new, |name| format!("{name} ")),
+        );
+        return Ok(ProjectedType::InvocationScoped {
+            name: name.clone(),
+            lifetimes: rust_lifetimes(&rust_type),
+            rust_type,
+            expression_scoped: true,
+            owned: Box::new(ProjectedType::Foreign {
+                name,
+                rust_path: base_rust_path.clone(),
+                base_rust_path,
+                arguments: vec![item],
+            }),
+        });
+    }
     let projected = project_borrowed_graph_value(ty, index, paths, generics)?;
     if projected.needs_borrowed_leaf_conversion() {
         return Ok(projected);

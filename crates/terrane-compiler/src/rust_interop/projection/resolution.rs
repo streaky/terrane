@@ -451,7 +451,7 @@ pub fn resolve(
         &declared_public_paths,
     );
     for dependency in &mut projected {
-        borrowed_graph::add_optional_owners(&mut dependency.items);
+        borrowed_graph::add_owners(&mut dependency.items);
     }
     let public_errors =
         super::dependency_owners::publicly_exported_error_paths(&projected, &public_type_exports);

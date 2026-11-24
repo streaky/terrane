@@ -5,7 +5,8 @@ use super::{
     Receiver, source_rendering,
 };
 
-pub(super) fn add_optional_owners(items: &mut Vec<ProjectedItem>) {
+pub(super) fn add_owners(items: &mut Vec<ProjectedItem>) {
+    add_slice_owners(items);
     let namespaces = items
         .iter()
         .filter(|item| {
@@ -29,12 +30,80 @@ pub(super) fn add_optional_owners(items: &mut Vec<ProjectedItem>) {
     }
 }
 
+fn add_slice_owners(items: &mut Vec<ProjectedItem>) {
+    let mut slices = BTreeMap::new();
+    for owner in items.iter() {
+        for function in source_rendering::projected_item_functions(owner) {
+            let ProjectedType::InvocationScoped {
+                owned,
+                expression_scoped: true,
+                ..
+            } = &function.result
+            else {
+                continue;
+            };
+            let ProjectedType::Foreign {
+                name,
+                rust_path,
+                arguments,
+                ..
+            } = owned.as_ref()
+            else {
+                continue;
+            };
+            let [element] = arguments.as_slice() else {
+                continue;
+            };
+            if name.starts_with("borrowed-slice-of-") && rust_path.starts_with('[') {
+                slices
+                    .entry((&owner.namespace, name))
+                    .or_insert((rust_path, element));
+            }
+        }
+    }
+    let additions = slices
+        .into_iter()
+        .filter_map(|((namespace, name), (rust_path, item))| {
+            if items
+                .iter()
+                .any(|existing| existing.namespace == *namespace && existing.name == *name)
+            {
+                return None;
+            }
+            let output = ProjectedType::Generic("U".to_owned());
+            let mut method = terminal_method(
+                "map_collect",
+                ProjectedType::Sequence {
+                    rust_path: "std::vec::Vec<U>".to_owned(),
+                    item: Box::new(output.clone()),
+                },
+                "U",
+                Vec::new(),
+            );
+            method.native_owner = None;
+            method.native_path =
+                Some("terrane_collection_support::collect_borrowed_slice".to_owned());
+            method
+                .parameters
+                .push(borrowed_visitor(item.clone(), output));
+            Some(graph_owner(
+                namespace.clone(),
+                name.clone(),
+                rust_path.clone(),
+                "Native borrowed slice; usable only inside one operation graph.",
+                vec![method],
+            ))
+        })
+        .collect::<Vec<_>>();
+    items.extend(additions);
+}
+
 // Option is already a compiler-owned projection protocol. Its borrowed form stays native
 // until one of these native operations produces an owned terminal or another scoped edge.
 pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
     let item = ProjectedType::Generic("T".to_owned());
     let optional = ProjectedType::Optional(Box::new(item.clone()));
-    let mut cloned = optional_method(
+    let mut cloned = terminal_method(
         "cloned",
         optional.clone(),
         "T",
@@ -42,7 +111,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
     );
     cloned.native_owner = Some("std::option::Option<&T>".to_owned());
     cloned.native_path = None;
-    let mut map = optional_method(
+    let mut map = terminal_method(
         "map",
         ProjectedType::Optional(Box::new(ProjectedType::Generic("U".to_owned()))),
         "U",
@@ -96,14 +165,30 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
         **result = ProjectedType::Optional(Box::new(ProjectedType::Generic("U".to_owned())));
         *native_bound = Some("FnOnce(&T) -> Option<U>".to_owned());
     }
+    graph_owner(
+        namespace,
+        "borrowed-option".to_owned(),
+        "std::option::Option".to_owned(),
+        "Native optional borrow; usable only inside one operation graph.",
+        vec![cloned, map, and_then],
+    )
+}
+
+fn graph_owner(
+    namespace: String,
+    name: String,
+    rust_path: String,
+    docs: &str,
+    methods: Vec<ProjectedFunction>,
+) -> ProjectedItem {
     ProjectedItem {
         namespace,
-        name: "borrowed-option".to_owned(),
-        rust_path: "std::option::Option".to_owned(),
-        docs: Some("Native optional borrow; usable only inside one operation graph.".to_owned()),
+        name,
+        rust_path,
+        docs: Some(docs.to_owned()),
         kind: ProjectedKind::ForeignType {
             constructor: None,
-            methods: vec![cloned, map, and_then],
+            methods,
             static_methods: Vec::new(),
             constants: Vec::new(),
             cloneable: false,
@@ -125,18 +210,23 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
 /// visitor; neither the item nor the iterator owner is cloned.
 pub(super) fn iterator_find_map(item: ProjectedType, native_owner: &str) -> ProjectedFunction {
     let result = ProjectedType::Optional(Box::new(ProjectedType::Generic("U".to_owned())));
-    let native_item = format!("&{}", item.rust_type());
-    let mut method = optional_method("find_map", result.clone(), "U", Vec::new());
+    let mut method = terminal_method("find_map", result.clone(), "U", Vec::new());
     method.native_owner = Some(native_owner.to_owned());
     method.native_path = Some("std::iter::Iterator::find_map".to_owned());
     method.receiver = Some(Receiver::MutableBorrow);
-    method.parameters.push(ProjectedParameter {
+    method.parameters.push(borrowed_visitor(item, result));
+    method
+}
+
+fn borrowed_visitor(item: ProjectedType, result: ProjectedType) -> ProjectedParameter {
+    let native_item = format!("&{}", item.rust_type());
+    ProjectedParameter {
         name: "operation".to_owned(),
         ty: ProjectedType::Callback {
             carrier: None,
             rust_name: "F".to_owned(),
             parameters: vec![item],
-            native_bound: Some(format!("FnMut({native_item}) -> Option<U>")),
+            native_bound: Some(format!("FnMut({native_item}) -> {}", result.rust_type())),
             native_method: None,
             native_result: None,
             native_substitutions: BTreeMap::new(),
@@ -159,11 +249,10 @@ pub(super) fn iterator_find_map(item: ProjectedType, native_owner: &str) -> Proj
         generic_bounds: Vec::new(),
         generic_interface: None,
         associated_type: None,
-    });
-    method
+    }
 }
 
-fn optional_method(
+fn terminal_method(
     name: &str,
     result: ProjectedType,
     selected: &str,

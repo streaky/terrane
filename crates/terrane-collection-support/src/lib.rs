@@ -189,6 +189,11 @@ impl<T: Clone> IndexedIteration for &[T] {
     }
 }
 
+/// Collect only visitor outputs; the slice and its elements stay borrowed.
+pub fn collect_borrowed_slice<T, U>(slice: &[T], visitor: impl FnMut(&T) -> U) -> Vec<U> {
+    slice.iter().map(visitor).collect()
+}
+
 pub trait Iterable {
     type Item: Clone;
     type Iter;

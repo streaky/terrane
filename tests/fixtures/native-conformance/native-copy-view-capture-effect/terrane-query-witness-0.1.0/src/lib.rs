@@ -501,3 +501,23 @@ impl OrdinalRow {
             .ok_or_else(|| std::io::Error::other("missing cell"))
     }
 }
+
+pub struct SliceEntry(String);
+
+impl SliceEntry {
+    pub fn title(&self) -> &str {
+        &self.0
+    }
+}
+
+pub struct SliceCatalog([SliceEntry; 2]);
+
+impl SliceCatalog {
+    pub fn sample() -> Self {
+        Self([SliceEntry("west".to_owned()), SliceEntry("east".to_owned())])
+    }
+
+    pub fn entries(&self) -> &[SliceEntry] {
+        &self.0
+    }
+}
