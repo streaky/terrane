@@ -308,6 +308,10 @@ a text-document position, lazily opens a short-lived generated snapshot from the
 and editor overlays, returns the same availability-tagged exact-build generated locations as
 `generated-rust`, and closes that generated snapshot before responding.
 
+When opened separately, a `.trn/terrane-projection.generated.trn` report with the
+generator header and valid unit markers is parsed with generated declaration
+syntax for inspection, not analyzed as authored package source.
+
 Parameter hints name both the owning callable and parameter (for example `opt.value:`). Signature
 help uses compiler-owned argument and separator ranges: after a comma, the active parameter belongs
 to the call owning that comma, with named arguments bound by name. Projected-callable fallback uses
