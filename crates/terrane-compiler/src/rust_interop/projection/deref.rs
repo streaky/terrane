@@ -85,23 +85,14 @@ fn collect(
 
 fn target_from_document(
     owner: &ProjectedType,
-    dependency: &RustDependency,
+    ids: &[Id],
     document: &RustdocCrate,
-    public_paths: &BTreeMap<Id, String>,
 ) -> Vec<ProjectedType> {
-    let ProjectedType::Foreign {
-        base_rust_path,
-        arguments,
-        ..
-    } = owner
-    else {
+    let ProjectedType::Foreign { arguments, .. } = owner else {
         return Vec::new();
     };
     let mut targets = Vec::new();
-    for (id, path) in public_paths {
-        if key(&extern_rust_path(dependency, path)) != key(base_rust_path) {
-            continue;
-        }
+    for id in ids {
         let Some(item) = document.index.get(id) else {
             continue;
         };
@@ -270,14 +261,37 @@ fn discover_receiver_pairs(
     types: &BTreeMap<String, ProjectedType>,
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
 ) -> BTreeMap<(String, String), (ProjectedType, ProjectedType)> {
+    // Keep each document's IDs and their order: equal normalized paths can
+    // have multiple entries, and Rustdoc IDs are local to their document.
+    let path_indices = rustdocs
+        .iter()
+        .map(|(dependency, _, paths)| {
+            let mut index = BTreeMap::<_, Vec<_>>::new();
+            for (id, path) in paths {
+                index
+                    .entry(key(&extern_rust_path(dependency, path)))
+                    .or_default()
+                    .push(*id);
+            }
+            index
+        })
+        .collect::<Vec<_>>();
     let mut pairs = BTreeMap::new();
     for (owner_key, owner) in types {
-        let ProjectedType::Foreign { arguments, .. } = owner else {
+        let ProjectedType::Foreign {
+            arguments,
+            base_rust_path,
+            ..
+        } = owner
+        else {
             continue;
         };
         let mut targets = arguments.clone();
-        for (dependency, document, paths) in rustdocs {
-            targets.extend(target_from_document(owner, dependency, document, paths));
+        let owner_path = key(base_rust_path);
+        for ((_, document, _), index) in rustdocs.iter().zip(&path_indices) {
+            if let Some(ids) = index.get(&owner_path) {
+                targets.extend(target_from_document(owner, ids, document));
+            }
         }
         for target in targets {
             let Some(target_key) = key(&target.rust_type()) else {

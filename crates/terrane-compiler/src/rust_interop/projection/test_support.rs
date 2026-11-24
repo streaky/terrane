@@ -1,6 +1,8 @@
 //! Shared public-metadata fixtures for projection tests; never compiled into production.
 
-use super::{ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType};
+use super::{
+    ProjectedBoundaryCapabilities, ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType,
+};
 use crate::RustDependency;
 
 pub(super) fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
@@ -50,5 +52,45 @@ pub(super) fn projected_function_item(
             receiver_lifetime: None,
             receiver: None,
         }),
+    }
+}
+
+pub(super) fn projected_foreign_type_item(
+    namespace: &str,
+    name: &str,
+    rust_path: &str,
+    method_name: &str,
+) -> ProjectedItem {
+    let ProjectedKind::Function(method) = projected_function_item(
+        namespace,
+        method_name,
+        &format!("{rust_path}::{method_name}"),
+    )
+    .kind
+    else {
+        unreachable!();
+    };
+    ProjectedItem {
+        namespace: namespace.to_owned(),
+        name: name.to_owned(),
+        rust_path: rust_path.to_owned(),
+        docs: None,
+        kind: ProjectedKind::ForeignType {
+            constructor: None,
+            methods: vec![method],
+            static_methods: Vec::new(),
+            constants: Vec::new(),
+            boundary: ProjectedBoundaryCapabilities::default(),
+            fields: Vec::new(),
+            borrowed_view: false,
+            native_view_type: None,
+            enum_payload: None,
+            generic_parameters: Vec::new(),
+            displayable: false,
+            cloneable: false,
+            copyable: false,
+            send: false,
+            sync: false,
+        },
     }
 }

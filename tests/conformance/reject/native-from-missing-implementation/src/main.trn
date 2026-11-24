@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-query-witness import FromText, IntoOnly
+
+function main;
+    value = IntoOnly::new;
+    missing = FromText::from; move value

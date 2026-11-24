@@ -54,6 +54,7 @@ mod cache_identity;
 mod callable;
 mod callback_inputs;
 mod cargo_workspace;
+pub(crate) mod conversions;
 pub(crate) mod core_native;
 mod data;
 mod dependency_owners;
@@ -62,6 +63,9 @@ mod foreign_impls;
 mod functions;
 mod history;
 mod interfaces;
+#[cfg(test)]
+#[path = "projection/interfaces_tests.rs"]
+mod interfaces_tests;
 mod items;
 mod macros;
 mod methods;
@@ -137,8 +141,7 @@ pub(crate) use methods::{
 use namespace_overlays::{apply_namespace_overlays, namespace_overlays_from_metadata};
 use partial::{partial_projection, partial_projection_references};
 use reexports::{
-    ReexportRustdoc, external_reexport_rustdocs, generate_rustdoc, prefer_alias,
-    provider_fragment_public_paths,
+    ReexportRustdoc, external_reexport_rustdocs, prefer_alias, provider_fragment_public_paths,
 };
 use rustdoc_support::{
     descriptive_rust_identity, impl_trait_bounds, implementation_trait_path, implements_trait,
@@ -153,6 +156,7 @@ use source_rendering::{
     projected_source_dependencies, propagate_partial_contract_requirements, render_demand_sites,
     render_foreign_declaration, render_required_projected_declarations,
     render_unavailable_projection, source_foreign_aliases, unavailable_member_map,
+    write_inventory_comment,
 };
 pub(crate) use type_rendering::instantiate_projected_container;
 use type_rendering::{
@@ -165,7 +169,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "384";
+const PROJECTION_SCHEMA: &str = "386";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
@@ -294,6 +298,7 @@ pub struct ProjectedDependency {
     pub name: String,
     pub package: String,
     pub version: String,
+    /// Ordered by namespace and name in a resolved projection.
     pub items: Vec<ProjectedItem>,
     pub declined: Vec<DeclinedItem>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -1764,7 +1769,11 @@ impl Projection {
                     methods
                         .iter()
                         .chain(static_methods)
-                        .filter(|function| inventory_member_syntax_gap(function).is_none())
+                        .filter(|function| {
+                            crate::rust_interop::projection::conversions::from_destination(function)
+                                .is_none()
+                                && inventory_member_syntax_gap(function).is_none()
+                        })
                         .map(|function| function.name.clone())
                         .collect(),
                 )),
@@ -1966,8 +1975,11 @@ impl Projection {
              # Projected Terrane declarations\n",
         );
         if let Some(error) = source_rendering_gap {
-            writeln!(output, "# Projected source rendering gap: {error}")
-                .expect("writing to a string cannot fail");
+            write_inventory_comment(
+                &mut output,
+                "",
+                &["Projected source rendering gap: ", &error],
+            );
         }
 
         for (namespace, source) in sources {
@@ -2063,19 +2075,36 @@ impl Projection {
             .collect()
     }
 
+    pub(crate) fn inventories_are_sorted(&self) -> bool {
+        self.dependencies.iter().all(|dependency| {
+            dependency.items.is_sorted_by(|left, right| {
+                (&left.namespace, &left.name) <= (&right.namespace, &right.name)
+            })
+        })
+    }
+
     /// Returns the uniquely named projected item in `namespace`.
     ///
     /// A duplicate name is ambiguous even when dependency iteration would otherwise provide a
     /// stable first match, so both missing and ambiguous lookups return `None`.
+    /// Resolved dependency inventories are ordered by namespace and name.
     #[must_use]
     pub fn item(&self, namespace: &str, name: &str) -> Option<&ProjectedItem> {
-        let mut matching = self
-            .dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .filter(|item| item.namespace == namespace && item.name == name);
-        let item = matching.next()?;
-        matching.next().is_none().then_some(item)
+        let key = (namespace, name);
+        let matches = |item: &ProjectedItem| (item.namespace.as_str(), item.name.as_str()) == key;
+        let mut found = None;
+        for dependency in &self.dependencies {
+            let items = &dependency.items;
+            let start =
+                items.partition_point(|item| (item.namespace.as_str(), item.name.as_str()) < key);
+            if let Some(item) = items.get(start).filter(|item| matches(item)) {
+                if found.is_some() || items.get(start + 1).is_some_and(matches) {
+                    return None;
+                }
+                found = Some(item);
+            }
+        }
+        found
     }
     /// Returns canonical admitted instance members, without static operations or declined members.
     #[must_use]

@@ -1,4 +1,6 @@
 namespace bytes-views-encoding
+from /core/errors import decode-error
+
 function test-scenario;
   text string = 'é'
   print; text.length, text.bytes.length, text.scalars.length, text.graphemes.length
@@ -26,3 +28,12 @@ function test-scenario;
   print; utf16be-text
   print; utf32le-text
   print; utf32be-text
+  owned bytes = text.encode; utf8
+  print; ((move owned).decode; utf8)
+  wide bytes = text.encode; utf16-le
+  print; ((move wide).decode; utf16-le)
+  invalid bytes = b'a\xff'
+  try
+    print; ((move invalid).decode; utf8)
+  catch decode-error as error
+    print; error.message

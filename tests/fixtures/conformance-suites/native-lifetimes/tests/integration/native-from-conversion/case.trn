@@ -1,0 +1,28 @@
+namespace native-from-conversion
+from /deps/terrane-query-witness import FromText, FromInput, InherentFrom, string_allocation_id
+
+function borrowed-text FromText; text ref string
+    return FromText::from; text
+
+function borrowed-native FromText; value ref FromInput
+    return FromText::from; value
+
+function test-scenario;
+    text = 'native/from/path'
+    borrowed = borrowed-text; text
+    print; (borrowed.text;)
+    source = 'allocation reuse'
+    allocation = (string_allocation_id; source)
+    owned = FromText::from; move source
+    print; (owned.allocation_id;) == allocation
+    print; (owned.text;)
+    reusable = 'source stays live'
+    copied = FromText::from; reusable
+    print; (copied.text;) == reusable
+    native = FromInput::new;
+    borrowed-value = borrowed-native; native
+    print; (borrowed-value.text;)
+    moved-value = FromText::from; move native
+    print; (moved-value.text;)
+    inherent = InherentFrom::from; 42
+    print; inherent.n0

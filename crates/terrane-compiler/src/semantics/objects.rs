@@ -4672,6 +4672,7 @@ struct PendingProjectedSpecialization {
     projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
     projected_receiver: Option<crate::rust_interop::projection::Receiver>,
     projected_receiver_lifetime: Option<String>,
+    native_target: Option<String>,
     direct_projected_call: bool,
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
@@ -5301,6 +5302,7 @@ fn specialize_projected_result_batch(
                     projected_parameters: specialization.projected_parameters,
                     projected_receiver: specialization.projected_receiver,
                     projected_receiver_lifetime: specialization.projected_receiver_lifetime,
+                    native_target: specialization.native_target,
                     direct_projected_call: specialization.direct_projected_call,
                     value_parameters: specialization.value_parameters,
                 },
@@ -6309,6 +6311,19 @@ fn collect_projected_destinations(
     Ok(())
 }
 
+fn is_native_from_callee(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+    node.type_designator_head().is_some_and(|head| {
+        head.kind == SyntaxKind::StaticMemberExpression
+            && head
+                .children
+                .get(1)
+                .is_some_and(|member| node_text(&unit.source, member) == "from")
+            && projected_function_for_call(package, unit, node, false)
+                .and_then(crate::rust_interop::projection::conversions::from_destination)
+                .is_some()
+    })
+}
+
 #[inline(never)]
 #[expect(
     clippy::too_many_lines,
@@ -6367,6 +6382,14 @@ fn collect_projected_destination_node(
             unit_index,
             pending,
         )
+    }
+    if node.kind == SyntaxKind::StaticMemberExpression && is_native_from_callee(package, unit, node) {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            "native From requires a direct call with a concrete input",
+            node.span,
+        ));
     }
     if let Some(specialization) =
         unit.projected_call_specializations
@@ -6481,6 +6504,7 @@ fn collect_projected_destination_node(
             projected_parameters,
             projected_receiver: None,
             projected_receiver_lifetime: None,
+            native_target: None,
             direct_projected_call: true,
             bounds: Vec::new(),
         });
@@ -6642,7 +6666,7 @@ fn collect_projected_destination_node(
                 unit_index,
                 pending,
             )?;
-        } else {
+        } else if !is_native_from_callee(package, unit, callee) {
             collect_projected_destinations(
                 package,
                 unit,
@@ -6732,6 +6756,18 @@ fn specialize_projected_destination(
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && arguments.children.is_empty()
+        && is_native_from_callee(package, unit, callee)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "too few arguments for function `from`",
+            node.span,
+        ));
+    }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && let Some(function) =
@@ -7392,10 +7428,17 @@ fn specialize_projected_destination(
                 return Err(failure(
                     &unit.source,
                     "T0129",
-                    format!(
-                        "projected generic `{}` cannot be inferred from this call",
-                        generic.name
-                    ),
+                    if crate::rust_interop::projection::conversions::from_destination(&function)
+                        .is_some()
+                    {
+                        "native From requires a concrete owned value or a native-compatible reference"
+                            .to_owned()
+                    } else {
+                        format!(
+                            "projected generic `{}` cannot be inferred from this call",
+                            generic.name
+                        )
+                    },
                     node.span,
                 ));
             };
@@ -7875,6 +7918,37 @@ fn specialize_projected_destination(
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        let native_target = if let Some(destination) =
+            crate::rust_interop::projection::conversions::from_destination(&function)
+        {
+            let [parameter] = projected_parameters.as_mut_slice() else {
+                unreachable!("native From has one argument")
+            };
+            let input = crate::rust_interop::projection::conversions::input_abi(parameter).ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    "native From requires a concrete owned value or a native-compatible reference",
+                    node.span,
+                )
+            })?;
+            bounds.push(PendingProjectedBound {
+                generic: None,
+                receiver_call: None,
+                direct_rust_type: destination.to_owned(),
+                borrowed_rust_type: None,
+                mutable_borrowed_rust_type: None,
+                borrowed_mutable: false,
+                rust_bound: crate::rust_interop::projection::conversions::from_bound(&input),
+                inferred_parameters: Vec::new(),
+            });
+            Some(crate::rust_interop::projection::conversions::from_target(
+                destination,
+                &input,
+            ))
+        } else {
+            None
+        };
         // Receiver predicates validate the submitted value/reference ABI.
         // A by-value generic is not itself a declaration of borrowing.
         bounds.extend(receiver_input_bounds(
@@ -7966,6 +8040,7 @@ fn specialize_projected_destination(
             projected_parameters,
             projected_receiver: function.receiver,
             projected_receiver_lifetime: function.receiver_lifetime.clone(),
+            native_target,
             direct_projected_call: true,
             value_parameters,
             value_type,
@@ -8246,6 +8321,7 @@ fn specialize_projected_destination(
             projected_parameters,
             projected_receiver: function.receiver,
             projected_receiver_lifetime: function.receiver_lifetime.clone(),
+            native_target: None,
             direct_projected_call: true,
         });
     }

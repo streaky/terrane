@@ -205,6 +205,9 @@ documentation, ordered typed annotations, and signature/field/contract snapshots
 actual declaring origin, not metadata copied onto callable value aliases or overrides. Semantic
 hover renders documentation and annotation identities from this record. Ownership is `unsupported`
 until the semantic model exposes an authoritative ownership state. Locations contain `{uri,span}`.
+At a proven native bridge callee, `locate` additionally returns `native_target`: the
+exact selected Rust callable before formatting. Hover uses this fact; `generated-rust`
+still returns the actual rendered bytes, including the surrounding call boundary.
 Definitions and references
 resolve by syntactic role and canonical semantic identity, not matching text. A reference query for
 an interface method returns sites resolved directly to that interface identity; calls through a
@@ -304,6 +307,10 @@ analysis snapshots do not compile generated Rust. The custom `terrane/generatedR
 a text-document position, lazily opens a short-lived generated snapshot from the exact current package
 and editor overlays, returns the same availability-tagged exact-build generated locations as
 `generated-rust`, and closes that generated snapshot before responding.
+
+When opened separately, a `.trn/terrane-projection.generated.trn` report with the
+generator header and valid unit markers is parsed with generated declaration
+syntax for inspection, not analyzed as authored package source.
 
 Parameter hints name both the owning callable and parameter (for example `opt.value:`). Signature
 help uses compiler-owned argument and separator ranges: after a comma, the active parameter belongs

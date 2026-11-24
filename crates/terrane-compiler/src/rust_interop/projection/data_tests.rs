@@ -98,3 +98,73 @@ fn final_inventory_replays() {
         projection_content_hash(&reversed).unwrap()
     );
 }
+
+#[test]
+fn extractor_traits_keep_qualified_results() {
+    let run = |reverse: bool| {
+        let mut owner = projected_function_item("/deps/witness", "Value", "witness::Value");
+        owner.kind = serde_json::from_value(serde_json::json!({
+            "ForeignType": { "methods": [] }
+        }))
+        .unwrap();
+        let mut operations = [
+            ("Required", ProjectedType::Int),
+            (
+                "Optional",
+                ProjectedType::Optional(Box::new(ProjectedType::Int)),
+            ),
+        ]
+        .map(|(protocol, result)| {
+            let mut item = projected_function_item(
+                "/deps/witness/value",
+                "extract",
+                &format!("<witness::Value as witness::{protocol}>::extract"),
+            );
+            let ProjectedKind::Function(function) = &mut item.kind else {
+                unreachable!();
+            };
+            function.native_owner = Some("witness::Value".to_owned());
+            function.result = result;
+            ProjectedTraitOperation {
+                item,
+                fallback_namespace: format!(
+                    "/deps/witness/value/trait/{}",
+                    protocol.to_lowercase()
+                ),
+            }
+        });
+        if reverse {
+            operations.reverse();
+        }
+        let mut items = vec![owner];
+        let mut declined = Vec::new();
+        merge_projected_trait_operations(&mut items, &mut declined, operations.into());
+        assert_eq!(declined, [] as [DeclinedItem; 0]);
+        normalize_projected_inventory(&mut items);
+        items
+    };
+    let items = run(false);
+    assert_eq!(items, run(true));
+    assert!(
+        !items
+            .iter()
+            .any(|item| item.namespace == "/deps/witness/value")
+    );
+    for (protocol, expected) in [
+        ("required", ProjectedType::Int),
+        (
+            "optional",
+            ProjectedType::Optional(Box::new(ProjectedType::Int)),
+        ),
+    ] {
+        let namespace = format!("/deps/witness/value/trait/{protocol}");
+        let item = items
+            .iter()
+            .find(|item| item.namespace == namespace)
+            .unwrap();
+        let ProjectedKind::Function(function) = &item.kind else {
+            panic!("expected projected extractor");
+        };
+        assert_eq!(function.result, expected);
+    }
+}

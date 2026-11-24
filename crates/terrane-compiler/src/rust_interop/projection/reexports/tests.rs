@@ -297,7 +297,13 @@ fn owner_mismatch_rebuilds_cache() {
         .unwrap()
     };
     let document = load();
+    let output = super::rustdoc_output_path(&workspace, Some(&host), "owner_fixture");
+    fs::remove_file(&output).unwrap();
     let cached = load();
+    assert!(
+        !output.exists(),
+        "unchanged inputs should not invoke cargo rustdoc"
+    );
     for loaded in [&document, &cached] {
         assert!(
             loaded
@@ -312,6 +318,13 @@ fn owner_mismatch_rebuilds_cache() {
                 .any(|item| item.name.as_deref() == Some("usable_owner_function"))
         );
     }
+    let manifest = workspace.join("Cargo.toml");
+    let mut changed_manifest = fs::read_to_string(&manifest).unwrap();
+    changed_manifest.push_str("\n# changed generated manifest\n");
+    fs::write(manifest, changed_manifest).unwrap();
+    let _ = load();
+    assert!(output.is_file(), "manifest changes must invalidate Rustdoc");
+
     fs::write(
         package.join("src/lib.rs"),
         "pub struct ChangedOwnerType;\npub fn usable_owner_function() -> bool { true }\n",
@@ -323,17 +336,92 @@ fn owner_mismatch_rebuilds_cache() {
     )
     .unwrap();
     let edited = load();
-    assert!(
+    let has_type = |name| {
         edited
             .index
             .values()
-            .any(|item| item.name.as_deref() == Some("ChangedOwnerType"))
-    );
+            .any(|item| item.name.as_deref() == Some(name))
+    };
+    assert!(has_type("ChangedOwnerType"));
+    assert!(!has_type("UsableOwnerType"));
+    fs::remove_dir_all(workspace).unwrap();
+}
+
+#[test]
+fn public_dependency_cache_reuses() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let workspace = std::env::temp_dir().join(format!(
+        "terrane-dependency-rustdoc-cache-{}-{nonce}",
+        std::process::id()
+    ));
+    let package = workspace.join("dependency");
+    fs::create_dir_all(package.join("src")).unwrap();
+    fs::write(
+        workspace.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"dependency\"]\nresolver = \"2\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.join("Cargo.toml"),
+        "[package]\nname = \"dependency-fixture\"\nversion = \"1.0.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.join("src/lib.rs"),
+        "pub struct PublicDependencyType;\n",
+    )
+    .unwrap();
+    run_cargo(
+        &workspace,
+        &["generate-lockfile", "--offline"],
+        CargoToolchain::Default,
+        CargoExecution::Host,
+    )
+    .unwrap();
+    fs::write(
+        workspace.join("local-source-identity"),
+        crate::cache_identity::local_rust_sources(&workspace).unwrap(),
+    )
+    .unwrap();
+    let host = host_target();
+    let load = || {
+        super::cached_rustdoc(
+            &workspace,
+            "dependency-fixture@1.0.0",
+            "dependency_fixture",
+            "dependency-fixture",
+            Some(&host),
+            Containment::Unavailable,
+            false,
+        )
+        .unwrap()
+    };
+    let document = load();
+    let output = super::rustdoc_output_path(&workspace, Some(&host), "dependency_fixture");
+    fs::remove_file(&output).unwrap();
+    let cached = load();
+    assert!(!output.exists(), "expected public dependency cache reuse");
     assert!(
-        !edited
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
+        workspace
+            .join("dependency-rustdoc/dependency_fixture.json")
+            .is_file()
     );
+    for loaded in [&document, &cached] {
+        assert!(
+            loaded
+                .index
+                .values()
+                .any(|item| item.name.as_deref() == Some("PublicDependencyType"))
+        );
+    }
+    let lock = workspace.join("Cargo.lock");
+    let mut changed_lock = fs::read_to_string(&lock).unwrap();
+    changed_lock.push_str("\n# changed lock snapshot\n");
+    fs::write(lock, changed_lock).unwrap();
+    let _ = load();
+    assert!(output.is_file(), "lock changes must invalidate Rustdoc");
     fs::remove_dir_all(workspace).unwrap();
 }
