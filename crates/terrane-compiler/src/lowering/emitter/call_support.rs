@@ -1,9 +1,11 @@
 use super::super::prelude::*;
 
-impl Emitter<'_> {
+impl<'a> Emitter<'a> {
     pub(super) fn fallible(&self, call: impl AsRef<str>, node: &SyntaxNode) -> String {
-        let call = call.as_ref();
-        let site = self.error_site(node);
+        self.fallible_at(call.as_ref(), &self.error_site(node))
+    }
+
+    pub(super) fn fallible_at(&self, call: &str, site: &str) -> String {
         if self.try_completion {
             format!("__terrane_raised_completion!({call}, {site})")
         } else if self.propagate_errors {
@@ -685,7 +687,7 @@ impl Emitter<'_> {
         &self,
         mut callee: &SyntaxNode,
         is_unsafe: bool,
-    ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
+    ) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
         let is_unsafe = is_unsafe || Self::callee_is_unsafe(callee);
         while matches!(
             callee.kind,
