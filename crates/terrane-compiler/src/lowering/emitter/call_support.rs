@@ -160,38 +160,43 @@ impl<'a> Emitter<'a> {
         } else {
             None
         };
+        let borrowed_native_decode = if family == "decode" && owned_decode.is_none() {
+            self.lower_borrowed_native_bytes(subject)
+        } else {
+            None
+        };
+        let direct_decode = owned_decode.is_some() || borrowed_native_decode.is_some();
         let prior_read_guards = self.borrowed_receiver_overrides.len();
         let mut guard_setup = String::new();
         self.prepare_read_guards(
-            std::iter::once(subject)
-                .filter(|_| owned_decode.is_none())
-                .chain(
-                    arguments
-                        .children
-                        .iter()
-                        .map(|argument| argument.children.last().unwrap_or(argument)),
-                ),
+            std::iter::once(subject).filter(|_| !direct_decode).chain(
+                arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument)),
+            ),
             &mut guard_setup,
         );
         let competing_guard = !self.has_read_guard(subject)
             && arguments.children.iter().any(|argument| {
                 self.contains_guarded_read(argument.children.last().unwrap_or(argument))
             });
-        let snapshot_receiver = owned_decode.is_none()
+        let snapshot_receiver = !direct_decode
             && self.native_read_needs_snapshot(subject, arguments, competing_guard, false);
-        let (receiver_setup, receiver) = if let Some(value) = &owned_decode {
-            let name = self.fresh_read_binding_name("decode_receiver");
-            (format!("let {name} = {value}; "), name)
-        } else if let Some(parts) = self.throwable_text_parts(subject, snapshot_receiver) {
-            parts
-        } else if snapshot_receiver {
-            let value = self.read_snapshot(subject);
-            let name = self.fresh_read_binding_name("string_receiver");
-            (format!("let {name} = {value}; "), name)
-        } else {
-            self.borrowed_receiver_parts(subject)
-        };
-        let mut setup = if owned_decode.is_some() || snapshot_receiver {
+        let (receiver_setup, receiver) =
+            if let Some(value) = owned_decode.as_ref().or(borrowed_native_decode.as_ref()) {
+                let name = self.fresh_read_binding_name("decode_receiver");
+                (format!("let {name} = {value}; "), name)
+            } else if let Some(parts) = self.throwable_text_parts(subject, snapshot_receiver) {
+                parts
+            } else if snapshot_receiver {
+                let value = self.read_snapshot(subject);
+                let name = self.fresh_read_binding_name("string_receiver");
+                (format!("let {name} = {value}; "), name)
+            } else {
+                self.borrowed_receiver_parts(subject)
+            };
+        let mut setup = if direct_decode || snapshot_receiver {
             format!("{receiver_setup}{guard_setup}")
         } else {
             format!("{guard_setup}{receiver_setup}")

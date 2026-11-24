@@ -48,6 +48,44 @@ impl Emitter<'_> {
             })
     }
 
+    /// A plain reference parameter already lends stable storage. Decode can
+    /// consume the native slice before the caller's loan ends without first
+    /// materializing Terrane bytes. A shared handle may need a lexical guard
+    /// and must not use this guard-free path.
+    pub(super) fn lower_borrowed_native_bytes(&mut self, subject: &SyntaxNode) -> Option<String> {
+        use crate::rust_interop::projection::{ProjectedType, Receiver};
+        use crate::syntax::SyntaxKind;
+
+        let call = crate::semantics::ungrouped_expression(subject);
+        let [callee, arguments] = call.children.as_slice() else {
+            return None;
+        };
+        if call.kind != SyntaxKind::CallExpression || !arguments.children.is_empty() {
+            return None;
+        }
+        let callee = callee.type_designator_head()?;
+        let receiver = crate::semantics::ungrouped_expression(callee.children.first()?);
+        if callee.kind != SyntaxKind::MemberExpression
+            || receiver.kind != SyntaxKind::Name
+            || !matches!(self.value_type(receiver), Some(ValueType::Reference(_)))
+            || !self
+                .projected_function_for_call(callee, call_is_unsafe(call))
+                .is_some_and(|operation| {
+                    operation.receiver == Some(Receiver::Borrow)
+                        && !operation.is_async
+                        && !operation.into_future
+                        && operation.chain_role.is_none()
+                        && operation.result == ProjectedType::BorrowedBytes
+                })
+        {
+            return None;
+        }
+        let previous = self.borrowed_native_bytes_exit.replace(call.span);
+        let native = self.expression(call);
+        self.borrowed_native_bytes_exit = previous;
+        Some(native)
+    }
+
     pub(super) fn lower_bridge_call(&mut self, node: &SyntaxNode, argument_first: bool) -> String {
         let [callee, _] = node.children.as_slice() else {
             return String::new();

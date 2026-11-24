@@ -386,6 +386,10 @@ impl Emitter<'_> {
         });
         let converted = if discarded_unit {
             "()".to_owned()
+        } else if self.borrowed_native_bytes_exit == Some(node.span)
+            && *projected_result == crate::rust_interop::projection::ProjectedType::BorrowedBytes
+        {
+            "value".to_owned()
         } else {
             projected_result_expression("value", projected_result)
         };
