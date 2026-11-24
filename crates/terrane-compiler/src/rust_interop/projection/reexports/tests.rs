@@ -336,18 +336,14 @@ fn owner_mismatch_rebuilds_cache() {
     )
     .unwrap();
     let edited = load();
-    assert!(
+    let has_type = |name| {
         edited
             .index
             .values()
-            .any(|item| item.name.as_deref() == Some("ChangedOwnerType"))
-    );
-    assert!(
-        !edited
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
-    );
+            .any(|item| item.name.as_deref() == Some(name))
+    };
+    assert!(has_type("ChangedOwnerType"));
+    assert!(!has_type("UsableOwnerType"));
     fs::remove_dir_all(workspace).unwrap();
 }
 
