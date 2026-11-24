@@ -476,3 +476,28 @@ impl From<i64> for InherentFrom {
         Self(value - 1)
     }
 }
+
+pub trait Ordinal<R> {
+    fn index(self) -> usize;
+}
+
+impl Ordinal<OrdinalRow> for usize {
+    fn index(self) -> usize {
+        self
+    }
+}
+
+pub struct OrdinalRow([String; 2]);
+
+impl OrdinalRow {
+    pub fn sample() -> Self {
+        Self(["first".to_owned(), "second".to_owned()])
+    }
+
+    pub fn cell<I: Ordinal<Self>>(&self, index: I) -> Result<View<'_>, std::io::Error> {
+        self.0
+            .get(index.index())
+            .map(|text| View(text))
+            .ok_or_else(|| std::io::Error::other("missing cell"))
+    }
+}

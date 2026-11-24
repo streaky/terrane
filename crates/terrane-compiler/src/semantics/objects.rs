@@ -3971,10 +3971,11 @@ fn scoped_receiver_result(
     {
         // The actual producer, not the nominal family's discovery order,
         // determines whether the loan can leave the expression.
-        *expression_scoped |= matches!(
-            super::bindings::projected_receiver_chain_role(package, unit, receiver),
-            Some(ChainRole::Root | ChainRole::Continue)
-        ) || super::bindings::guard_lends_native_result(unit, receiver, function);
+        *expression_scoped |=
+            matches!(
+                super::bindings::projected_receiver_chain_role(package, unit, receiver),
+                Some(ChainRole::Root | ChainRole::Continue)
+            ) || super::bindings::guard_lends_native_result(unit, receiver, function);
         return projected;
     }
     let ProjectedType::Foreign {
@@ -4631,6 +4632,92 @@ fn collect_projected_generic_names(
     }
 }
 
+fn checked_pointer_integer_candidate(
+    function: &crate::rust_interop::projection::ProjectedFunction,
+    explicit: &BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
+    bindings: &BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
+    bounds: &[PendingProjectedBound],
+) -> Option<String> {
+    use crate::rust_interop::projection::{ProjectedType, Receiver};
+
+    // Adapt an input-only scalar, never a binder that can alter another ABI.
+    let [parameter] = function.parameters.as_slice() else {
+        return None;
+    };
+    let ProjectedType::Generic(name) = &parameter.ty else {
+        return None;
+    };
+    if parameter.borrowed
+        || function.receiver != Some(Receiver::Borrow)
+        || function.is_async
+        || function.into_future
+        || function.destination_result.is_some()
+        || !function.receiver_bounds.is_empty()
+        || !function.operation_owner_generics.is_empty()
+        || function.generic_parameters.len() != 1
+        || !matches!(function.rust_generic_arguments.as_slice(), [ProjectedType::Generic(argument)] if argument == name)
+        || explicit.contains_key(name)
+        || bindings.get(name) != Some(&ProjectedType::Int)
+        || bounds.is_empty()
+        || bounds.iter().any(|bound| {
+            bound.generic.as_ref() != Some(name)
+                || bound.receiver_call.is_some()
+                || !bound.inferred_parameters.is_empty()
+        })
+        || matches!(
+            function.result,
+            ProjectedType::Associated(_) | ProjectedType::Opaque { .. }
+        )
+    {
+        return None;
+    }
+    let mentions_input = |rust: &str| {
+        rust.split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .any(|token| token == name)
+    };
+    (!mentions_input(&function.result.rust_type())
+        && !function.error.as_deref().is_some_and(mentions_input)
+        && !function.generic_parameters[0]
+            .rust_bounds
+            .iter()
+            .any(|bound| mentions_input(bound)))
+    .then(|| name.clone())
+}
+
+fn select_checked_pointer_integer(
+    bounds: &[&PendingProjectedBound],
+    answers: &BTreeMap<crate::rust_interop::BoundQuestion, crate::rust_interop::ProbeAnswer>,
+    normalize: &impl Fn(&str) -> String,
+) -> Option<&'static str> {
+    use crate::rust_interop::{BoundQuestion, ProbeAnswer};
+    let answer = |bound: &PendingProjectedBound, rust_type: &str| {
+        answers.get(&BoundQuestion {
+            rust_type: normalize(rust_type),
+            rust_bound: normalize(&bound.rust_bound),
+            inferred_parameters: Vec::new(),
+        })
+    };
+    // Unknown is not a disproven direct ABI or an eliminated alternative.
+    if !bounds
+        .iter()
+        .any(|bound| answer(bound, &bound.direct_rust_type) == Some(&ProbeAnswer::No))
+    {
+        return None;
+    }
+    for (candidate, other) in [("isize", "usize"), ("usize", "isize")] {
+        if bounds
+            .iter()
+            .all(|bound| answer(bound, candidate) == Some(&ProbeAnswer::Yes))
+            && bounds
+                .iter()
+                .any(|bound| answer(bound, other) == Some(&ProbeAnswer::No))
+        {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 #[derive(Clone, Copy)]
 enum NativeBorrowMode {
     ByValue,
@@ -4677,6 +4764,7 @@ struct PendingProjectedSpecialization {
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
     bounds: Vec<PendingProjectedBound>,
+    checked_pointer_integer: Option<String>,
 }
 
 fn receiver_input_bounds(
@@ -4934,16 +5022,28 @@ fn specialize_projected_result_batch(
         |rust: &str| qualify_projected_rust_names(rust, &projected_rust_names);
     let questions = pending
         .iter()
-        .flat_map(|specialization| &specialization.bounds)
-        .filter(|bound| bound.receiver_call.is_none())
-        .flat_map(|bound| {
-            std::iter::once(&bound.direct_rust_type)
-                .chain(bound.borrowed_rust_type.as_ref())
-                .chain(bound.mutable_borrowed_rust_type.as_ref())
-                .map(|rust_type| crate::rust_interop::BoundQuestion {
-                    rust_type: normalize_projected_rust_names(rust_type),
-                    rust_bound: normalize_projected_rust_names(&bound.rust_bound),
-                    inferred_parameters: bound.inferred_parameters.clone(),
+        .flat_map(|specialization| {
+            specialization
+                .bounds
+                .iter()
+                .filter(|bound| bound.receiver_call.is_none())
+                .flat_map(|bound| {
+                    let pointer_types = specialization
+                        .checked_pointer_integer
+                        .as_ref()
+                        .is_some_and(|generic| bound.generic.as_ref() == Some(generic))
+                        .then_some(["isize", "usize"])
+                        .into_iter()
+                        .flatten();
+                    std::iter::once(bound.direct_rust_type.as_str())
+                        .chain(bound.borrowed_rust_type.as_deref())
+                        .chain(bound.mutable_borrowed_rust_type.as_deref())
+                        .chain(pointer_types)
+                        .map(|rust_type| crate::rust_interop::BoundQuestion {
+                            rust_type: normalize_projected_rust_names(rust_type),
+                            rust_bound: normalize_projected_rust_names(&bound.rust_bound),
+                            inferred_parameters: bound.inferred_parameters.clone(),
+                        })
                 })
         })
         .collect::<Vec<_>>();
@@ -5223,6 +5323,25 @@ fn specialize_projected_result_batch(
                         parameter.borrowed = true;
                         parameter.mutable_borrow = true;
                     }
+                }
+                continue;
+            }
+            if let Some(generic) = generic.as_ref()
+                && specialization.checked_pointer_integer.as_ref() == Some(generic)
+                && let Some(native) = select_checked_pointer_integer(
+                    &bounds,
+                    &answers,
+                    &normalize_projected_rust_names,
+                )
+            {
+                let selected =
+                    crate::rust_interop::projection::ProjectedType::RustInt(native.to_owned());
+                specialization.projected_parameters[0].ty = selected.clone();
+                specialization
+                    .substitutions
+                    .insert(generic.clone(), selected.clone());
+                if let [argument] = specialization.generic_arguments.as_mut_slice() {
+                    *argument = selected;
                 }
                 continue;
             }
@@ -6311,7 +6430,11 @@ fn collect_projected_destinations(
     Ok(())
 }
 
-fn is_native_from_callee(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+fn is_native_from_callee(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> bool {
     node.type_designator_head().is_some_and(|head| {
         head.kind == SyntaxKind::StaticMemberExpression
             && head
@@ -6383,7 +6506,8 @@ fn collect_projected_destination_node(
             pending,
         )
     }
-    if node.kind == SyntaxKind::StaticMemberExpression && is_native_from_callee(package, unit, node) {
+    if node.kind == SyntaxKind::StaticMemberExpression && is_native_from_callee(package, unit, node)
+    {
         return Err(failure(
             &unit.source,
             "T0119",
@@ -6507,6 +6631,7 @@ fn collect_projected_destination_node(
             native_target: None,
             direct_projected_call: true,
             bounds: Vec::new(),
+            checked_pointer_integer: None,
         });
         let input_start = pending.len();
         for argument in &arguments.children {
@@ -8030,6 +8155,12 @@ fn specialize_projected_destination(
                 specialization_substitutions.insert(name.clone(), selected.clone());
             }
         }
+        let checked_pointer_integer = checked_pointer_integer_candidate(
+            &function,
+            &explicit_projected,
+            &projected_bindings,
+            &bounds,
+        );
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
@@ -8045,6 +8176,7 @@ fn specialize_projected_destination(
             value_parameters,
             value_type,
             bounds,
+            checked_pointer_integer,
         });
     }
     if node.kind == SyntaxKind::CallExpression
@@ -8323,6 +8455,7 @@ fn specialize_projected_destination(
             projected_receiver_lifetime: function.receiver_lifetime.clone(),
             native_target: None,
             direct_projected_call: true,
+            checked_pointer_integer: None,
         });
     }
     Ok(())

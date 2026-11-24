@@ -491,6 +491,22 @@ impl Emitter<'_> {
                         _ => None,
                     };
                     sequence_conversion.unwrap_or_else(|| {
+                        if projected_function.is_some_and(|function| {
+                            !function.is_async && !function.into_future && function.error.is_some()
+                        }) && guarded_method_receiver.is_none()
+                            && !shared_async_method
+                            && matches!(projected.ty, crate::rust_interop::projection::ProjectedType::RustInt(_))
+                        {
+                            // Checked scalar conversion raises a source error, not
+                            // the dependency's Result error. Finish it before invocation.
+                            let converted = projected_argument_expression(&expression, &projected.ty, self.package);
+                            let fallible = self.fallible(format!(
+                                "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }})()"
+                            ), value);
+                            let name = format!("__terrane_checked_native_input_{index}");
+                            native_conversion_inputs.push((name.clone(), fallible));
+                            return name;
+                        }
                         if (projected_function
                             .is_some_and(|function| function.is_async || function.into_future)
                             || guarded_method_receiver.is_some()

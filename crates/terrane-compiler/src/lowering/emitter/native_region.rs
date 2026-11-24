@@ -121,17 +121,23 @@ impl<'a> Emitter<'a> {
         method: &ProjectedFunction,
     ) -> String {
         let site = node.span;
-        let call = if method.is_unsafe {
+        let call = if method.is_unsafe && method.error.is_none() {
             format!("unsafe {{ {call} }}")
         } else {
             call
         };
         let region = self.native_regions.last().expect("planned native region");
         // Nested expressions retain joint Rust inference until setup needs a lexical home.
-        if !region.stage_views && setup.is_empty() && region.prelude.is_empty() {
+        if method.error.is_none()
+            && !region.stage_views
+            && setup.is_empty()
+            && region.prelude.is_empty()
+        {
             return call;
         }
-        let call = if self.package.profile.panic == crate::package::PanicProfile::Abort {
+        let call = if method.error.is_some() {
+            self.fallible(call, node)
+        } else if self.package.profile.panic == crate::package::PanicProfile::Abort {
             call
         } else {
             let origin = method.native_path.clone().unwrap_or_else(|| {

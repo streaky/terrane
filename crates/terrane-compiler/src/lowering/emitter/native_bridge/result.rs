@@ -151,6 +151,11 @@ impl Emitter<'_> {
                     })
             });
         if let Some(method) = producer {
+            let call = if method.error.is_some() {
+                self.wrap_foreign_method(node, callee, method, specialization, name, call)
+            } else {
+                call
+            };
             return self.emit_native_producer(node, &setup.into_prefix(), call, method);
         }
         if matches!(
