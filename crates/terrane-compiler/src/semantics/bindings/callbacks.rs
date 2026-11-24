@@ -1760,6 +1760,25 @@ fn validate_guarded_native_storage(
     Ok(())
 }
 
+fn validate_static_text_argument(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let literal = crate::semantics::ungrouped_expression(value);
+    if literal.kind != SyntaxKind::Literal
+        || infer_value_type(unit, literal, &unit.typed_bindings)?
+            != Some(ValueType::Scalar(crate::ScalarType::String))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "a projected &'static str parameter requires a string literal argument",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 fn validate_projected_callback_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1799,6 +1818,9 @@ fn validate_projected_callback_node(
             else {
                 continue;
             };
+            if parameter.requires_static_text_literal() {
+                validate_static_text_argument(unit, value)?;
+            }
             if matches!(
                 parameter.ty,
                 crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }

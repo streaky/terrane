@@ -1439,7 +1439,9 @@ pub(super) fn emit_dependency_unit(
                     value_type
                 };
                 let value_type = if projected.borrowed_str {
-                    if invocation_scoped {
+                    if projected.requires_static_text_literal() {
+                        "&'static str".to_owned()
+                    } else if invocation_scoped {
                         "&'view str".to_owned()
                     } else {
                         "&str".to_owned()

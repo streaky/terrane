@@ -1,0 +1,7 @@
+namespace app
+from /deps/http import HeaderValue
+
+function main;
+    make-value = HeaderValue::from_static
+    value = make-value; 'Accept'
+    print; (value.to_str;)

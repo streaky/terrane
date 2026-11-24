@@ -136,6 +136,7 @@ pub(super) fn validate_call_nodes<'a>(
         if node.kind.child_field(index, child.kind) == "name" {
             continue;
         }
+        validate_static_literal_callable_reference(package, unit, node, index, child)?;
         if node.kind == SyntaxKind::CallExpression
             && index == 0
             && let Some((source, _)) = numeric_coercion_call(&unit.source, child)
@@ -158,6 +159,39 @@ pub(super) fn validate_call_nodes<'a>(
             active_function,
             scoped_bindings,
         )?;
+    }
+    Ok(())
+}
+
+fn validate_static_literal_callable_reference(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    parent: &SyntaxNode,
+    index: usize,
+    child: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    use crate::rust_interop::projection::ProjectedParameter;
+
+    if !(parent.kind == SyntaxKind::CallExpression && index == 0)
+        && parent.kind != SyntaxKind::GroupExpression
+        && let Some(head) = child.type_designator_head()
+        && matches!(
+            head.kind,
+            SyntaxKind::Name | SyntaxKind::StaticMemberExpression
+        )
+        && projected_function_for_call(package, unit, head, false).is_some_and(|function| {
+            function
+                .parameters
+                .iter()
+                .any(ProjectedParameter::requires_static_text_literal)
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            "native operations requiring a static string literal are invocation-only",
+            child.span,
+        ));
     }
     Ok(())
 }
