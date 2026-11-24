@@ -333,7 +333,8 @@ fn name_style_warnings_only_cover_authored_declarations() {
             receiver: Some(Receiver::Borrow),
         });
     }
-    dependency.items.push(child);
+    // Resolved inventories are ordered by namespace and name for lookup.
+    dependency.items.insert(0, child);
     let mut package = Package::implicit(
         "main.trn",
         concat!(
