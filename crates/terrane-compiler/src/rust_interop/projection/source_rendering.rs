@@ -269,92 +269,91 @@ pub(super) fn render_unavailable_projection(
     writeln!(output, "# Projection status: unavailable ({status})")
         .expect("writing to a string cannot fail");
     write_inventory_comment(output, "", &["Projection gap: ", &unavailable.reason]);
-    if unavailable.is_required() {
-        match &unavailable.partial {
-            Some(PartialProjection::Function {
-                signature,
-                generic_constraints,
-                callback_shapes,
-            }) => {
-                output.push_str("# Generated partial contract: function\n");
-                write_inventory_comment(output, "", &["Function shape: ", signature]);
-                for constraint in generic_constraints {
-                    write_inventory_comment(output, "", &["Generic constraint: ", constraint]);
-                }
-                for callback in callback_shapes {
-                    write_inventory_comment(
-                        output,
-                        "",
-                        &[
-                            "Callback parameter `",
-                            &callback.parameter,
-                            "`: ",
-                            &callback.contract,
-                        ],
-                    );
-                    for method in &callback.methods {
-                        write_inventory_comment(
-                            output,
-                            "",
-                            &["  Required callback method: ", method],
-                        );
-                    }
-                }
-            }
-            Some(PartialProjection::NominalType {
-                declaration,
-                native_kind,
-                generic_parameters,
-            }) => {
-                if native_kind == "trait" && !generic_parameters.is_empty() {
-                    output.push_str(
-                        "# Generated partial contract: parameterized native trait template\n",
-                    );
-                    write_inventory_comment(
-                        output,
-                        "",
-                        &[
-                            "Native trait template parameters: ",
-                            &generic_parameters.join(", "),
-                        ],
-                    );
-                    output.push_str("# Terrane nominal declaration: none\n");
-                } else {
-                    write_inventory_comment(
-                        output,
-                        "",
-                        &["Generated partial contract: ", native_kind],
-                    );
-                    write_inventory_comment(
-                        output,
-                        "",
-                        &["Terrane nominal declaration: ", declaration],
-                    );
-                    if !generic_parameters.is_empty() {
-                        write_inventory_comment(
-                            output,
-                            "",
-                            &[
-                                "Residual native generic parameters: ",
-                                &generic_parameters.join(", "),
-                            ],
-                        );
-                    }
-                }
-            }
-            Some(PartialProjection::Namespace) => {
-                output.push_str(
-                    "# Generated partial contract: namespace container; no value declaration\n",
-                );
-            }
-            None => {}
-        }
+    if let Some(partial) = unavailable
+        .partial
+        .as_ref()
+        .filter(|_| unavailable.is_required())
+    {
+        render_partial_projection(output, partial);
     }
     render_demand_sites(output, Some(&unavailable.required_by));
     if !unavailable.required_by_contracts.is_empty() {
         output.push_str("# Required by projection contracts:\n");
         for contract in &unavailable.required_by_contracts {
             write_inventory_comment(output, "", &["- ", contract]);
+        }
+    }
+}
+
+fn render_partial_projection(output: &mut String, partial: &PartialProjection) {
+    match partial {
+        PartialProjection::Function {
+            signature,
+            generic_constraints,
+            callback_shapes,
+        } => {
+            output.push_str("# Generated partial contract: function\n");
+            write_inventory_comment(output, "", &["Function shape: ", signature]);
+            for constraint in generic_constraints {
+                write_inventory_comment(output, "", &["Generic constraint: ", constraint]);
+            }
+            for callback in callback_shapes {
+                write_inventory_comment(
+                    output,
+                    "",
+                    &[
+                        "Callback parameter `",
+                        &callback.parameter,
+                        "`: ",
+                        &callback.contract,
+                    ],
+                );
+                for method in &callback.methods {
+                    write_inventory_comment(output, "", &["  Required callback method: ", method]);
+                }
+            }
+        }
+        PartialProjection::NominalType {
+            declaration,
+            native_kind,
+            generic_parameters,
+        } => {
+            if native_kind == "trait" && !generic_parameters.is_empty() {
+                output.push_str(
+                    "# Generated partial contract: parameterized native trait template\n",
+                );
+                write_inventory_comment(
+                    output,
+                    "",
+                    &[
+                        "Native trait template parameters: ",
+                        &generic_parameters.join(", "),
+                    ],
+                );
+                output.push_str("# Terrane nominal declaration: none\n");
+            } else {
+                write_inventory_comment(output, "", &["Generated partial contract: ", native_kind]);
+                write_inventory_comment(
+                    output,
+                    "",
+                    &["Terrane nominal declaration: ", declaration],
+                );
+                if !generic_parameters.is_empty() {
+                    write_inventory_comment(
+                        output,
+                        "",
+                        &[
+                            "Residual native generic parameters: ",
+                            &generic_parameters.join(", "),
+                        ],
+                    );
+                }
+            }
+        }
+        PartialProjection::Namespace => {
+            output.push_str(
+                "# Generated partial contract: namespace container; no value declaration\n",
+            );
         }
     }
 }
