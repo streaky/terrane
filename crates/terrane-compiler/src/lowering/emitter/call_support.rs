@@ -148,34 +148,48 @@ impl Emitter<'_> {
         }
         let family = selection.family.source_name();
         let child = selection.child.as_str();
+        let owned_decode = if family == "decode"
+            && self.value_type(subject) == Some(ValueType::Scalar(ScalarType::Bytes))
+        {
+            let subject = crate::semantics::ungrouped_expression(subject);
+            (subject.kind == SyntaxKind::UnaryExpression
+                && self.unary_operator(subject).as_deref() == Some("move"))
+            .then(|| self.expression(subject))
+        } else {
+            None
+        };
         let prior_read_guards = self.borrowed_receiver_overrides.len();
         let mut guard_setup = String::new();
         self.prepare_read_guards(
-            std::iter::once(subject).chain(
-                arguments
-                    .children
-                    .iter()
-                    .map(|argument| argument.children.last().unwrap_or(argument)),
-            ),
+            std::iter::once(subject)
+                .filter(|_| owned_decode.is_none())
+                .chain(
+                    arguments
+                        .children
+                        .iter()
+                        .map(|argument| argument.children.last().unwrap_or(argument)),
+                ),
             &mut guard_setup,
         );
         let competing_guard = !self.has_read_guard(subject)
             && arguments.children.iter().any(|argument| {
                 self.contains_guarded_read(argument.children.last().unwrap_or(argument))
             });
-        let snapshot_receiver =
-            self.native_read_needs_snapshot(subject, arguments, competing_guard, false);
-        let (receiver_setup, receiver) =
-            if let Some(parts) = self.throwable_text_parts(subject, snapshot_receiver) {
-                parts
-            } else if snapshot_receiver {
-                let value = self.read_snapshot(subject);
-                let name = self.fresh_read_binding_name("string_receiver");
-                (format!("let {name} = {value}; "), name)
-            } else {
-                self.borrowed_receiver_parts(subject)
-            };
-        let mut setup = if snapshot_receiver {
+        let snapshot_receiver = owned_decode.is_none()
+            && self.native_read_needs_snapshot(subject, arguments, competing_guard, false);
+        let (receiver_setup, receiver) = if let Some(value) = &owned_decode {
+            let name = self.fresh_read_binding_name("decode_receiver");
+            (format!("let {name} = {value}; "), name)
+        } else if let Some(parts) = self.throwable_text_parts(subject, snapshot_receiver) {
+            parts
+        } else if snapshot_receiver {
+            let value = self.read_snapshot(subject);
+            let name = self.fresh_read_binding_name("string_receiver");
+            (format!("let {name} = {value}; "), name)
+        } else {
+            self.borrowed_receiver_parts(subject)
+        };
+        let mut setup = if owned_decode.is_some() || snapshot_receiver {
             format!("{receiver_setup}{guard_setup}")
         } else {
             format!("{guard_setup}{receiver_setup}")
@@ -311,6 +325,13 @@ impl Emitter<'_> {
                     values[0]
                 )
             }
+            ("decode", _) if owned_decode.is_some() => self.fallible(
+                format!(
+                    "terrane_string_support::decode_owned({receiver}, {})",
+                    values[0]
+                ),
+                node,
+            ),
             ("decode", _) => self.fallible(
                 format!(
                     "terrane_string_support::decode(&({receiver}), {})",

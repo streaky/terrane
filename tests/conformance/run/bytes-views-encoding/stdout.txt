@@ -5,3 +5,6 @@ é
 é
 é
 é
+é
+é
+invalid utf8 sequence at byte offset 1

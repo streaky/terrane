@@ -107,6 +107,19 @@ mod tests {
     };
 
     #[test]
+    fn owned_utf8_reuses_storage_and_reports_invalid_offset() {
+        let data = vec![b'a', 0xc3, 0xa9];
+        let allocation = data.as_ptr();
+        let text = super::decode_owned(data, Encoding::Utf8).unwrap();
+        assert_eq!(text, "aé");
+        assert_eq!(text.as_ptr(), allocation);
+
+        let error = super::decode_owned(vec![b'a', 0xc3], Encoding::Utf8).unwrap_err();
+        assert_eq!(error.encoding, Encoding::Utf8);
+        assert_eq!(error.byte_offset, 1);
+    }
+
+    #[test]
     fn decode_error_display_is_message_only() {
         let error = DecodeError {
             encoding: Encoding::Utf8,
@@ -365,6 +378,22 @@ pub fn encode(value: &str, encoding: Encoding) -> Vec<u8> {
                 _ => unreachable!(),
             })
             .collect(),
+    }
+}
+
+/// Decodes owned bytes, reusing the allocation for valid UTF-8.
+///
+/// # Errors
+///
+/// Returns the encoding and byte offset of malformed input.
+pub fn decode_owned(value: Vec<u8>, encoding: Encoding) -> Result<String, DecodeError> {
+    if encoding == Encoding::Utf8 {
+        String::from_utf8(value).map_err(|error| DecodeError {
+            encoding,
+            byte_offset: error.utf8_error().valid_up_to(),
+        })
+    } else {
+        decode(&value, encoding)
     }
 }
 
