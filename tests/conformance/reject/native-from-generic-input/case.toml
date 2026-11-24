@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0129"
+contains = "native From requires a concrete owned value or a native-compatible reference"

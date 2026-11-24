@@ -1,3 +1,7 @@
 native/from/path
 true
 allocation reuse
+true
+native input
+native input
+43

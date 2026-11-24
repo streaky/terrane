@@ -612,6 +612,7 @@ pub fn resolve(
         }
         super::data::normalize_projected_inventory(&mut dependency.items);
     }
+    debug_assert!(projection.inventories_are_sorted());
     write_workspace_with_bound_dependencies(
         &workspace,
         dependencies,

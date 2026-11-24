@@ -32,6 +32,14 @@ pub struct ParseOutput {
 /// require valid syntax must gate later phases on an empty diagnostic list.
 #[must_use]
 pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
+    parse_with_generated_projection(source, lexed, false)
+}
+
+pub(crate) fn parse_with_generated_projection(
+    source: &SourceFile,
+    lexed: LexedSource,
+    generated_projection: bool,
+) -> ParseOutput {
     let mut parser = Parser {
         source,
         tokens: &lexed.tokens,
@@ -43,6 +51,7 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         layout_header: false,
         layout_argument: None,
         argument_grouping: 0,
+        generated_projection,
         diagnostics: Vec::new(),
     };
     let mut root = parser.parse_compilation_unit();
@@ -65,6 +74,7 @@ struct Parser<'source> {
     layout_header: bool,
     layout_argument: Option<call_layout::ArgumentLayout>,
     argument_grouping: usize,
+    generated_projection: bool,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -1079,10 +1089,10 @@ impl Parser<'_> {
         children.extend(self.parse_function_qualifiers(true));
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier)
-            && (!self.at_text("from") || static_member)
+            && (!self.at_text("from") || (static_member && self.generated_projection))
             && !self.at_text("to")
         {
-            if !(static_member && self.at_text("from")) {
+            if !self.at_text("from") || !self.generated_projection {
                 self.reject_keyword_declaration_name();
             }
             children.push(self.leaf(SyntaxKind::Name));

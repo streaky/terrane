@@ -442,3 +442,37 @@ impl Into<FromText> for IntoOnly {
         FromText("only Into".to_owned())
     }
 }
+
+pub struct FromInput(String);
+
+impl FromInput {
+    pub fn new() -> Self {
+        Self("native input".to_owned())
+    }
+}
+
+impl From<&FromInput> for FromText {
+    fn from(value: &FromInput) -> Self {
+        Self(value.0.clone())
+    }
+}
+
+impl From<FromInput> for FromText {
+    fn from(value: FromInput) -> Self {
+        Self(value.0)
+    }
+}
+
+pub struct InherentFrom(pub i64);
+
+impl InherentFrom {
+    pub fn from(value: i64) -> Self {
+        Self(value + 1)
+    }
+}
+
+impl From<i64> for InherentFrom {
+    fn from(value: i64) -> Self {
+        Self(value - 1)
+    }
+}

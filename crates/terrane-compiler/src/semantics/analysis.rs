@@ -85,11 +85,31 @@ pub(super) fn parse_unit(
     bundled: bool,
     role: crate::SourceRole,
 ) -> Result<SemanticUnit, SemanticFailure> {
+    parse_unit_mode(
+        source,
+        source_path,
+        expected_namespace,
+        prelude,
+        bundled,
+        role,
+        false,
+    )
+}
+
+fn parse_unit_mode(
+    source: &SourceFile,
+    source_path: String,
+    expected_namespace: Option<&str>,
+    prelude: bool,
+    bundled: bool,
+    role: crate::SourceRole,
+    generated_projection: bool,
+) -> Result<SemanticUnit, SemanticFailure> {
     let lexed = lexer::lex(source).map_err(|diagnostics| SemanticFailure {
         source: source.clone(),
         diagnostics,
     })?;
-    let parsed = parser::parse(source, lexed);
+    let parsed = parser::parse_with_generated_projection(source, lexed, generated_projection);
     if !parsed.diagnostics.is_empty() {
         return Err(SemanticFailure {
             source: source.clone(),
@@ -250,7 +270,7 @@ fn validate_generated_projection_units(
                 .join(crate::rust_interop::projection::GENERATED_PROJECTION_FILE),
             unit.source,
         );
-        parse_unit(
+        parse_unit_mode(
             &source,
             format!(
                 "{}#{}",
@@ -261,6 +281,7 @@ fn validate_generated_projection_units(
             package.prelude,
             false,
             crate::package::SourceRole::Production,
+            true,
         )
         .map_err(|failure| {
             let diagnostics = failure
@@ -452,13 +473,14 @@ fn augment_units_with_projection_inner(
         );
         let source = SourceFile::new(next_source_id, path.clone().into(), text);
         next_source_id = next_source_id.saturating_add(1);
-        units.push(parse_unit(
+        units.push(parse_unit_mode(
             &source,
             path,
             Some(&namespace),
             package.prelude,
             true,
             crate::SourceRole::Bundled,
+            true,
         )?);
     }
     let mut index = 0;
@@ -625,11 +647,17 @@ fn validate_projected_static_declines(package: &SemanticPackage) -> Result<(), S
             && owner.namespace.starts_with("/deps/")
         {
             let member_name = node_text(&unit.source, member);
+            // Other From implementations can collide in the inventory. A checked
+            // conversion selects its exact implementation from the actual input.
             if let Some(reason) = package.projection.declined_method_reason(
                 &owner.namespace,
                 &owner.name,
                 member_name,
-            ) {
+            ) && !(member_name == "from"
+                && super::bindings::projected_function_for_call(package, unit, node, false)
+                    .and_then(crate::rust_interop::projection::conversions::from_destination)
+                    .is_some())
+            {
                 return Err(failure(
                     &unit.source,
                     "T0105",
@@ -789,6 +817,10 @@ fn analyze_parsed_with_projection(
     declarations_only: bool,
 ) -> Result<SemanticPackage, SemanticFailure> {
     crate::rust_interop::projection::core_native::augment(&mut projection);
+    debug_assert!(
+        projection.inventories_are_sorted(),
+        "resolved projection inventories must be ordered by namespace and name"
+    );
     let mut units = augment_units_with_projection(package, &projection, units, persist_inventory)?;
     let declarations = crate::compilation_progress::start(
         "resolving namespaces, declarations, and imports",

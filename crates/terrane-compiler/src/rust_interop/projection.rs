@@ -63,6 +63,9 @@ mod foreign_impls;
 mod functions;
 mod history;
 mod interfaces;
+#[cfg(test)]
+#[path = "projection/interfaces_tests.rs"]
+mod interfaces_tests;
 mod items;
 mod macros;
 mod methods;
@@ -295,6 +298,7 @@ pub struct ProjectedDependency {
     pub name: String,
     pub package: String,
     pub version: String,
+    /// Ordered by namespace and name in a resolved projection.
     pub items: Vec<ProjectedItem>,
     pub declined: Vec<DeclinedItem>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -1765,7 +1769,11 @@ impl Projection {
                     methods
                         .iter()
                         .chain(static_methods)
-                        .filter(|function| inventory_member_syntax_gap(function).is_none())
+                        .filter(|function| {
+                            crate::rust_interop::projection::conversions::from_destination(function)
+                                .is_none()
+                                && inventory_member_syntax_gap(function).is_none()
+                        })
                         .map(|function| function.name.clone())
                         .collect(),
                 )),
@@ -2065,6 +2073,14 @@ impl Projection {
             .into_iter()
             .map(|(rust_path, name)| (name, rust_path))
             .collect()
+    }
+
+    pub(crate) fn inventories_are_sorted(&self) -> bool {
+        self.dependencies.iter().all(|dependency| {
+            dependency.items.is_sorted_by(|left, right| {
+                (&left.namespace, &left.name) <= (&right.namespace, &right.name)
+            })
+        })
     }
 
     /// Returns the uniquely named projected item in `namespace`.

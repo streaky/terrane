@@ -17,48 +17,8 @@ use super::{
     projectable_interface_bound, rewrite_rust_bound_root,
 };
 
-use super::test_support::projected_function_item;
+use super::test_support::{projected_foreign_type_item, projected_function_item};
 use terrane_rust_analysis::prefer_public_path;
-
-fn projected_foreign_type_item(
-    namespace: &str,
-    name: &str,
-    rust_path: &str,
-    method_name: &str,
-) -> ProjectedItem {
-    let ProjectedKind::Function(method) = projected_function_item(
-        namespace,
-        method_name,
-        &format!("{rust_path}::{method_name}"),
-    )
-    .kind
-    else {
-        unreachable!();
-    };
-    ProjectedItem {
-        namespace: namespace.to_owned(),
-        name: name.to_owned(),
-        rust_path: rust_path.to_owned(),
-        docs: None,
-        kind: ProjectedKind::ForeignType {
-            constructor: None,
-            methods: vec![method],
-            static_methods: Vec::new(),
-            constants: Vec::new(),
-            boundary: ProjectedBoundaryCapabilities::default(),
-            fields: Vec::new(),
-            borrowed_view: false,
-            native_view_type: None,
-            enum_payload: None,
-            generic_parameters: Vec::new(),
-            displayable: false,
-            cloneable: false,
-            copyable: false,
-            send: false,
-            sync: false,
-        },
-    }
-}
 
 #[test]
 fn canonical_name_beats_provider_hash() {
@@ -535,10 +495,11 @@ fn inventory_records_admissions_and_declines() {
 
     assert!(document.contains("class Widget\n    function ready;"));
     assert!(document.contains("  # Unavailable native members retained for structure"));
-    assert!(document.contains("  # Inventory omission:"));
     assert!(document.contains("  # blocked\n  # Native path: std::sync::Weak<"));
     assert!(document.contains("  # Native signature: fn blocked("));
     assert!(document.contains("  # Projection gap: requires an unsupported borrow"));
+    assert!(!document.contains("function from"));
+    assert!(!document.contains("  # from\n"));
 }
 
 #[test]

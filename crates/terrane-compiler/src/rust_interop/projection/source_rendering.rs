@@ -1055,7 +1055,14 @@ fn render_unavailable_members_for_item(
 
 pub(super) fn inventory_member_syntax_gap(function: &ProjectedFunction) -> Option<String> {
     let mut text = "namespace projection-inventory\n\nclass Inventory\n".to_owned();
-    render_function(&mut text, function, false, 4, &BTreeMap::new(), None);
+    render_function(
+        &mut text,
+        function,
+        false,
+        4,
+        &BTreeMap::new(),
+        function.receiver.is_none().then_some("Inventory"),
+    );
     let source = crate::SourceFile::new(0, PathBuf::from(super::GENERATED_PROJECTION_FILE), text);
     let lexed = match crate::lexer::lex(&source) {
         Ok(lexed) => lexed,
@@ -1065,7 +1072,7 @@ pub(super) fn inventory_member_syntax_gap(function: &ProjectedFunction) -> Optio
                 .map(|diagnostic| diagnostic.message.clone());
         }
     };
-    crate::parser::parse(&source, lexed)
+    crate::parser::parse_with_generated_projection(&source, lexed, true)
         .diagnostics
         .first()
         .map(|diagnostic| diagnostic.message.clone())
@@ -1091,12 +1098,13 @@ fn render_omitted_admitted_members(
     };
     let omitted = functions
         .filter(|function| {
-            !projected_member_is_demanded(
-                &item.namespace,
-                &item.name,
-                &function.name,
-                demanded_members,
-            )
+            crate::rust_interop::projection::conversions::from_destination(function).is_none()
+                && !projected_member_is_demanded(
+                    &item.namespace,
+                    &item.name,
+                    &function.name,
+                    demanded_members,
+                )
         })
         .collect::<Vec<_>>();
     if omitted.is_empty() {

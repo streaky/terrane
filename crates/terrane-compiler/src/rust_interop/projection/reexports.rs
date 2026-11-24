@@ -279,7 +279,8 @@ fn rustdoc_fingerprint(
                 .map_err(super::io_error("fingerprint Rustdoc input"))?,
         );
     }
-    // Build scripts can consume inherited environment variables, not only Cargo settings.
+    // Build scripts (including dependency build scripts) may read any inherited variable,
+    // so the complete process environment is part of Cargo's effective build inputs.
     let mut environment = std::env::vars_os().collect::<Vec<_>>();
     environment.sort_unstable();
     for (name, value) in environment {

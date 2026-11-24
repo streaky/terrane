@@ -23,6 +23,14 @@ fn rejected(text: &str, code: &str) {
 }
 
 #[test]
+fn rejects_authored_static_from() {
+    rejected(
+        "class Box\n    static function from Box; value int\n        return instance Box;\n",
+        "S1038",
+    );
+}
+
+#[test]
 fn rejects_missing_grouped_catch_descriptors() {
     for header in [
         "catch first-error,",

@@ -166,7 +166,30 @@ fn identity_mismatch_rebuilds() {
         dependency
     });
 
-    let first = resolve(&root, &dependencies, None).unwrap();
+    let ready = std::sync::Barrier::new(2);
+    let (first, concurrent) = std::thread::scope(|scope| {
+        let resolve_cold = || {
+            ready.wait();
+            resolve(&root, &dependencies, None).unwrap()
+        };
+        let other = scope.spawn(resolve_cold);
+        (resolve_cold(), other.join().unwrap())
+    });
+    let outcomes = (&first.resolution.outcome, &concurrent.resolution.outcome);
+    assert!(
+        matches!(
+            outcomes,
+            (
+                ResolutionOutcome::LocalRustdoc,
+                ResolutionOutcome::ExactCache
+            ) | (
+                ResolutionOutcome::ExactCache,
+                ResolutionOutcome::LocalRustdoc
+            )
+        ),
+        "{outcomes:?}"
+    );
+    assert_eq!(first.content_hash, concurrent.content_hash);
     assert!(first.dependencies.iter().any(|dependency| {
         dependency
             .items

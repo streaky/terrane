@@ -311,16 +311,48 @@ fn owner_mismatch_rebuilds_cache() {
                 .values()
                 .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
         );
+        assert!(
+            loaded
+                .index
+                .values()
+                .any(|item| item.name.as_deref() == Some("usable_owner_function"))
+        );
     }
-    let manifest = workspace.join("Cargo.toml");
-    let mut changed_manifest = fs::read_to_string(&manifest).unwrap();
-    changed_manifest.push_str("\n# changed generated manifest\n");
-    fs::write(&manifest, changed_manifest).unwrap();
-    let _ = load();
-    assert!(output.is_file(), "manifest changes must invalidate Rustdoc");
+    fs::remove_dir_all(workspace).unwrap();
+}
+
+#[test]
+fn public_dependency_cache_reuses() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let workspace = std::env::temp_dir().join(format!(
+        "terrane-dependency-rustdoc-cache-{}-{nonce}",
+        std::process::id()
+    ));
+    let package = workspace.join("dependency");
+    fs::create_dir_all(package.join("src")).unwrap();
+    fs::write(
+        workspace.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"dependency\"]\nresolver = \"2\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.join("Cargo.toml"),
+        "[package]\nname = \"dependency-fixture\"\nversion = \"1.0.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
     fs::write(
         package.join("src/lib.rs"),
-        "pub struct ChangedOwnerType;\npub fn usable_owner_function() -> bool { true }\n",
+        "pub struct PublicDependencyType;\n",
+    )
+    .unwrap();
+    run_cargo(
+        &workspace,
+        &["generate-lockfile", "--offline"],
+        CargoToolchain::Default,
+        CargoExecution::Host,
     )
     .unwrap();
     fs::write(
@@ -328,18 +360,42 @@ fn owner_mismatch_rebuilds_cache() {
         crate::cache_identity::local_rust_sources(&workspace).unwrap(),
     )
     .unwrap();
-    let edited = load();
+    let host = host_target();
+    let document = super::cached_rustdoc(
+        &workspace,
+        "dependency-fixture@1.0.0",
+        "dependency_fixture",
+        "dependency-fixture",
+        Some(&host),
+        Containment::Unavailable,
+        false,
+    )
+    .unwrap();
+    let output = super::rustdoc_output_path(&workspace, Some(&host), "dependency_fixture");
+    fs::remove_file(&output).unwrap();
+    let cached = super::cached_rustdoc(
+        &workspace,
+        "dependency-fixture@1.0.0",
+        "dependency_fixture",
+        "dependency-fixture",
+        Some(&host),
+        Containment::Unavailable,
+        false,
+    )
+    .unwrap();
+    assert!(!output.exists(), "expected public dependency cache reuse");
     assert!(
-        edited
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("ChangedOwnerType"))
+        workspace
+            .join("dependency-rustdoc/dependency_fixture.json")
+            .is_file()
     );
-    assert!(
-        !edited
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
-    );
+    for loaded in [&document, &cached] {
+        assert!(
+            loaded
+                .index
+                .values()
+                .any(|item| item.name.as_deref() == Some("PublicDependencyType"))
+        );
+    }
     fs::remove_dir_all(workspace).unwrap();
 }

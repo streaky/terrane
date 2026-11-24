@@ -6758,6 +6758,18 @@ fn specialize_projected_destination(
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
+        && arguments.children.is_empty()
+        && is_native_from_callee(package, unit, callee)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            "too few arguments for function `from`",
+            node.span,
+        ));
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
         && let Some(function) =
             projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
         && (function
@@ -7416,10 +7428,17 @@ fn specialize_projected_destination(
                 return Err(failure(
                     &unit.source,
                     "T0129",
-                    format!(
-                        "projected generic `{}` cannot be inferred from this call",
-                        generic.name
-                    ),
+                    if crate::rust_interop::projection::conversions::from_destination(&function)
+                        .is_some()
+                    {
+                        "native From requires a concrete owned value or a native-compatible reference"
+                            .to_owned()
+                    } else {
+                        format!(
+                            "projected generic `{}` cannot be inferred from this call",
+                            generic.name
+                        )
+                    },
                     node.span,
                 ));
             };
