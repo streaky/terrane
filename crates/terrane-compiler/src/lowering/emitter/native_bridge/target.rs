@@ -12,7 +12,9 @@ pub(super) struct TargetContext<'a> {
     pub(super) contract: Option<&'a FunctionContract>,
     pub(super) native_macro_path: Option<&'a str>,
     pub(super) callable_field: Option<CallableField>,
+    /// Declared operation: use its native path, owner, and owner generic binders.
     pub(super) operation: Option<&'a crate::rust_interop::projection::ProjectedFunction>,
+    /// Receiver-lifetime-instantiated operation for this invocation's ABI.
     pub(super) projected_function: Option<&'a crate::rust_interop::projection::ProjectedFunction>,
     pub(super) specialization: Option<&'a crate::semantics::ProjectedCallSpecialization>,
     pub(super) shared_async_receiver: bool,

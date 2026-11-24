@@ -261,7 +261,20 @@ impl Emitter<'_> {
                             .iter()
                             .position(|parameter| parameter.name == self.text(name))
                             .or_else(|| {
-                                struct_fields?
+                                // Named slots can use the declared field order even
+                                // when the result is not a plain projected object.
+                                let fields = struct_fields.or_else(|| {
+                                    if callee.kind != SyntaxKind::ConstructionExpression {
+                                        return None;
+                                    }
+                                    let identity =
+                                        &self.class_designator(callee.children.first()?)?.identity;
+                                    self.package
+                                        .projection
+                                        .projected_struct(&identity.namespace, &identity.name)
+                                        .map(|(_, fields, _)| fields)
+                                })?;
+                                fields
                                     .iter()
                                     .position(|field| field.name == self.text(name))
                             })

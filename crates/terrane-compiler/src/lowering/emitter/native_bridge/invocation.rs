@@ -7,7 +7,7 @@ use super::{
     result::{CallSetup, Completion},
     target::{CallableField, InvocationTarget, TargetContext},
 };
-use crate::{lowering::prelude::*, syntax::call_is_unsafe};
+use crate::lowering::prelude::*;
 
 impl Emitter<'_> {
     #[expect(
@@ -27,7 +27,7 @@ impl Emitter<'_> {
             source_callee,
             ..
         } = *site;
-        let is_unsafe = call_is_unsafe(node) || call_is_unsafe(source_callee);
+        let is_unsafe = bridge.is_unsafe;
         let native_macro_path =
             crate::semantics::projected_macro_for_call(self.package, self.unit, callee)
                 .map(|item| item.rust_path.as_str());

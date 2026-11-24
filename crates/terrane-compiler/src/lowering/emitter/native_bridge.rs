@@ -25,6 +25,7 @@ pub(super) struct InvocationSite<'a> {
 pub(super) struct NativeBridgeCall<'a> {
     pub(super) operation: Option<&'a ProjectedFunction>,
     pub(super) selection: Option<&'a ProjectedCallSpecialization>,
+    is_unsafe: bool,
 }
 
 impl Emitter<'_> {
@@ -57,11 +58,13 @@ impl Emitter<'_> {
         if let Some(binding) = producer.and_then(|p| p.staged.as_ref()) {
             return binding.clone();
         }
+        let is_unsafe = call_is_unsafe(node) || call_is_unsafe(callee);
         let operation = producer
             .map(|p| p.operation)
-            .or_else(|| self.projected_function_for_call(callee, call_is_unsafe(node)));
+            .or_else(|| self.projected_function_for_call(callee, is_unsafe));
         let plan = NativeBridgeCall {
             operation,
+            is_unsafe,
             selection: self.unit.projected_call_specializations.get(&(
                 node.span.file,
                 node.span.start,
