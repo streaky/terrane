@@ -100,7 +100,7 @@ fn final_inventory_replays() {
 }
 
 #[test]
-fn competing_extractor_traits_keep_their_qualified_results() {
+fn extractor_traits_keep_qualified_results() {
     let run = |reverse: bool| {
         let mut owner = projected_function_item("/deps/witness", "Value", "witness::Value");
         owner.kind = serde_json::from_value(serde_json::json!({
