@@ -2,8 +2,10 @@ use super::super::prelude::*;
 
 impl<'a> Emitter<'a> {
     pub(super) fn fallible(&self, call: impl AsRef<str>, node: &SyntaxNode) -> String {
-        let call = call.as_ref();
-        let site = self.error_site(node);
+        self.fallible_at(call.as_ref(), &self.error_site(node))
+    }
+
+    pub(super) fn fallible_at(&self, call: &str, site: &str) -> String {
         if self.try_completion {
             format!("__terrane_raised_completion!({call}, {site})")
         } else if self.propagate_errors {

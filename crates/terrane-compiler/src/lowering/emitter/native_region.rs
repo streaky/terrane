@@ -150,14 +150,7 @@ impl<'a> Emitter<'a> {
             let caught = format!(
                 "std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})).map_err(|payload| crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?}))"
             );
-            let site = self.error_site(node);
-            if self.try_completion {
-                format!("__terrane_raised_completion!({caught}, {site})")
-            } else if self.propagate_errors {
-                format!("__terrane_raised_err({caught}, {site})?")
-            } else {
-                format!("__terrane_raised({caught}, {site})")
-            }
+            self.fallible(caught, node)
         };
         let region = self
             .native_regions

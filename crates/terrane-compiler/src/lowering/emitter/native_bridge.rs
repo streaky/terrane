@@ -1,12 +1,26 @@
 //! Connect a projected operation and its checked ABI to its lexical lowering region.
+mod construct;
+mod inputs;
+mod invocation;
+mod result;
+mod target;
+
 use std::borrow::Cow;
 
 use super::Emitter;
 use crate::{
     rust_interop::projection::{ProjectedFunction, instantiate_receiver_lifetimes},
-    semantics::{ProjectedCallSpecialization, ValueType},
+    semantics::{ObjectIdentity, ProjectedCallSpecialization, ValueType},
     syntax::{SyntaxNode, call_is_unsafe},
 };
+
+pub(super) struct InvocationSite<'a> {
+    pub(super) node: &'a SyntaxNode,
+    pub(super) source_callee: &'a SyntaxNode,
+    pub(super) callee: &'a SyntaxNode,
+    pub(super) arguments: &'a SyntaxNode,
+    pub(super) source_method_application: Option<&'a SyntaxNode>,
+}
 
 pub(super) struct NativeBridgeCall<'a> {
     pub(super) operation: Option<&'a ProjectedFunction>,
@@ -14,6 +28,25 @@ pub(super) struct NativeBridgeCall<'a> {
 }
 
 impl Emitter<'_> {
+    fn projected_receiver_identity(&self, receiver: &SyntaxNode) -> Option<ObjectIdentity> {
+        self.class_designator(receiver)
+            .map(|object| object.identity.clone())
+            .or_else(|| match self.value_type(receiver)? {
+                ValueType::Object(identity) => Some(identity),
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => match item.value_type() {
+                    ValueType::Object(identity)
+                    | ValueType::InvocationScopedNative {
+                        family: identity, ..
+                    } => Some(identity),
+                    _ => None,
+                },
+                ValueType::InvocationScopedNative { family, .. } => Some(family),
+                _ => None,
+            })
+    }
+
     pub(super) fn lower_bridge_call(&mut self, node: &SyntaxNode, argument_first: bool) -> String {
         let [callee, _] = node.children.as_slice() else {
             return String::new();
