@@ -1,5 +1,22 @@
 use super::*;
 
+// Inventory metadata shares the artifact with parseable Terrane declarations.
+pub(super) fn write_inventory_comment(output: &mut String, indent: &str, parts: &[&str]) {
+    output.push_str(indent);
+    output.push_str("# ");
+    for part in parts {
+        let mut lines = part.split('\n');
+        output.push_str(lines.next().expect("split always has a first segment"));
+        for line in lines {
+            output.push('\n');
+            output.push_str(indent);
+            output.push_str("#   ");
+            output.push_str(line);
+        }
+    }
+    output.push('\n');
+}
+
 pub(super) fn render_callable_declaration(
     output: &mut String,
     item: &ProjectedItem,
@@ -149,13 +166,22 @@ pub(super) fn append_required_nominal_units(
         } else {
             generic_parameters.join(", ")
         };
-        let addition = format!(
-            "# Partial native {native_kind}: {}\n\
-             # Native generic parameters retained as a residual obligation: {rendered_generics}\n\
-             # This nominal class is not registered for lowering until its residual obligations are satisfied.\n\
-             {declaration}\n",
-            entry.rust_path
+        let mut addition = String::new();
+        write_inventory_comment(
+            &mut addition,
+            "",
+            &["Partial native ", native_kind, ": ", &entry.rust_path],
         );
+        write_inventory_comment(
+            &mut addition,
+            "",
+            &[
+                "Native generic parameters retained as a residual obligation: ",
+                &rendered_generics,
+            ],
+        );
+        addition.push_str("# This nominal class is not registered for lowering until its residual obligations are satisfied.\n");
+        writeln!(addition, "{declaration}").expect("writing to a string cannot fail");
         if let Some((_, source)) = sources
             .iter_mut()
             .find(|(source_namespace, _)| source_namespace == namespace)
@@ -203,17 +229,13 @@ pub(super) fn render_required_projected_declarations(
         return;
     }
     for (rust_path, (item, contracts)) in required_projected {
-        writeln!(
-            output,
-            "#\n# Native path: {rust_path}\n\
-             # Terrane namespace: {}\n\
-             # Projected declaration: {}\n\
-             # Required by projection contracts:",
-            item.namespace, item.name
-        )
-        .expect("writing to a string cannot fail");
+        output.push_str("#\n");
+        write_inventory_comment(output, "", &["Native path: ", rust_path]);
+        write_inventory_comment(output, "", &["Terrane namespace: ", &item.namespace]);
+        write_inventory_comment(output, "", &["Projected declaration: ", &item.name]);
+        output.push_str("# Required by projection contracts:\n");
         for contract in contracts {
-            writeln!(output, "# - {contract}").expect("writing to a string cannot fail");
+            write_inventory_comment(output, "", &["- ", contract]);
         }
     }
 }
@@ -227,24 +249,26 @@ pub(super) fn render_unavailable_projection(
     } else {
         "unused"
     };
-    writeln!(output, "#\n# Native path: {}", unavailable.rust_path)
-        .expect("writing to a string cannot fail");
-    writeln!(output, "# Terrane namespace: {}", unavailable.namespace)
-        .expect("writing to a string cannot fail");
-    writeln!(
+    output.push_str("#\n");
+    write_inventory_comment(output, "", &["Native path: ", &unavailable.rust_path]);
+    write_inventory_comment(output, "", &["Terrane namespace: ", &unavailable.namespace]);
+    let (separator, member) = unavailable
+        .member
+        .as_deref()
+        .map_or(("", ""), |name| (".", name));
+    write_inventory_comment(
         output,
-        "# Unavailable declaration: {}{}",
-        unavailable.name,
-        unavailable
-            .member
-            .as_ref()
-            .map_or_else(String::new, |member| format!(".{member}"))
-    )
-    .expect("writing to a string cannot fail");
+        "",
+        &[
+            "Unavailable declaration: ",
+            &unavailable.name,
+            separator,
+            member,
+        ],
+    );
     writeln!(output, "# Projection status: unavailable ({status})")
         .expect("writing to a string cannot fail");
-    writeln!(output, "# Projection gap: {}", unavailable.reason)
-        .expect("writing to a string cannot fail");
+    write_inventory_comment(output, "", &["Projection gap: ", &unavailable.reason]);
     if unavailable.is_required() {
         match &unavailable.partial {
             Some(PartialProjection::Function {
@@ -253,22 +277,27 @@ pub(super) fn render_unavailable_projection(
                 callback_shapes,
             }) => {
                 output.push_str("# Generated partial contract: function\n");
-                writeln!(output, "# Function shape: {signature}")
-                    .expect("writing to a string cannot fail");
+                write_inventory_comment(output, "", &["Function shape: ", signature]);
                 for constraint in generic_constraints {
-                    writeln!(output, "# Generic constraint: {constraint}")
-                        .expect("writing to a string cannot fail");
+                    write_inventory_comment(output, "", &["Generic constraint: ", constraint]);
                 }
                 for callback in callback_shapes {
-                    writeln!(
+                    write_inventory_comment(
                         output,
-                        "# Callback parameter `{}`: {}",
-                        callback.parameter, callback.contract
-                    )
-                    .expect("writing to a string cannot fail");
+                        "",
+                        &[
+                            "Callback parameter `",
+                            &callback.parameter,
+                            "`: ",
+                            &callback.contract,
+                        ],
+                    );
                     for method in &callback.methods {
-                        writeln!(output, "#   Required callback method: {method}")
-                            .expect("writing to a string cannot fail");
+                        write_inventory_comment(
+                            output,
+                            "",
+                            &["  Required callback method: ", method],
+                        );
                     }
                 }
             }
@@ -281,25 +310,35 @@ pub(super) fn render_unavailable_projection(
                     output.push_str(
                         "# Generated partial contract: parameterized native trait template\n",
                     );
-                    writeln!(
+                    write_inventory_comment(
                         output,
-                        "# Native trait template parameters: {}",
-                        generic_parameters.join(", ")
-                    )
-                    .expect("writing to a string cannot fail");
+                        "",
+                        &[
+                            "Native trait template parameters: ",
+                            &generic_parameters.join(", "),
+                        ],
+                    );
                     output.push_str("# Terrane nominal declaration: none\n");
                 } else {
-                    writeln!(output, "# Generated partial contract: {native_kind}")
-                        .expect("writing to a string cannot fail");
-                    writeln!(output, "# Terrane nominal declaration: {declaration}")
-                        .expect("writing to a string cannot fail");
+                    write_inventory_comment(
+                        output,
+                        "",
+                        &["Generated partial contract: ", native_kind],
+                    );
+                    write_inventory_comment(
+                        output,
+                        "",
+                        &["Terrane nominal declaration: ", declaration],
+                    );
                     if !generic_parameters.is_empty() {
-                        writeln!(
+                        write_inventory_comment(
                             output,
-                            "# Residual native generic parameters: {}",
-                            generic_parameters.join(", ")
-                        )
-                        .expect("writing to a string cannot fail");
+                            "",
+                            &[
+                                "Residual native generic parameters: ",
+                                &generic_parameters.join(", "),
+                            ],
+                        );
                     }
                 }
             }
@@ -315,7 +354,7 @@ pub(super) fn render_unavailable_projection(
     if !unavailable.required_by_contracts.is_empty() {
         output.push_str("# Required by projection contracts:\n");
         for contract in &unavailable.required_by_contracts {
-            writeln!(output, "# - {contract}").expect("writing to a string cannot fail");
+            write_inventory_comment(output, "", &["- ", contract]);
         }
     }
 }
@@ -327,7 +366,7 @@ pub(super) fn render_demand_sites(output: &mut String, sites: Option<&BTreeSet<S
     };
     output.push_str("# Required by:\n");
     for site in sites {
-        writeln!(output, "# - {site}").expect("writing to a string cannot fail");
+        write_inventory_comment(output, "", &["- ", site]);
     }
 }
 
@@ -1066,17 +1105,16 @@ fn render_omitted_admitted_members(
     }
     output.push_str("  #\n  # Admitted native members without syntax-valid generated source\n");
     for function in omitted {
-        writeln!(output, "  #\n  # {}", function.name).expect("writing to a string cannot fail");
-        writeln!(
+        output.push_str("  #\n");
+        write_inventory_comment(output, "  ", &[&function.name]);
+        write_inventory_comment(
             output,
-            "  # Native path: {}::{}",
-            item.rust_path, function.name
-        )
-        .expect("writing to a string cannot fail");
+            "  ",
+            &["Native path: ", &item.rust_path, "::", &function.name],
+        );
         let reason = inventory_member_syntax_gap(function)
             .unwrap_or_else(|| "not selected for generated inventory source".to_owned());
-        writeln!(output, "  # Inventory omission: {reason}")
-            .expect("writing to a string cannot fail");
+        write_inventory_comment(output, "  ", &["Inventory omission: ", &reason]);
     }
 }
 
@@ -1084,15 +1122,13 @@ fn render_unavailable_members(output: &mut String, unavailable: &[&UnavailablePr
     output.push_str("  #\n  # Unavailable native members retained for structure\n");
     for entry in unavailable {
         let member = entry.member.as_deref().unwrap_or(&entry.name);
-        writeln!(output, "  #\n  # {member}").expect("writing to a string cannot fail");
-        writeln!(output, "  # Native path: {}", entry.rust_path)
-            .expect("writing to a string cannot fail");
+        output.push_str("  #\n");
+        write_inventory_comment(output, "  ", &[member]);
+        write_inventory_comment(output, "  ", &["Native path: ", &entry.rust_path]);
         if let Some(PartialProjection::Function { signature, .. }) = &entry.partial {
-            writeln!(output, "  # Native signature: {signature}")
-                .expect("writing to a string cannot fail");
+            write_inventory_comment(output, "  ", &["Native signature: ", signature]);
         }
-        writeln!(output, "  # Projection gap: {}", entry.reason)
-            .expect("writing to a string cannot fail");
+        write_inventory_comment(output, "  ", &["Projection gap: ", &entry.reason]);
     }
 }
 

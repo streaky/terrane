@@ -153,6 +153,7 @@ use source_rendering::{
     projected_source_dependencies, propagate_partial_contract_requirements, render_demand_sites,
     render_foreign_declaration, render_required_projected_declarations,
     render_unavailable_projection, source_foreign_aliases, unavailable_member_map,
+    write_inventory_comment,
 };
 pub(crate) use type_rendering::instantiate_projected_container;
 use type_rendering::{
@@ -1966,8 +1967,11 @@ impl Projection {
              # Projected Terrane declarations\n",
         );
         if let Some(error) = source_rendering_gap {
-            writeln!(output, "# Projected source rendering gap: {error}")
-                .expect("writing to a string cannot fail");
+            write_inventory_comment(
+                &mut output,
+                "",
+                &["Projected source rendering gap: ", &error],
+            );
         }
 
         for (namespace, source) in sources {

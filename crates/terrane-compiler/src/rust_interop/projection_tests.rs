@@ -481,6 +481,15 @@ fn inventory_separates_unused_and_demanded() {
 
 #[test]
 fn inventory_records_admissions_and_declines() {
+    let mut widget = projected_foreign_type_item(
+        "/deps/witness",
+        "Widget",
+        "std::sync::Weak<\n    dyn witness::Listener<witness::Event> + Send + Sync,\n>",
+        "ready",
+    );
+    super::conversions::add_from(&mut widget);
+    let blocked = format!("{}::blocked", widget.rust_path);
+    let reason = "requires an unsupported borrow\nDetails: # Generated source unit: /deps/example";
     let projection = Projection {
         native_owner_aliases: BTreeMap::default(),
         cache_identity: "members".to_owned(),
@@ -490,23 +499,18 @@ fn inventory_records_admissions_and_declines() {
             native_alias_identities: BTreeMap::new(),
             package: "witness".to_owned(),
             version: "1.0.0".to_owned(),
-            items: vec![projected_foreign_type_item(
-                "/deps/witness",
-                "Widget",
-                "witness::Widget",
-                "ready",
-            )],
+            items: vec![widget],
             declined: vec![DeclinedItem {
-                rust_path: "witness::Widget::blocked".to_owned(),
-                reason: "requires an unsupported borrow".to_owned(),
+                rust_path: blocked.clone(),
+                reason: reason.to_owned(),
             }],
             associated_implementations: Vec::new(),
             partial_declines: vec![PartialProjectionRecord {
-                rust_path: "witness::Widget::blocked".to_owned(),
-                reason: "requires an unsupported borrow".to_owned(),
+                rust_path: blocked,
+                reason: reason.to_owned(),
                 references: BTreeSet::new(),
                 projection: PartialProjection::Function {
-                    signature: "fn blocked(&self) -> &str".to_owned(),
+                    signature: "fn blocked(\n    &self,\n) -> &str".to_owned(),
                     generic_constraints: Vec::new(),
                     callback_shapes: Vec::new(),
                 },
@@ -522,11 +526,18 @@ fn inventory_records_admissions_and_declines() {
     };
 
     let document = projection.documented_inventory(&ProjectionDemandSites::new());
+    let mut units = generated_projection_units(&document).unwrap();
+    assert_eq!(units.len(), 1);
+    let unit = units.pop().unwrap();
+    let source = crate::SourceFile::new(0, "projection.trn".into(), unit.source);
+    let parsed = crate::parser::parse(&source, crate::lexer::lex(&source).unwrap());
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
 
     assert!(document.contains("class Widget\n    function ready;"));
     assert!(document.contains("  # Unavailable native members retained for structure"));
-    assert!(document.contains("  # blocked\n  # Native path: witness::Widget::blocked"));
-    assert!(document.contains("  # Native signature: fn blocked(&self) -> &str"));
+    assert!(document.contains("  # Inventory omission:"));
+    assert!(document.contains("  # blocked\n  # Native path: std::sync::Weak<"));
+    assert!(document.contains("  # Native signature: fn blocked("));
     assert!(document.contains("  # Projection gap: requires an unsupported borrow"));
 }
 

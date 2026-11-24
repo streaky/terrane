@@ -18,9 +18,12 @@ pub struct GeneratedProjectionUnit {
 /// match the first non-comment declaration in that body.
 pub fn generated_projection_units(document: &str) -> Result<Vec<GeneratedProjectionUnit>, String> {
     let mut units = Vec::new();
-    let mut cursor = 0;
-    while let Some(relative_start) = document[cursor..].find(GENERATED_SOURCE_UNIT_MARKER) {
-        let marker_start = cursor + relative_start;
+    let mut markers = document
+        .match_indices(GENERATED_SOURCE_UNIT_MARKER)
+        .map(|(offset, _)| offset)
+        .filter(|&offset| offset == 0 || document.as_bytes()[offset - 1] == b'\n')
+        .peekable();
+    while let Some(marker_start) = markers.next() {
         let namespace_start = marker_start + GENERATED_SOURCE_UNIT_MARKER.len();
         let namespace_end = document[namespace_start..]
             .find('\n')
@@ -28,9 +31,7 @@ pub fn generated_projection_units(document: &str) -> Result<Vec<GeneratedProject
             .ok_or_else(|| "generated source-unit marker has no source body".to_owned())?;
         let namespace = document[namespace_start..namespace_end].trim().to_owned();
         let source_start = namespace_end + 1;
-        let source_end = document[source_start..]
-            .find(GENERATED_SOURCE_UNIT_MARKER)
-            .map_or(document.len(), |offset| source_start + offset);
+        let source_end = markers.peek().copied().unwrap_or(document.len());
         let source = document[source_start..source_end].trim_end().to_owned();
         let expected = format!("namespace {}", namespace.trim_start_matches('/'));
         let first_declaration = source
@@ -47,7 +48,6 @@ pub fn generated_projection_units(document: &str) -> Result<Vec<GeneratedProject
             source,
             start: source_start,
         });
-        cursor = source_end;
     }
     Ok(units)
 }
