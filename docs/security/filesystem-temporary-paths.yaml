@@ -37,7 +37,7 @@ security:
   review:
     considerations:
       - Preserve OS randomness, exclusive creation at the requested mode, and direct host recursive deletion.
-      - The separate HTTP-server package's native multipart staging bridge writes through the original file descriptor returned by the host helper. Preserve that behavior when changing the helper or bridge; the package is not part of this repository's conformance evidence.
+      - Any future migration of HTTP-server multipart staging to core temporary paths must preserve writes through the descriptor returned by exclusive creation and transfer cleanup without private generated fields. The separate package uses projected tempfile owners and is not core conformance evidence.
   files:
     - path: crates/terrane-platform-support/src/temporary.rs
       role: enforcement
