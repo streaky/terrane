@@ -1,0 +1,7 @@
+namespace app
+async function picky bool; octet uint8
+    return octet != 0
+
+function main;
+    data = b'a,b'
+    print; (data.append-utf8-ranges; '', 44, '|', picky)

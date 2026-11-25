@@ -1,4 +1,4 @@
 namespace app
 from /deps/http import HeaderName
 function main;
-    name = HeaderName::from_static; 'x-test'
+    name = HeaderName::from_static; ('x-' + 'test')

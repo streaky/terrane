@@ -163,6 +163,54 @@ pub(super) fn project_borrowed_graph_type(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
+    if let Some(sum) = optional_slice_sum(ty, index, paths, generics) {
+        return Ok(sum);
+    }
+    if let Type::BorrowedRef {
+        type_,
+        lifetime,
+        is_mutable: false,
+    } = ty
+        && let Type::Slice(element) = type_.as_ref()
+        && let Ok(item @ ProjectedType::Foreign { .. }) =
+            project_type(element, index, paths, generics)
+        && let ProjectedType::Foreign {
+            rust_path,
+            name,
+            arguments,
+            ..
+        } = &item
+        && arguments.is_empty()
+        && !type_contains_lifetime_argument(element)
+        && !rust_path.contains('<')
+    {
+        // This is a projection-only carrier. It is never materialized as a
+        // Terrane value; only the owned output of its terminal can escape.
+        let name = super::type_rendering::instantiated_type_name(
+            &format!("borrowed-slice-of-{name}"),
+            rust_path,
+        );
+        let base_rust_path = format!("[{rust_path}]");
+        let rust_type = format!(
+            "&{}{base_rust_path}",
+            lifetime
+                .as_ref()
+                .map_or_else(String::new, |name| format!("{name} ")),
+        );
+        return Ok(ProjectedType::InvocationScoped {
+            name: name.clone(),
+            lifetimes: rust_lifetimes(&rust_type),
+            rust_type,
+            expression_scoped: true,
+            owned: Box::new(ProjectedType::Foreign {
+                name,
+                rust_path: base_rust_path.clone(),
+                base_rust_path,
+                arguments: vec![item],
+            }),
+            variants: Vec::new(),
+        });
+    }
     let projected = project_borrowed_graph_value(ty, index, paths, generics)?;
     if projected.needs_borrowed_leaf_conversion() {
         return Ok(projected);
@@ -197,6 +245,169 @@ pub(super) fn project_borrowed_graph_type(
         rust_type,
         expression_scoped: true,
         owned: Box::new(projected),
+        variants: Vec::new(),
+    })
+}
+
+fn rust_variant_selector(name: &str) -> String {
+    let mut characters = name.chars().peekable();
+    let mut snake = String::with_capacity(name.len());
+    let mut previous = '_';
+    while let Some(character) = characters.next() {
+        if character.is_ascii_uppercase()
+            && (previous.is_ascii_lowercase()
+                || previous.is_ascii_digit()
+                || (previous.is_ascii_uppercase()
+                    && characters.peek().is_some_and(char::is_ascii_lowercase)))
+        {
+            snake.push('_');
+        }
+        snake.push(character.to_ascii_lowercase());
+        previous = character;
+    }
+    snake
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "prove the optional sum and its borrowed payloads against one rustdoc index"
+)]
+fn optional_slice_sum(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Option<ProjectedType> {
+    let Type::ResolvedPath(option) = ty else {
+        return None;
+    };
+    if !matches!(
+        resolved_path_name(option, paths).as_str(),
+        "core::option::Option" | "std::option::Option"
+    ) {
+        return None;
+    }
+    let [sum_ty] = type_arguments(ty).try_into().ok()?;
+    let Type::ResolvedPath(sum) = sum_ty else {
+        return None;
+    };
+    let ItemEnum::Enum(enumeration) = &index.get(&sum.id)?.inner else {
+        return None;
+    };
+    let arguments = type_arguments(sum_ty);
+    let parameters = &enumeration.generics.params;
+    if parameters.len() != arguments.len()
+        || parameters
+            .iter()
+            .any(|parameter| !matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+    {
+        return None;
+    }
+    let owner = resolved_path_name(sum, paths);
+    let rust_type = render_rust_type(ty, index, paths, generics).ok()?;
+    let name = super::type_rendering::instantiated_type_name("borrowed-optional-sum", &rust_type);
+    let mut variants = enumeration
+        .variants
+        .iter()
+        .filter_map(|id| {
+            let variant = index.get(id)?;
+            let variant_name = variant.name.as_ref()?;
+            let ItemEnum::Variant(rustdoc_types::Variant {
+                kind: rustdoc_types::VariantKind::Tuple(fields),
+                ..
+            }) = &variant.inner
+            else {
+                return None;
+            };
+            let [Some(field)] = fields.as_slice() else {
+                return None;
+            };
+            let ItemEnum::StructField(field) = &index.get(field)?.inner else {
+                return None;
+            };
+            let field = if let Type::Generic(name) = field {
+                let ordinal = parameters
+                    .iter()
+                    .position(|parameter| &parameter.name == name)?;
+                arguments[ordinal]
+            } else {
+                field
+            };
+            let Type::BorrowedRef {
+                is_mutable: false,
+                type_,
+                ..
+            } = field
+            else {
+                return None;
+            };
+            let Type::Slice(element) = type_.as_ref() else {
+                return None;
+            };
+            let Type::ResolvedPath(element_path) = element.as_ref() else {
+                return None;
+            };
+            let ItemEnum::Struct(element_struct) = &index.get(&element_path.id)?.inner else {
+                return None;
+            };
+            if !element_struct.generics.params.is_empty()
+                || !super::rustdoc_support::implements_trait(
+                    &element_struct.impls,
+                    index,
+                    paths,
+                    "core::clone::Clone",
+                )
+            {
+                return None;
+            }
+            let ProjectedType::InvocationScoped { owned, .. } =
+                project_borrowed_graph_type(field, index, paths, generics).ok()?
+            else {
+                return None;
+            };
+            Some(super::ProjectedBorrowedVariant {
+                name: format!("select_{}", rust_variant_selector(variant_name)),
+                path: format!("{owner}::{variant_name}"),
+                slice: *owned,
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut selectors = variants
+        .iter()
+        .map(|variant| (variant.name.clone(), false))
+        .collect::<BTreeMap<_, _>>();
+    for (index, variant) in variants.iter_mut().enumerate() {
+        if !std::mem::replace(
+            selectors.get_mut(&variant.name).expect("reserved selector"),
+            true,
+        ) {
+            continue;
+        }
+        let mut suffix = index + 1;
+        loop {
+            let candidate = format!("{}_variant{suffix}", variant.name);
+            if let std::collections::btree_map::Entry::Vacant(entry) =
+                selectors.entry(candidate.clone())
+            {
+                entry.insert(true);
+                variant.name = candidate;
+                break;
+            }
+            suffix += 1;
+        }
+    }
+    (!variants.is_empty()).then(|| ProjectedType::InvocationScoped {
+        name: name.clone(),
+        lifetimes: rust_lifetimes(&rust_type),
+        expression_scoped: true,
+        owned: Box::new(ProjectedType::Foreign {
+            name,
+            rust_path: rust_type.clone(),
+            base_rust_path: rust_type.clone(),
+            arguments: Vec::new(),
+        }),
+        rust_type,
+        variants,
     })
 }
 
@@ -269,6 +480,7 @@ pub(super) fn project_invocation_scoped_type(
         lifetimes,
         expression_scoped: false,
         owned: Box::new(projected),
+        variants: Vec::new(),
     })
 }
 
@@ -1441,6 +1653,13 @@ pub(super) fn type_arguments(ty: &Type) -> Vec<&Type> {
 mod tests {
     use super::*;
     use rustdoc_types::{ItemKind, Path};
+
+    #[test]
+    fn rust_variant_selectors_use_snake_case() {
+        assert_eq!(rust_variant_selector("TextValue"), "text_value");
+        assert_eq!(rust_variant_selector("HTTPValue"), "http_value");
+        assert_eq!(rust_variant_selector("Left"), "left");
+    }
 
     #[test]
     fn result_error_prefers_rustdoc_identity() {

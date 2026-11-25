@@ -91,7 +91,9 @@ impl Emitter<'_> {
         } else {
             call
         };
-        let enum_operation = foreign_method.and_then(|method| method.enum_operation.as_ref());
+        let enum_operation = foreign_method
+            .and_then(|method| method.enum_operation.as_ref())
+            .filter(|operation| !matches!(operation, crate::rust_interop::projection::ProjectedEnumOperation::SelectOptionalVariant { .. }));
         let call = enum_operation
             .and_then(|operation| {
                 let [receiver, _member] = callee.children.as_slice() else {
@@ -151,6 +153,11 @@ impl Emitter<'_> {
                     })
             });
         if let Some(method) = producer {
+            let call = if method.error.is_some() {
+                self.wrap_foreign_method(node, callee, method, specialization, name, call)
+            } else {
+                call
+            };
             return self.emit_native_producer(node, &setup.into_prefix(), call, method);
         }
         if matches!(
@@ -386,6 +393,14 @@ impl Emitter<'_> {
         });
         let converted = if discarded_unit {
             "()".to_owned()
+        } else if self.borrowed_native_leaf_exit == Some(node.span)
+            && matches!(
+                projected_result,
+                crate::rust_interop::projection::ProjectedType::BorrowedBytes
+                    | crate::rust_interop::projection::ProjectedType::BorrowedString
+            )
+        {
+            "value".to_owned()
         } else {
             projected_result_expression("value", projected_result)
         };
@@ -469,6 +484,11 @@ fn projected_enum_call(
     values: &[String],
 ) -> String {
     match operation {
+        crate::rust_interop::projection::ProjectedEnumOperation::SelectOptionalVariant {
+            ..
+        } => {
+            unreachable!("optional variant selection has a scoped receiver")
+        }
         crate::rust_interop::projection::ProjectedEnumOperation::Construct {
             variant,
             unit,

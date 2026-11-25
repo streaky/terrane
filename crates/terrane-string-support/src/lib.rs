@@ -12,6 +12,28 @@ use writeable::Writeable;
 /// Unicode Character Database version shared by text segmentation, normalization, and folding.
 pub const UNICODE_DATA_VERSION: (u64, u64, u64) = (18, 0, 0);
 
+/// Append the admitted UTF-8 fields of a byte sequence to an owned string.
+/// Empty fields are admitted; a separator is written only after nonempty output.
+pub fn append_utf8_ranges(
+    input: &[u8],
+    mut output: String,
+    delimiter: u8,
+    separator: &str,
+    accepts: impl Fn(u8) -> bool,
+) -> String {
+    for field in input.split(|&byte| byte == delimiter) {
+        if field.iter().copied().all(&accepts)
+            && let Ok(text) = std::str::from_utf8(field)
+        {
+            if !output.is_empty() {
+                output.push_str(separator);
+            }
+            output.push_str(text);
+        }
+    }
+    output
+}
+
 /// Returns the number of user-perceived characters using Unicode extended
 /// grapheme-cluster boundaries.
 #[must_use]

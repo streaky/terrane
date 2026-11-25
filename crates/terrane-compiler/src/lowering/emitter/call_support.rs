@@ -133,6 +133,64 @@ impl<'a> Emitter<'a> {
         )
     }
 
+    pub(super) fn append_utf8_ranges(
+        &mut self,
+        receiver: &SyntaxNode,
+        arguments: &SyntaxNode,
+        output: &SyntaxNode,
+        delimiter: &SyntaxNode,
+        separator: &SyntaxNode,
+        accepts: &SyntaxNode,
+    ) -> String {
+        use crate::rust_interop::projection::ProjectedType;
+
+        let (setup, bytes) = if let Some(leaf) =
+            self.lower_borrowed_native_leaf(receiver, &ProjectedType::BorrowedBytes)
+        {
+            (String::new(), leaf)
+        // An arbitrary predicate must not run while holding a shared byte guard.
+        } else if self.receiver_needs_live_guard(receiver)
+            || self.native_read_needs_snapshot(receiver, arguments, false, false)
+        {
+            (
+                String::new(),
+                format!("&({})", self.read_snapshot(receiver)),
+            )
+        } else {
+            self.operand_reference_parts(receiver, false)
+        };
+        let output = self.expression_as(output, ValueType::Scalar(ScalarType::String));
+        let delimiter = self.expression_as(delimiter, ValueType::Scalar(ScalarType::Uint8));
+        let separator = self.borrowed_string_literal(separator).unwrap_or_else(|| {
+            format!(
+                "&({})",
+                self.expression_as(separator, ValueType::Scalar(ScalarType::String))
+            )
+        });
+        let accepts = if let Some(contract) = self
+            .contract_for_call(accepts, false)
+            .filter(|contract| {
+                contract.owner.is_none()
+                    && contract.captures.is_empty()
+                    && contract.generic_parameters.is_empty()
+                    && !contract.is_async
+                    && !self.contract_requires_throwing_abi(contract, false)
+                    && contract.return_type == Some(ValueType::Scalar(ScalarType::Bool))
+                    && matches!(contract.parameters.as_slice(), [parameter]
+                        if !parameter.optional
+                            && parameter.binding_value_type() == Some(ValueType::Scalar(ScalarType::Uint8)))
+            })
+        {
+            function_name(self.package, contract)
+        } else {
+            let value = self.expression_as(accepts, crate::semantics::byte_range_predicate_type());
+            format!("{{ let predicate = {value}; move |byte| predicate(byte) }}")
+        };
+        format!(
+            "{{ {setup} terrane_string_support::append_utf8_ranges({bytes}, {output}, {delimiter}, {separator}, {accepts}) }}"
+        )
+    }
+
     #[allow(clippy::too_many_lines)]
     pub(super) fn string_call(
         &mut self,
@@ -160,38 +218,46 @@ impl<'a> Emitter<'a> {
         } else {
             None
         };
+        let borrowed_native_decode = if family == "decode" && owned_decode.is_none() {
+            self.lower_borrowed_native_leaf(
+                subject,
+                &crate::rust_interop::projection::ProjectedType::BorrowedBytes,
+            )
+        } else {
+            None
+        };
+        let direct_decode = owned_decode.is_some() || borrowed_native_decode.is_some();
         let prior_read_guards = self.borrowed_receiver_overrides.len();
         let mut guard_setup = String::new();
         self.prepare_read_guards(
-            std::iter::once(subject)
-                .filter(|_| owned_decode.is_none())
-                .chain(
-                    arguments
-                        .children
-                        .iter()
-                        .map(|argument| argument.children.last().unwrap_or(argument)),
-                ),
+            std::iter::once(subject).filter(|_| !direct_decode).chain(
+                arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument)),
+            ),
             &mut guard_setup,
         );
         let competing_guard = !self.has_read_guard(subject)
             && arguments.children.iter().any(|argument| {
                 self.contains_guarded_read(argument.children.last().unwrap_or(argument))
             });
-        let snapshot_receiver = owned_decode.is_none()
+        let snapshot_receiver = !direct_decode
             && self.native_read_needs_snapshot(subject, arguments, competing_guard, false);
-        let (receiver_setup, receiver) = if let Some(value) = &owned_decode {
-            let name = self.fresh_read_binding_name("decode_receiver");
-            (format!("let {name} = {value}; "), name)
-        } else if let Some(parts) = self.throwable_text_parts(subject, snapshot_receiver) {
-            parts
-        } else if snapshot_receiver {
-            let value = self.read_snapshot(subject);
-            let name = self.fresh_read_binding_name("string_receiver");
-            (format!("let {name} = {value}; "), name)
-        } else {
-            self.borrowed_receiver_parts(subject)
-        };
-        let mut setup = if owned_decode.is_some() || snapshot_receiver {
+        let (receiver_setup, receiver) =
+            if let Some(value) = owned_decode.as_ref().or(borrowed_native_decode.as_ref()) {
+                let name = self.fresh_read_binding_name("decode_receiver");
+                (format!("let {name} = {value}; "), name)
+            } else if let Some(parts) = self.throwable_text_parts(subject, snapshot_receiver) {
+                parts
+            } else if snapshot_receiver {
+                let value = self.read_snapshot(subject);
+                let name = self.fresh_read_binding_name("string_receiver");
+                (format!("let {name} = {value}; "), name)
+            } else {
+                self.borrowed_receiver_parts(subject)
+            };
+        let mut setup = if direct_decode || snapshot_receiver {
             format!("{receiver_setup}{guard_setup}")
         } else {
             format!("{guard_setup}{receiver_setup}")

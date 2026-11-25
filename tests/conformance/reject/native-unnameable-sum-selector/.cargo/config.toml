@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-query-witness = { path = "../../../fixtures/conformance-suites/native-lifetimes/fixture-registry/terrane-query-witness-0.1.0" }

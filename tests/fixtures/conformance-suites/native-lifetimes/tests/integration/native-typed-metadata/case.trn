@@ -24,6 +24,10 @@ function find-text string|none; record shared ref TypedRecord, key ref string
 function find-text-aliased string|none; record shared ref TypedRecord, key ref string
     return (record.find_aliased; key).map; own-found
 
+function byte-lengths; value ref MetadataText
+    print; (value.contents;).bytes.length
+    print; (value.bytes;).length
+
 function test-scenario;
     record = TypedRecord::new; 'record label'
     print; (type-name; record)
@@ -59,3 +63,6 @@ function test-scenario;
     found-again = find-text; shared-record, key
     if found-again != none
         print; found-again
+    multibyte-record = TypedRecord::new; 'café'
+    multibyte = own-label; multibyte-record
+    byte-lengths; multibyte

@@ -164,13 +164,25 @@ impl Emitter<'_> {
         receiver_type: Option<ValueType>,
         member: &SyntaxNode,
     ) -> Option<String> {
+        use crate::rust_interop::projection::ProjectedType;
+
         if self.text(member) != "length" {
             return None;
+        }
+        if receiver_type == Some(ValueType::Scalar(ScalarType::Bytes)) {
+            let bytes = self.lower_borrowed_native_leaf(receiver, &ProjectedType::BorrowedBytes)?;
+            return Some(format!("({bytes}).len() as i128"));
         }
         let Some(ValueType::StringView(unit)) = receiver_type else {
             return None;
         };
         receiver.children.first().map(|source| {
+            if unit == crate::semantics::TextUnit::Bytes
+                && let Some(text) =
+                    self.lower_borrowed_native_leaf(source, &ProjectedType::BorrowedString)
+            {
+                return format!("({text}).len() as i128");
+            }
             let (setup, source) = self.borrowed_receiver_parts(source);
             let length = match unit {
                 crate::semantics::TextUnit::Bytes => format!("({source}).len() as i128"),

@@ -451,7 +451,7 @@ pub fn resolve(
         &declared_public_paths,
     );
     for dependency in &mut projected {
-        borrowed_graph::add_optional_owners(&mut dependency.items);
+        borrowed_graph::add_owners(&mut dependency.items);
     }
     let public_errors =
         super::dependency_owners::publicly_exported_error_paths(&projected, &public_type_exports);
@@ -575,6 +575,7 @@ pub fn resolve(
         &workspace,
     )?;
     decline_functions_with_missing_generic_interfaces(&mut projected);
+    borrowed_graph::resolve_optional_selectors(&mut projected, &rustdocs);
     for dependency in
         projected_bound_dependencies(&projected, dependencies, &bound_dependencies, &metadata)?
     {

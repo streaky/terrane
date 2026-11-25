@@ -416,6 +416,15 @@ impl Emitter<'_> {
             };
             native_member_receiver = Some(receiver);
             native_path.clone()
+        } else if let [receiver, _] = callee.children.as_slice()
+            && let Some(
+                crate::rust_interop::projection::ProjectedEnumOperation::SelectOptionalVariant {
+                    path,
+                },
+            ) = projected_function.and_then(|operation| operation.enum_operation.as_ref())
+        {
+            native_member_receiver = Some(self.native_receiver_expression(receiver, false));
+            format!("(|input| match input {{ Some({path}(value)) => Some(value), _ => None }})")
         } else if let [receiver, _member] = callee.children.as_slice()
             && let Some(projected) = projected_function
             && matches!(

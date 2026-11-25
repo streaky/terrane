@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 use super::Emitter;
 use crate::{
     Span,
-    rust_interop::projection::{ChainRole, ProjectedFunction, Receiver},
+    rust_interop::projection::{ChainRole, ProjectedEnumOperation, ProjectedFunction, Receiver},
     semantics::{ValueType, ungrouped_expression},
     syntax::{SyntaxKind, SyntaxNode, call_is_unsafe},
 };
@@ -49,6 +49,8 @@ impl<'a> Emitter<'a> {
         {
             return None;
         }
+        let optional_sum_lookup = operation.native_path.as_deref()
+            == Some("terrane_collection_support::get_cloned_borrowed_slice");
         let mut producers = Vec::new();
         let mut has_local_loan = false;
         while receiver.kind == SyntaxKind::MemberExpression {
@@ -66,6 +68,15 @@ impl<'a> Emitter<'a> {
                 producer.chain_role,
                 Some(ChainRole::Root | ChainRole::Continue)
             );
+            let optional_selector = matches!(
+                producer.enum_operation.as_ref(),
+                Some(ProjectedEnumOperation::SelectOptionalVariant { .. })
+            );
+            let selected_sum_producer = !optional_sum_lookup
+                || (producer.chain_role == Some(ChainRole::Root)
+                    && !optional_selector
+                    && producer.native_path.as_deref()
+                        != Some("terrane_collection_support::get_cloned_borrowed_slice"));
             let scoped_receiver = self.value_type(lender);
             let lends_scoped_receiver = matches!(
                 operation.receiver,
@@ -84,21 +95,25 @@ impl<'a> Emitter<'a> {
                     ..
                 })
             );
-            producers.push(Producer {
-                operation: producer,
-                site: lender.span,
-                mutable: operation.receiver == Some(Receiver::MutableBorrow),
-                staged: None,
-            });
+            if selected_sum_producer {
+                producers.push(Producer {
+                    operation: producer,
+                    site: lender.span,
+                    mutable: !optional_sum_lookup
+                        && operation.receiver == Some(Receiver::MutableBorrow),
+                    staged: None,
+                });
+            }
             operation = producer;
             receiver = receiver_head.type_designator_head()?;
         }
         // A local loan chained through another producer can need a lexical lender
         // even without a guard. Already expression-scoped chains keep their joint
         // inference and panic boundary, including calls that mutably borrow their owner.
-        let stage_views = has_local_loan
-            && producers.len() > 1
-            && producers.iter().any(|producer| producer.mutable);
+        let stage_views = (optional_sum_lookup && !producers.is_empty())
+            || (has_local_loan
+                && producers.len() > 1
+                && producers.iter().any(|producer| producer.mutable));
         (!producers.is_empty()).then_some(NativeRegion {
             producers,
             prelude: String::new(),
@@ -121,18 +136,27 @@ impl<'a> Emitter<'a> {
         method: &ProjectedFunction,
     ) -> String {
         let site = node.span;
-        let call = if method.is_unsafe {
+        let call = if method.is_unsafe && method.error.is_none() {
             format!("unsafe {{ {call} }}")
         } else {
             call
         };
         let region = self.native_regions.last().expect("planned native region");
         // Nested expressions retain joint Rust inference until setup needs a lexical home.
-        if !region.stage_views && setup.is_empty() && region.prelude.is_empty() {
+        if method.error.is_none()
+            && !region.stage_views
+            && setup.is_empty()
+            && region.prelude.is_empty()
+        {
             return call;
         }
-        let call = if self.package.profile.panic == crate::package::PanicProfile::Abort {
-            call
+        let call = if method.error.is_some() {
+            self.fallible(call, node)
+        } else if self.package.profile.panic == crate::package::PanicProfile::Abort {
+            self.fallible(
+                format!("(|| -> Result<_, crate::TerraneForeignError> {{ Ok({call}) }})()"),
+                node,
+            )
         } else {
             let origin = method.native_path.clone().unwrap_or_else(|| {
                 method.native_owner.as_ref().map_or_else(
@@ -148,7 +172,7 @@ impl<'a> Emitter<'a> {
                 .package_for_rust_crate(&dependency)
                 .unwrap_or(&dependency);
             let caught = format!(
-                "std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})).map_err(|payload| crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?}))"
+                "std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<_, crate::TerraneForeignError> {{ Ok({call}) }})).unwrap_or_else(|payload| Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})))"
             );
             self.fallible(caught, node)
         };

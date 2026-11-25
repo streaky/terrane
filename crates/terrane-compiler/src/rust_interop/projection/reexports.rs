@@ -421,6 +421,13 @@ fn signature_foreign_aliases(
             let Some(constructor) = crate::rust_ir::rust_type_constructor(&rust_path) else {
                 continue;
             };
+            // The Rust option carrier is intrinsic, not a facade export.
+            if matches!(
+                constructor.as_str(),
+                "core::option::Option" | "std::option::Option"
+            ) {
+                continue;
+            }
             let public_path = format!("{crate_name}{}::{name}", namespace.replace('/', "::"));
             aliases
                 .entry(constructor)

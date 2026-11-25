@@ -1,5 +1,15 @@
 use super::prelude::*;
 
+pub(crate) fn byte_range_predicate_type() -> ValueType {
+    ValueType::Function(
+        vec![CallableParameterType::fixed(ElementType::new(
+            ValueType::Scalar(ScalarType::Uint8),
+        ))],
+        ElementType::new(ValueType::Scalar(ScalarType::Bool)),
+        CallableEffects::infallible(),
+    )
+}
+
 pub(super) fn text_range_member_type(member_name: &str) -> Option<ValueType> {
     match member_name {
         "text" => Some(ValueType::Scalar(ScalarType::String)),
@@ -758,6 +768,24 @@ fn infer_member_type(
                 ValueType::Scalar(ScalarType::Bytes),
             ))],
             ElementType::new(ValueType::Scalar(ScalarType::Bytes)),
+            CallableEffects::infallible(),
+        )));
+    }
+    if receiver_type == Some(ValueType::Scalar(ScalarType::Bytes))
+        && member_name == "append-utf8-ranges"
+    {
+        let text = ValueType::Scalar(ScalarType::String);
+        return Ok(Some(ValueType::Function(
+            [
+                text.clone(),
+                ValueType::Scalar(ScalarType::Uint8),
+                text.clone(),
+                byte_range_predicate_type(),
+            ]
+            .into_iter()
+            .map(|ty| CallableParameterType::fixed(ElementType::new(ty)))
+            .collect(),
+            ElementType::new(text),
             CallableEffects::infallible(),
         )));
     }

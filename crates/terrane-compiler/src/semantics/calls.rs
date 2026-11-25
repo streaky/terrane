@@ -35,6 +35,52 @@ pub(super) fn validate_string_member_expression(
         .filter(|callee| callee.kind == SyntaxKind::MemberExpression)
         .and_then(|callee| callee.children.get(1))
         .map(|member| node_text(&unit.source, member));
+    if call_member == Some("append-utf8-ranges")
+        && let [callee, arguments] = node.children.as_slice()
+        && let [receiver, _] = callee.children.as_slice()
+        && infer_receiver_value_type(unit, receiver, bindings)?
+            == Some(ValueType::Scalar(ScalarType::Bytes))
+    {
+        let Some(ValueType::Function(parameters, _, _)) =
+            infer_member_value_type(unit, callee, bindings)?
+        else {
+            unreachable!("byte range member has a fixed callable contract");
+        };
+        if arguments.children.len() != parameters.len()
+            || arguments
+                .children
+                .iter()
+                .any(|argument| argument.children.len() > 1)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                "append-utf8-ranges expects four positional arguments",
+                arguments.span,
+            ));
+        }
+        for ((argument, parameter), name) in arguments.children.iter().zip(&parameters).zip([
+            "output",
+            "delimiter",
+            "separator",
+            "predicate",
+        ]) {
+            let value = argument.children.last().unwrap_or(argument);
+            if let Some(actual) =
+                super::expressions::infer_boundary_value_type(unit, value, bindings)?
+            {
+                super::types::validate_value_destination(
+                    &unit.source,
+                    &unit.descriptors,
+                    name,
+                    parameter.value_type_ref(),
+                    &actual,
+                    value,
+                    "T0012",
+                )?;
+            }
+        }
+    }
     if member == Some("length") || matches!(call_member, Some("concat" | "join")) {
         infer_value_type(unit, node, bindings)?;
     }
@@ -136,6 +182,7 @@ pub(super) fn validate_call_nodes<'a>(
         if node.kind.child_field(index, child.kind) == "name" {
             continue;
         }
+        validate_static_literal_callable_reference(package, unit, node, index, child)?;
         if node.kind == SyntaxKind::CallExpression
             && index == 0
             && let Some((source, _)) = numeric_coercion_call(&unit.source, child)
@@ -158,6 +205,39 @@ pub(super) fn validate_call_nodes<'a>(
             active_function,
             scoped_bindings,
         )?;
+    }
+    Ok(())
+}
+
+fn validate_static_literal_callable_reference(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    parent: &SyntaxNode,
+    index: usize,
+    child: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    use crate::rust_interop::projection::ProjectedParameter;
+
+    if !(parent.kind == SyntaxKind::CallExpression && index == 0)
+        && parent.kind != SyntaxKind::GroupExpression
+        && let Some(head) = child.type_designator_head()
+        && matches!(
+            head.kind,
+            SyntaxKind::Name | SyntaxKind::StaticMemberExpression
+        )
+        && projected_function_for_call(package, unit, head, false).is_some_and(|function| {
+            function
+                .parameters
+                .iter()
+                .any(ProjectedParameter::requires_static_text_literal)
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0119",
+            "native operations requiring a static string literal are invocation-only",
+            child.span,
+        ));
     }
     Ok(())
 }

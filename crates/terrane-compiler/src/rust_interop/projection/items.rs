@@ -601,6 +601,7 @@ pub(super) fn project_rustdoc(
                         lifetimes,
                         expression_scoped: false,
                         owned: Box::new(candidate_result.clone()),
+                        variants: Vec::new(),
                     };
                 }
                 let invocation_scoped_chain = matches!(
@@ -1417,7 +1418,7 @@ pub(super) fn project_rustdoc(
     if include_canonical_items {
         items.extend(macros::macro_reexports(dependency, document));
     }
-    borrowed_graph::add_optional_owners(&mut items);
+    borrowed_graph::add_owners(&mut items);
     super::descriptor_owners::add_backing_owners(
         &mut items,
         &format!("/deps/{}", dependency.name.replace('_', "-")),

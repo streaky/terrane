@@ -1,0 +1,30 @@
+namespace native-borrowed-byte-ranges
+from /deps/terrane-query-witness import Octets
+
+function nonzero-octet bool; octet uint8
+    return octet != 0
+
+function keep-octet bool; octet uint8
+    return octet != 33
+
+function native-ranges string; source ref Octets
+    # The invalid first range does not prevent the valid second range from surviving.
+    return (source.bytes;).append-utf8-ranges; '', 0, '|', nonzero-octet
+
+function source-ranges string; source ref bytes, accepts function from uint8 to bool
+    prefix = 'prefix'
+    return source.append-utf8-ranges; move prefix, 44, '::', accepts
+
+function shared-ranges string;
+    original = b'a,b'
+    data = shared ref original
+    accepts = function bool; octet uint8
+        return data.length == 3 and octet != 0
+    return data.append-utf8-ranges; '', 44, '|', accepts
+
+function test-scenario;
+    source = Octets::new;
+    print; (native-ranges; source)
+    data = b'caf\xc3\xa9,,dis!card,\xff,end'
+    print; (source-ranges; data, keep-octet)
+    print; (shared-ranges;)

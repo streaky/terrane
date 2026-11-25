@@ -273,6 +273,10 @@ impl MetadataText {
         &self.0
     }
 
+    pub fn bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+
     pub fn searched_contents(&self) -> &str {
         assert_ne!(self.0, "too late", "search did not short-circuit");
         self.contents()
@@ -372,6 +376,49 @@ impl Octets {
     }
 }
 
+#[derive(Clone)]
+pub struct PublicPoint {
+    pub x: i64,
+}
+
+pub enum PointChoice<T> {
+    TextValue(T),
+    HttpValue(T),
+    HTTPValue(T),
+    HttpValueVariant3(T),
+}
+
+pub struct PointRecords([PublicPoint; 1]);
+
+impl PointRecords {
+    pub fn new() -> Self {
+        Self([PublicPoint { x: 42 }])
+    }
+
+    pub fn points(&self) -> Option<PointChoice<&[PublicPoint]>> {
+        Some(PointChoice::TextValue(&self.0))
+    }
+
+    pub fn collision(&self, arm: i64) -> Option<PointChoice<&[PublicPoint]>> {
+        match arm {
+            1 => Some(PointChoice::HttpValue(&self.0)),
+            2 => Some(PointChoice::HTTPValue(&self.0)),
+            3 => Some(PointChoice::HttpValueVariant3(&self.0)),
+            _ => None,
+        }
+    }
+
+    pub fn secret(&self) -> Option<hidden::Secret<&[PublicPoint]>> {
+        Some(hidden::Secret::Only(&self.0))
+    }
+}
+
+mod hidden {
+    pub enum Secret<T> {
+        Only(T),
+    }
+}
+
 pub struct Records([MetadataText; 3]);
 
 impl Records {
@@ -387,6 +434,10 @@ impl Records {
     pub fn values(&self) -> RecordValues<'_, MetadataText> {
         RecordValues(&self.0)
     }
+
+    pub fn pairs(&self) -> RecordPairs<'_> {
+        RecordPairs([(&self.0[0], &self.0[1]), (&self.0[1], &self.0[2])].into_iter())
+    }
 }
 
 pub struct RecordValues<'a, T>(&'a [T]);
@@ -401,6 +452,16 @@ pub struct RecordIter<'a, T>(std::slice::Iter<'a, T>);
 
 impl<'a, T> Iterator for RecordIter<'a, T> {
     type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+pub struct RecordPairs<'a>(std::array::IntoIter<(&'a MetadataText, &'a MetadataText), 2>);
+
+impl<'a> Iterator for RecordPairs<'a> {
+    type Item = (&'a MetadataText, &'a MetadataText);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -474,5 +535,92 @@ impl InherentFrom {
 impl From<i64> for InherentFrom {
     fn from(value: i64) -> Self {
         Self(value - 1)
+    }
+}
+
+pub trait Ordinal<R> {
+    fn index(self) -> usize;
+}
+
+impl Ordinal<OrdinalRow> for usize {
+    fn index(self) -> usize {
+        self
+    }
+}
+
+pub struct OrdinalRow([String; 2]);
+
+impl OrdinalRow {
+    pub fn sample() -> Self {
+        Self(["first".to_owned(), "second".to_owned()])
+    }
+
+    pub fn cell<I: Ordinal<Self>>(&self, index: I) -> Result<View<'_>, std::io::Error> {
+        self.0
+            .get(index.index())
+            .map(|text| View(text))
+            .ok_or_else(|| std::io::Error::other("missing cell"))
+    }
+}
+
+pub struct AmbiguousOrdinalRow(OrdinalRow);
+
+impl AmbiguousOrdinalRow {
+    pub fn new() -> Self {
+        Self(OrdinalRow::sample())
+    }
+
+    pub fn cell<I: Ordinal<Self>>(&self, index: I) -> Result<View<'_>, std::io::Error> {
+        self.0.cell(index.index())
+    }
+}
+
+impl Ordinal<AmbiguousOrdinalRow> for usize {
+    fn index(self) -> usize {
+        self
+    }
+}
+
+impl Ordinal<AmbiguousOrdinalRow> for isize {
+    fn index(self) -> usize {
+        self as usize
+    }
+}
+
+pub struct SliceEntry(String);
+
+impl SliceEntry {
+    pub fn title(&self) -> &str {
+        &self.0
+    }
+}
+
+pub struct SliceCatalog([SliceEntry; 2]);
+
+impl SliceCatalog {
+    pub fn sample() -> Self {
+        Self([SliceEntry("west".to_owned()), SliceEntry("east".to_owned())])
+    }
+
+    pub fn entries(&self) -> &[SliceEntry] {
+        &self.0
+    }
+}
+
+pub enum Choice<L, R> {
+    Left(L),
+    Right(R),
+}
+
+impl Records {
+    pub fn parameters(&self, mode: i64) -> Option<Choice<&[MetadataText], &str>> {
+        if mode == 9 {
+            std::panic::resume_unwind(Box::new("parameters panic"));
+        }
+        match mode {
+            0 => None,
+            1 => Some(Choice::Left(&self.0)),
+            _ => Some(Choice::Right("count only")),
+        }
     }
 }

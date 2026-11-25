@@ -8,6 +8,7 @@ use rustdoc_types::{
     Visibility, WherePredicate,
 };
 
+use super::borrowed_graph::{iterator_collect, iterator_find_map, iterator_fold};
 use super::{
     ChainRole, ProjectedBoundaryCapabilities, ProjectedConstant, ProjectedFunction,
     ProjectedGenericParameter, ProjectedItem, ProjectedKind, ProjectedType, Receiver,
@@ -1312,6 +1313,8 @@ pub(super) fn project_chain_owner(
 ) -> Option<ProjectedItem> {
     let output = function.sig.output.as_ref()?;
     let owned_result = match result {
+        // Optional sum carriers have their own structural owner and selectors.
+        ProjectedType::InvocationScoped { variants, .. } if !variants.is_empty() => return None,
         ProjectedType::InvocationScoped { owned, .. } => owned.as_ref(),
         result => result,
     };
@@ -1620,8 +1623,8 @@ fn project_chain_owner_methods(
                 ..
             }
         );
-    if invocation_scoped && !methods.iter().any(|method| method.name == "find_map") {
-        project_borrowed_iterator_terminal(
+    if invocation_scoped {
+        project_borrowed_iterator_terminals(
             structure,
             owner_generics,
             scoped_self,
@@ -1653,7 +1656,11 @@ fn project_chain_owner_methods(
     Some((methods, cloneable, expression_only))
 }
 
-fn project_borrowed_iterator_terminal(
+#[expect(
+    clippy::too_many_lines,
+    reason = "keep iterator associated-type proof and terminal registration together"
+)]
+fn project_borrowed_iterator_terminals(
     structure: &rustdoc_types::Struct,
     owner_generics: &BTreeMap<String, ProjectedType>,
     scoped_self: &ProjectedType,
@@ -1680,64 +1687,113 @@ fn project_borrowed_iterator_terminal(
             continue;
         }
         let mut binders = BTreeSet::new();
-        let whole_family = matches!(&implementation.for_, Type::ResolvedPath(_))
-            && type_arguments(&implementation.for_).into_iter().all(
-                |argument| matches!(argument, Type::Generic(name) if binders.insert(name)),
-            )
-            && implementation
-                .generics
-                .params
-                .iter()
-                .all(|parameter| match &parameter.kind {
-                    GenericParamDefKind::Lifetime { .. } => true,
-                    GenericParamDefKind::Type { bounds, .. } => bounds
-                        .iter()
-                        .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
-                    GenericParamDefKind::Const { .. } => false,
-                })
-            && implementation.generics.where_predicates.iter().all(
-                |predicate| match predicate {
-                    WherePredicate::LifetimePredicate { .. } => true,
-                    WherePredicate::BoundPredicate { bounds, .. } => bounds
-                        .iter()
-                        .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
-                    WherePredicate::EqPredicate { .. } => false,
-                },
-            );
+        let whole_family =
+            matches!(&implementation.for_, Type::ResolvedPath(_))
+                && type_arguments(&implementation.for_).into_iter().all(
+                    |argument| matches!(argument, Type::Generic(name) if binders.insert(name)),
+                )
+                && implementation
+                    .generics
+                    .params
+                    .iter()
+                    .all(|parameter| match &parameter.kind {
+                        GenericParamDefKind::Lifetime { .. } => true,
+                        GenericParamDefKind::Type { bounds, .. } => bounds
+                            .iter()
+                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                        GenericParamDefKind::Const { .. } => false,
+                    })
+                && implementation.generics.where_predicates.iter().all(
+                    |predicate| match predicate {
+                        WherePredicate::LifetimePredicate { .. } => true,
+                        WherePredicate::BoundPredicate { bounds, .. } => bounds
+                            .iter()
+                            .all(|bound| matches!(bound, rustdoc_types::GenericBound::Outlives(_))),
+                        WherePredicate::EqPredicate { .. } => false,
+                    },
+                );
         if !whole_family {
             continue;
         }
         let Some(item_type) = implementation.items.iter().find_map(|id| {
             let item = index.get(id)?;
             let ItemEnum::AssocType {
-                type_:
-                    Some(Type::BorrowedRef {
-                        is_mutable: false,
-                        type_,
-                        ..
-                    }),
-                ..
+                type_: Some(type_), ..
             } = &item.inner
             else {
                 return None;
             };
-            (item.name.as_deref() == Some("Item")).then_some(type_.as_ref())
+            (item.name.as_deref() == Some("Item")).then_some(type_)
         }) else {
             continue;
         };
         let implementation_generics =
             aliases::implementation_owner_generics(implementation, index, owner_generics);
-        if let Ok(item) = project_type(item_type, index, paths, &implementation_generics)
-            && matches!(
-                item,
-                ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
-            )
-        {
-            methods.push(super::borrowed_graph::iterator_find_map(
-                item,
-                &scoped_self.rust_type(),
-            ));
-            break;
+        let native_owner = scoped_self.rust_type();
+        let (item, pair) = match item_type {
+            Type::BorrowedRef {
+                type_,
+                is_mutable: false,
+                ..
+            } => {
+                let Ok(item) = project_type(type_, index, paths, &implementation_generics) else {
+                    continue;
+                };
+                (item, false)
+            }
+            Type::Tuple(items) if items.len() == 2 => {
+                let [
+                    Type::BorrowedRef {
+                        type_: first,
+                        is_mutable: false,
+                        ..
+                    },
+                    Type::BorrowedRef {
+                        type_: second,
+                        is_mutable: false,
+                        ..
+                    },
+                ] = items.as_slice()
+                else {
+                    continue;
+                };
+                let (Ok(first), Ok(second)) = (
+                    project_type(first, index, paths, &implementation_generics),
+                    project_type(second, index, paths, &implementation_generics),
+                ) else {
+                    continue;
+                };
+                if [&first, &second].into_iter().any(|field| {
+                    !matches!(
+                        field,
+                        ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
+                    )
+                }) {
+                    continue;
+                }
+                (ProjectedType::Tuple(vec![first, second]), true)
+            }
+            _ => continue,
+        };
+        if pair {
+            if !methods.iter().any(|method| method.name == "fold") {
+                methods.push(iterator_fold(item, &native_owner));
+            }
+        } else if matches!(
+            item,
+            ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
+        ) {
+            if !methods.iter().any(|method| method.name == "find_map") {
+                methods.push(iterator_find_map(item.clone(), &native_owner));
+            }
+            for (name, filter) in [("map_collect", false), ("filter_map_collect", true)] {
+                if !methods.iter().any(|method| method.name == name) {
+                    methods.push(iterator_collect(item.clone(), &native_owner, filter));
+                }
+            }
+            if !methods.iter().any(|method| method.name == "fold") {
+                methods.push(iterator_fold(item, &native_owner));
+            }
         }
     }
 }

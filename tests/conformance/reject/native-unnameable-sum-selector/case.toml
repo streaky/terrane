@@ -1,0 +1,6 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0105"
+contains = "`select_only` is not projected: optional-sum variant owner is not nameable"
+line = "6"
