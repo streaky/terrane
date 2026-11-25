@@ -162,7 +162,13 @@ fn add_scalar_family_members(result: &mut BTreeSet<String>, scalar: ScalarType) 
             "parse.checked",
             "radix",
         ],
-        ScalarType::Bytes => &["iterator", "length", "decode", "concat"],
+        ScalarType::Bytes => &[
+            "iterator",
+            "length",
+            "decode",
+            "concat",
+            "append-utf8-ranges",
+        ],
         _ => &[],
     };
     result.extend(names.iter().map(|name| (*name).to_owned()));

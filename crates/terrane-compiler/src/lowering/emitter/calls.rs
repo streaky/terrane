@@ -1887,6 +1887,14 @@ impl Emitter<'_> {
         {
             let member_name = self.text(member);
             let receiver_type = self.receiver_value_type(receiver);
+            if member_name == "append-utf8-ranges"
+                && receiver_type == Some(ValueType::Scalar(ScalarType::Bytes))
+                && let [output, delimiter, separator, accepts] = argument_values.as_slice()
+            {
+                return self.append_utf8_ranges(
+                    receiver, arguments, output, delimiter, separator, accepts,
+                );
+            }
             if member_name == "to-string"
                 && matches!(receiver_type, Some(ValueType::Scalar(scalar)) if scalar != ScalarType::Bytes)
             {

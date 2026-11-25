@@ -133,6 +133,64 @@ impl<'a> Emitter<'a> {
         )
     }
 
+    pub(super) fn append_utf8_ranges(
+        &mut self,
+        receiver: &SyntaxNode,
+        arguments: &SyntaxNode,
+        output: &SyntaxNode,
+        delimiter: &SyntaxNode,
+        separator: &SyntaxNode,
+        accepts: &SyntaxNode,
+    ) -> String {
+        use crate::rust_interop::projection::ProjectedType;
+
+        let (setup, bytes) = if let Some(leaf) =
+            self.lower_borrowed_native_leaf(receiver, &ProjectedType::BorrowedBytes)
+        {
+            (String::new(), leaf)
+        // An arbitrary predicate must not run while holding a shared byte guard.
+        } else if self.receiver_needs_live_guard(receiver)
+            || self.native_read_needs_snapshot(receiver, arguments, false, false)
+        {
+            (
+                String::new(),
+                format!("&({})", self.read_snapshot(receiver)),
+            )
+        } else {
+            self.operand_reference_parts(receiver, false)
+        };
+        let output = self.expression_as(output, ValueType::Scalar(ScalarType::String));
+        let delimiter = self.expression_as(delimiter, ValueType::Scalar(ScalarType::Uint8));
+        let separator = self.borrowed_string_literal(separator).unwrap_or_else(|| {
+            format!(
+                "&({})",
+                self.expression_as(separator, ValueType::Scalar(ScalarType::String))
+            )
+        });
+        let accepts = if let Some(contract) = self
+            .contract_for_call(accepts, false)
+            .filter(|contract| {
+                contract.owner.is_none()
+                    && contract.captures.is_empty()
+                    && contract.generic_parameters.is_empty()
+                    && !contract.is_async
+                    && !self.contract_requires_throwing_abi(contract, false)
+                    && contract.return_type == Some(ValueType::Scalar(ScalarType::Bool))
+                    && matches!(contract.parameters.as_slice(), [parameter]
+                        if !parameter.optional
+                            && parameter.binding_value_type() == Some(ValueType::Scalar(ScalarType::Uint8)))
+            })
+        {
+            function_name(self.package, contract)
+        } else {
+            let value = self.expression_as(accepts, crate::semantics::byte_range_predicate_type());
+            format!("{{ let predicate = {value}; move |byte| predicate(byte) }}")
+        };
+        format!(
+            "{{ {setup} terrane_string_support::append_utf8_ranges({bytes}, {output}, {delimiter}, {separator}, {accepts}) }}"
+        )
+    }
+
     #[allow(clippy::too_many_lines)]
     pub(super) fn string_call(
         &mut self,
