@@ -383,7 +383,9 @@ pub struct PublicPoint {
 
 pub enum PointChoice<T> {
     TextValue(T),
-    TextValues(T),
+    HttpValue(T),
+    HTTPValue(T),
+    HttpValueVariant3(T),
 }
 
 pub struct PointRecords([PublicPoint; 1]);
@@ -395,6 +397,25 @@ impl PointRecords {
 
     pub fn points(&self) -> Option<PointChoice<&[PublicPoint]>> {
         Some(PointChoice::TextValue(&self.0))
+    }
+
+    pub fn collision(&self, arm: i64) -> Option<PointChoice<&[PublicPoint]>> {
+        match arm {
+            1 => Some(PointChoice::HttpValue(&self.0)),
+            2 => Some(PointChoice::HTTPValue(&self.0)),
+            3 => Some(PointChoice::HttpValueVariant3(&self.0)),
+            _ => None,
+        }
+    }
+
+    pub fn secret(&self) -> Option<hidden::Secret<&[PublicPoint]>> {
+        Some(hidden::Secret::Only(&self.0))
+    }
+}
+
+mod hidden {
+    pub enum Secret<T> {
+        Only(T),
     }
 }
 

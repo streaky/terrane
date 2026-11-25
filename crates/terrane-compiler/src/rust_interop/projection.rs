@@ -169,7 +169,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "395";
+const PROJECTION_SCHEMA: &str = "396";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
@@ -1877,11 +1877,11 @@ impl Projection {
                                 (
                                     owner.namespace.clone(),
                                     owner.name.clone(),
-                                    declined
-                                        .rust_path
-                                        .rsplit("::")
-                                        .next()
-                                        .map(|member| member.replace('_', "-")),
+                                    source_rendering::unavailable_member_name(
+                                        owner,
+                                        declined,
+                                        demand_sites,
+                                    ),
                                 )
                             },
                         )

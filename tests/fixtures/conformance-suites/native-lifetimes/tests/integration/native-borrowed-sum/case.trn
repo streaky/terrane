@@ -31,3 +31,6 @@ function test-scenario;
         print; found-before-panic == none
     catch dependency-panic as error
         print; (error.message.contains; 'terrane-query-witness') and (error.message.contains; 'terrane_query_witness::Records::parameters') and (error.message.contains; 'parameters panic')
+    print; (((points.collision; 1).select_http_value;).get_cloned; 0) != none
+    print; (((points.collision; 2).select_http_value_variant4;).get_cloned; 0) != none
+    print; (((points.collision; 3).select_http_value_variant3;).get_cloned; 0) != none

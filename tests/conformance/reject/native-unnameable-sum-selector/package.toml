@@ -1,0 +1,8 @@
+package = "native-unnameable-sum-selector"
+
+[namespaces]
+native-unnameable-sum-selector = "src"
+
+[rust-dependencies.terrane-query-witness]
+package = "terrane-query-witness"
+version = "=0.1.0"

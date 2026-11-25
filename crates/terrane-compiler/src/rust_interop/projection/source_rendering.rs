@@ -240,6 +240,26 @@ pub(super) fn render_required_projected_declarations(
     }
 }
 
+pub(super) fn unavailable_member_name(
+    owner: &ProjectedItem,
+    declined: &DeclinedItem,
+    demand_sites: &ProjectionDemandSites,
+) -> Option<String> {
+    let member = declined.rust_path.rsplit("::").next()?;
+    // Synthetic methods can use Rust spelling directly in Terrane source.
+    if member.contains('_') {
+        let key = (
+            owner.namespace.clone(),
+            owner.name.clone(),
+            Some(member.to_owned()),
+        );
+        if demand_sites.contains_key(&key) {
+            return key.2;
+        }
+    }
+    Some(member.replace('_', "-"))
+}
+
 pub(super) fn render_unavailable_projection(
     output: &mut String,
     unavailable: &UnavailableProjection,

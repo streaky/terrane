@@ -1779,6 +1779,41 @@ fn validate_static_text_argument(
     Ok(())
 }
 
+fn validate_scoped_member_decline(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = node.children.as_slice()
+        && let name = node_text(&unit.source, member)
+        && name.starts_with("select_")
+        && let Some(ValueType::InvocationScopedNative { family, .. }) =
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten()
+    {
+        let projection = &package.projection;
+        if projection
+            .foreign_rust_path(&family.namespace, &family.name)
+            .is_some()
+            && let Some(reason) =
+                projection.declined_method_reason(&family.namespace, &family.name, name)
+            && projection
+                .method(&family.namespace, &family.name, name, false)
+                .is_none()
+        {
+            return Err(failure(
+                &unit.source,
+                "T0105",
+                format!("Rust dependency member `{name}` is not projected: {reason}"),
+                member.span,
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_projected_callback_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1788,6 +1823,7 @@ fn validate_projected_callback_node(
     immediately_awaited: bool,
     chain_receivers: &BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
+    validate_scoped_member_decline(package, unit, node)?;
     validate_guarded_native_chain(package, unit, node)?;
     validate_invocation_scoped_node(package, unit, node)?;
     if matches!(

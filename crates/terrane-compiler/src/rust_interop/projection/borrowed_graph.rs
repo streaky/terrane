@@ -143,7 +143,7 @@ pub(super) fn resolve_optional_selectors(
                     Some((exports.get(owner)?, variant))
                 }) else {
                     declined.push(DeclinedItem {
-                        rust_path: path.clone(),
+                        rust_path: format!("{}::{}", item.rust_path, method.name),
                         reason: "optional-sum variant owner is not nameable from a public dependency export".to_owned(),
                     });
                     return false;
