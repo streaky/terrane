@@ -35,6 +35,52 @@ pub(super) fn validate_string_member_expression(
         .filter(|callee| callee.kind == SyntaxKind::MemberExpression)
         .and_then(|callee| callee.children.get(1))
         .map(|member| node_text(&unit.source, member));
+    if call_member == Some("append-utf8-ranges")
+        && let [callee, arguments] = node.children.as_slice()
+        && let [receiver, _] = callee.children.as_slice()
+        && infer_receiver_value_type(unit, receiver, bindings)?
+            == Some(ValueType::Scalar(ScalarType::Bytes))
+    {
+        let Some(ValueType::Function(parameters, _, _)) =
+            infer_member_value_type(unit, callee, bindings)?
+        else {
+            unreachable!("byte range member has a fixed callable contract");
+        };
+        if arguments.children.len() != parameters.len()
+            || arguments
+                .children
+                .iter()
+                .any(|argument| argument.children.len() > 1)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                "append-utf8-ranges expects four positional arguments",
+                arguments.span,
+            ));
+        }
+        for ((argument, parameter), name) in arguments.children.iter().zip(&parameters).zip([
+            "output",
+            "delimiter",
+            "separator",
+            "predicate",
+        ]) {
+            let value = argument.children.last().unwrap_or(argument);
+            if let Some(actual) =
+                super::expressions::infer_boundary_value_type(unit, value, bindings)?
+            {
+                super::types::validate_value_destination(
+                    &unit.source,
+                    &unit.descriptors,
+                    name,
+                    parameter.value_type_ref(),
+                    &actual,
+                    value,
+                    "T0012",
+                )?;
+            }
+        }
+    }
     if member == Some("length") || matches!(call_member, Some("concat" | "join")) {
         infer_value_type(unit, node, bindings)?;
     }

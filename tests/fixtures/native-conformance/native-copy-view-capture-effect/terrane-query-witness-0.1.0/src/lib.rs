@@ -376,6 +376,28 @@ impl Octets {
     }
 }
 
+#[derive(Clone)]
+pub struct PublicPoint {
+    pub x: i64,
+}
+
+pub enum PointChoice<T> {
+    TextValue(T),
+    TextValues(T),
+}
+
+pub struct PointRecords([PublicPoint; 1]);
+
+impl PointRecords {
+    pub fn new() -> Self {
+        Self([PublicPoint { x: 42 }])
+    }
+
+    pub fn points(&self) -> Option<PointChoice<&[PublicPoint]>> {
+        Some(PointChoice::TextValue(&self.0))
+    }
+}
+
 pub struct Records([MetadataText; 3]);
 
 impl Records {
@@ -520,6 +542,30 @@ impl OrdinalRow {
     }
 }
 
+pub struct AmbiguousOrdinalRow(OrdinalRow);
+
+impl AmbiguousOrdinalRow {
+    pub fn new() -> Self {
+        Self(OrdinalRow::sample())
+    }
+
+    pub fn cell<I: Ordinal<Self>>(&self, index: I) -> Result<View<'_>, std::io::Error> {
+        self.0.cell(index.index())
+    }
+}
+
+impl Ordinal<AmbiguousOrdinalRow> for usize {
+    fn index(self) -> usize {
+        self
+    }
+}
+
+impl Ordinal<AmbiguousOrdinalRow> for isize {
+    fn index(self) -> usize {
+        self as usize
+    }
+}
+
 pub struct SliceEntry(String);
 
 impl SliceEntry {
@@ -547,6 +593,9 @@ pub enum Choice<L, R> {
 
 impl Records {
     pub fn parameters(&self, mode: i64) -> Option<Choice<&[MetadataText], &str>> {
+        if mode == 9 {
+            std::panic::resume_unwind(Box::new("parameters panic"));
+        }
         match mode {
             0 => None,
             1 => Some(Choice::Left(&self.0)),

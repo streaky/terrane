@@ -4642,6 +4642,23 @@ fn checked_pointer_integer_candidate(
 ) -> Option<String> {
     use crate::rust_interop::projection::{ProjectedType, Receiver};
 
+    struct GenericUse<'a>(&'a str, bool);
+    impl<'ast> syn::visit::Visit<'ast> for GenericUse<'_> {
+        fn visit_type_path(&mut self, path: &'ast syn::TypePath) {
+            if path.qself.is_none()
+                && path.path.leading_colon.is_none()
+                && path
+                    .path
+                    .segments
+                    .first()
+                    .is_some_and(|segment| segment.ident == self.0)
+            {
+                self.1 = true;
+            }
+            syn::visit::visit_type_path(self, path);
+        }
+    }
+
     // Adapt an input-only scalar, never a binder that can alter another ABI.
     let [parameter] = function.parameters.as_slice() else {
         return None;
@@ -4673,16 +4690,34 @@ fn checked_pointer_integer_candidate(
     {
         return None;
     }
-    let mentions_input = |rust: &str| {
-        rust.split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
-            .any(|token| token == name)
+    let type_uses_input = |rust: &str| {
+        let Ok(ty) = syn::parse_str::<syn::Type>(rust) else {
+            return true;
+        };
+        let mut usage = GenericUse(name, false);
+        syn::visit::Visit::visit_type(&mut usage, &ty);
+        usage.1
     };
-    (!mentions_input(&function.result.rust_type())
-        && !function.error.as_deref().is_some_and(mentions_input)
+    let bound_uses_input = |rust: &str| {
+        let Ok(bound) = syn::parse_str::<syn::TypeParamBound>(rust) else {
+            return true;
+        };
+        let mut usage = GenericUse(name, false);
+        syn::visit::Visit::visit_type_param_bound(&mut usage, &bound);
+        usage.1
+    };
+    let mut result_generics = BTreeSet::new();
+    collect_projected_generic_names(&function.result, &mut result_generics);
+    // Some leaves (such as scoped carrier types) retain native ABI syntax
+    // that the projected value-type walk cannot inspect.
+    if result_generics.contains(name) || type_uses_input(&function.result.rust_type()) {
+        return None;
+    }
+    (!function.error.as_deref().is_some_and(type_uses_input)
         && !function.generic_parameters[0]
             .rust_bounds
             .iter()
-            .any(|bound| mentions_input(bound)))
+            .any(|bound| bound_uses_input(bound)))
     .then(|| name.clone())
 }
 

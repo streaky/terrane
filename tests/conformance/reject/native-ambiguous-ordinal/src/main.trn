@@ -1,0 +1,10 @@
+namespace native-ambiguous-ordinal
+
+from /deps/terrane-query-witness import AmbiguousOrdinalRow
+
+function cell-size int; row ref AmbiguousOrdinalRow, index int
+    return (row.cell; index).size;
+
+function main;
+    row = AmbiguousOrdinalRow::new;
+    print; (cell-size; row, 1)

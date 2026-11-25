@@ -1,5 +1,5 @@
 use super::{
-    BTreeMap, BTreeSet, ChainRole, InvocationMode, ProjectedBoundaryCapabilities,
+    BTreeMap, BTreeSet, ChainRole, DeclinedItem, InvocationMode, ProjectedBoundaryCapabilities,
     ProjectedDestinationParameter, ProjectedDestinationResult, ProjectedFunction,
     ProjectedGenericParameter, ProjectedItem, ProjectedKind, ProjectedParameter, ProjectedType,
     Receiver, source_rendering,
@@ -127,28 +127,31 @@ pub(super) fn resolve_optional_selectors(
                 .or_insert(emitted);
         }
     }
-    for item in projected
-        .iter_mut()
-        .flat_map(|dependency| &mut dependency.items)
-    {
-        let ProjectedKind::ForeignType { methods, .. } = &mut item.kind else {
-            continue;
-        };
-        methods.retain_mut(|method| {
-            let Some(super::ProjectedEnumOperation::SelectOptionalVariant { path }) =
-                &mut method.enum_operation
-            else {
-                return true;
+    for dependency in projected {
+        let (items, declined) = (&mut dependency.items, &mut dependency.declined);
+        for item in items {
+            let ProjectedKind::ForeignType { methods, .. } = &mut item.kind else {
+                continue;
             };
-            let Some((owner, variant)) = path.rsplit_once("::") else {
-                return false;
-            };
-            let Some(export) = exports.get(owner) else {
-                return false;
-            };
-            *path = format!("{export}::{variant}");
-            true
-        });
+            methods.retain_mut(|method| {
+                let Some(super::ProjectedEnumOperation::SelectOptionalVariant { path }) =
+                    &mut method.enum_operation
+                else {
+                    return true;
+                };
+                let Some((export, variant)) = path.rsplit_once("::").and_then(|(owner, variant)| {
+                    Some((exports.get(owner)?, variant))
+                }) else {
+                    declined.push(DeclinedItem {
+                        rust_path: path.clone(),
+                        reason: "optional-sum variant owner is not nameable from a public dependency export".to_owned(),
+                    });
+                    return false;
+                };
+                *path = format!("{export}::{variant}");
+                true
+            });
+        }
     }
 }
 

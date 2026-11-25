@@ -8,6 +8,7 @@ use rustdoc_types::{
     Visibility, WherePredicate,
 };
 
+use super::borrowed_graph::{iterator_collect, iterator_find_map, iterator_fold};
 use super::{
     ChainRole, ProjectedBoundaryCapabilities, ProjectedConstant, ProjectedFunction,
     ProjectedGenericParameter, ProjectedItem, ProjectedKind, ProjectedType, Receiver,
@@ -1762,26 +1763,26 @@ fn project_borrowed_iterator_terminals(
                 ) else {
                     continue;
                 };
+                if [&first, &second].into_iter().any(|field| {
+                    !matches!(
+                        field,
+                        ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
+                    )
+                }) {
+                    continue;
+                }
                 (ProjectedType::Tuple(vec![first, second]), true)
             }
             _ => continue,
         };
         if pair {
-            use super::borrowed_graph::iterator_fold;
             if !methods.iter().any(|method| method.name == "fold") {
                 methods.push(iterator_fold(item, &native_owner));
             }
         } else if matches!(
             item,
-            ProjectedType::Foreign { .. }
-                | ProjectedType::Generic(_)
-                | ProjectedType::RustInt(_)
-                | ProjectedType::Int
-                | ProjectedType::String
-                | ProjectedType::Bool
-                | ProjectedType::Char
+            ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
         ) {
-            use super::borrowed_graph::{iterator_collect, iterator_find_map, iterator_fold};
             if !methods.iter().any(|method| method.name == "find_map") {
                 methods.push(iterator_find_map(item.clone(), &native_owner));
             }

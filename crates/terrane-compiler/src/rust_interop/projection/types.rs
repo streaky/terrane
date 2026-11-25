@@ -249,6 +249,25 @@ pub(super) fn project_borrowed_graph_type(
     })
 }
 
+fn rust_variant_selector(name: &str) -> String {
+    let mut characters = name.chars().peekable();
+    let mut snake = String::with_capacity(name.len());
+    let mut previous = '_';
+    while let Some(character) = characters.next() {
+        if character.is_ascii_uppercase()
+            && (previous.is_ascii_lowercase()
+                || previous.is_ascii_digit()
+                || (previous.is_ascii_uppercase()
+                    && characters.peek().is_some_and(char::is_ascii_lowercase)))
+        {
+            snake.push('_');
+        }
+        snake.push(character.to_ascii_lowercase());
+        previous = character;
+    }
+    snake
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "prove the optional sum and its borrowed payloads against one rustdoc index"
@@ -287,7 +306,7 @@ fn optional_slice_sum(
     let owner = resolved_path_name(sum, paths);
     let rust_type = render_rust_type(ty, index, paths, generics).ok()?;
     let name = super::type_rendering::instantiated_type_name("borrowed-optional-sum", &rust_type);
-    let variants = enumeration
+    let mut variants = enumeration
         .variants
         .iter()
         .filter_map(|id| {
@@ -347,12 +366,36 @@ fn optional_slice_sum(
                 return None;
             };
             Some(super::ProjectedBorrowedVariant {
-                name: format!("select_{}", variant_name.to_ascii_lowercase()),
+                name: format!("select_{}", rust_variant_selector(variant_name)),
                 path: format!("{owner}::{variant_name}"),
                 slice: *owned,
             })
         })
         .collect::<Vec<_>>();
+    let mut selectors = variants
+        .iter()
+        .map(|variant| (variant.name.clone(), false))
+        .collect::<BTreeMap<_, _>>();
+    for (index, variant) in variants.iter_mut().enumerate() {
+        if !std::mem::replace(
+            selectors.get_mut(&variant.name).expect("reserved selector"),
+            true,
+        ) {
+            continue;
+        }
+        let mut suffix = index + 1;
+        loop {
+            let candidate = format!("{}_variant{suffix}", variant.name);
+            if let std::collections::btree_map::Entry::Vacant(entry) =
+                selectors.entry(candidate.clone())
+            {
+                entry.insert(true);
+                variant.name = candidate;
+                break;
+            }
+            suffix += 1;
+        }
+    }
     (!variants.is_empty()).then(|| ProjectedType::InvocationScoped {
         name: name.clone(),
         lifetimes: rust_lifetimes(&rust_type),
@@ -1610,6 +1653,13 @@ pub(super) fn type_arguments(ty: &Type) -> Vec<&Type> {
 mod tests {
     use super::*;
     use rustdoc_types::{ItemKind, Path};
+
+    #[test]
+    fn rust_variant_selectors_use_snake_case() {
+        assert_eq!(rust_variant_selector("TextValue"), "text_value");
+        assert_eq!(rust_variant_selector("HTTPValue"), "http_value");
+        assert_eq!(rust_variant_selector("Left"), "left");
+    }
 
     #[test]
     fn result_error_prefers_rustdoc_identity() {

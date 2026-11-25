@@ -1,0 +1,11 @@
+namespace app
+from /core/errors import coercion-error
+
+function picky bool throws coercion-error; octet uint8
+    if octet == 0
+        throw coercion-error
+    return true
+
+function main;
+    data = b'a,b'
+    print; (data.append-utf8-ranges; '', 44, '|', picky)

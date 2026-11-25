@@ -44,6 +44,14 @@ function pair-score uint64; records shared ref Records
     seed uint64 = 0
     return (records.pairs;).fold; seed, add-pair
 
+function fold-value uint64; total uint64, value ref MetadataText
+    length uint64 = (value.contents;).bytes.length
+    return total.add.saturate; length
+
+function value-score uint64; records ref Records
+    seed uint64 = 0
+    return ((records.values;).iter;).fold; seed, fold-value
+
 function test-scenario;
     records = shared ref (Records::new; true)
     found = first-text; records
@@ -62,6 +70,7 @@ function test-scenario;
     bound string|none = (view.iter;).find_map; nonempty
     if bound != none
         print; bound
+    print; (value-score; plain)
     for text in (collected-text; plain)
         print; text
     empty = Records::new; false

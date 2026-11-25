@@ -1,0 +1,8 @@
+package = "native-ambiguous-ordinal"
+
+[namespaces]
+native-ambiguous-ordinal = "src"
+
+[rust-dependencies.terrane-query-witness]
+package = "terrane-query-witness"
+version = "=0.1.0"
