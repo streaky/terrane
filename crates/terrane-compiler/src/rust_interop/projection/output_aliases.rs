@@ -27,6 +27,7 @@ fn alias_references(document: &RustdocCrate, wanted: &BTreeSet<Vec<String>>) -> 
             (summary.kind == ItemKind::TypeAlias && wanted.contains(&summary.path)).then_some(*id)
         })
         .collect::<BTreeSet<_>>();
+    let mut enum_references = BTreeSet::new();
     for item in document.index.values() {
         if let ItemEnum::Function(function) = &item.inner
             && let Some(output) = &function.sig.output
@@ -34,6 +35,9 @@ fn alias_references(document: &RustdocCrate, wanted: &BTreeSet<Vec<String>>) -> 
             visit_type(output, &mut |path| {
                 references.insert(path.id);
             });
+            if let Some(id) = borrowed_sum_reference(document, output) {
+                enum_references.insert(id);
+            }
         }
     }
     let mut pending = references.iter().copied().collect::<Vec<_>>();
@@ -52,14 +56,37 @@ fn alias_references(document: &RustdocCrate, wanted: &BTreeSet<Vec<String>>) -> 
             visit_generics(&alias.generics, &mut add);
         }
     }
+    references.extend(enum_references.iter().copied());
     references.retain(|id| {
         !document.index.contains_key(id)
-            && document
-                .paths
-                .get(id)
-                .is_some_and(|summary| summary.kind == ItemKind::TypeAlias)
+            && document.paths.get(id).is_some_and(|summary| {
+                summary.kind == ItemKind::TypeAlias || enum_references.contains(id)
+            })
     });
     references
+}
+
+fn borrowed_sum_reference(document: &RustdocCrate, output: &Type) -> Option<Id> {
+    let Type::ResolvedPath(option) = output else {
+        return None;
+    };
+    let summary = document.paths.get(&option.id)?;
+    if !matches!(summary.path.as_slice(), [root, module, name]
+        if (root == "core" || root == "std") && module == "option" && name == "Option")
+    {
+        return None;
+    }
+    let [sum] = super::types::type_arguments(output).try_into().ok()?;
+    let Type::ResolvedPath(path) = sum else {
+        return None;
+    };
+    (document.paths.get(&path.id)?.kind == ItemKind::Enum
+        && !document.index.contains_key(&path.id)
+        && super::types::type_arguments(sum).iter().any(|argument| {
+            matches!(argument, Type::BorrowedRef { type_, is_mutable: false, .. }
+                if matches!(type_.as_ref(), Type::Slice(_)))
+        }))
+    .then_some(path.id)
 }
 
 pub(super) fn extend_public_aliases(
@@ -233,7 +260,7 @@ fn plan(
         else {
             continue;
         };
-        if summary.kind != ItemKind::TypeAlias {
+        if !matches!(summary.kind, ItemKind::TypeAlias | ItemKind::Enum) {
             continue;
         }
         let Some(package) = import.crate_package(summary.crate_id) else {
@@ -249,17 +276,19 @@ fn plan(
                     .paths
                     .iter()
                     .find_map(|(source_id, source_summary)| {
-                        (source_summary.path == summary.path
-                            && source_summary.kind == ItemKind::TypeAlias)
+                        (source_summary.path == summary.path && source_summary.kind == summary.kind)
                             .then(|| document.index.get(source_id))
                             .flatten()
-                            .filter(|item| matches!(item.inner, ItemEnum::TypeAlias(_)))
                             .map(|item| (*source_package, *document, item))
                     })
             })
         else {
             continue;
         };
+        if summary.kind == ItemKind::Enum {
+            import.borrowed_sum_layout(id, summary.crate_id, source, definition);
+            continue;
+        }
         let mut item = definition.clone();
         item.id = id;
         item.crate_id = summary.crate_id;
@@ -286,6 +315,65 @@ fn plan(
 }
 
 impl<'metadata> Import<'_, 'metadata> {
+    fn borrowed_sum_layout(
+        &mut self,
+        id: Id,
+        crate_id: u32,
+        source: &RustdocCrate,
+        definition: &Item,
+    ) {
+        let ItemEnum::Enum(enumeration) = &definition.inner else {
+            return;
+        };
+        let mut definition = definition.clone();
+        let mut layout = enumeration.clone();
+        layout.impls.clear();
+        layout.variants.clear();
+        for variant in enumeration
+            .variants
+            .iter()
+            .filter_map(|id| source.index.get(id))
+        {
+            let ItemEnum::Variant(variant_data) = &variant.inner else {
+                continue;
+            };
+            let rustdoc_types::VariantKind::Tuple(fields) = &variant_data.kind else {
+                continue;
+            };
+            let [Some(field)] = fields.as_slice() else {
+                continue;
+            };
+            let Some(field) = source.index.get(field) else {
+                continue;
+            };
+            if !matches!(field.inner, ItemEnum::StructField(Type::Generic(_))) {
+                continue;
+            }
+            let mut field = field.clone();
+            field.id = Id(self.next_id);
+            field.crate_id = crate_id;
+            self.next_id += 1;
+            let mut variant = variant.clone();
+            variant.id = Id(self.next_id);
+            variant.crate_id = crate_id;
+            self.next_id += 1;
+            let ItemEnum::Variant(variant_data) = &mut variant.inner else {
+                unreachable!()
+            };
+            variant_data.kind = rustdoc_types::VariantKind::Tuple(vec![Some(field.id)]);
+            layout.variants.push(variant.id);
+            self.patch.items.insert(field.id, field);
+            self.patch.items.insert(variant.id, variant);
+        }
+        if !layout.variants.is_empty() {
+            definition.id = id;
+            definition.crate_id = crate_id;
+            definition.links.clear();
+            definition.inner = ItemEnum::Enum(layout);
+            self.patch.items.insert(id, definition);
+        }
+    }
+
     fn crate_package(&self, crate_id: u32) -> Option<&'metadata str> {
         self.crate_packages.get(&crate_id).copied().or_else(|| {
             self.packages

@@ -169,7 +169,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "389";
+const PROJECTION_SCHEMA: &str = "394";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub(crate) type ProjectedInstanceMembers = BTreeMap<String, BTreeMap<String, BTreeSet<String>>>;
@@ -583,6 +583,13 @@ pub struct ProjectedEnumPayloadOperation {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedBorrowedVariant {
+    name: String,
+    path: String,
+    slice: ProjectedType,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedEnumOperation {
     Construct {
         variant: String,
@@ -602,6 +609,9 @@ pub enum ProjectedEnumOperation {
         payload_rust_type: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         payload: Option<ProjectedEnumPayloadOperation>,
+    },
+    SelectOptionalVariant {
+        path: String,
     },
 }
 
@@ -906,6 +916,8 @@ pub enum ProjectedType {
         #[serde(default)]
         expression_scoped: bool,
         owned: Box<ProjectedType>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        variants: Vec<ProjectedBorrowedVariant>,
     },
     OwnedInterface {
         carrier: OwningCarrier,

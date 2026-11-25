@@ -1312,6 +1312,8 @@ pub(super) fn project_chain_owner(
 ) -> Option<ProjectedItem> {
     let output = function.sig.output.as_ref()?;
     let owned_result = match result {
+        // Optional sum carriers have their own structural owner and selectors.
+        ProjectedType::InvocationScoped { variants, .. } if !variants.is_empty() => return None,
         ProjectedType::InvocationScoped { owned, .. } => owned.as_ref(),
         result => result,
     };
@@ -1653,6 +1655,10 @@ fn project_chain_owner_methods(
     Some((methods, cloneable, expression_only))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "keep iterator associated-type proof and terminal registration together"
+)]
 fn project_borrowed_iterator_terminals(
     structure: &rustdoc_types::Struct,
     owner_generics: &BTreeMap<String, ProjectedType>,
@@ -1711,31 +1717,71 @@ fn project_borrowed_iterator_terminals(
         let Some(item_type) = implementation.items.iter().find_map(|id| {
             let item = index.get(id)?;
             let ItemEnum::AssocType {
-                type_:
-                    Some(Type::BorrowedRef {
-                        is_mutable: false,
-                        type_,
-                        ..
-                    }),
-                ..
+                type_: Some(type_), ..
             } = &item.inner
             else {
                 return None;
             };
-            (item.name.as_deref() == Some("Item")).then_some(type_.as_ref())
+            (item.name.as_deref() == Some("Item")).then_some(type_)
         }) else {
             continue;
         };
         let implementation_generics =
             aliases::implementation_owner_generics(implementation, index, owner_generics);
-        if let Ok(item) = project_type(item_type, index, paths, &implementation_generics)
-            && matches!(
-                item,
-                ProjectedType::Foreign { .. } | ProjectedType::Generic(_)
-            )
-        {
-            use super::borrowed_graph::{iterator_collect, iterator_find_map};
-            let native_owner = scoped_self.rust_type();
+        let native_owner = scoped_self.rust_type();
+        let (item, pair) = match item_type {
+            Type::BorrowedRef {
+                type_,
+                is_mutable: false,
+                ..
+            } => {
+                let Ok(item) = project_type(type_, index, paths, &implementation_generics) else {
+                    continue;
+                };
+                (item, false)
+            }
+            Type::Tuple(items) if items.len() == 2 => {
+                let [
+                    Type::BorrowedRef {
+                        type_: first,
+                        is_mutable: false,
+                        ..
+                    },
+                    Type::BorrowedRef {
+                        type_: second,
+                        is_mutable: false,
+                        ..
+                    },
+                ] = items.as_slice()
+                else {
+                    continue;
+                };
+                let (Ok(first), Ok(second)) = (
+                    project_type(first, index, paths, &implementation_generics),
+                    project_type(second, index, paths, &implementation_generics),
+                ) else {
+                    continue;
+                };
+                (ProjectedType::Tuple(vec![first, second]), true)
+            }
+            _ => continue,
+        };
+        if pair {
+            use super::borrowed_graph::iterator_fold;
+            if !methods.iter().any(|method| method.name == "fold") {
+                methods.push(iterator_fold(item, &native_owner));
+            }
+        } else if matches!(
+            item,
+            ProjectedType::Foreign { .. }
+                | ProjectedType::Generic(_)
+                | ProjectedType::RustInt(_)
+                | ProjectedType::Int
+                | ProjectedType::String
+                | ProjectedType::Bool
+                | ProjectedType::Char
+        ) {
+            use super::borrowed_graph::{iterator_collect, iterator_find_map, iterator_fold};
             if !methods.iter().any(|method| method.name == "find_map") {
                 methods.push(iterator_find_map(item.clone(), &native_owner));
             }
@@ -1744,7 +1790,9 @@ fn project_borrowed_iterator_terminals(
                     methods.push(iterator_collect(item.clone(), &native_owner, filter));
                 }
             }
-            break;
+            if !methods.iter().any(|method| method.name == "fold") {
+                methods.push(iterator_fold(item, &native_owner));
+            }
         }
     }
 }

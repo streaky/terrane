@@ -575,6 +575,7 @@ pub fn resolve(
         &workspace,
     )?;
     decline_functions_with_missing_generic_interfaces(&mut projected);
+    borrowed_graph::resolve_optional_selectors(&mut projected, &rustdocs);
     for dependency in
         projected_bound_dependencies(&projected, dependencies, &bound_dependencies, &metadata)?
     {

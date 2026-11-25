@@ -273,6 +273,10 @@ impl MetadataText {
         &self.0
     }
 
+    pub fn bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+
     pub fn searched_contents(&self) -> &str {
         assert_ne!(self.0, "too late", "search did not short-circuit");
         self.contents()
@@ -387,6 +391,10 @@ impl Records {
     pub fn values(&self) -> RecordValues<'_, MetadataText> {
         RecordValues(&self.0)
     }
+
+    pub fn pairs(&self) -> RecordPairs<'_> {
+        RecordPairs([(&self.0[0], &self.0[1]), (&self.0[1], &self.0[2])].into_iter())
+    }
 }
 
 pub struct RecordValues<'a, T>(&'a [T]);
@@ -401,6 +409,16 @@ pub struct RecordIter<'a, T>(std::slice::Iter<'a, T>);
 
 impl<'a, T> Iterator for RecordIter<'a, T> {
     type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+pub struct RecordPairs<'a>(std::array::IntoIter<(&'a MetadataText, &'a MetadataText), 2>);
+
+impl<'a> Iterator for RecordPairs<'a> {
+    type Item = (&'a MetadataText, &'a MetadataText);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -519,5 +537,20 @@ impl SliceCatalog {
 
     pub fn entries(&self) -> &[SliceEntry] {
         &self.0
+    }
+}
+
+pub enum Choice<L, R> {
+    Left(L),
+    Right(R),
+}
+
+impl Records {
+    pub fn parameters(&self, mode: i64) -> Option<Choice<&[MetadataText], &str>> {
+        match mode {
+            0 => None,
+            1 => Some(Choice::Left(&self.0)),
+            _ => Some(Choice::Right("count only")),
+        }
     }
 }

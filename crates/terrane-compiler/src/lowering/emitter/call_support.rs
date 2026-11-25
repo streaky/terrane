@@ -161,7 +161,10 @@ impl<'a> Emitter<'a> {
             None
         };
         let borrowed_native_decode = if family == "decode" && owned_decode.is_none() {
-            self.lower_borrowed_native_bytes(subject)
+            self.lower_borrowed_native_leaf(
+                subject,
+                &crate::rust_interop::projection::ProjectedType::BorrowedBytes,
+            )
         } else {
             None
         };

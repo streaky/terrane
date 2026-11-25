@@ -601,6 +601,7 @@ pub(super) fn project_rustdoc(
                         lifetimes,
                         expression_scoped: false,
                         owned: Box::new(candidate_result.clone()),
+                        variants: Vec::new(),
                     };
                 }
                 let invocation_scoped_chain = matches!(

@@ -1,0 +1,19 @@
+namespace native-borrowed-sum
+from /deps/terrane-query-witness import Records, MetadataText
+
+function lookup MetadataText|none; records ref Records, mode int, index int
+    ordinal = index.coerce.checked; uint64
+    if ordinal != none
+        return ((records.parameters; mode).select_left;).get_cloned; ordinal
+    return none
+
+function test-scenario;
+    records = Records::new; true
+    found = lookup; records, 1, 1
+    if found != none
+        print; (found.contents;)
+    print; (lookup; records, 0, 1) == none
+    print; (lookup; records, 2, 1) == none
+    print; (lookup; records, 1, 3) == none
+    print; (lookup; records, 1, -1) == none
+    print; (MetadataText::copies;)

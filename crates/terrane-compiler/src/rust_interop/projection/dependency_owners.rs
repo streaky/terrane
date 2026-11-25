@@ -534,7 +534,15 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
                 canonicalize_projected_type_name(argument, names);
             }
         }
-        ProjectedType::InvocationScoped { name, owned, .. } => {
+        ProjectedType::InvocationScoped {
+            name,
+            owned,
+            variants,
+            ..
+        } => {
+            if !variants.is_empty() {
+                return;
+            }
             canonicalize_projected_type_name(owned, names);
             if !matches!(owned.as_ref(), ProjectedType::Optional(_)) {
                 *name = owned.terrane_name();

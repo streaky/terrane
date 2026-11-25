@@ -194,6 +194,12 @@ pub fn collect_borrowed_slice<T, U>(slice: &[T], visitor: impl FnMut(&T) -> U) -
     slice.iter().map(visitor).collect()
 }
 
+/// Select a single owned element; invalid native ordinals are absent.
+#[must_use]
+pub fn get_cloned_borrowed_slice<T: Clone>(slice: Option<&[T]>, index: u64) -> Option<T> {
+    slice?.get(usize::try_from(index).ok()?).cloned()
+}
+
 pub fn map_collect_borrowed<'a, T: 'a, U>(
     iter: &mut impl std::iter::Iterator<Item = &'a T>,
     visitor: impl FnMut(&T) -> U,
@@ -206,6 +212,26 @@ pub fn filter_map_collect_borrowed<'a, T: 'a, U>(
     visitor: impl FnMut(&T) -> Option<U>,
 ) -> Vec<U> {
     iter.filter_map(visitor).collect()
+}
+
+/// Fold borrowed iterator items into an owned accumulator.
+pub fn fold_borrowed<'a, T: 'a, A>(
+    iter: &mut impl std::iter::Iterator<Item = &'a T>,
+    initial: A,
+    operation: impl FnMut(A, &T) -> A,
+) -> A {
+    iter.fold(initial, operation)
+}
+
+/// Fold borrowed pair items, lending each element of the by-value pair to the visitor.
+pub fn fold_borrowed_pair<'a, T: 'a, U: 'a, A>(
+    iter: &mut impl std::iter::Iterator<Item = (&'a T, &'a U)>,
+    initial: A,
+    mut operation: impl FnMut(A, &T, &U) -> A,
+) -> A {
+    iter.fold(initial, |accumulator, (first, second)| {
+        operation(accumulator, first, second)
+    })
 }
 
 pub trait Iterable {

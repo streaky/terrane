@@ -48,12 +48,14 @@ impl Emitter<'_> {
             })
     }
 
-    /// A plain reference parameter already lends stable storage. Decode can
-    /// consume the native slice before the caller's loan ends without first
-    /// materializing Terrane bytes. A shared handle may need a lexical guard
-    /// and must not use this guard-free path.
-    pub(super) fn lower_borrowed_native_bytes(&mut self, subject: &SyntaxNode) -> Option<String> {
-        use crate::rust_interop::projection::{ProjectedType, Receiver};
+    /// Observe native text or bytes before the caller's existing loan ends.
+    /// A shared handle may need a lexical guard and cannot use this path.
+    pub(super) fn lower_borrowed_native_leaf(
+        &mut self,
+        subject: &SyntaxNode,
+        leaf: &crate::rust_interop::projection::ProjectedType,
+    ) -> Option<String> {
+        use crate::rust_interop::projection::Receiver;
         use crate::syntax::SyntaxKind;
 
         let call = crate::semantics::ungrouped_expression(subject);
@@ -75,14 +77,14 @@ impl Emitter<'_> {
                         && !operation.is_async
                         && !operation.into_future
                         && operation.chain_role.is_none()
-                        && operation.result == ProjectedType::BorrowedBytes
+                        && &operation.result == leaf
                 })
         {
             return None;
         }
-        let previous = self.borrowed_native_bytes_exit.replace(call.span);
+        let previous = self.borrowed_native_leaf_exit.replace(call.span);
         let native = self.expression(call);
-        self.borrowed_native_bytes_exit = previous;
+        self.borrowed_native_leaf_exit = previous;
         Some(native)
     }
 

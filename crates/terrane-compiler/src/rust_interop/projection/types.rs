@@ -163,6 +163,9 @@ pub(super) fn project_borrowed_graph_type(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
+    if let Some(sum) = optional_slice_sum(ty, index, paths, generics) {
+        return Ok(sum);
+    }
     if let Type::BorrowedRef {
         type_,
         lifetime,
@@ -205,6 +208,7 @@ pub(super) fn project_borrowed_graph_type(
                 base_rust_path,
                 arguments: vec![item],
             }),
+            variants: Vec::new(),
         });
     }
     let projected = project_borrowed_graph_value(ty, index, paths, generics)?;
@@ -241,6 +245,126 @@ pub(super) fn project_borrowed_graph_type(
         rust_type,
         expression_scoped: true,
         owned: Box::new(projected),
+        variants: Vec::new(),
+    })
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "prove the optional sum and its borrowed payloads against one rustdoc index"
+)]
+fn optional_slice_sum(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Option<ProjectedType> {
+    let Type::ResolvedPath(option) = ty else {
+        return None;
+    };
+    if !matches!(
+        resolved_path_name(option, paths).as_str(),
+        "core::option::Option" | "std::option::Option"
+    ) {
+        return None;
+    }
+    let [sum_ty] = type_arguments(ty).try_into().ok()?;
+    let Type::ResolvedPath(sum) = sum_ty else {
+        return None;
+    };
+    let ItemEnum::Enum(enumeration) = &index.get(&sum.id)?.inner else {
+        return None;
+    };
+    let arguments = type_arguments(sum_ty);
+    let parameters = &enumeration.generics.params;
+    if parameters.len() != arguments.len()
+        || parameters
+            .iter()
+            .any(|parameter| !matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+    {
+        return None;
+    }
+    let owner = resolved_path_name(sum, paths);
+    let rust_type = render_rust_type(ty, index, paths, generics).ok()?;
+    let name = super::type_rendering::instantiated_type_name("borrowed-optional-sum", &rust_type);
+    let variants = enumeration
+        .variants
+        .iter()
+        .filter_map(|id| {
+            let variant = index.get(id)?;
+            let variant_name = variant.name.as_ref()?;
+            let ItemEnum::Variant(rustdoc_types::Variant {
+                kind: rustdoc_types::VariantKind::Tuple(fields),
+                ..
+            }) = &variant.inner
+            else {
+                return None;
+            };
+            let [Some(field)] = fields.as_slice() else {
+                return None;
+            };
+            let ItemEnum::StructField(field) = &index.get(field)?.inner else {
+                return None;
+            };
+            let field = if let Type::Generic(name) = field {
+                let ordinal = parameters
+                    .iter()
+                    .position(|parameter| &parameter.name == name)?;
+                arguments[ordinal]
+            } else {
+                field
+            };
+            let Type::BorrowedRef {
+                is_mutable: false,
+                type_,
+                ..
+            } = field
+            else {
+                return None;
+            };
+            let Type::Slice(element) = type_.as_ref() else {
+                return None;
+            };
+            let Type::ResolvedPath(element_path) = element.as_ref() else {
+                return None;
+            };
+            let ItemEnum::Struct(element_struct) = &index.get(&element_path.id)?.inner else {
+                return None;
+            };
+            if !element_struct.generics.params.is_empty()
+                || !super::rustdoc_support::implements_trait(
+                    &element_struct.impls,
+                    index,
+                    paths,
+                    "core::clone::Clone",
+                )
+            {
+                return None;
+            }
+            let ProjectedType::InvocationScoped { owned, .. } =
+                project_borrowed_graph_type(field, index, paths, generics).ok()?
+            else {
+                return None;
+            };
+            Some(super::ProjectedBorrowedVariant {
+                name: format!("select_{}", variant_name.to_ascii_lowercase()),
+                path: format!("{owner}::{variant_name}"),
+                slice: *owned,
+            })
+        })
+        .collect::<Vec<_>>();
+    (!variants.is_empty()).then(|| ProjectedType::InvocationScoped {
+        name: name.clone(),
+        lifetimes: rust_lifetimes(&rust_type),
+        expression_scoped: true,
+        owned: Box::new(ProjectedType::Foreign {
+            name,
+            rust_path: rust_type.clone(),
+            base_rust_path: rust_type.clone(),
+            arguments: Vec::new(),
+        }),
+        rust_type,
+        variants,
     })
 }
 
@@ -313,6 +437,7 @@ pub(super) fn project_invocation_scoped_type(
         lifetimes,
         expression_scoped: false,
         owned: Box::new(projected),
+        variants: Vec::new(),
     })
 }
 

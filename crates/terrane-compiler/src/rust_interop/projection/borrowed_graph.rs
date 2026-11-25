@@ -7,6 +7,7 @@ use super::{
 
 pub(super) fn add_owners(items: &mut Vec<ProjectedItem>) {
     add_slice_owners(items);
+    add_optional_sum_owners(items);
     let namespaces = items
         .iter()
         .filter(|item| {
@@ -96,6 +97,176 @@ fn add_slice_owners(items: &mut Vec<ProjectedItem>) {
         })
         .collect::<Vec<_>>();
     items.extend(additions);
+}
+
+/// Structural selectors name the enum in a Rust pattern. A signature can
+/// mention an enum from a transitive crate without making it nameable.
+pub(super) fn resolve_optional_selectors(
+    projected: &mut [super::ProjectedDependency],
+    rustdocs: &[(
+        &super::RustDependency,
+        super::RustdocCrate,
+        BTreeMap<rustdoc_types::Id, String>,
+    )],
+) {
+    let mut exports = BTreeMap::new();
+    for (dependency, document, public_paths) in rustdocs {
+        for (id, path) in public_paths {
+            let Some(summary) = document.paths.get(id) else {
+                continue;
+            };
+            if summary.kind != rustdoc_types::ItemKind::Enum {
+                continue;
+            }
+            let emitted = super::extern_rust_path(dependency, path);
+            exports.insert(emitted.clone(), emitted.clone());
+            exports.insert(path.clone(), emitted.clone());
+            exports
+                .entry(summary.path.join("::"))
+                .and_modify(|current| super::prefer_alias(current, &emitted))
+                .or_insert(emitted);
+        }
+    }
+    for item in projected
+        .iter_mut()
+        .flat_map(|dependency| &mut dependency.items)
+    {
+        let ProjectedKind::ForeignType { methods, .. } = &mut item.kind else {
+            continue;
+        };
+        methods.retain_mut(|method| {
+            let Some(super::ProjectedEnumOperation::SelectOptionalVariant { path }) =
+                &mut method.enum_operation
+            else {
+                return true;
+            };
+            let Some((owner, variant)) = path.rsplit_once("::") else {
+                return false;
+            };
+            let Some(export) = exports.get(owner) else {
+                return false;
+            };
+            *path = format!("{export}::{variant}");
+            true
+        });
+    }
+}
+
+fn add_optional_sum_owners(items: &mut Vec<ProjectedItem>) {
+    let mut additions = BTreeMap::new();
+    for item in items.iter() {
+        for function in source_rendering::projected_item_functions(item) {
+            let ProjectedType::InvocationScoped {
+                name,
+                rust_type,
+                variants,
+                ..
+            } = &function.result
+            else {
+                continue;
+            };
+            if variants.is_empty() {
+                continue;
+            }
+            let mut selectors = Vec::with_capacity(variants.len());
+            for variant in variants {
+                let ProjectedType::Foreign {
+                    name,
+                    rust_path,
+                    arguments,
+                    ..
+                } = &variant.slice
+                else {
+                    unreachable!("projected slice owner")
+                };
+                let [element] = arguments.as_slice() else {
+                    unreachable!("slice element type")
+                };
+                let selected_name = format!("optional-{name}");
+                let selected_path = format!("std::option::Option<&{rust_path}>");
+                let selected_owner = ProjectedType::Foreign {
+                    name: selected_name.clone(),
+                    rust_path: selected_path.clone(),
+                    base_rust_path: selected_path.clone(),
+                    arguments: Vec::new(),
+                };
+                let selected = ProjectedType::InvocationScoped {
+                    name: selected_name.clone(),
+                    rust_type: selected_path.clone(),
+                    lifetimes: Vec::new(),
+                    expression_scoped: true,
+                    owned: Box::new(selected_owner),
+                    variants: Vec::new(),
+                };
+                let mut select = concrete_terminal(&variant.name, selected);
+                select.chain_role = Some(ChainRole::Continue);
+                select.native_owner = None;
+                select.enum_operation =
+                    Some(super::ProjectedEnumOperation::SelectOptionalVariant {
+                        path: variant.path.clone(),
+                    });
+                selectors.push(select);
+                additions
+                    .entry((item.namespace.clone(), selected_name.clone()))
+                    .or_insert_with(|| {
+                        let get = optional_slice_lookup(element);
+                        graph_owner(
+                            item.namespace.clone(),
+                            selected_name,
+                            selected_path,
+                            "Optional borrowed slice; usable only within one operation graph.",
+                            vec![get],
+                        )
+                    });
+            }
+            additions
+                .entry((item.namespace.clone(), name.clone()))
+                .or_insert_with(|| {
+                    graph_owner(
+                        item.namespace.clone(),
+                        name.clone(),
+                        rust_type.clone(),
+                        "Optional native sum containing borrowed payloads.",
+                        selectors,
+                    )
+                });
+        }
+    }
+    additions.retain(|(namespace, name), _| {
+        !items
+            .iter()
+            .any(|item| &item.namespace == namespace && &item.name == name)
+    });
+    items.extend(additions.into_values());
+}
+
+fn optional_slice_lookup(element: &ProjectedType) -> ProjectedFunction {
+    let mut method = concrete_terminal(
+        "get_cloned",
+        ProjectedType::Optional(Box::new(element.clone())),
+    );
+    method.native_path = Some("terrane_collection_support::get_cloned_borrowed_slice".to_owned());
+    method.parameters.push(ProjectedParameter {
+        name: "index".to_owned(),
+        ty: ProjectedType::FixedInt("u64".to_owned()),
+        borrow_lifetime: None,
+        borrowed: false,
+        borrowed_str: false,
+        mutable_borrow: false,
+        generic_parameter: None,
+        generic_bounds: Vec::new(),
+        generic_interface: None,
+        associated_type: None,
+    });
+    method
+}
+
+fn concrete_terminal(name: &str, result: ProjectedType) -> ProjectedFunction {
+    let mut method = terminal_method(name, result, "U", Vec::new());
+    method.destination_result = None;
+    method.generic_parameters.clear();
+    method.native_path = None;
+    method
 }
 
 // Option is already a compiler-owned projection protocol. Its borrowed form stays native
@@ -253,6 +424,86 @@ pub(super) fn iterator_collect(
         output
     };
     method.parameters.push(borrowed_visitor(item, result));
+    method
+}
+
+/// Reduce a borrowed iterator without materializing borrowed items or cloning its owner.
+pub(super) fn iterator_fold(item: ProjectedType, native_owner: &str) -> ProjectedFunction {
+    let accumulator = ProjectedType::Generic("U".to_owned());
+    let (parameters, pair) = match item {
+        ProjectedType::Tuple(items) => (items, true),
+        item => (vec![item], false),
+    };
+    let native_parameters = parameters
+        .iter()
+        .map(|item| format!("&{}", item.rust_type()))
+        .collect::<Vec<_>>();
+    let bound = format!("FnMut(U, {}) -> U", native_parameters.join(", "));
+    let mut method = terminal_method("fold", accumulator.clone(), "U", Vec::new());
+    method.generic_parameters[0].input_selected = true;
+    method
+        .generic_parameters
+        .push(super::ProjectedGenericParameter {
+            name: "F".to_owned(),
+            input_selected: false,
+            rust_bounds: vec![bound.clone()],
+            default: None,
+        });
+    method.native_owner = Some(native_owner.to_owned());
+    method.native_path = Some(if pair {
+        "terrane_collection_support::fold_borrowed_pair".to_owned()
+    } else {
+        "terrane_collection_support::fold_borrowed".to_owned()
+    });
+    method.receiver = Some(Receiver::MutableBorrow);
+    method.parameters.push(ProjectedParameter {
+        name: "initial".to_owned(),
+        ty: accumulator,
+        borrow_lifetime: None,
+        borrowed: false,
+        borrowed_str: false,
+        mutable_borrow: false,
+        generic_parameter: Some("U".to_owned()),
+        generic_bounds: Vec::new(),
+        generic_interface: None,
+        associated_type: None,
+    });
+    method.parameters.push(ProjectedParameter {
+        name: "operation".to_owned(),
+        ty: ProjectedType::Callback {
+            carrier: None,
+            rust_name: "F".to_owned(),
+            parameters: std::iter::once(ProjectedType::Generic("U".to_owned()))
+                .chain(parameters)
+                .collect(),
+            native_bound: Some(bound),
+            native_method: None,
+            native_result: None,
+            native_substitutions: BTreeMap::new(),
+            parameter_rust_types: std::iter::once("U".to_owned())
+                .chain(native_parameters)
+                .collect(),
+            parameter_borrows: std::iter::once(false)
+                .chain(std::iter::repeat_n(true, if pair { 2 } else { 1 }))
+                .collect(),
+            admitted_shapes: Vec::new(),
+            parameters_destination_selected: false,
+            result: Box::new(ProjectedType::Generic("U".to_owned())),
+            invocation_mode: InvocationMode::Shared,
+            is_async: false,
+            retained: false,
+            send: false,
+            sync: false,
+        },
+        borrow_lifetime: None,
+        borrowed: false,
+        borrowed_str: false,
+        mutable_borrow: false,
+        generic_parameter: Some("F".to_owned()),
+        generic_bounds: Vec::new(),
+        generic_interface: None,
+        associated_type: None,
+    });
     method
 }
 

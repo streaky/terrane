@@ -4036,6 +4036,7 @@ fn scoped_receiver_result(
         lifetimes: lifetimes.into_iter().collect(),
         expression_scoped: *expression_scoped,
         owned,
+        variants: Vec::new(),
     }
 }
 
@@ -4357,6 +4358,7 @@ fn refine_projected_call_result(
             lifetimes,
             expression_scoped,
             owned,
+            ..
         } => {
             let mut lender_regions = Vec::new();
             let mut matched_lifetimes = BTreeSet::new();
@@ -8399,6 +8401,7 @@ fn specialize_projected_destination(
                 lifetimes,
                 expression_scoped: true,
                 owned,
+                ..
             } => {
                 let namespace = package
                     .projection
@@ -9263,6 +9266,7 @@ fn projected_type_with_alias_use(
             name: family.name.clone(),
             lifetimes: lifetimes.clone(),
             expression_scoped: *expression_scoped,
+            variants: Vec::new(),
             owned: Box::new(ProjectedType::Foreign {
                 rust_path: rust_type.clone(),
                 name: family.name.clone(),
@@ -9284,6 +9288,7 @@ fn projected_type_with_alias_use(
             name: family.name.clone(),
             lifetimes: lifetimes.clone(),
             expression_scoped: *expression_scoped,
+            variants: Vec::new(),
             owned: Box::new(ProjectedType::Foreign {
                 rust_path: rust_type.clone(),
                 name: family.name.clone(),
