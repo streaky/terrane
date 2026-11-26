@@ -7250,6 +7250,16 @@ fn constant_operands(local: terrane_int_support::Int) -> Result<(), TerraneError
     )?;
     Ok(())
 }
+fn print_bitwise(x: terrane_int_support::Int, y: terrane_int_support::Int) {
+    println!("{}", terrane_scalar_support::scalar_text(&(&x & &y)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(&* __TERRANE_F67_BASE &
+        &terrane_int_support::Int::from(3_i128)))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&(&x & &* __TERRANE_F67_BASE)));
+    println!("{}", terrane_scalar_support::scalar_text(&(&x | &y)));
+    println!("{}", terrane_scalar_support::scalar_text(&(&x ^ &y)));
+}
 fn compact() {
     let owned: i64;
     let transferred: terrane_int_support::Int;
@@ -7289,11 +7299,11 @@ fn large() -> Result<(), TerraneError> {
                     "680564733841876926926749214863536422913",
                 ),
         ),
-        154 /* terrane-site: tests/integration/integer-move/case.trn:33:5-33:59 */,
+        154 /* terrane-site: tests/integration/integer-move/case.trn:40:5-40:59 */,
     )?;
     __terrane_traced_err(
         assert(difference == terrane_int_support::Int::from(1_i128)),
-        155 /* terrane-site: tests/integration/integer-move/case.trn:34:5-34:28 */,
+        155 /* terrane-site: tests/integration/integer-move/case.trn:41:5-41:28 */,
     )?;
     __terrane_traced_err(
         assert(
@@ -7302,7 +7312,7 @@ fn large() -> Result<(), TerraneError> {
                     "115792089237316195423570985008687907853610267032561502502920958615344897851392",
                 ),
         ),
-        156 /* terrane-site: tests/integration/integer-move/case.trn:35:5-35:102 */,
+        156 /* terrane-site: tests/integration/integer-move/case.trn:42:5-42:102 */,
     )?;
     println!("{}", terrane_scalar_support::scalar_text(&transferred));
     println!("{}", terrane_scalar_support::scalar_text(&owned));
@@ -7323,13 +7333,17 @@ fn from_parameter(owned: terrane_int_support::Int) -> terrane_int_support::Int {
 fn test_scenario_terrane_integer_move() -> Result<(), TerraneError> {
     __terrane_traced_err(
         constant_operands(terrane_int_support::Int::from(2_i128)),
-        157 /* terrane-site: tests/integration/integer-move/case.trn:49:5-49:25 */,
+        157 /* terrane-site: tests/integration/integer-move/case.trn:56:5-56:25 */,
     )?;
+    print_bitwise(
+        terrane_int_support::Int::from(6_i128),
+        terrane_int_support::Int::from(3_i128),
+    );
     compact();
     reassigned();
     __terrane_traced_err(
         large(),
-        158 /* terrane-site: tests/integration/integer-move/case.trn:52:5-52:11 */,
+        158 /* terrane-site: tests/integration/integer-move/case.trn:60:5-60:11 */,
     )?;
     narrowed();
     println!(

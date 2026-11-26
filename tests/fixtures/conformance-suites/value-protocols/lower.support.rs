@@ -1002,16 +1002,16 @@ mod __terrane_trace {
         { Site { function: 29, file: 25, line: 11, column: 5, end_line: 11, end_column: 78 } },
         /* terrane-site-row: site 153: /integer-move::constant-operands (tests/integration/integer-move/case.trn:12:5-12:31) */
         { Site { function: 29, file: 25, line: 12, column: 5, end_line: 12, end_column: 31 } },
-        /* terrane-site-row: site 154: /integer-move::large (tests/integration/integer-move/case.trn:33:5-33:59) */
-        { Site { function: 30, file: 25, line: 33, column: 5, end_line: 33, end_column: 59 } },
-        /* terrane-site-row: site 155: /integer-move::large (tests/integration/integer-move/case.trn:34:5-34:28) */
-        { Site { function: 30, file: 25, line: 34, column: 5, end_line: 34, end_column: 28 } },
-        /* terrane-site-row: site 156: /integer-move::large (tests/integration/integer-move/case.trn:35:5-35:102) */
-        { Site { function: 30, file: 25, line: 35, column: 5, end_line: 35, end_column: 102 } },
-        /* terrane-site-row: site 157: /integer-move::test-scenario (tests/integration/integer-move/case.trn:49:5-49:25) */
-        { Site { function: 31, file: 25, line: 49, column: 5, end_line: 49, end_column: 25 } },
-        /* terrane-site-row: site 158: /integer-move::test-scenario (tests/integration/integer-move/case.trn:52:5-52:11) */
-        { Site { function: 31, file: 25, line: 52, column: 5, end_line: 52, end_column: 11 } },
+        /* terrane-site-row: site 154: /integer-move::large (tests/integration/integer-move/case.trn:40:5-40:59) */
+        { Site { function: 30, file: 25, line: 40, column: 5, end_line: 40, end_column: 59 } },
+        /* terrane-site-row: site 155: /integer-move::large (tests/integration/integer-move/case.trn:41:5-41:28) */
+        { Site { function: 30, file: 25, line: 41, column: 5, end_line: 41, end_column: 28 } },
+        /* terrane-site-row: site 156: /integer-move::large (tests/integration/integer-move/case.trn:42:5-42:102) */
+        { Site { function: 30, file: 25, line: 42, column: 5, end_line: 42, end_column: 102 } },
+        /* terrane-site-row: site 157: /integer-move::test-scenario (tests/integration/integer-move/case.trn:56:5-56:25) */
+        { Site { function: 31, file: 25, line: 56, column: 5, end_line: 56, end_column: 25 } },
+        /* terrane-site-row: site 158: /integer-move::test-scenario (tests/integration/integer-move/case.trn:60:5-60:11) */
+        { Site { function: 31, file: 25, line: 60, column: 5, end_line: 60, end_column: 11 } },
         /* terrane-site-row: site 159: /interpolation-key-reference-destinations::test-scenario (tests/integration/interpolation-key-reference-destinations/case.trn:51:5-51:67) */
         { Site { function: 32, file: 26, line: 51, column: 5, end_line: 51, end_column: 67 } },
         /* terrane-site-row: site 160: /interpolation-key-reference-destinations::test-scenario (tests/integration/interpolation-key-reference-destinations/case.trn:52:5-52:55) */

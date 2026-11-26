@@ -11,6 +11,13 @@ function constant-operands; local int
     assert; base == 41 and base < 42 and not (base == local) and local < base
     assert; not (base < local)
 
+function print-bitwise; x int, y int
+    print; x & y
+    print; base & 3
+    print; x & base
+    print; x | y
+    print; x ^ y
+
 function compact;
     owned = 1
     transferred = move owned
@@ -47,6 +54,7 @@ function from-parameter int; owned int
 
 function test-scenario;
     constant-operands; 2
+    print-bitwise; 6, 3
     compact;
     reassigned;
     large;
