@@ -28,9 +28,10 @@ fn main() {
     report(String::from("parser"), true, terrane_int_support::Int::from(2_i128));
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
-        String::with_capacity(9); terrane_scalar_support::ScalarDisplay::write_scalar(&&*
-        __TERRANE_F0_TITLE, &mut __terrane_text); __terrane_text.push_str(" length: ");
-        terrane_scalar_support::ScalarDisplay::write_scalar(&(terrane_string_support::length(&&*
-        __TERRANE_F0_TITLE) as i128), &mut __terrane_text); __terrane_text })
+        String::with_capacity(9); terrane_scalar_support::ScalarDisplay::write_scalar(&
+        &* __TERRANE_F0_TITLE, &mut __terrane_text); __terrane_text
+        .push_str(" length: ");
+        terrane_scalar_support::ScalarDisplay::write_scalar(&(terrane_string_support::length(&
+        &* __TERRANE_F0_TITLE) as i128), &mut __terrane_text); __terrane_text })
     );
 }
