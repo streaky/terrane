@@ -91,10 +91,50 @@ impl Drop for DebugFixture {
 }
 
 #[test]
+fn build_view_uses_library_itself_even_with_nested_consumers() {
+    let fixture = DebugFixture::new();
+    let write_package = |dir: &Path, manifest: &str| {
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(dir.join("package.toml"), manifest).unwrap();
+    };
+    let lib = fixture.root.join("lib");
+    write_package(&lib, "package = 'sample/shared'\nartifact = 'library'\n[namespaces]\n'sample/shared' = 'src'\n");
+    let source = lib.join("src/shared.trn");
+    fs::write(&source, "namespace sample/shared\npublic function answer int;\n    return 42\n").unwrap();
+    let app = "package = 'app'\nartifact = 'executable'\n[namespaces]\napp = 'src'\n";
+    for (name, depends) in [("demo", true), ("other", false), ("example", true)] {
+        let dir = lib.join(name);
+        let dependency = if depends { "[terrane-dependencies.sample.shared]\npath = '..'\n" } else { "" };
+        write_package(&dir, &format!("{app}{dependency}"));
+        fs::write(dir.join("src/main.trn"), "namespace app\nfunction main;\n    print; 42\n").unwrap();
+    }
+    let built = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--view-build"]).arg(&source).arg("--workspace").arg(&fixture.root).output().unwrap();
+    assert!(built.status.success(), "{}", String::from_utf8_lossy(&built.stderr));
+    let artifacts: Value = serde_json::from_slice(&built.stdout).unwrap();
+    assert!(Path::new(artifacts["program"].as_str().unwrap()).starts_with(lib.join(".trn")));
+    let rust_only = Command::new(env!("CARGO_BIN_EXE_terrane")).args(["debug", "--view-json",
+        artifacts["program"].as_str().unwrap(), artifacts["terraneProvenance"].as_str().unwrap()])
+        .arg(&source).args(["3", "--rust-only"]).env("PATH", "").output().unwrap();
+    assert!(rust_only.status.success(), "{}", String::from_utf8_lossy(&rust_only.stderr));
+    let rust_only: Value = serde_json::from_slice(&rust_only.stdout).unwrap();
+    assert!(!rust_only["rust"].as_array().unwrap().is_empty());
+    assert!(rust_only["assembly"].as_array().unwrap().is_empty());
+    let view = Command::new(env!("CARGO_BIN_EXE_terrane")).args(["debug", "--view-json",
+        artifacts["program"].as_str().unwrap(), artifacts["terraneProvenance"].as_str().unwrap()])
+        .arg(&source).arg("3").output().unwrap();
+    assert!(view.status.success(), "{}", String::from_utf8_lossy(&view.stderr));
+    let mapped: Value = serde_json::from_slice(&view.stdout).unwrap();
+    assert!(!mapped["rust"].as_array().unwrap().is_empty());
+    assert!(!mapped["assembly"].as_array().unwrap().is_empty());
+}
+
+#[test]
 fn build_only_returns_debug_artifacts_without_running_program() {
     let fixture = DebugFixture::new();
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
-        .args(["debug", "--build-only", fixture.source.to_str().unwrap()])
+        .args(["debug", "--build-only", "--embed-generated-sources"])
+        .arg(&fixture.source)
         .output()
         .unwrap();
     assert!(
@@ -115,6 +155,85 @@ fn build_only_returns_debug_artifacts_without_running_program() {
         launch_fidelity(executable, sidecar)["body"]["mode"],
         "source"
     );
+
+    let query = |line: &str| {
+        let mut query = Command::new(env!("CARGO_BIN_EXE_terrane"));
+        query
+            .args(["debug", "--view-json"])
+            .arg(executable)
+            .arg(sidecar)
+            .arg(&fixture.source)
+            .arg(line);
+        query
+    };
+    let output = query("8").output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let view: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(view["source"], json!({"path": fixture.source, "line": 8}));
+    let rust = view["rust"].as_array().unwrap();
+    let assembly = view["assembly"].as_array().unwrap();
+    assert!(!rust.is_empty());
+    assert!(!assembly.is_empty());
+    for instruction in assembly {
+        assert!(rust.contains(&json!({"path": instruction["path"], "line": instruction["line"]})));
+        let address = instruction["address"].as_str().unwrap().strip_prefix("0x").unwrap();
+        assert!(u64::from_str_radix(address, 16).is_ok());
+        assert!(!instruction["instruction"].as_str().unwrap().is_empty());
+    }
+    let cached = query("8").env("PATH", "").output().unwrap();
+    assert!(cached.status.success(), "{}", String::from_utf8_lossy(&cached.stderr));
+    assert_eq!(cached.stdout, output.stdout);
+
+    let file = &provenance["debug"]["generated_files"][0];
+    let generated = sidecar.parent().unwrap().join(file["path"].as_str().unwrap());
+    assert!(generated.is_file());
+    let line = file["associations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|association| {
+            association["sequence_point"] == true && association["causes"][0]["line"] == 8
+        })
+        .unwrap()["generated"]["line"].as_u64().unwrap();
+    let output = query("8")
+        .env("PATH", "")
+        .arg(&generated)
+        .arg(line.to_string())
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let selected: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(selected["rust"], json!([{ "path": generated, "line": line }]));
+    assert_eq!(selected["assembly"], json!([]));
+    let output = query("2").output().unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let blank: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(blank["rust"], json!([]));
+    assert_eq!(blank["assembly"], json!([]));
+    fs::write(&generated, "// no longer the recorded generated Rust\n").unwrap();
+    let stale_rust = query("8").output().unwrap();
+    assert!(!stale_rust.status.success());
+    assert!(String::from_utf8_lossy(&stale_rust.stderr).contains("on-disk generated source identity mismatch"));
+    fs::write(&fixture.source, "namespace changed\n").unwrap();
+    let stale = query("8").output().unwrap();
+    assert!(!stale.status.success());
+    assert!(String::from_utf8_lossy(&stale.stderr).contains("source has changed"));
+    let replacement = fixture.root.join("replacement");
+    fs::write(&replacement, b"not the recorded executable").unwrap();
+    let replaced = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--view-json"])
+        .arg(replacement)
+        .arg(sidecar)
+        .arg(&fixture.source)
+        .arg("8")
+        .output()
+        .unwrap();
+    assert!(!replaced.status.success());
+    assert!(String::from_utf8_lossy(&replaced.stderr).contains("provenance does not match executable"));
 }
 
 #[test]
@@ -552,6 +671,35 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     );
     assert_eq!(stack["body"]["stackFrames"][0]["line"], 8);
     assert_eq!(stack["body"]["stackFrames"][0]["name"], "/debugger::main");
+    let generated = &stack["body"]["stackFrames"][0]["terraneGenerated"];
+    let generated_path = Path::new(generated["path"].as_str().unwrap());
+    assert!(generated_path.ends_with("src/main.rs"));
+    let manifest: Value = serde_json::from_slice(&fs::read(&provenance).unwrap()).unwrap();
+    let generated_files = manifest["debug"]["generated_files"].as_array().unwrap();
+    let file = generated_files
+        .iter()
+        .find(|file| file["path"] == "src/main.rs")
+        .unwrap();
+    assert!(file["associations"].as_array().unwrap().iter().any(|association| {
+        association["sequence_point"] == true
+            && association["generated"]["line"] == generated["line"]
+            && association["causes"][0]["line"] == 8
+    }));
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--view-json"])
+        .arg(&executable)
+        .arg(&provenance)
+        .arg(&fixture.source)
+        .arg("8")
+        .arg(generated_path)
+        .arg(generated["line"].as_u64().unwrap().to_string())
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let live_view: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(live_view["rust"], json!([generated]));
+    assert_eq!(live_view["assembly"], json!([]));
     let next_request = dap.send("next", json!({"threadId": thread}));
     let (_, stopped, _) = dap.response_and_event(next_request, "stopped");
     let thread = stopped["body"]["threadId"].as_i64().unwrap();

@@ -590,11 +590,27 @@ impl ProvenanceManifest {
     /// Returns an error when the executable cannot be read for identity hashing.
     pub fn create(
         package: &Package,
-        debug: DebugInformation,
+        mut debug: DebugInformation,
         executable: &Path,
         build_root: &Path,
         build: DebugBuildIdentity,
     ) -> Result<Self, String> {
+        // Namespace assembly mounts dependency sources at logical paths. Those
+        // paths do not exist under the executable's root in a local checkout.
+        // Preserve root-relative paths for the application, but bind mounted
+        // files to the checkout that supplied this build's source bytes.
+        let mounted: BTreeMap<_, _> = package.units.iter()
+            .filter(|unit| unit.relative_path.starts_with("dependencies"))
+            .map(|unit| (unit.source.id(), unit.source.path()))
+            .collect();
+        for source in &mut debug.sources {
+            if let Some(path) = mounted.get(&source.id)
+                && let Ok(physical) = path.canonicalize()
+            {
+                source.uri = physical.strip_prefix(&package.root).unwrap_or(&physical)
+                    .to_string_lossy().into_owned();
+            }
+        }
         Ok(Self {
             schema_version: SCHEMA_VERSION.to_owned(),
             build: BuildProvenance::create(package, executable, build_root, build)?,

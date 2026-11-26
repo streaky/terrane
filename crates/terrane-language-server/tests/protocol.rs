@@ -389,12 +389,21 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
             "params": {
                 "textDocument": {"uri": "file:///tmp/navigation.trn"},
                 "position": {"line": 6, "character": 16},
-                "context": {"includeDeclaration": true}
+                "context": {"includeDeclaration": false}
             }
         }),
     );
     let references = receive_response(&mut stdout, 3);
-    assert!(references["result"].as_array().unwrap().len() >= 2);
+    assert_eq!(
+        references["result"],
+        json!([{
+            "uri": "file:///tmp/navigation.trn",
+            "range": {
+                "start": {"line": 6, "character": 16},
+                "end": {"line": 6, "character": 22}
+            }
+        }])
+    );
 
     send(
         &mut stdin,
@@ -443,14 +452,14 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
             "method": "textDocument/implementation",
             "params": {
                 "textDocument": {"uri": "file:///tmp/navigation.trn"},
-                "position": {"line": 9, "character": 13}
+                "position": {"line": 11, "character": 25}
             }
         }),
     );
     let implementations = receive_response(&mut stdout, 6);
     assert_eq!(
         implementations["result"][0]["range"]["start"],
-        json!({"line": 12, "character": 13})
+        json!({"line": 11, "character": 6})
     );
 
     send(

@@ -46,8 +46,10 @@ function startDecorations(context) {
 let client;
 
 function serverPath(context) {
+  const folders = vscode.workspace.workspaceFolders;
+  const folder = folders?.length === 1 ? folders[0] : undefined;
   const configured = vscode.workspace
-    .getConfiguration('terrane')
+    .getConfiguration('terrane', folder?.uri)
     .get('server.path', '')
     .trim();
   if (configured) {
@@ -60,8 +62,24 @@ function serverPath(context) {
 }
 
 async function activate(context) {
+  const build = require('./debugger').registerDebugger(vscode, context);
+  require('./build-view').registerBuildView(vscode, context, build);
+  context.subscriptions.push(require('./security-wrap').registerSecurityWrap(vscode));
+  require('./security-region-decorations').registerSecurityRegions(vscode, context);
+  if (vscode.workspace.textDocuments.some(doc => doc.languageId === 'terrane')) {
+    await startTerraneServices(context);
+  } else {
+    const listener = vscode.workspace.onDidOpenTextDocument(doc => {
+      if (doc.languageId !== 'terrane') return;
+      listener.dispose();
+      startTerraneServices(context).catch(error => vscode.window.showErrorMessage(`Terrane initialization failed: ${error.message}`));
+    });
+    context.subscriptions.push(listener);
+  }
+}
+
+async function startTerraneServices(context) {
   startDecorations(context);
-  require('./debugger').registerDebugger(vscode, context);
   const command = serverPath(context);
   if (!fs.existsSync(command)) {
     const message = `Terrane language server not found at ${command}. Configure terrane.server.path or package the server binary.`;

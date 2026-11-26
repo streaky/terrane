@@ -213,6 +213,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::ProjectionCensus => return census_command::run(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::DebugAdapter => return debug_command::adapter::run_adapter(arguments),
+        CliCommand::Debug if arguments.get(1).is_some_and(|arg| arg == "--view-json") => {
+            return debug_command::view::run(&arguments[2..]);
+        }
         CliCommand::Profile
             if arguments.get(1).and_then(|argument| argument.to_str()) == Some("show") =>
         {
@@ -229,17 +232,25 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let profile_options = (command == CliCommand::Profile)
         .then(|| profile_command::parse_record(arguments))
         .transpose()?;
-    let parsed = if let Some(options) = &profile_options {
+    let view_build = command == CliCommand::Debug && arguments.get(1).is_some_and(|arg| arg == "--view-build");
+    let mut view_package = None;
+    let parsed = if profile_options.is_some() || view_build {
         ParsedInput {
-            input_path: options.input.clone(),
+            input_path: if let Some(options) = &profile_options {
+                options.input.clone()
+            } else {
+                let (path, package) = debug_command::targets::resolve(&arguments[2..])?;
+                view_package = package;
+                path
+            },
             output_path: None,
             require_canonical_rust: false,
             lint_name_style: false,
             lint_unused_functions: false,
             release: false,
-            embed_debug_sources: options.embed_sources,
+            embed_debug_sources: profile_options.as_ref().is_some_and(|options| options.embed_sources),
             embed_generated_sources: false,
-            debug_build_only: false,
+            debug_build_only: view_build,
         }
     } else {
         parse_input(arguments, command)?
@@ -261,7 +272,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         && input_path
             .extension()
             .is_none_or(|extension| extension != "toml");
-    let package = if source_input {
+    let package = if let Some(package) = view_package {
+        package
+    } else if source_input {
         let source_text = fs::read_to_string(&input_path).map_err(|error| {
             CliFailure::diagnostic(input_path.clone(), "S0000", error.to_string(), 3)
         })?;
@@ -283,6 +296,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             command,
             CliCommand::Run | CliCommand::Debug | CliCommand::Profile
         )
+        && !view_build
     {
         return Err(CliFailure::usage_with(
             "`run`, `debug`, and `profile record` require an executable package; use `build` for a dynamic library",
@@ -290,6 +304,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     if package.artifact == terrane_compiler::ArtifactKind::Library
         && !matches!(command, CliCommand::Check | CliCommand::Rust)
+        && !view_build
     {
         return Err(CliFailure::usage_with(
             "Terrane library packages are lowered with an application; use `check` or `rust` directly",
@@ -899,7 +914,7 @@ fn prepare_artifact(
     );
     if !artifact.is_file() {
         run_cargo(
-            "build",
+            if artifact_kind == terrane_compiler::ArtifactKind::Library { "rustc" } else { "build" },
             crate_dir,
             target_dir,
             rust_files,
@@ -961,9 +976,7 @@ fn artifact_path(
             std::env::consts::DLL_PREFIX,
             std::env::consts::DLL_SUFFIX
         )),
-        terrane_compiler::ArtifactKind::Library => {
-            unreachable!("library packages are never prepared as standalone native artifacts")
-        }
+        terrane_compiler::ArtifactKind::Library => directory.join(format!("lib{name}.rlib")),
     }
 }
 
@@ -1125,6 +1138,11 @@ fn run_cargo(
     profile.configure(&mut cargo);
     if has_rust_dependencies {
         cargo.args(["--offline", "--frozen"]);
+    }
+    if command == "rustc" {
+        // Library lowering uses non-exported Rust symbols. Inspect them without
+        // synthesizing calls or changing code generation for dependencies.
+        cargo.args(["--lib", "--", "-C", "link-dead-code=yes"]);
     }
     let flags = coverage_rustflags(
         rustflags,
@@ -1921,6 +1939,9 @@ fn usage() -> String {
      [--lint-unused-functions] [--release] <file-or-manifest> [-- program arguments]\n\
      terrane debug [--build-only] [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
+     terrane debug --view-json <executable> <provenance> <source> <line> \
+     [--rust-only | <generated-source> <generated-line>]\n\
+     terrane debug --view-build <source> [--workspace <folder>]\n\
      terrane profile record ((--cpu|--allocations) [--memory-timeline]|--memory-timeline) \
      [--embed-sources] [--retain-arguments] [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\
      terrane profile show <file.trnprof> [--focus <source>:<line>] [--generated] [--native] \

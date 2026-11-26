@@ -974,7 +974,7 @@ pub(super) fn method_contract<'a>(
     method_contract_with_safety(package, object_identity, method_name, is_static, false)
 }
 
-fn method_contract_with_safety<'a>(
+pub(crate) fn method_contract_with_safety<'a>(
     package: &'a SemanticPackage,
     object_identity: &ObjectIdentity,
     method_name: &str,

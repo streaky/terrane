@@ -190,11 +190,15 @@ impl Backend {
             .lock()
             .expect("position encoding lock")
             .clone();
-        let diagnostics = analysis
-            .diagnostics
-            .iter()
-            .map(|diagnostic| tooling_lsp_diagnostic(&text, diagnostic, &encoding))
-            .collect();
+        let mut publications = vec![(
+            uri.clone(),
+            version,
+            analysis
+                .diagnostics
+                .iter()
+                .map(|diagnostic| tooling_lsp_diagnostic(&text, diagnostic, &encoding))
+                .collect(),
+        )];
         let mut documents = self.documents.write().await;
         if documents
             .get(&uri)
@@ -217,15 +221,34 @@ impl Backend {
             .values()
             .map(|document| document.snapshot_id.clone())
             .collect::<std::collections::HashSet<_>>();
-        for (open_uri, document) in &mut *documents {
-            let open_uri = open_uri.to_string();
-            if analysis
-                .source_texts
-                .get(&open_uri)
-                .is_some_and(|analyzed| analyzed == &document.text)
-            {
-                document.snapshot_id.clone_from(&analysis.snapshot_id);
-                document.prepared_at = Some(std::time::Instant::now());
+        {
+            let tooling = self.tooling.lock().expect("tooling engine lock");
+            for (open_uri, document) in &mut *documents {
+                let open_uri_text = open_uri.to_string();
+                if analysis
+                    .source_texts
+                    .get(&open_uri_text)
+                    .is_some_and(|analyzed| analyzed == &document.text)
+                {
+                    if open_uri != &uri
+                        && document.snapshot_id != analysis.snapshot_id
+                        && let Ok(diagnostics) =
+                            tooling.editor_diagnostics(&analysis.snapshot_id, &open_uri_text)
+                    {
+                        publications.push((
+                            open_uri.clone(),
+                            document.version,
+                            diagnostics
+                                .iter()
+                                .map(|diagnostic| {
+                                    tooling_lsp_diagnostic(&document.text, diagnostic, &encoding)
+                                })
+                                .collect(),
+                        ));
+                    }
+                    document.snapshot_id.clone_from(&analysis.snapshot_id);
+                    document.prepared_at = Some(std::time::Instant::now());
+                }
             }
         }
         documents.insert(
@@ -245,16 +268,18 @@ impl Backend {
             .into_iter()
             .filter(|snapshot| !retained.contains(snapshot.as_str()))
             .collect::<Vec<_>>();
-        drop(documents);
         {
             let mut tooling = self.tooling.lock().expect("tooling engine lock");
             for snapshot in expired {
                 let _ = tooling.close_snapshot(&snapshot);
             }
         }
-        self.client
-            .publish_diagnostics(uri, diagnostics, Some(version))
-            .await;
+        drop(documents);
+        for (uri, version, diagnostics) in publications {
+            self.client
+                .publish_diagnostics(uri, diagnostics, Some(version))
+                .await;
+        }
     }
     /// Finds generated Rust associated with the Terrane syntax at a document position.
     ///
@@ -2062,6 +2087,66 @@ mod tests {
             .syntax(&snapshot.snapshot_id, value_uri.as_str(), None)
             .unwrap();
         assert!(syntax.diagnostics.is_empty(), "{:?}", syntax.diagnostics);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn trusted_package_navigates_unopened_policy_helper() {
+        use terrane_compiler::tooling::Availability;
+
+        let root = std::env::temp_dir().join(format!("terrane-lsp-policy-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(
+            root.join("package.toml"),
+            "package = 'service'\n[namespaces]\nservice = 'src'\n",
+        )
+        .unwrap();
+        let main = "namespace service\nfunction main;\n    _ = environment-setting; 'APP_DEBUG'\n";
+        let policy = "namespace service\nfunction environment-setting string; name string\n    return name\nfunction policy;\n    _ = environment-setting; 'APP_TOKEN'\n";
+        let main_path = root.join("src/main.trn");
+        let policy_path = root.join("src/policy.trn");
+        std::fs::write(&main_path, main).unwrap();
+        std::fs::write(&policy_path, policy).unwrap();
+        let main_uri = Uri::from_file_path(&main_path).unwrap();
+        let policy_uri = Uri::from_file_path(&policy_path).unwrap();
+        let tooling = Mutex::new(terrane_compiler::tooling::ToolingEngine::default());
+        let prepared = analysis::snapshot(&main_uri, main, &HashMap::new(), &tooling, true);
+        assert!(prepared.diagnostics.is_empty(), "{:?}", prepared.diagnostics);
+        {
+            let tooling = tooling.lock().unwrap();
+            let main_call = main.find("environment-setting").unwrap();
+            let definition = tooling
+                .definition(&prepared.snapshot_id, main_uri.as_str(), main_call)
+                .unwrap();
+            let Availability::Known(definition) = definition else {
+                panic!("unopened same-namespace declaration should resolve");
+            };
+            assert_eq!(definition.uri, policy_uri.as_str());
+            assert_eq!(definition.span.start, policy.find("environment-setting").unwrap());
+            let Availability::Known(references) = tooling
+                .references(&prepared.snapshot_id, main_uri.as_str(), main_call)
+                .unwrap()
+            else {
+                panic!("both call sites and declaration should resolve");
+            };
+            assert_eq!(references.len(), 3);
+            assert!(references.iter().any(|site| {
+                site.uri == main_uri.as_str() && site.span.start == main_call
+            }));
+            assert!(references.iter().any(|site| {
+                site.uri == policy_uri.as_str()
+                    && site.span.start == policy.rfind("environment-setting").unwrap()
+            }));
+        }
+
+        let broken = policy.replace("return name", "return missing-name");
+        let overlays = HashMap::from([(policy_uri.to_string(), broken)]);
+        let blocked = analysis::snapshot(&main_uri, main, &overlays, &tooling, true);
+        assert!(blocked.diagnostics.iter().any(|diagnostic| {
+            diagnostic.span.is_none()
+                && diagnostic.message.contains("src/policy.trn")
+                && diagnostic.message.contains("missing-name")
+        }), "{:?}", blocked.diagnostics);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

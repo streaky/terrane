@@ -2,11 +2,12 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.17",
+  "version": "0.0.23",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
   "activationEvents": [
+    "onLanguage:rust",
     "onDebugResolve:terrane",
     "onDebugInitialConfigurations:terrane"
   ],
@@ -35,6 +36,28 @@
     }
   },
   "contributes": {
+    "commands": [{
+      "command": "terrane.showBuildView",
+      "title": "Terrane: Show Lowered Rust",
+      "enablement": "isWorkspaceTrusted && editorLangId == terrane",
+      "icon": "$(open-preview)"
+    }, {
+      "command": "terrane.wrapSecurityRegion",
+      "title": "Terrane: Wrap Selection in Security Region",
+      "enablement": "editorHasSelection && !editorReadonly && (editorLangId == terrane || editorLangId == rust)"
+    }],
+    "menus": {
+      "editor/context": [{
+        "command": "terrane.wrapSecurityRegion",
+        "when": "editorHasSelection && !editorReadonly && (editorLangId == terrane || editorLangId == rust)",
+        "group": "modification"
+      }],
+      "editor/title": [{
+        "command": "terrane.showBuildView",
+        "when": "editorLangId == terrane && resourceScheme == file",
+        "group": "navigation"
+      }]
+    },
     "breakpoints": [{ "language": "terrane" }],
     "debuggers": [
       {
@@ -129,6 +152,16 @@
     ],
     "colors": [
       {
+        "id": "terrane.securityRegionBackground",
+        "description": "Background of a paired security-contract region.",
+        "defaults": { "dark": "#C8952810", "light": "#9160000D", "highContrast": "#00000000", "highContrastLight": "#00000000" }
+      },
+      {
+        "id": "terrane.securityRegionBorder",
+        "description": "Right border of a paired security-contract region.",
+        "defaults": { "dark": "#D4A64B99", "light": "#94600099", "highContrast": "contrastBorder", "highContrastLight": "contrastBorder" }
+      },
+      {
         "id": "terrane.rustBlockBackground",
         "description": "Subtle background for embedded Rust sections.",
         "defaults": {
@@ -152,6 +185,12 @@
     "configuration": {
       "title": "Terrane",
       "properties": {
+        "terrane.securityRegions.decorate": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Highlight paired security-contract regions in Terrane and Rust. Marker warnings remain enabled."
+        },
         "terrane.debugger.path": {
           "type": "string",
           "default": "terrane",
@@ -161,7 +200,8 @@
         "terrane.server.path": {
           "type": "string",
           "default": "",
-          "description": "Path to a Terrane language server executable. Empty uses the binary bundled with the extension."
+          "scope": "machine-overridable",
+          "description": "Path to the Terrane language server. A single-folder workspace can override this in its folder settings; multi-folder windows use one server from workspace or user settings. Empty uses the bundled server."
         },
         "terrane.rustBlocks.decorate": {
           "type": "boolean",

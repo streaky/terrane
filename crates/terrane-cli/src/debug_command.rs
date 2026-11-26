@@ -26,6 +26,10 @@ mod source;
 mod steps;
 #[path = "debug_command_variables.rs"]
 mod variables;
+#[path = "debug_command_view.rs"]
+pub(super) mod view;
+#[path = "debug_command_targets.rs"]
+pub(super) mod targets;
 
 use backend::{Backend, add_rust_lldb_init_commands, discover_rust_lldb_formatter, event};
 use source::{

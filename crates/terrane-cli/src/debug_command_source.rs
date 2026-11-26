@@ -2,6 +2,7 @@ use super::{
     BTreeMap, BTreeSet, BreakpointResolution, DebugAssociation, Path, PathBuf, ProvenanceManifest,
     StopContext, Value, json,
 };
+use terrane_compiler::debugging::GeneratedFileIdentity;
 
 pub(super) fn normalized_source_path(provenance: &ProvenanceManifest, path: &Path) -> PathBuf {
     let rooted = if path.is_absolute() {
@@ -191,19 +192,39 @@ pub(super) fn association_for_frame<'a>(
     provenance: &'a ProvenanceManifest,
     frame: &Value,
 ) -> Option<&'a DebugAssociation> {
-    let path = frame["source"]["path"].as_str()?;
-    let line = frame["line"]
-        .as_u64()
-        .and_then(|line| usize::try_from(line).ok())?;
-    provenance
+    mapped_frame(provenance, frame).map(|(_, _, association)| association)
+}
+
+fn mapped_frame<'a>(
+    provenance: &'a ProvenanceManifest,
+    frame: &Value,
+) -> Option<(&'a GeneratedFileIdentity, usize, &'a DebugAssociation)> {
+    let path = Path::new(frame["source"]["path"].as_str()?);
+    let line = usize::try_from(frame["line"].as_u64()?).ok()?;
+    let file = provenance
         .debug
         .generated_files
         .iter()
-        .find(|file| Path::new(path).ends_with(&file.path))
-        .and_then(|file| {
-            file.associations.iter().find(|association| {
-                association.sequence_point && association.generated.line == line
-            })
+        .find(|file| path.ends_with(&file.path))?;
+    Some((file, line, generated_association(file, line)?))
+}
+
+pub(super) fn generated_association(
+    file: &GeneratedFileIdentity,
+    line: usize,
+) -> Option<&DebugAssociation> {
+    file.associations
+        .iter()
+        .filter(|association| {
+            let range = &association.generated;
+            association.sequence_point
+                && range.line <= line
+                && (line < range.end_line
+                    || (line == range.end_line && (line == range.line || range.end_column > 1)))
+        })
+        .min_by_key(|association| {
+            let range = &association.generated;
+            (range.line != line, range.end.saturating_sub(range.start))
         })
 }
 
@@ -216,7 +237,7 @@ pub(super) fn translate_stack_frames(
         return;
     };
     for frame in frames.iter_mut() {
-        let Some(association) = association_for_frame(provenance, frame) else {
+        let Some((file, line, association)) = mapped_frame(provenance, frame) else {
             if !include_native {
                 frame["presentationHint"] = "subtle".into();
             }
@@ -233,6 +254,10 @@ pub(super) fn translate_stack_frames(
         else {
             continue;
         };
+        frame["terraneGenerated"] = json!({
+            "path": generated_path(provenance, &file.path),
+            "line": line,
+        });
         frame["source"] = json!({"name": Path::new(&source.uri).file_name().unwrap_or_default(), "path": Path::new(&provenance.relocation.source_root).join(&source.uri)});
         frame["line"] = cause.line.into();
         frame["column"] = cause.column.into();
