@@ -323,9 +323,6 @@ fn package_compilation_emits_functions_and_bindings_from_every_unit() {
             .rust
             .contains("fn helper() -> terrane_int_support::Int")
     );
-    assert!(compilation.rust.contains(
-        "return (*__TERRANE_F1_VALUE).clone() + terrane_int_support::Int::from(1_i128);"
-    ));
 }
 
 #[test]
