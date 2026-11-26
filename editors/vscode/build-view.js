@@ -72,7 +72,7 @@ function registerBuildView(vscode, context, build) {
     if (!panel) return;
     selection = { editor, item };
     if (terrane(editor)) sourceEditor = editor;
-    if (artifact && (item || activeSession() || artifact.file !== editor?.document.uri.fsPath)) discardArtifact();
+    if (artifact && (item || activeSession() || (!artifact.ready && artifact.file !== editor?.document.uri.fsPath))) discardArtifact();
     const id = invalidate();
     timer = setTimeout(() => update(id, editor, item).catch(error => {
       if (id === revision) message(error.stderr?.trim() || error.message);
@@ -107,9 +107,10 @@ function registerBuildView(vscode, context, build) {
       message('Building saved Terrane source…');
       const request = { file, cancellation };
       artifact = request;
-      request.promise = build(folder, file, cancellation.token).catch(error => {
-        if (artifact === request) artifact = undefined;
-        throw error;
+      // Keep the settled promise, including a rejection, until invalidated.
+      request.promise = build(folder, file, cancellation.token).then(built => {
+        request.ready = true;
+        return built;
       }).finally(() => {
         request.cancellation = undefined;
         cancellation.dispose();
@@ -123,8 +124,22 @@ function registerBuildView(vscode, context, build) {
     if (frame) args.push(frame.terraneGenerated.path, String(frame.terraneGenerated.line));
     else if (!showAssembly) args.push('--rust-only');
     if (config?.terraneRelocation) args.push('--relocation', JSON.stringify(config.terraneRelocation));
-    const { stdout } = await exec(built.command, args, { signal: controller.signal, maxBuffer: 16 * 1024 * 1024 });
+    let stdout;
+    try {
+      ({ stdout } = await exec(built.command, args, { signal: controller.signal, maxBuffer: 16 * 1024 * 1024 }));
+    } catch (error) {
+      if (id !== revision) return;
+      if (config || artifact.file === file) throw error;
+      // Only source coverage/freshness diagnostics from --view-json justify a new build.
+      const diagnostic = error.stderr?.trim();
+      const prefix = '<debugger>: error[S5001]: ';
+      if (diagnostic !== `${prefix}${file} is not in this debug build` &&
+          !diagnostic?.startsWith(`${prefix}source has changed or is unavailable in this debug build: `)) throw error;
+      discardArtifact();
+      return update(id, editor, item);
+    }
     if (id !== revision) return;
+    if (!config) artifact.file = file;
     const mapped = JSON.parse(stdout);
     if (!showAssembly) {
       const rust = await rustExcerpt(mapped.rust);

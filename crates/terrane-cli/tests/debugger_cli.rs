@@ -257,6 +257,24 @@ fn assert_cached_assembly(query: &impl Fn(&str) -> Command, source: &Path) {
     assert_eq!(cached.stdout, output.stdout);
 }
 
+// editors/vscode/build-view.js uses these two diagnostics to distinguish a
+// rebuildable source miss from an unrelated query failure (e.g. no objdump).
+fn assert_rebuild_diagnostic(executable: &Path, sidecar: &Path, source: &Path, message: &str) {
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["debug", "--view-json"])
+        .arg(executable)
+        .arg(sidecar)
+        .arg(source)
+        .args(["8", "--rust-only"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(5));
+    assert_eq!(
+        String::from_utf8(output.stderr).unwrap().trim(),
+        format!("<debugger>: error[S5001]: {message}")
+    );
+}
+
 fn assert_build_view_handles_cache_and_stale_inputs(
     fixture: &DebugFixture,
     executable: &Path,
@@ -274,6 +292,14 @@ fn assert_build_view_handles_cache_and_stale_inputs(
         query
     };
     assert_cached_assembly(&query, &fixture.source);
+    let uncovered = fixture.root.join("outside.trn");
+    fs::write(&uncovered, "namespace outside\n").unwrap();
+    assert_rebuild_diagnostic(
+        executable,
+        sidecar,
+        &uncovered,
+        &format!("{} is not in this debug build", uncovered.display()),
+    );
 
     let file = &provenance["debug"]["generated_files"][0];
     let generated = sidecar
@@ -325,9 +351,15 @@ fn assert_build_view_handles_cache_and_stale_inputs(
             .contains("on-disk generated source identity mismatch")
     );
     fs::write(&fixture.source, "namespace changed\n").unwrap();
-    let stale = query("8").output().unwrap();
-    assert!(!stale.status.success());
-    assert!(String::from_utf8_lossy(&stale.stderr).contains("source has changed"));
+    assert_rebuild_diagnostic(
+        executable,
+        sidecar,
+        &fixture.source,
+        &format!(
+            "source has changed or is unavailable in this debug build: {}",
+            fixture.source.display()
+        ),
+    );
     let replacement = fixture.root.join("replacement");
     fs::write(&replacement, b"not the recorded executable").unwrap();
     let replaced = Command::new(env!("CARGO_BIN_EXE_terrane"))

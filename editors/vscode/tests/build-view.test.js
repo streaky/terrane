@@ -15,6 +15,10 @@ async function harness(t) {
   await fs.writeFile(compiler, `#!${process.execPath}
 const [, , , , program, provenance, source, rawLine, ...options] = process.argv;
 const relocation = options.indexOf('--relocation');
+function fail(detail) { console.error('<debugger>: error[S5001]: ' + detail); process.exit(5); }
+if (source.endsWith('/outside.trn') && program !== source) fail(source + ' is not in this debug build');
+if (source.endsWith('/stale.trn') && program !== source) fail('source has changed or is unavailable in this debug build: ' + source);
+if (source.endsWith('/no-tools.trn') && !options.includes('--rust-only')) fail('cannot run GNU objdump for assembly view');
 let file = ${JSON.stringify(rust)};
 if (program === '/relocated-binary') {
   const roots = JSON.parse(options[relocation + 1]);
@@ -30,7 +34,7 @@ console.log(JSON.stringify({rust:[{path:file,line:Number(rawLine)}],assembly:[{a
   });
   const document = { uri: { fsPath: file, scheme: 'file' }, languageId: 'terrane', isDirty: false };
   const editor = { document, selection: { active: { line: 1 } }, viewColumn: 1 };
-  const panel = { webview: { set html(value) { if (!value.includes('Building saved Terrane')) notify?.(value); } }, onDidDispose(fn) { disposed = fn; }, dispose() { disposed(); } };
+  const panel = { webview: { set html(value) { if (!value.includes('Building saved Terrane')) notify?.(value); } }, reveal() {}, onDidDispose(fn) { disposed = fn; }, dispose() { disposed(); } };
   const api = {
     window: {
       activeTextEditor: editor, createWebviewPanel: () => panel,
@@ -69,7 +73,7 @@ console.log(JSON.stringify({rust:[{path:file,line:Number(rawLine)}],assembly:[{a
   registerBuildView(api, { subscriptions: [] }, async (_, source, token) => {
     builds.push(source);
     await hooks.build?.(source, token);
-    return build;
+    return { ...build, program: source };
   });
   t.after(() => { disposed?.(); });
   return { dir, rust, file, compiler, document, editor, api, builds, hooks, result,
@@ -78,7 +82,7 @@ console.log(JSON.stringify({rust:[{path:file,line:Number(rawLine)}],assembly:[{a
     terminated: session => terminated(session), stackChanged: item => stackChanged(item) };
 }
 
-test('source view follows saved selections, escapes generated text and rebuilds on save or source switch', async t => {
+test('source view rebuilds on save, reuses an artifact across covered files, and builds uncovered sources', async t => {
   const { dir, rust, file, document, editor, builds, result, open, toggle, changed, clicked, saved, activated } = await harness(t);
   let next = result(); await open();
   const initial = await next;
@@ -99,7 +103,47 @@ test('source view follows saved selections, escapes generated text and rebuilds 
   const other = path.join(dir, 'other.trn');
   next = result(); activated({ ...editor, document: { ...document, uri: { ...document.uri, fsPath: other } } });
   assert.match(await next, /other\.trn:1/);
-  assert.deepEqual(builds, [file, file, other]);
+  next = result(); activated(editor);
+  assert.match(await next, /entry\.trn:1/);
+  assert.deepEqual(builds, [file, file]);
+  const outside = path.join(dir, 'outside.trn');
+  next = result(); activated({ ...editor, document: { ...document, uri: { ...document.uri, fsPath: outside } } });
+  assert.match(await next, /outside\.trn:1/);
+  assert.deepEqual(builds, [file, file, outside]);
+  const stale = path.join(dir, 'stale.trn');
+  next = result(); activated({ ...editor, document: { ...document, uri: { ...document.uri, fsPath: stale } } });
+  assert.match(await next, /stale\.trn:1/);
+  assert.deepEqual(builds, [file, file, outside, stale]);
+});
+
+test('an unavailable disassembler reports the query error without rebuilding sibling files', async t => {
+  const { dir, file, document, editor, builds, result, open, toggle, activated } = await harness(t);
+  let next = result(); open(); await next;
+  next = result(); toggle(); await next;
+  const sibling = { ...editor, document: { ...document, uri: { ...document.uri, fsPath: path.join(dir, 'no-tools.trn') } } };
+  next = result(); activated(sibling);
+  assert.match(await next, /cannot run GNU objdump/);
+  next = result(); activated(editor);
+  assert.match(await next, /entry\.trn:2/);
+  assert.deepEqual(builds, [file]);
+});
+
+test('failed builds are retained across passive updates but retry on invalidation', async t => {
+  const { dir, file, document, editor, builds, hooks, result, open, toggle, clicked, saved, activated } = await harness(t);
+  hooks.build = async () => { throw new Error('Compiler rejected source'); };
+  const expectError = async action => {
+    const next = result(); action(); assert.match(await next, /Compiler rejected source/);
+  };
+  await expectError(open);
+  await expectError(() => clicked({ textEditor: editor, kind: 2 }));
+  await expectError(() => activated(editor));
+  await expectError(toggle);
+  assert.deepEqual(builds, [file]);
+  await expectError(() => saved(document));
+  await expectError(open);
+  const other = path.join(dir, 'other.trn');
+  await expectError(() => activated({ ...editor, document: { ...document, uri: { ...document.uri, fsPath: other } } }));
+  assert.deepEqual(builds, [file, file, file, other]);
 });
 
 test('switching source cancels a pending build without displaying its error', async t => {
