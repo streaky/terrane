@@ -197,10 +197,6 @@ impl Int {
         Self::from_big(value)
     }
 
-    fn binary_big(&self, rhs: &Self, operation: impl FnOnce(BigInt, BigInt) -> BigInt) -> Self {
-        Self::from_big(operation(self.as_big(), rhs.as_big()))
-    }
-
     /// Exact Euclidean division, matching Terrane's signed integer contract.
     ///
     /// # Errors
@@ -377,37 +373,48 @@ impl fmt::Display for Int {
     }
 }
 
+// Reuse borrowed BigInt storage, materializing only operands that are still fixed-width.
+macro_rules! exact_big_binary {
+    ($left:expr, $right:expr, $operator:tt) => {
+        Int::from_big(match ($left, $right) {
+            (Int::Big(left), Int::Big(right)) => left $operator right,
+            (Int::Big(left), right) => left $operator right.as_big(),
+            (left, Int::Big(right)) => left.as_big() $operator right,
+            (left, right) => left.as_big() $operator right.as_big(),
+        })
+    };
+}
+
 macro_rules! exact_binary {
     ($trait:ident, $method:ident, $checked:ident, $operator:tt) => {
-        impl $trait for Int {
-            type Output = Self;
+        impl $trait for &Int {
+            type Output = Int;
 
-            fn $method(self, rhs: Self) -> Self::Output {
-                match (&self, &rhs) {
-                    (Self::Small(left), Self::Small(right)) => left.$checked(*right).map_or_else(
-                        || Self::from(i128::from(*left) $operator i128::from(*right)),
-                        Self::Small,
+            fn $method(self, rhs: Self) -> Int {
+                match (self, rhs) {
+                    (Int::Small(left), Int::Small(right)) => left.$checked(*right).map_or_else(
+                        || Int::from(i128::from(*left) $operator i128::from(*right)),
+                        Int::Small,
                     ),
-                    (Self::Small(left), Self::Wide(right)) => i128::from(*left)
+                    (Int::Small(left), Int::Wide(right)) => i128::from(*left)
                         .$checked(*right)
-                        .map_or_else(
-                            || self.binary_big(&rhs, |left, right| left $operator right),
-                            Self::from,
-                        ),
-                    (Self::Wide(left), Self::Small(right)) => left
+                        .map_or_else(|| exact_big_binary!(self, rhs, $operator), Int::from),
+                    (Int::Wide(left), Int::Small(right)) => left
                         .$checked(i128::from(*right))
-                        .map_or_else(
-                            || self.binary_big(&rhs, |left, right| left $operator right),
-                            Self::from,
-                        ),
-                    (Self::Wide(left), Self::Wide(right)) => left
+                        .map_or_else(|| exact_big_binary!(self, rhs, $operator), Int::from),
+                    (Int::Wide(left), Int::Wide(right)) => left
                         .$checked(*right)
-                        .map_or_else(
-                            || self.binary_big(&rhs, |left, right| left $operator right),
-                            Self::from,
-                        ),
-                    _ => self.binary_big(&rhs, |left, right| left $operator right),
+                        .map_or_else(|| exact_big_binary!(self, rhs, $operator), Int::from),
+                    _ => exact_big_binary!(self, rhs, $operator),
                 }
+            }
+        }
+
+        impl $trait for Int {
+            type Output = Int;
+
+            fn $method(self, rhs: Int) -> Int {
+                <&Int as $trait>::$method(&self, &rhs)
             }
         }
     };
@@ -419,21 +426,29 @@ exact_binary!(Mul, mul, checked_mul, *);
 
 macro_rules! exact_bitwise {
     ($trait:ident, $method:ident, $operator:tt) => {
-        impl $trait for Int {
-            type Output = Self;
+        impl $trait for &Int {
+            type Output = Int;
 
-            fn $method(self, rhs: Self) -> Self::Output {
-                match (&self, &rhs) {
-                    (Self::Small(left), Self::Small(right)) => Self::from(*left $operator *right),
-                    (Self::Small(left), Self::Wide(right)) => {
-                        Self::from(i128::from(*left) $operator *right)
+            fn $method(self, rhs: Self) -> Int {
+                match (self, rhs) {
+                    (Int::Small(left), Int::Small(right)) => Int::from(*left $operator *right),
+                    (Int::Small(left), Int::Wide(right)) => {
+                        Int::from(i128::from(*left) $operator *right)
                     }
-                    (Self::Wide(left), Self::Small(right)) => {
-                        Self::from(*left $operator i128::from(*right))
+                    (Int::Wide(left), Int::Small(right)) => {
+                        Int::from(*left $operator i128::from(*right))
                     }
-                    (Self::Wide(left), Self::Wide(right)) => Self::from(*left $operator *right),
-                    _ => self.binary_big(&rhs, |left, right| left $operator right),
+                    (Int::Wide(left), Int::Wide(right)) => Int::from(*left $operator *right),
+                    _ => exact_big_binary!(self, rhs, $operator),
                 }
+            }
+        }
+
+        impl $trait for Int {
+            type Output = Int;
+
+            fn $method(self, rhs: Int) -> Int {
+                <&Int as $trait>::$method(&self, &rhs)
             }
         }
     };

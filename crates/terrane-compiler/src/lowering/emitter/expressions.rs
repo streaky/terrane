@@ -1949,6 +1949,28 @@ impl Emitter<'_> {
         }
     }
 
+    fn stable_adaptive_place(&mut self, node: &SyntaxNode) -> Option<String> {
+        if node.kind != SyntaxKind::Name
+            || !self.is_adaptive_expression(node)
+            || self.small_int_binding(node).is_some()
+            || self.async_mutable_captures.contains(self.text(node))
+        {
+            return None;
+        }
+        let binding = self.local_typed_binding(node)?;
+        if self.reference_backed(binding) {
+            return None;
+        }
+        if let Some(value) = self.narrowed_storage_name(node, false, false) {
+            return Some(format!("*{value}"));
+        }
+        if self.binding_may_be_unassigned(binding) {
+            let value = self.available_storage_reference(binding, node, false);
+            return Some(format!("*({value})"));
+        }
+        Some(self.expression(node))
+    }
+
     fn adaptive_comparison_operand(&mut self, node: &SyntaxNode, scalar: ScalarType) -> String {
         if node.kind == SyntaxKind::GroupExpression
             && let [inner] = node.children.as_slice()
@@ -1958,21 +1980,9 @@ impl Emitter<'_> {
         // Rust comparison operators borrow places, including dereferenced refinements.
         // Shared/captured reads still need snapshots before evaluating a sibling operand.
         if scalar == ScalarType::Int
-            && node.kind == SyntaxKind::Name
-            && self.is_adaptive_expression(node)
-            && self.small_int_binding(node).is_none()
-            && !self.async_mutable_captures.contains(self.text(node))
-            && let Some(binding) = self.local_typed_binding(node)
-            && !self.reference_backed(binding)
+            && let Some(place) = self.stable_adaptive_place(node)
         {
-            if let Some(value) = self.narrowed_storage_name(node, false, false) {
-                return format!("*{value}");
-            }
-            if self.binding_may_be_unassigned(binding) {
-                let value = self.available_storage_reference(binding, node, false);
-                return format!("*({value})");
-            }
-            return self.expression(node);
+            return place;
         }
         if node.kind == SyntaxKind::Name
             && let Some(
@@ -1995,11 +2005,31 @@ impl Emitter<'_> {
             return String::new();
         };
         let operator = self.source.text()[left.span.end..right.span.start].trim();
-        let left = self.expression_as(left, ValueType::Scalar(ScalarType::Int));
-        let right = self.expression_as(right, ValueType::Scalar(ScalarType::Int));
+        if !matches!(operator, "+" | "-" | "*" | "&" | "|" | "^" | "/" | "%") {
+            let left = self.expression_as(left, ValueType::Scalar(ScalarType::Int));
+            let right = self.expression_as(right, ValueType::Scalar(ScalarType::Int));
+            return format!("({left} {operator} {right})");
+        }
+
+        let right_core = crate::semantics::ungrouped_expression(right);
+        // Keep the left-hand snapshot when evaluating the right-hand side might
+        // call user code, take a value, suspend or otherwise invalidate the place.
+        let left_place = if matches!(right_core.kind, SyntaxKind::Name | SyntaxKind::Literal) {
+            self.stable_adaptive_place(crate::semantics::ungrouped_expression(left))
+        } else {
+            None
+        };
+        let borrow_left = left_place.is_some();
+        let left = left_place
+            .unwrap_or_else(|| self.expression_as(left, ValueType::Scalar(ScalarType::Int)));
+        let right_place = self.stable_adaptive_place(right_core);
+        let borrow_right = right_place.is_some();
+        let right = right_place
+            .unwrap_or_else(|| self.expression_as(right, ValueType::Scalar(ScalarType::Int)));
         match operator {
             "/" => self.fallible(format!("({left}).euclidean_div(&({right}))"), node),
             "%" => self.fallible(format!("({left}).modulo(&({right}))"), node),
+            _ if borrow_left || borrow_right => format!("(&({left}) {operator} &({right}))"),
             _ => format!("({left} {operator} {right})"),
         }
     }
