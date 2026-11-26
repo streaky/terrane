@@ -65,7 +65,7 @@ mod shared_reentry;
 mod shared_storage;
 mod source_associated;
 mod statement_owners;
-pub(crate) use namespaces::namespace_capabilities;
+pub(crate) use namespaces::{method_contract_with_safety, namespace_capabilities};
 
 #[cfg(test)]
 mod tests;

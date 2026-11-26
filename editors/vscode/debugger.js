@@ -4,7 +4,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 function registerDebugger(vscode, context) {
-  const output = vscode.window.createOutputChannel('Terrane Debugger');
+  let output;
+  const debuggerOutput = () => output ??= vscode.window.createOutputChannel('Terrane Debugger');
   const commandFor = (folder, base) => {
     const configured = vscode.workspace.getConfiguration('terrane', folder?.uri)
       .get('debugger.path', 'terrane').trim() || 'terrane';
@@ -21,6 +22,7 @@ function registerDebugger(vscode, context) {
   const disposeBuilds = { dispose() {
     disposed = true;
     for (const cancel of activeBuilds) cancel();
+    output?.dispose();
   } };
 
   const provider = {
@@ -58,6 +60,7 @@ function registerDebugger(vscode, context) {
       const cwd = folder?.uri.fsPath || path.dirname(source);
       const command = commandFor(folder, cwd);
       const configuredCwd = config.cwd === undefined ? undefined : path.resolve(cwd, config.cwd);
+      const output = debuggerOutput();
       output.clear();
       output.appendLine(`Building debug program: ${source}`);
       try {
@@ -83,7 +86,6 @@ function registerDebugger(vscode, context) {
     },
   };
   context.subscriptions.push(
-    output,
     vscode.debug.registerDebugConfigurationProvider('terrane', provider),
     vscode.debug.registerDebugAdapterDescriptorFactory('terrane', {
       createDebugAdapterDescriptor(session) {
@@ -93,16 +95,29 @@ function registerDebugger(vscode, context) {
     }),
     disposeBuilds,
   );
+  return async (folder, source, token) => {
+    if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace before building.');
+    const cwd = folder?.uri.fsPath || path.dirname(source);
+    const command = commandFor(folder, cwd);
+    const artifact = await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: 'Building Terrane source view',
+      cancellable: true,
+    }, (_, progressToken) => buildProgram(command, source, cwd, debuggerOutput(),
+      [token, progressToken], activeBuilds, () => disposed,
+      ['--view-build', source, ...(folder ? ['--workspace', cwd] : [])]));
+    return { ...artifact, command };
+  };
 }
 
-function buildProgram(command, source, cwd, output, tokens, activeBuilds, isDisposed) {
+function buildProgram(command, source, cwd, output, tokens, activeBuilds, isDisposed, args = ['--build-only', source]) {
   return new Promise((resolve, reject) => {
     const cancelledError = () => Object.assign(new Error('Build cancelled'), { cancelled: true });
     if (isDisposed() || tokens.some(token => token?.isCancellationRequested)) {
       reject(cancelledError());
       return;
     }
-    const child = spawn(command, ['debug', '--build-only', source], {
+    const child = spawn(command, ['debug', ...args], {
       cwd, detached: process.platform !== 'win32',
     });
     let stdout = '';

@@ -1,0 +1,68 @@
+[
+  {
+    "name": "nested and adjacent regions with mixed line endings",
+    "path": "nested.rs",
+    "source": "\t//# SECURITY-BEGIN [outer] \r\n\t//# SECURITY-BEGIN [inner]\r\n\n\t//# SECURITY-END [inner]\n\t//# SECURITY-END [outer]\n//# SECURITY-BEGIN [adjacent]\n//# SECURITY-END [adjacent]",
+    "regions": [["outer", 1, 5], ["inner", 2, 4], ["adjacent", 6, 7]]
+  },
+  {
+    "name": "Rust literals and nested block comments",
+    "path": "literals.rs",
+    "source": "fn f<'a>(value: &'a str) {\n    let a = r##\"first\n//# SECURITY-BEGIN [fake]\n/* not a comment */\n\"##;\n    let b = br\"//# SECURITY-END [fake]\";\n    let c = b'/';\n    let d = '\\u{1f600}';\n    let e = \"/* \\\" //# SECURITY-END [fake] */\";\n}\n/* outer\n/* nested */\n//# SECURITY-BEGIN [nested]\n*/\n//# SECURITY-BEGIN [real]\n//# SECURITY-END [real]",
+    "regions": [["real", 15, 16]]
+  },
+  {
+    "name": "Terrane text, interpolation, inline Rust and dedentation",
+    "path": "literals.trn",
+    "source": "text = >quotes \" and /* are plain tail text\nblock = >>\n    //# SECURITY-BEGIN [fake]\ntext = \"outer {value.concat; \"inner\"}\n//# SECURITY-BEGIN [still-text]\nend\"\nnative = rust\n    r#\"\n//# SECURITY-BEGIN [raw]\n\"#.to_owned()\n//# SECURITY-BEGIN [real]\n//# SECURITY-END [real]",
+    "regions": [["real", 11, 12]]
+  },
+  {
+    "name": "Terrane block comments do not nest",
+    "path": "block-comments.trn",
+    "source": "/* outer /* not nested */\n//# SECURITY-BEGIN [real]\nvalue = '*/'\n//# SECURITY-END [real]",
+    "regions": [["real", 2, 4]]
+  },
+  {
+    "name": "no directives with prose or markers inside literals",
+    "path": "hidden.rs",
+    "source": "// Security-sensitive: validate untrusted input.\n/* //# SECURITY-BEGIN [block] */\nlet value = cr#\"\n//# SECURITY-END [raw]\n\"#;",
+    "regions": []
+  },
+  {
+    "name": "marker after code",
+    "path": "after-code.rs",
+    "source": "fn f() {} //# SECURITY-BEGIN [x]\n//# SECURITY-END [x]",
+    "error": "security markers must occupy their own line"
+  },
+  {
+    "name": "crossed markers",
+    "path": "crossed.trn",
+    "source": "//# SECURITY-BEGIN [a]\n//# SECURITY-BEGIN [b]\n//# SECURITY-END [a]\n//# SECURITY-END [b]",
+    "error": "crossing or mismatched security markers"
+  },
+  {
+    "name": "unclosed begin marker",
+    "path": "unclosed.rs",
+    "source": "//# SECURITY-BEGIN [x]",
+    "error": "security begin marker without end"
+  },
+  {
+    "name": "unmatched end marker",
+    "path": "unmatched.trn",
+    "source": "//# SECURITY-END [x]",
+    "error": "security end marker without begin"
+  },
+  {
+    "name": "invalid identity",
+    "path": "bad-identity.rs",
+    "source": "//# SECURITY-BEGIN [bad id]\n//# SECURITY-END [bad id]",
+    "error": "invalid security marker identity"
+  },
+  {
+    "name": "trailing text on a directive",
+    "path": "trailing-text.trn",
+    "source": "//# SECURITY-BEGIN [x] trailing prose\n//# SECURITY-END [x]",
+    "error": "malformed security marker"
+  }
+]

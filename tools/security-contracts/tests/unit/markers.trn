@@ -1,62 +1,56 @@
 namespace security-contracts
 
-from /core/testing import assert-equal-int, assert-equal-string, assert
+from /core/testing import assert-equal-int, assert-equal-string, assert, test-package-root
 from /core/errors import throwable
-from /core/collections import list
+from /core/collections import list, range
+from /core/documents import document-value
+from /core/documents/json import parse-json, default-json-options
+from /core/filesystem import filesystem-capability, filesystem-read-bounded
+from /core/filesystem/paths import path as filesystem-path
 
-function test-nested-regions-have-inclusive-lines throws throwable;
-    source = >>
-        //# SECURITY-BEGIN [outer]
-        //# SECURITY-BEGIN [inner]
-        //# SECURITY-END [inner]
-        //# SECURITY-END [outer]
-    regions = scan-regions; 'sample.rs', source
-    assert-equal-int; regions.length, 2
-    assert-equal-string; regions[0].identity, 'outer'
-    assert-equal-string; regions[1].identity, 'inner'
-    assert-equal-int; regions[0].start, 1
-    assert-equal-int; regions[0].end, 4
+function check-marker-fixture throws throwable; fixture document-value
+    name = (fixture.field; 'name').value.scalar
+    source = (fixture.field; 'source').value.scalar
+    path = (fixture.field; 'path').value.scalar
+    expected-error = fixture.field; 'error'
+    if not expected-error.failed
+        message string = ''
+        try
+            scan-regions; path, source
+        catch security-error as error
+            message = error.render;
+        require; (message.contains; expected-error.value.scalar), name, message
+        return
+    expected = fixture.field; 'regions'
+    require; not expected.failed and expected.value.kind == 'list', name, 'expected a region list'
+    regions = scan-regions; path, source
+    count = expected.value.length;
+    require; regions.length == count, name, 'unexpected region count'
+    for index in (range; 0, count)
+        entry = (expected.value.item; index).value
+        identity = (entry.item; 0).value.scalar
+        start = (entry.item; 1).value.scalar
+        end = (entry.item; 2).value.scalar
+        region = regions[index]
+        require; region.identity == identity and "{region.start}" == start and "{region.end}" == end, name, 'unexpected region identity or lines'
 
-function test-rust-literals-hide-markers-and-block-comments-nest throws throwable;
-    source = >>
-        fn f<'a>(value: &'a str) {
-            let a = r##"first
-        //# SECURITY-BEGIN [fake]
-        /* not a comment */
-        "##;
-            let b = br"//# SECURITY-END [fake]";
-            let c = b'/';
-            let d = '\u{1f600}';
-            let e = "/* \" //# SECURITY-END [fake] */";
-        }
-        /* outer
-        /* nested */
-        Text mentioning SECURITY-BEGIN [fake] is not a declaration.
-        */
-        //# SECURITY-BEGIN [real]
-        //# SECURITY-END [real]
-    regions = scan-regions; 'sample.rs', source
-    assert-equal-int; regions.length, 1
-    assert-equal-string; regions[0].identity, 'real'
-    assert-equal-int; regions[0].start, 15
-
-function test-terrane-text-interpolation-and-native-literals throws throwable;
-    source = >>
-        text = >quotes " and /* are plain tail text
-        block = >>
-            //# SECURITY-BEGIN [fake]
-        text = "outer {value.concat; "inner"}
-        //# SECURITY-BEGIN [still-text]
-        end"
-        native = rust
-            r#"
-        //# SECURITY-BEGIN [raw]
-        "#.to_owned()
-        //# SECURITY-BEGIN [real]
-        //# SECURITY-END [real]
-    regions = scan-regions; 'sample.trn', source
-    assert-equal-int; regions.length, 1
-    assert-equal-string; regions[0].identity, 'real'
+function test-shared-marker-corpus throws throwable;
+    root = test-package-root;
+    path string = ''
+    if root != none
+        path = root.concat; '/tests/fixtures/security-markers.json'
+    else
+        throw instance security-error; 'missing test package root'
+    loaded = filesystem-read-bounded; (filesystem-capability;), (instance filesystem-path; path), 65536
+    require; not loaded.failed, path, loaded.message
+    corpus = parse-json; (decode-source; loaded.data), (default-json-options;)
+    require; not corpus.failed and corpus.value.kind == 'list', path, 'expected a JSON fixture list'
+    count = corpus.value.length;
+    require; count > 0, path, 'fixture list is empty'
+    for index in (range; 0, count)
+        fixture = corpus.value.item; index
+        require; not fixture.failed and fixture.value.kind == 'map', path, 'expected a fixture mapping'
+        check-marker-fixture; fixture.value
 
 function test-marker-errors-do-not-silently-drop-coverage throws throwable;
     cases list of string = list

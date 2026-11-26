@@ -19,6 +19,8 @@ Only `//# SECURITY-BEGIN [` and `//# SECURITY-END [` open marker declarations. T
 
 Include relevant documentation comments, attributes, signatures, platform branches, and fail-closed alternatives inside the region. Pair markers in the same file with the same ID. Regions may nest but cannot cross; use several cohesive regions when a guarantee depends on noncontiguous code.
 
+In VS Code, select the implementation lines in a Rust or Terrane file and run **Terrane: Wrap Selection in Security Region** (also available on right-click). Enter the contract ID once. Paired regions have a subtle tint and right border; set `terrane.securityRegions.decorate` to `false` to turn off the tint and border without disabling warnings. The editor warns about likely typos, but lookalikes do not open or close a region and the checker ignores them.
+
 The ID is the record's global `id`, not a filename or implementation-language identity. Do not reuse a deleted ID for a different guarantee. Place markers in authored sources; the current compiler does not propagate these maintenance comments into generated Rust. Changes to relevant lowering templates are tracked as dependencies instead.
 
 ## Validate and report changes

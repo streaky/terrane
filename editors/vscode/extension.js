@@ -3,7 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
-const { LanguageClient } = require('vscode-languageclient/node');
 
 function startDecorations(context) {
   let disposed = false;
@@ -46,12 +45,16 @@ function startDecorations(context) {
 let client;
 
 function serverPath(context) {
+  const folders = vscode.workspace.workspaceFolders;
+  const folder = folders?.length === 1 ? folders[0] : undefined;
   const configured = vscode.workspace
-    .getConfiguration('terrane')
+    .getConfiguration('terrane', folder?.uri)
     .get('server.path', '')
     .trim();
   if (configured) {
-    return path.resolve(configured);
+    if (path.isAbsolute(configured)) return path.normalize(configured);
+    if (folder) return path.resolve(folder.uri.fsPath, configured);
+    throw new Error('Use an absolute terrane.server.path outside a single-folder workspace.');
   }
   const executable = process.platform === 'win32'
     ? 'terrane-language-server.exe'
@@ -60,14 +63,32 @@ function serverPath(context) {
 }
 
 async function activate(context) {
+  const build = require('./debugger').registerDebugger(vscode, context);
+  const start = () => startTerraneServices(context, build);
+  context.subscriptions.push(require('./security-wrap').registerSecurityWrap(vscode));
+  require('./security-region-decorations').registerSecurityRegions(vscode, context);
+  if (vscode.workspace.textDocuments.some(doc => doc.languageId === 'terrane')) {
+    await start();
+  } else {
+    const listener = vscode.workspace.onDidOpenTextDocument(doc => {
+      if (doc.languageId !== 'terrane') return;
+      listener.dispose();
+      start().catch(error => vscode.window.showErrorMessage(`Terrane initialization failed: ${error.message}`));
+    });
+    context.subscriptions.push(listener);
+  }
+}
+
+async function startTerraneServices(context, build) {
+  require('./build-view').registerBuildView(vscode, context, build);
   startDecorations(context);
-  require('./debugger').registerDebugger(vscode, context);
   const command = serverPath(context);
   if (!fs.existsSync(command)) {
     const message = `Terrane language server not found at ${command}. Configure terrane.server.path or package the server binary.`;
     vscode.window.showErrorMessage(message);
     throw new Error(message);
   }
+  const { LanguageClient } = require('vscode-languageclient/node');
   client = new LanguageClient(
     'terraneLanguageServer',
     'Terrane Language Server',

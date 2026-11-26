@@ -1,37 +1,41 @@
 use super::{
-    BTreeMap, BTreeSet, BreakpointResolution, DebugAssociation, Path, PathBuf, ProvenanceManifest,
+    BTreeMap, BreakpointResolution, DebugAssociation, Path, PathBuf, ProvenanceManifest,
     StopContext, Value, json,
 };
+use terrane_compiler::debugging::{GeneratedFileIdentity, SourceIdentity};
 
-pub(super) fn normalized_source_path(provenance: &ProvenanceManifest, path: &Path) -> PathBuf {
-    let rooted = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        Path::new(&provenance.relocation.source_root).join(path)
-    };
-    rooted
-        .canonicalize()
-        .unwrap_or_else(|_| lexical_normalize(&rooted))
+fn normalized_path(path: &Path) -> PathBuf {
+    path.canonicalize()
+        .unwrap_or_else(|_| lexical_normalize(path))
 }
 
-pub(super) fn requested_source_paths(provenance: &ProvenanceManifest, path: &Path) -> Vec<PathBuf> {
-    if path.is_absolute() {
-        return vec![normalized_source_path(provenance, path)];
+pub(super) fn find_source<'a>(
+    provenance: &'a ProvenanceManifest,
+    requested: &Path,
+) -> Option<(&'a SourceIdentity, PathBuf)> {
+    let physical_match = |path: &Path| {
+        let requested = normalized_path(path);
+        provenance.debug.sources.iter().find_map(|source| {
+            let path = normalized_path(&provenance.source_path(source));
+            (path == requested).then_some((source, path))
+        })
+    };
+    if requested.is_absolute() {
+        return physical_match(requested);
     }
-    let mut candidates = Vec::new();
-    if let Ok(cwd) = std::env::current_dir() {
-        let rooted = cwd.join(path);
-        candidates.push(
-            rooted
-                .canonicalize()
-                .unwrap_or_else(|_| lexical_normalize(&rooted)),
-        );
-    }
-    let package_relative = normalized_source_path(provenance, path);
-    if !candidates.contains(&package_relative) {
-        candidates.push(package_relative);
-    }
-    candidates
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| physical_match(&cwd.join(requested)))
+        .or_else(|| {
+            let logical = lexical_normalize(requested);
+            provenance
+                .debug
+                .sources
+                .iter()
+                .find(|source| Path::new(&source.uri) == logical)
+                .map(|source| (source, normalized_path(&provenance.source_path(source))))
+        })
+        .or_else(|| physical_match(&Path::new(&provenance.relocation.source_root).join(requested)))
 }
 
 pub(super) fn lexical_normalize(path: &Path) -> PathBuf {
@@ -58,22 +62,7 @@ pub(super) fn known_source_path(
     provenance: &ProvenanceManifest,
     requested: &Path,
 ) -> Option<PathBuf> {
-    let authored = provenance
-        .debug
-        .sources
-        .iter()
-        .map(|source| normalized_source_path(provenance, Path::new(&source.uri)))
-        .collect::<BTreeSet<_>>();
-    requested_source_paths(provenance, requested)
-        .into_iter()
-        .find(|candidate| authored.contains(candidate))
-}
-
-pub(super) fn source_matches(provenance: &ProvenanceManifest, requested: &Path, uri: &str) -> bool {
-    let source = normalized_source_path(provenance, Path::new(uri));
-    requested_source_paths(provenance, requested)
-        .into_iter()
-        .any(|candidate| candidate == source)
+    find_source(provenance, requested).map(|(_, path)| path)
 }
 
 pub(super) fn all_source_associations(
@@ -91,12 +80,7 @@ pub(super) fn resolve_breakpoint(
     requested_path: &Path,
     line: usize,
 ) -> Vec<BreakpointResolution> {
-    let source = provenance
-        .debug
-        .sources
-        .iter()
-        .find(|source| source_matches(provenance, requested_path, &source.uri));
-    let Some(source) = source else {
+    let Some((source, _)) = find_source(provenance, requested_path) else {
         return Vec::new();
     };
     let function = provenance
@@ -191,19 +175,43 @@ pub(super) fn association_for_frame<'a>(
     provenance: &'a ProvenanceManifest,
     frame: &Value,
 ) -> Option<&'a DebugAssociation> {
-    let path = frame["source"]["path"].as_str()?;
-    let line = frame["line"]
-        .as_u64()
-        .and_then(|line| usize::try_from(line).ok())?;
-    provenance
+    mapped_frame(provenance, frame).map(|(_, _, association)| association)
+}
+
+fn mapped_frame<'a>(
+    provenance: &'a ProvenanceManifest,
+    frame: &Value,
+) -> Option<(&'a GeneratedFileIdentity, usize, &'a DebugAssociation)> {
+    let path = Path::new(frame["source"]["path"].as_str()?);
+    let line = usize::try_from(frame["line"].as_u64()?).ok()?;
+    let file = provenance
         .debug
         .generated_files
         .iter()
-        .find(|file| Path::new(path).ends_with(&file.path))
-        .and_then(|file| {
-            file.associations.iter().find(|association| {
-                association.sequence_point && association.generated.line == line
-            })
+        .find(|file| path.ends_with(&file.path))?;
+    let association = file
+        .associations
+        .iter()
+        .find(|association| association.sequence_point && association.generated.line == line)?;
+    Some((file, line, association))
+}
+
+pub(super) fn generated_association(
+    file: &GeneratedFileIdentity,
+    line: usize,
+) -> Option<&DebugAssociation> {
+    file.associations
+        .iter()
+        .filter(|association| {
+            let range = &association.generated;
+            association.sequence_point
+                && range.line <= line
+                && (line < range.end_line
+                    || (line == range.end_line && (line == range.line || range.end_column > 1)))
+        })
+        .min_by_key(|association| {
+            let range = &association.generated;
+            (range.line != line, range.end.saturating_sub(range.start))
         })
 }
 
@@ -216,7 +224,7 @@ pub(super) fn translate_stack_frames(
         return;
     };
     for frame in frames.iter_mut() {
-        let Some(association) = association_for_frame(provenance, frame) else {
+        let Some((file, line, association)) = mapped_frame(provenance, frame) else {
             if !include_native {
                 frame["presentationHint"] = "subtle".into();
             }
@@ -233,7 +241,12 @@ pub(super) fn translate_stack_frames(
         else {
             continue;
         };
-        frame["source"] = json!({"name": Path::new(&source.uri).file_name().unwrap_or_default(), "path": Path::new(&provenance.relocation.source_root).join(&source.uri)});
+        frame["terraneGenerated"] = json!({
+            "path": generated_path(provenance, &file.path),
+            "line": line,
+        });
+        let path = provenance.source_path(source);
+        frame["source"] = json!({"name": path.file_name().unwrap_or_default(), "path": path});
         frame["line"] = cause.line.into();
         frame["column"] = cause.column.into();
         if let Some(function) = association.function_id.as_deref().and_then(|id| {

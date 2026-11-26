@@ -2,11 +2,12 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.17",
+  "version": "0.0.26",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
   "activationEvents": [
+    "onLanguage:rust",
     "onDebugResolve:terrane",
     "onDebugInitialConfigurations:terrane"
   ],
@@ -15,7 +16,7 @@
   },
   "scripts": {
     "package-server": "node ./scripts/package-server.js",
-    "check": "node --check extension.js && node --check debugger.js && node --check tests/debugger.integration.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check scripts/package-server.js && npm test",
+    "check": "node --check extension.js && node --check debugger.js && node --check tests/debugger.integration.js && node --check build-view.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check security-markers.js && node --check security-region-decorations.js && node --check security-wrap.js && node --check scripts/package-server.js && npm test",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
@@ -35,6 +36,28 @@
     }
   },
   "contributes": {
+    "commands": [{
+      "command": "terrane.showBuildView",
+      "title": "Terrane: Show Lowered Rust",
+      "enablement": "isWorkspaceTrusted && editorLangId == terrane",
+      "icon": "$(open-preview)"
+    }, {
+      "command": "terrane.wrapSecurityRegion",
+      "title": "Terrane: Wrap Selection in Security Region",
+      "enablement": "editorHasSelection && !editorReadonly && (editorLangId == terrane || editorLangId == rust)"
+    }],
+    "menus": {
+      "editor/context": [{
+        "command": "terrane.wrapSecurityRegion",
+        "when": "editorHasSelection && !editorReadonly && (editorLangId == terrane || editorLangId == rust)",
+        "group": "modification"
+      }],
+      "editor/title": [{
+        "command": "terrane.showBuildView",
+        "when": "editorLangId == terrane && resourceScheme == file",
+        "group": "navigation"
+      }]
+    },
     "breakpoints": [{ "language": "terrane" }],
     "debuggers": [
       {
@@ -129,6 +152,16 @@
     ],
     "colors": [
       {
+        "id": "terrane.securityRegionBackground",
+        "description": "Background of a paired security-contract region.",
+        "defaults": { "dark": "#C8952810", "light": "#9160000D", "highContrast": "#00000000", "highContrastLight": "#00000000" }
+      },
+      {
+        "id": "terrane.securityRegionBorder",
+        "description": "Right border of a paired security-contract region.",
+        "defaults": { "dark": "#D4A64B99", "light": "#94600099", "highContrast": "contrastBorder", "highContrastLight": "contrastBorder" }
+      },
+      {
         "id": "terrane.rustBlockBackground",
         "description": "Subtle background for embedded Rust sections.",
         "defaults": {
@@ -152,6 +185,18 @@
     "configuration": {
       "title": "Terrane",
       "properties": {
+        "terrane.securityRegions.decorate": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Highlight paired security-contract regions in Terrane and in Rust files with marker scanning enabled. This setting does not affect marker warnings."
+        },
+        "terrane.securityRegions.rust": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Scan Rust files for security-contract marker warnings and region highlighting, including files outside a workspace. Turn off to disable automatic Rust marker scanning without affecting Terrane files or the Wrap Selection command."
+        },
         "terrane.debugger.path": {
           "type": "string",
           "default": "terrane",
@@ -161,7 +206,8 @@
         "terrane.server.path": {
           "type": "string",
           "default": "",
-          "description": "Path to a Terrane language server executable. Empty uses the binary bundled with the extension."
+          "scope": "machine-overridable",
+          "description": "Path to the Terrane language server executable. In a single-folder workspace, relative paths resolve against the workspace folder. Otherwise use an absolute path. Leave empty to use the bundled server."
         },
         "terrane.rustBlocks.decorate": {
           "type": "boolean",

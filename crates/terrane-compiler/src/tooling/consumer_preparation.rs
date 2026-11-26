@@ -292,7 +292,7 @@ pub(super) fn record_failure(
     documents: &mut BTreeMap<String, ParsedDocument>,
     package: &Package,
     failure: CompilationFailure,
-) {
+) -> Option<DiagnosticProjection> {
     // File IDs are local to one composed graph. A separately compiled consumer
     // may have file 0 too; its diagnostics must not masquerade as caller spans.
     let origin = failure
@@ -309,20 +309,30 @@ pub(super) fn record_failure(
         .map(|unit| super::path_uri(unit.source.path()))
         .filter(|uri| documents.contains_key(uri))
         .or_else(|| documents.keys().next().cloned());
+    let mut blocker = None;
     for mut diagnostic in failure.diagnostics {
-        let uri = source_uri
-            .as_ref()
-            .and_then(|source_uri| {
-                diagnostic
-                    .primary
-                    .and_then(|span| {
-                        documents.iter().find_map(|(uri, document)| {
-                            (document.source.id() == span.file).then(|| uri.clone())
-                        })
+        let uri = source_uri.as_ref().and_then(|source_uri| {
+            diagnostic
+                .primary
+                .and_then(|span| {
+                    documents.iter().find_map(|(uri, document)| {
+                        (document.source.id() == span.file).then(|| uri.clone())
                     })
-                    .or_else(|| Some(source_uri.clone()))
-            })
-            .or_else(|| fallback.clone());
+                })
+                .or_else(|| Some(source_uri.clone()))
+        });
+        if blocker.is_none() && super::is_error(&diagnostic) {
+            let path = uri
+                .as_ref()
+                .and_then(|uri| documents.get(uri))
+                .map_or(origin.as_path(), |document| document.source.path());
+            blocker = Some(super::project_analysis_blocker(
+                &package.root,
+                path,
+                &diagnostic,
+            ));
+        }
+        let uri = uri.or_else(|| fallback.clone());
         let Some(uri) = uri else { continue };
         let document = documents.get_mut(&uri).expect("selected snapshot document");
         if source_uri.is_none() && diagnostic.code != "S2060" {
@@ -336,6 +346,7 @@ pub(super) fn record_failure(
         }
         document.diagnostics.push(diagnostic);
     }
+    blocker
 }
 
 pub(super) fn snapshot_identity(

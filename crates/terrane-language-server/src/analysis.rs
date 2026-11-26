@@ -17,13 +17,13 @@ pub(super) fn snapshot(
     {
         let tooling = tooling.lock().expect("tooling engine lock");
         if let Some(metadata) = tooling.generated_source_snapshot(&uri_text, text) {
-            let syntax = tooling
-                .syntax(&metadata.snapshot_id, &uri_text, None)
+            let diagnostics = tooling
+                .editor_diagnostics(&metadata.snapshot_id, &uri_text)
                 .expect("retained generated source");
             return Analysis {
                 snapshot_id: metadata.snapshot_id,
                 source_texts: HashMap::from([(uri_text, text.to_owned())]),
-                diagnostics: syntax.diagnostics,
+                diagnostics,
             };
         }
     }
@@ -59,13 +59,13 @@ pub(super) fn snapshot(
             };
         }
     };
-    let syntax = tooling
-        .syntax(&metadata.snapshot_id, &uri_text, None)
+    let diagnostics = tooling
+        .editor_diagnostics(&metadata.snapshot_id, &uri_text)
         .expect("opened source belongs to its snapshot");
     Analysis {
         snapshot_id: metadata.snapshot_id,
         source_texts,
-        diagnostics: syntax.diagnostics,
+        diagnostics,
     }
 }
 
