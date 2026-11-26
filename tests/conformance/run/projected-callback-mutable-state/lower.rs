@@ -14,7 +14,7 @@ fn main() {
         TerraneMutableCallable::new(move |
             (value,): (terrane_int_support::Int,),
         | -> terrane_int_support::Int {
-            total = total.clone() + value.clone();
+            total = &total + &value;
             return total.clone();
         })
     };

@@ -784,7 +784,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
             };
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
         }
     }
     return values;

@@ -11,7 +11,7 @@ fn counter() -> TerraneMutableCallable<(), terrane_int_support::Int> {
     return {
         let mut n = n.clone();
         TerraneMutableCallable::new(move |(): ()| -> terrane_int_support::Int {
-            n = n.clone() + terrane_int_support::Int::from(1_i128);
+            n = &n + &terrane_int_support::Int::from(1_i128);
             return n.clone();
         })
     };

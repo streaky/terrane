@@ -2083,7 +2083,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
             };
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
         }
     }
     return values;
@@ -2099,7 +2099,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_1 = values.make_unique();
-        while index.clone() + terrane_int_support::Int::from(1_i128)
+        while &index + &terrane_int_support::Int::from(1_i128)
             < terrane_int_support::Int::from(encoded.len() as i128)
         {
             name = NativeString::terrane_construct(
@@ -2126,7 +2126,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         let __terrane_receiver = &encoded;
                         let __terrane_index = __terrane_raised(
                             terrane_collection_support::index_from_int(
-                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                &(&index + &terrane_int_support::Int::from(1_i128)),
                             ),
                             49 /* terrane-site: core/process.trn:55:41-55:59 */,
                         );
@@ -2147,7 +2147,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                 );
                 __terrane_list_append_1.push(__terrane_collection_argument_0);
             };
-            index = index.clone() + terrane_int_support::Int::from(2_i128);
+            index = &index + &terrane_int_support::Int::from(2_i128);
         }
     }
     return values;
@@ -2304,9 +2304,9 @@ impl Duration {
             self.nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value: terrane_int_support::Int = whole_seconds.clone()
-                * terrane_int_support::Int::from(1000000000_i128)
-                + fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = &(&whole_seconds
+                * &terrane_int_support::Int::from(1000000000_i128))
+                + &fractional_nanoseconds;
             self.total_nanoseconds = __terrane_value;
         }
         {
@@ -2348,7 +2348,7 @@ impl Duration {
                 )
             });
         }
-        total = self.total_nanoseconds.clone() * multiplier.clone();
+        total = &self.total_nanoseconds.clone() * &multiplier;
         return Ok(
             Duration::terrane_construct(
                 terrane_platform_time_div(&total, 1000000000.clone()),
@@ -2759,12 +2759,11 @@ impl Ticker {
             + terrane_int_support::Int::from(1_i128);
         delivered = MonotonicInstant::terrane_construct(
             self.anchor.domain.clone(),
-            self.anchor.elapsed_nanoseconds.clone()
-                + period_total.clone() * observed_index.clone(),
+            self.anchor.elapsed_nanoseconds.clone() + &period_total * &observed_index,
         );
         {
-            let __terrane_value: terrane_int_support::Int = observed_index.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = &observed_index
+                + &terrane_int_support::Int::from(1_i128);
             self.next_index = __terrane_value;
         }
         return Tick::terrane_construct(delivered, observed, count.clone());
@@ -2873,11 +2872,11 @@ impl Ticker {
                 __terrane_snapshot
             }
                 .elapsed_nanoseconds
-                .clone() + period_total.clone() * observed_index.clone(),
+                .clone() + &period_total * &observed_index,
         );
         {
-            let __terrane_value: terrane_int_support::Int = observed_index.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = &observed_index
+                + &terrane_int_support::Int::from(1_i128);
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")

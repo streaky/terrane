@@ -456,7 +456,7 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
                 __terrane_text
             });
         }
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index = &index + &terrane_int_support::Int::from(1_i128);
     }
     value = Account::terrane_construct();
     field_slot0 = document.field(String::from("accountId"));
@@ -861,7 +861,7 @@ fn decode_profile(document: DocumentValue) -> ProfileDecoded {
                 __terrane_text
             });
         }
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index = &index + &terrane_int_support::Int::from(1_i128);
     }
     value = Profile::terrane_construct();
     field_slot0 = document.field(String::from("handle"));

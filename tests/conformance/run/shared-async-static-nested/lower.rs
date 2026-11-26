@@ -27,7 +27,7 @@ impl<TerraneType54> Counter<TerraneType54> {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = self.total.clone() + delta.clone();
+            let __terrane_value = &self.total.clone() + &delta;
             self.total = __terrane_value;
         }
         return self.increment();
@@ -37,14 +37,14 @@ impl<TerraneType54> Counter<TerraneType54> {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value = {
+            let __terrane_value = &{
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
                     .total
                     .clone();
                 __terrane_snapshot
-            } + delta.clone();
+            } + &delta;
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")

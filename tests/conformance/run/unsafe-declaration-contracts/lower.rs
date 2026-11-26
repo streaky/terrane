@@ -5,14 +5,14 @@ include!("lower.support.rs");
 fn choose_terrane_unsafe_declaration_contracts_safe(
     value: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    return value.clone() + terrane_int_support::Int::from(1_i128);
+    return &value + &terrane_int_support::Int::from(1_i128);
 }
 #[allow(unsafe_code)]
 #[allow(dead_code)]
 unsafe fn choose_terrane_unsafe_declaration_contracts_unsafe(
     value: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    return value.clone() + terrane_int_support::Int::from(2_i128);
+    return &value + &terrane_int_support::Int::from(2_i128);
 }
 pub trait ReadableProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn ReadableProtocol>;

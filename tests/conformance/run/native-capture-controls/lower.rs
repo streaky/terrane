@@ -54,7 +54,7 @@ fn wrap_async(
     };
 }
 async fn times_two(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
+    return &value * &terrane_int_support::Int::from(2_i128);
 }
 fn main() {
     __terrane_run(async move {

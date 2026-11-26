@@ -263,8 +263,8 @@ fn main() {
             7 /* terrane-site: src/main.trn:11:13-11:25 */,
         );
         builder = {
-            let __terrane_conversion_input_0 = answer.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let __terrane_conversion_input_0 = &answer
+                + &terrane_int_support::Int::from(1_i128);
             __terrane_raised(
                 || -> Result<_, crate::TerraneForeignError> {
                     {

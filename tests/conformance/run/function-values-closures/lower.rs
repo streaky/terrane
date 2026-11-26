@@ -22,7 +22,7 @@ fn main() {
         std::sync::Arc::new(move |
             value: terrane_int_support::Int,
         | -> terrane_int_support::Int {
-            return terrane_int_support::Int::from(base as i128) + value.clone();
+            return &terrane_int_support::Int::from(base as i128) + &value;
         })
     };
     result = apply(add.clone(), terrane_int_support::Int::from(5_i128));

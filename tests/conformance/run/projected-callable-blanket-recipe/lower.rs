@@ -16,7 +16,7 @@ async fn produce_async() -> terrane_int_support::Int {
 async fn produce_async_one_argument(
     value: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    return value.clone() + terrane_int_support::Int::from(1_i128);
+    return &value + &terrane_int_support::Int::from(1_i128);
 }
 async fn produce_async_output() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(300_i128);

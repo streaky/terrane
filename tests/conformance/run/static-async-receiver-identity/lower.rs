@@ -42,8 +42,7 @@ impl Item {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + delta.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone() + &delta;
             self.total = __terrane_value;
         }
         reported = __terrane_await(Box::pin(results.send(self.total.clone()))).await;
@@ -74,14 +73,14 @@ impl Item {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value: terrane_int_support::Int = {
+            let __terrane_value: terrane_int_support::Int = &{
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
                     .total
                     .clone();
                 __terrane_snapshot
-            } + delta.clone();
+            } + &delta;
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")

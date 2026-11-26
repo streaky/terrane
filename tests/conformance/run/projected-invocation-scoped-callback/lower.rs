@@ -153,9 +153,8 @@ fn exact_typed<'view>(
 }
 fn exact_recursive<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
     let value: witness::BorrowedLabel<'_>;
-    if terrane_int_support::Int::from(
-        terrane_string_support::length(&state.clone()) as i128,
-    ) > terrane_int_support::Int::from(100_i128)
+    if terrane_int_support::Int::from(terrane_string_support::length(&*state) as i128)
+        > terrane_int_support::Int::from(100_i128)
     {
         return exact_recursive(state);
     }
@@ -247,9 +246,8 @@ fn exact_wrapped_binding<'view>(state: &'view String) -> witness::BorrowedGroup<
     };
 }
 fn exact_ping<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
-    if terrane_int_support::Int::from(
-        terrane_string_support::length(&state.clone()) as i128,
-    ) > terrane_int_support::Int::from(100_i128)
+    if terrane_int_support::Int::from(terrane_string_support::length(&*state) as i128)
+        > terrane_int_support::Int::from(100_i128)
     {
         return exact_pong(state);
     }
@@ -280,9 +278,8 @@ fn exact_ping<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
     );
 }
 fn exact_pong<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
-    if terrane_int_support::Int::from(
-        terrane_string_support::length(&state.clone()) as i128,
-    ) > terrane_int_support::Int::from(100_i128)
+    if terrane_int_support::Int::from(terrane_string_support::length(&*state) as i128)
+        > terrane_int_support::Int::from(100_i128)
     {
         return exact_ping(state);
     }
@@ -473,9 +470,8 @@ fn exact_reassign_conditional<'view>(
         }(),
         14 /* terrane-site: src/main.trn:61:13-61:34 */,
     );
-    if terrane_int_support::Int::from(
-        terrane_string_support::length(&state.clone()) as i128,
-    ) > terrane_int_support::Int::from(0_i128)
+    if terrane_int_support::Int::from(terrane_string_support::length(&*state) as i128)
+        > terrane_int_support::Int::from(0_i128)
     {
         value = exact_inner_label(state);
     }
@@ -552,9 +548,8 @@ fn exact_bound_wrapped<'view>(state: &'view String) -> witness::BorrowedGroup<'v
 }
 fn exact_mixed_branch<'view>(state: &'view String) -> witness::BorrowedLabel<'view> {
     let value: witness::BorrowedLabel<'_>;
-    if terrane_int_support::Int::from(
-        terrane_string_support::length(&state.clone()) as i128,
-    ) > terrane_int_support::Int::from(1_i128)
+    if terrane_int_support::Int::from(terrane_string_support::length(&*state) as i128)
+        > terrane_int_support::Int::from(1_i128)
     {
         value = exact_inner_label(state);
         return value;
@@ -660,9 +655,8 @@ fn exact_helper_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup
 fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
     let intermediate: witness::BorrowedLabel<'_>;
     let button_intermediate: witness::BorrowedButton<'_>;
-    if terrane_int_support::Int::from(
-        terrane_string_support::length(&state.clone()) as i128,
-    ) > terrane_int_support::Int::from(1_i128)
+    if terrane_int_support::Int::from(terrane_string_support::length(&*state) as i128)
+        > terrane_int_support::Int::from(1_i128)
     {
         intermediate = __terrane_raised(
             || -> Result<_, crate::TerraneForeignError> {

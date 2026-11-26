@@ -298,8 +298,8 @@ fn main() {
     );
     observed = terrane_int_support::Int::from_u128(*&sizes.count as u128);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(observed.clone() +
-        terrane_int_support::Int::from(1_i128)))
+        "{}", terrane_scalar_support::scalar_text(&(&observed +
+        &terrane_int_support::Int::from(1_i128)))
     );
     optional = (&sizes.optional)
         .as_ref()
@@ -458,8 +458,8 @@ fn main() {
         ))
         .clone();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&(borrowed_count.clone() +
-        terrane_int_support::Int::from(1_i128))), String::from(":"), { let mut
+        "{}{}{}", terrane_scalar_support::scalar_text(&(&borrowed_count +
+        &terrane_int_support::Int::from(1_i128))), String::from(":"), { let mut
         __terrane_text = String::new(); match &borrowed_delta { Some(__terrane_present)
         => { terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_present, &mut
         __terrane_text); }, None => __terrane_text.push_str("none"), } __terrane_text }

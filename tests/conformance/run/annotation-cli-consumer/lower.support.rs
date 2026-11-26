@@ -711,7 +711,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
             };
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
         }
     }
     return values;
@@ -863,7 +863,7 @@ pub fn parse_command_line(
                         __terrane_list_append_4.push(__terrane_collection_argument_0);
                     };
                 } else if schema_has(schema.clone(), value_entry) {
-                    if index.clone() + terrane_int_support::Int::from(1_i128)
+                    if &index + &terrane_int_support::Int::from(1_i128)
                         >= terrane_int_support::Int::from(supplied.length())
                     {
                         {
@@ -890,7 +890,7 @@ pub fn parse_command_line(
                                     .get_or_error(
                                         __terrane_raised(
                                             terrane_collection_support::index_from_int(
-                                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                                &(&index + &terrane_int_support::Int::from(1_i128)),
                                             ),
                                             9 /* terrane-site: core/process.trn:105:43-105:62 */,
                                         ),
@@ -900,7 +900,7 @@ pub fn parse_command_line(
                             __terrane_list_append_6
                                 .push(__terrane_collection_argument_0);
                         };
-                        index = index.clone() + terrane_int_support::Int::from(1_i128);
+                        index = &index + &terrane_int_support::Int::from(1_i128);
                     }
                 } else if {
                     let __terrane_string_argument_0 = "--";
@@ -929,7 +929,7 @@ pub fn parse_command_line(
                     };
                 }
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
         }
     }
     result = CommandLine::terrane_construct();

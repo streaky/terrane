@@ -1112,7 +1112,7 @@ impl ByteReader {
         while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                &count - &completed,
             );
             data = {
                 let mut bytes = data;
@@ -1169,7 +1169,7 @@ impl ByteReader {
         while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                &count - &completed,
             );
             data = {
                 let mut bytes = data;
@@ -1470,7 +1470,7 @@ impl TextReader {
         while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                &count - &completed,
             );
             data = {
                 let mut bytes = data;
@@ -1539,7 +1539,7 @@ impl TextReader {
         while completed < limit && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                limit.clone() - completed.clone(),
+                &limit - &completed,
             );
             data = {
                 let mut bytes = data;

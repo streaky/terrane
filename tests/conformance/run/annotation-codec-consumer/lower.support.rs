@@ -1289,8 +1289,8 @@ pub fn mapping_required_fields(
                 {
                     optional = true;
                 }
-                optional_index = optional_index.clone()
-                    + terrane_int_support::Int::from(1_i128);
+                optional_index = &optional_index
+                    + &terrane_int_support::Int::from(1_i128);
             }
             defaulted = false;
             default_index = terrane_int_support::Int::from(0_i128);
@@ -1312,8 +1312,7 @@ pub fn mapping_required_fields(
                 {
                     defaulted = true;
                 }
-                default_index = default_index.clone()
-                    + terrane_int_support::Int::from(1_i128);
+                default_index = &default_index + &terrane_int_support::Int::from(1_i128);
             }
             if field.as_str() != "" && !optional && !defaulted {
                 {
@@ -1321,7 +1320,7 @@ pub fn mapping_required_fields(
                     __terrane_list_append_0.push(__terrane_collection_argument_0);
                 };
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
         }
     }
     return required;
@@ -1377,7 +1376,7 @@ pub fn decode_document(
                     __terrane_list_append_1.push(__terrane_collection_argument_0);
                 };
             }
-            field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
+            field_index = &field_index + &terrane_int_support::Int::from(1_i128);
         }
     }
     default_fields = terrane_collection_support::List::<String>::new(vec![]);
@@ -1435,7 +1434,7 @@ pub fn decode_document(
                 default_values.append(__terrane_collection_argument_0);
             };
         }
-        default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
+        default_index = &default_index + &terrane_int_support::Int::from(1_i128);
     }
     raw = terrane_validate_mapping(
         &value.raw,

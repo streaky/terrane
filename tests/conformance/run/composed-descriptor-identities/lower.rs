@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: composed-descriptor-identities
 fn increment(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() + terrane_int_support::Int::from(1_i128);
+    return &value + &terrane_int_support::Int::from(1_i128);
 }
 fn main() {
     let callback: std::sync::Arc<

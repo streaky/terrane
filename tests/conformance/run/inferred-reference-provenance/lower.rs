@@ -29,7 +29,7 @@ fn shared_flag(
 fn count(
     values: &terrane_collection_support::List<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(values.clone().length());
+    return terrane_int_support::Int::from((*values).length());
 }
 fn early_observer() {
     let named: std::sync::Arc<

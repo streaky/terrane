@@ -762,7 +762,7 @@ fn count_down<TerraneType54>(
     if count == terrane_int_support::Int::from(0_i128) {
         return terrane_int_support::Int::from(0_i128);
     }
-    return count_down(value, count.clone() - terrane_int_support::Int::from(1_i128));
+    return count_down(value, &count - &terrane_int_support::Int::from(1_i128));
 }
 #[derive(Clone)]
 pub struct TerraneNsAuthoredGenericFiniteRecursionBoxIdentity2F617574686F7265642D67656E657269632D66696E6974652D726563757273696F6E00626F78<
@@ -797,7 +797,7 @@ impl<
         if count == terrane_int_support::Int::from(0_i128) {
             return terrane_int_support::Int::from(0_i128);
         }
-        return self.count_down(count.clone() - terrane_int_support::Int::from(1_i128));
+        return self.count_down(&count - &terrane_int_support::Int::from(1_i128));
     }
 }
 fn test_scenario_terrane_authored_generic_finite_recursion() {
@@ -1170,8 +1170,8 @@ impl TerraneNsAuthoredGenericPartialConstructionBoxIdentity2F617574686F7265642D6
         __trn_5f5f74657272616e655f636f6e73747275637465645f76616c7565: terrane_int_support::Int,
     ) {
         {
-            let __terrane_value: terrane_int_support::Int = value.clone()
-                + __trn_5f5f74657272616e655f636f6e73747275637465645f76616c7565.clone();
+            let __terrane_value: terrane_int_support::Int = &value
+                + &__trn_5f5f74657272616e655f636f6e73747275637465645f76616c7565;
             self.value = __terrane_value;
         }
     }
@@ -1386,10 +1386,7 @@ fn test_scenario_terrane_authored_generic_selection() {
         ) => {
             left = __terrane_pattern_842_left;
             right = __terrane_pattern_842_right;
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&(left.clone() + right
-                .clone()))
-            );
+            println!("{}", terrane_scalar_support::scalar_text(&(&left + &right)));
         }
     }
 }
@@ -2366,7 +2363,7 @@ impl TerraneNsBoundedInterfaceReceiverModesValueIdentity2F626F756E6465642D696E74
         return self.amount.clone();
     }
     pub fn add(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.amount.clone() + amount.clone();
+        return &self.amount.clone() + &amount;
     }
 }
 impl TerraneNsBoundedInterfaceReceiverModesNamedIdentity2F626F756E6465642D696E746572666163652D72656365697665722D6D6F646573006E616D6564Protocol
@@ -2641,7 +2638,7 @@ impl Maker {
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> terrane_int_support::Int {
-                return this.base.clone() + value.clone();
+                return &this.base.clone() + &value;
             })
         };
     }
@@ -2689,14 +2686,14 @@ impl TerraneNsClassStateMethodsCounterIdentity2F636C6173732D73746174652D6D657468
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.value.clone()
-                + amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.value.clone()
+                + &amount;
             self.value = __terrane_value;
         }
         return self.value.clone();
     }
     pub fn shifted(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.value.clone() + amount.clone();
+        return &self.value.clone() + &amount;
     }
     pub fn destruct(&mut self) {
         println!("{}", String::from("destruct"));
@@ -3149,7 +3146,7 @@ fn test_scenario_terrane_completion_finally_loop_repeat() {
                 __terrane_generated_defect("non-continuing try produced continue")
             }
         }
-        i = i.clone() + terrane_int_support::Int::from(1_i128);
+        i = &i + &terrane_int_support::Int::from(1_i128);
     }
 }
 // Source: tests/integration/completion-finally-nested-post-read/case.trn
@@ -9043,7 +9040,7 @@ impl Sample {
         }
     }
     pub fn value(&self, offset: terrane_int_support::Int) -> terrane_int_support::Int {
-        return terrane_int_support::Int::from(7_i128) + offset.clone();
+        return &terrane_int_support::Int::from(7_i128) + &offset;
     }
     pub fn label(&self) -> String {
         return String::from("ready");
@@ -9731,8 +9728,8 @@ impl TerraneNsMutatingInterfaceMethodsCounterIdentity2F6D75746174696E672D696E746
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.value.clone()
-                + amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.value.clone()
+                + &amount;
             self.value = __terrane_value;
         }
         return self.value.clone();
@@ -12155,8 +12152,8 @@ fn test_scenario_terrane_source_associated_interface() {
     >>::from(NumericRequest::terrane_construct());
     count = numeric.dispatch(String::from("ignored"));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(count.clone() +
-        terrane_int_support::Int::from(2_i128)))
+        "{}", terrane_scalar_support::scalar_text(&(&count +
+        &terrane_int_support::Int::from(2_i128)))
     );
     textual = <Request<String>>::from(TextRequest::terrane_construct());
     message = textual.dispatch(String::from("distinct"));
@@ -12355,21 +12352,21 @@ impl TerraneNsSourceMethodBuiltinNameDispatchPlainIdentity2F736F757263652D6D6574
         }
     }
     pub fn add(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.count.clone() + amount.clone();
+        return &self.count.clone() + &amount;
     }
     pub fn multiply(
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.count.clone()
-                * amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.count.clone()
+                * &amount;
             self.count = __terrane_value;
         }
         return self.count.clone();
     }
     pub fn encode(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.count.clone() + amount.clone();
+        return &self.count.clone() + &amount;
     }
     pub fn parse(&self) -> terrane_int_support::Int {
         return self.count.clone();
@@ -12379,7 +12376,7 @@ impl TerraneNsSourceMethodBuiltinNameDispatchPlainIdentity2F736F757263652D6D6574
         first: terrane_int_support::Int,
         second: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return self.count.clone() + first.clone() + second.clone();
+        return &(&self.count.clone() + &first) + &second;
     }
 }
 #[derive(Clone)]
@@ -12393,21 +12390,21 @@ impl TerraneNsSourceMethodBuiltinNameDispatchBaseIdentity2F736F757263652D6D65746
         }
     }
     pub fn add(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.count.clone() + amount.clone();
+        return &self.count.clone() + &amount;
     }
     pub fn multiply(
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.count.clone()
-                * amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.count.clone()
+                * &amount;
             self.count = __terrane_value;
         }
         return self.count.clone();
     }
     pub fn encode(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.count.clone() + amount.clone();
+        return &self.count.clone() + &amount;
     }
     pub fn parse(&self) -> terrane_int_support::Int {
         return self.count.clone();
@@ -12417,7 +12414,7 @@ impl TerraneNsSourceMethodBuiltinNameDispatchBaseIdentity2F736F757263652D6D65746
         first: terrane_int_support::Int,
         second: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return self.count.clone() + first.clone() + second.clone();
+        return &(&self.count.clone() + &first) + &second;
     }
 }
 #[derive(Clone)]
@@ -12512,21 +12509,21 @@ impl TerraneNsSourceMethodBuiltinNameDispatchDerivedIdentity2F736F757263652D6D65
         }
     }
     pub fn add(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.count.clone() + amount.clone();
+        return &self.count.clone() + &amount;
     }
     pub fn multiply(
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.count.clone()
-                * amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.count.clone()
+                * &amount;
             self.count = __terrane_value;
         }
         return self.count.clone();
     }
     pub fn encode(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return self.count.clone() + amount.clone();
+        return &self.count.clone() + &amount;
     }
     pub fn parse(&self) -> terrane_int_support::Int {
         return self.count.clone();
@@ -12536,7 +12533,7 @@ impl TerraneNsSourceMethodBuiltinNameDispatchDerivedIdentity2F736F757263652D6D65
         first: terrane_int_support::Int,
         second: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return self.count.clone() + first.clone() + second.clone();
+        return &(&self.count.clone() + &first) + &second;
     }
 }
 fn ordinary_plain(

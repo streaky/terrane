@@ -64,6 +64,6 @@ fn main() {
                 __terrane_generated_defect("non-continuing try produced continue")
             }
         }
-        i = i.clone() + terrane_int_support::Int::from(1_i128);
+        i = &i + &terrane_int_support::Int::from(1_i128);
     }
 }

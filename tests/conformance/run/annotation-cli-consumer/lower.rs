@@ -5,8 +5,8 @@ include!("lower.support.rs");
 fn greet(name: String, limit: terrane_int_support::Int) -> terrane_int_support::Int {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&name),
-        terrane_scalar_support::scalar_text(&(limit.clone() *
-        terrane_int_support::Int::from(2_i128)))
+        terrane_scalar_support::scalar_text(&(&limit *
+        &terrane_int_support::Int::from(2_i128)))
     );
     return terrane_int_support::Int::from(0_i128);
 }
@@ -87,7 +87,7 @@ fn run_command() -> terrane_int_support::Int {
                 .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index
                 .clone()), 1 /* terrane-site: .trn/generated/cli/cli-binder.trn:18:20-18:53 */)), 1 /* terrane-site: .trn/generated/cli/cli-binder.trn:18:20-18:53 */))
             );
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
         }
         return terrane_int_support::Int::from(2_i128);
     }
@@ -185,7 +185,7 @@ fn run_command() -> terrane_int_support::Int {
                 }
             }
         }
-        option_index = option_index.clone() + terrane_int_support::Int::from(1_i128);
+        option_index = &option_index + &terrane_int_support::Int::from(1_i128);
     }
     if !seen_name {
         println!("{}", String::from("missing required option --name"));

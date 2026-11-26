@@ -15,7 +15,7 @@ fn main() {
             let borrowed = &mut *borrowed;
             let mut count = count.clone();
             TerraneBorrowedMutableCallable::new(move |(): ()| -> () {
-                count = count.clone() + terrane_int_support::Int::from(1_i128);
+                count = &count + &terrane_int_support::Int::from(1_i128);
                 *borrowed = count.clone();
                 ()
             })

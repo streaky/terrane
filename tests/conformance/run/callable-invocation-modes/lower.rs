@@ -3,10 +3,10 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: callable-invocation-modes
 fn double(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
+    return &value * &terrane_int_support::Int::from(2_i128);
 }
 async fn double_later(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
+    return &value * &terrane_int_support::Int::from(2_i128);
 }
 #[derive(Clone)]
 pub struct Accumulator {
@@ -20,8 +20,7 @@ impl Accumulator {
     }
     pub fn add(&mut self, delta: terrane_int_support::Int) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + delta.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone() + &delta;
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -56,8 +55,7 @@ impl AsyncAccumulator {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + delta.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone() + &delta;
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -67,14 +65,14 @@ impl AsyncAccumulator {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = {
+            let __terrane_value: terrane_int_support::Int = &{
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
                     .total
                     .clone();
                 __terrane_snapshot
-            } + delta.clone();
+            } + &delta;
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -120,8 +118,7 @@ impl GatedAccumulator {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + delta.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone() + &delta;
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -146,14 +143,14 @@ impl GatedAccumulator {
             return terrane_int_support::Int::from(-2_i128);
         }
         {
-            let __terrane_value: terrane_int_support::Int = {
+            let __terrane_value: terrane_int_support::Int = &{
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
                     .expect("shared async receiver lock poisoned")
                     .total
                     .clone();
                 __terrane_snapshot
-            } + delta.clone();
+            } + &delta;
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -254,7 +251,7 @@ fn main() {
             TerraneMutableCallable::new(move |
                 (delta,): (terrane_int_support::Int,),
             | -> terrane_int_support::Int {
-                counter = counter.clone() + delta.clone();
+                counter = &counter + &delta;
                 return counter.clone();
             })
         };
@@ -320,8 +317,7 @@ fn main() {
                 Box::pin(async move {
                     let _invocation = __terrane_invocation.enter().await;
                     {
-                        let callable_capture_value = async_counter.snapshot()
-                            + delta.clone();
+                        let callable_capture_value = &async_counter.snapshot() + &delta;
                         async_counter.replace(callable_capture_value);
                     }
                     return async_counter.snapshot();
@@ -383,7 +379,7 @@ fn main() {
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> terrane_int_support::Int {
-                return value.clone() + terrane_int_support::Int::from(1_i128);
+                return &value + &terrane_int_support::Int::from(1_i128);
             })
         };
         adapted = {

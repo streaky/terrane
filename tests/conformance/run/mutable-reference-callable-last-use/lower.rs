@@ -41,7 +41,7 @@ fn __trn_6c6f6f70() {
     count = terrane_int_support::Int::from(0_i128);
     while count < terrane_int_support::Int::from(3_i128) {
         callback.call(());
-        count = count.clone() + terrane_int_support::Int::from(1_i128);
+        count = &count + &terrane_int_support::Int::from(1_i128);
     }
     drop(callback);
     println!("{}", terrane_scalar_support::scalar_text(&value));

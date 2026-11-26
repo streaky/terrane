@@ -540,7 +540,7 @@ fn main() {
                     std::sync::Arc::new(move |
                         value: terrane_int_support::Int,
                     | -> terrane_int_support::Int {
-                        return value.clone() + terrane_int_support::Int::from(1_i128);
+                        return &value + &terrane_int_support::Int::from(1_i128);
                     })
                 });
             println!(

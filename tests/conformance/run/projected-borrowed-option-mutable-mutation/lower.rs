@@ -111,7 +111,7 @@ fn read(header: &HeaderValue) -> bool {
 }
 fn walk_left(header: &mut HeaderValue, count: terrane_int_support::Int) {
     if count > terrane_int_support::Int::from(0_i128) {
-        walk_right(&mut *header, count.clone() - terrane_int_support::Int::from(1_i128));
+        walk_right(&mut *header, &count - &terrane_int_support::Int::from(1_i128));
     } else {
         mark(&mut *header);
     }

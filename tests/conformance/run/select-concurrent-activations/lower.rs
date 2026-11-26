@@ -130,9 +130,7 @@ async fn choose(depth: terrane_int_support::Int) -> String {
                 if depth > terrane_int_support::Int::from(0_i128) {
                     recurse = recursive_choose();
                     return __terrane_await(
-                            recurse(
-                                depth.clone() - terrane_int_support::Int::from(1_i128),
-                            ),
+                            recurse(&depth - &terrane_int_support::Int::from(1_i128)),
                         )
                         .await;
                 }

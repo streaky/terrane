@@ -4834,8 +4834,8 @@ impl ExactReadProgress {
         message: String,
     ) {
         {
-            let __terrane_value: terrane_int_support::Int = self.completed.clone()
-                + completed.clone();
+            let __terrane_value: terrane_int_support::Int = &self.completed.clone()
+                + &completed;
             self.completed = __terrane_value;
         }
         {
@@ -4918,8 +4918,8 @@ impl WriteProgress {
         message: String,
     ) {
         {
-            let __terrane_value: terrane_int_support::Int = self.completed.clone()
-                + completed.clone();
+            let __terrane_value: terrane_int_support::Int = &self.completed.clone()
+                + &completed;
             self.completed = __terrane_value;
         }
         {
@@ -5092,7 +5092,7 @@ impl ByteReader {
         while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                &count - &completed,
             );
             data = {
                 let mut bytes = data;
@@ -5149,7 +5149,7 @@ impl ByteReader {
         while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                &count - &completed,
             );
             data = {
                 let mut bytes = data;
@@ -5919,7 +5919,7 @@ impl TextReader {
         while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                &count - &completed,
             );
             data = {
                 let mut bytes = data;
@@ -5988,7 +5988,7 @@ impl TextReader {
         while completed < limit && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                limit.clone() - completed.clone(),
+                &limit - &completed,
             );
             data = {
                 let mut bytes = data;
@@ -6424,9 +6424,9 @@ impl Duration {
             self.nanoseconds = __terrane_value;
         }
         {
-            let __terrane_value: terrane_int_support::Int = whole_seconds.clone()
-                * terrane_int_support::Int::from(1000000000_i128)
-                + fractional_nanoseconds.clone();
+            let __terrane_value: terrane_int_support::Int = &(&whole_seconds
+                * &terrane_int_support::Int::from(1000000000_i128))
+                + &fractional_nanoseconds;
             self.total_nanoseconds = __terrane_value;
         }
         {
@@ -6468,7 +6468,7 @@ impl Duration {
                 )
             });
         }
-        total = self.total_nanoseconds.clone() * multiplier.clone();
+        total = &self.total_nanoseconds.clone() * &multiplier;
         return Ok(
             Duration::terrane_construct(
                 terrane_platform_time_div(&total, 1000000000.clone()),
@@ -6879,12 +6879,11 @@ impl Ticker {
             + terrane_int_support::Int::from(1_i128);
         delivered = MonotonicInstant::terrane_construct(
             self.anchor.domain.clone(),
-            self.anchor.elapsed_nanoseconds.clone()
-                + period_total.clone() * observed_index.clone(),
+            self.anchor.elapsed_nanoseconds.clone() + &period_total * &observed_index,
         );
         {
-            let __terrane_value: terrane_int_support::Int = observed_index.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = &observed_index
+                + &terrane_int_support::Int::from(1_i128);
             self.next_index = __terrane_value;
         }
         return Tick::terrane_construct(delivered, observed, count.clone());
@@ -6993,11 +6992,11 @@ impl Ticker {
                 __terrane_snapshot
             }
                 .elapsed_nanoseconds
-                .clone() + period_total.clone() * observed_index.clone(),
+                .clone() + &period_total * &observed_index,
         );
         {
-            let __terrane_value: terrane_int_support::Int = observed_index.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = &observed_index
+                + &terrane_int_support::Int::from(1_i128);
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")

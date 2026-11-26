@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: callable-class-parameters
 fn increment(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() + terrane_int_support::Int::from(1_i128);
+    return &value + &terrane_int_support::Int::from(1_i128);
 }
 #[derive(Clone)]
 pub struct DirectHolder {
@@ -41,7 +41,7 @@ impl DirectHolder {
         >,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return operation(self.stored.clone() + value.clone());
+        return operation(&self.stored.clone() + &value);
     }
     pub fn ignore(
         &self,
@@ -90,7 +90,7 @@ impl BaseHolderStorage {
         >,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return operation(self.stored.clone() + value.clone());
+        return operation(&self.stored.clone() + &value);
     }
 }
 #[derive(Clone)]
@@ -167,7 +167,7 @@ impl ChildHolder {
         >,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return operation(self.stored.clone() + value.clone());
+        return operation(&self.stored.clone() + &value);
     }
 }
 fn main() {
