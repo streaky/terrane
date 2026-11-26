@@ -4853,6 +4853,9 @@ fn first_match(
         )?,
     );
 }
+fn scalar_end(hit: &terrane_string_support::TextRange) -> terrane_int_support::Int {
+    return terrane_int_support::Int::from(hit.clone().scalar_end() as i128);
+}
 fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
     let pattern: RegexPattern;
     let mut source: String;
@@ -4877,20 +4880,20 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
     let decomposed: String;
     pattern = __terrane_traced_err(
         compile("([0-9]+)?(?<call>[a-z]+)()\\(", true),
-        88 /* terrane-site: tests/integration/core-regex/case.trn:9:13-9:75 */,
+        88 /* terrane-site: tests/integration/core-regex/case.trn:12:13-12:75 */,
     )?;
     source = String::from("é OPEN(");
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(pattern
-        .matches(AsRef:: < str > ::as_ref(&source)), 89 /* terrane-site: tests/integration/core-regex/case.trn:11:11-11:34 */) ?)
+        .matches(AsRef:: < str > ::as_ref(&source)), 89 /* terrane-site: tests/integration/core-regex/case.trn:14:11-14:34 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(pattern
-        .matches("é ?"), 90 /* terrane-site: tests/integration/core-regex/case.trn:12:11-12:33 */) ?)
+        .matches("é ?"), 90 /* terrane-site: tests/integration/core-regex/case.trn:15:11-15:33 */) ?)
     );
     first = __terrane_traced_err(
         first_match(pattern.clone(), source.clone()),
-        91 /* terrane-site: tests/integration/core-regex/case.trn:13:27-13:55 */,
+        91 /* terrane-site: tests/integration/core-regex/case.trn:16:27-16:55 */,
     )?;
     if (&first).is_some() {
         println!(
@@ -4913,7 +4916,7 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
     }
     found = __terrane_traced_err(
         pattern.captures(AsRef::<str>::as_ref(&source)),
-        92 /* terrane-site: tests/integration/core-regex/case.trn:18:11-18:35 */,
+        92 /* terrane-site: tests/integration/core-regex/case.trn:21:11-21:35 */,
     )?;
     if (&found).is_some() {
         source = String::from("reassigned");
@@ -4942,22 +4945,16 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
                 "{}", terrane_scalar_support::scalar_text(&(end.clone() - start.clone()))
             );
             println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(match
-                &full { Some(value) => value, _ =>
-                unreachable!("flow-proven storage refinement") } .scalar_end() as i128) -
-                terrane_int_support::Int::from(match &full { Some(value) => value, _ =>
-                unreachable!("flow-proven storage refinement") } .scalar_start() as
-                i128)))
+                "{}", terrane_scalar_support::scalar_text(&scalar_end(match &full {
+                Some(value) => value, _ => unreachable!("flow-proven storage refinement")
+                }))
             );
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(match
                 &full { Some(value) => value, _ =>
                 unreachable!("flow-proven storage refinement") } .grapheme_end() as i128)
-                - terrane_int_support::Int::from(match &full { Some(value) => value, _ =>
-                unreachable!("flow-proven storage refinement") } .grapheme_start() as
-                i128)))
+                + terrane_int_support::Int::from(1_i128)))
             );
         }
         println!(
@@ -5005,7 +5002,7 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             {
                 let _: RegexPattern = __terrane_traced_completion!(
-                    compile("[", false), 93 /* terrane-site: tests/integration/core-regex/case.trn:40:9-40:21 */
+                    compile("[", false), 93 /* terrane-site: tests/integration/core-regex/case.trn:43:9-43:21 */
                 );
             }
             TerraneCompletion::Normal
@@ -5047,11 +5044,11 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
     }
     lookaround = __terrane_traced_err(
         compile("(?<=HTTP/1\\.1 )(?<status>[0-9]+)(?= OK)", false),
-        94 /* terrane-site: tests/integration/core-regex/case.trn:44:16-44:66 */,
+        94 /* terrane-site: tests/integration/core-regex/case.trn:47:16-47:66 */,
     )?;
     response = __terrane_traced_err(
         lookaround.captures("read: HTTP/1.1 200 OK"),
-        95 /* terrane-site: tests/integration/core-regex/case.trn:45:14-45:58 */,
+        95 /* terrane-site: tests/integration/core-regex/case.trn:48:14-48:58 */,
     )?;
     if (&response).is_some() {
         status = match &response {
@@ -5075,31 +5072,31 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(lookaround
-        .matches("HTTP/1.1 200 Failed"), 96 /* terrane-site: tests/integration/core-regex/case.trn:51:11-51:52 */) ?)
+        .matches("HTTP/1.1 200 Failed"), 96 /* terrane-site: tests/integration/core-regex/case.trn:54:11-54:52 */) ?)
     );
     repeated = __terrane_traced_err(
         compile("\\A(?<word>[a-z]+) \\k<word>\\z", false),
-        97 /* terrane-site: tests/integration/core-regex/case.trn:53:14-53:53 */,
+        97 /* terrane-site: tests/integration/core-regex/case.trn:56:14-56:53 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(repeated
-        .matches("word word"), 98 /* terrane-site: tests/integration/core-regex/case.trn:54:11-54:40 */) ?)
+        .matches("word word"), 98 /* terrane-site: tests/integration/core-regex/case.trn:57:11-57:40 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(repeated
-        .matches("word other"), 99 /* terrane-site: tests/integration/core-regex/case.trn:55:11-55:41 */) ?)
+        .matches("word other"), 99 /* terrane-site: tests/integration/core-regex/case.trn:58:11-58:41 */) ?)
     );
     positional = __terrane_traced_err(
         compile("\\A([a-z]+) \\1\\z", false),
-        100 /* terrane-site: tests/integration/core-regex/case.trn:56:16-56:42 */,
+        100 /* terrane-site: tests/integration/core-regex/case.trn:59:16-59:42 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(positional
-        .matches("word word"), 101 /* terrane-site: tests/integration/core-regex/case.trn:57:11-57:42 */) ?)
+        .matches("word word"), 101 /* terrane-site: tests/integration/core-regex/case.trn:60:11-60:42 */) ?)
     );
     expensive = __terrane_traced_err(
         compile("\\A(a|aa)+\\1b\\z", false),
-        102 /* terrane-site: tests/integration/core-regex/case.trn:59:15-59:40 */,
+        102 /* terrane-site: tests/integration/core-regex/case.trn:62:15-62:40 */,
     )?;
     input = String::from("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacb");
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
@@ -5107,7 +5104,7 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
             {
                 let _: bool = __terrane_traced_completion!(
                     expensive.matches(AsRef:: < str > ::as_ref(&input)),
-                    103 /* terrane-site: tests/integration/core-regex/case.trn:62:9-62:33 */
+                    103 /* terrane-site: tests/integration/core-regex/case.trn:65:9-65:33 */
                 );
             }
             TerraneCompletion::Normal
@@ -5152,7 +5149,7 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
             {
                 let _: Option<terrane_string_support::TextRange> = __terrane_traced_completion!(
                     expensive.__trn_6d61746368(AsRef:: < str > ::as_ref(&input)),
-                    104 /* terrane-site: tests/integration/core-regex/case.trn:66:9-66:31 */
+                    104 /* terrane-site: tests/integration/core-regex/case.trn:69:9-69:31 */
                 );
             }
             TerraneCompletion::Normal
@@ -5191,7 +5188,7 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
             {
                 let _: Option<RegexCaptures> = __terrane_traced_completion!(
                     expensive.captures(AsRef:: < str > ::as_ref(&input)),
-                    105 /* terrane-site: tests/integration/core-regex/case.trn:70:9-70:34 */
+                    105 /* terrane-site: tests/integration/core-regex/case.trn:73:9-73:34 */
                 );
             }
             TerraneCompletion::Normal
@@ -5227,15 +5224,15 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(expensive
-        .matches("aab"), 106 /* terrane-site: tests/integration/core-regex/case.trn:73:11-73:35 */) ?)
+        .matches("aab"), 106 /* terrane-site: tests/integration/core-regex/case.trn:76:11-76:35 */) ?)
     );
     sharp_s = __terrane_traced_err(
         compile("\\Astraße\\z", true),
-        107 /* terrane-site: tests/integration/core-regex/case.trn:75:13-75:57 */,
+        107 /* terrane-site: tests/integration/core-regex/case.trn:78:13-78:57 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(sharp_s
-        .matches("STRASSE"), 108 /* terrane-site: tests/integration/core-regex/case.trn:76:11-76:37 */) ?)
+        .matches("STRASSE"), 108 /* terrane-site: tests/integration/core-regex/case.trn:79:11-79:37 */) ?)
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let __terrane_receiver_value_2 =
@@ -5246,12 +5243,12 @@ fn test_scenario_terrane_core_regex() -> Result<(), TerraneError> {
     );
     scalar = __terrane_traced_err(
         compile("\\A.\\z", false),
-        109 /* terrane-site: tests/integration/core-regex/case.trn:78:12-78:28 */,
+        109 /* terrane-site: tests/integration/core-regex/case.trn:81:12-81:28 */,
     )?;
     decomposed = String::from("e\u{301}");
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced_err(scalar
-        .matches(AsRef:: < str > ::as_ref(&decomposed)), 110 /* terrane-site: tests/integration/core-regex/case.trn:80:11-80:37 */) ?)
+        .matches(AsRef:: < str > ::as_ref(&decomposed)), 110 /* terrane-site: tests/integration/core-regex/case.trn:83:11-83:37 */) ?)
     );
     println!(
         "{}",

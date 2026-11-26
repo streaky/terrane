@@ -5,6 +5,9 @@ from /core/regex import compile, regex-pattern, regex-error, regex-match-error
 function first-match text-range|none throws regex-match-error; pattern regex-pattern, text string
   return pattern.match; text
 
+function scalar-end int; hit ref text-range
+  return hit.scalars.end
+
 function test-scenario;
   pattern = compile; '([0-9]+)?(?<call>[a-z]+)()\(', case-insensitive=true
   source = 'é OPEN('
@@ -24,8 +27,8 @@ function test-scenario;
       end int = full.bytes.end
       print; end
       print; end - start
-      print; full.scalars.end - full.scalars.start
-      print; full.graphemes.end - full.graphemes.start
+      print; (scalar-end; full)
+      print; full.graphemes.end + 1
     print; ((found.group; 1) == none)
     call = found.named-group; 'call'
     if call != none
