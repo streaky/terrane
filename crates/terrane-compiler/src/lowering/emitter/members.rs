@@ -183,6 +183,11 @@ impl Emitter<'_> {
             {
                 return format!("({text}).len() as i128");
             }
+            if unit == crate::semantics::TextUnit::Graphemes
+                && let Some(place) = self.namespace_scalar_place(source)
+            {
+                return format!("terrane_string_support::length(&({place})) as i128");
+            }
             let (setup, source) = self.borrowed_receiver_parts(source);
             let length = match unit {
                 crate::semantics::TextUnit::Bytes => format!("({source}).len() as i128"),
@@ -1443,8 +1448,10 @@ impl Emitter<'_> {
                 format!("{{ {setup}{place} }}")
             }
         } else if !self.assignment_target
-            && let Some(place) =
-                observation_source.and_then(|source| self.plain_reference_receiver_place(source))
+            && let Some(place) = observation_source.and_then(|source| {
+                self.namespace_scalar_place(source)
+                    .or_else(|| self.plain_reference_receiver_place(source))
+            })
         {
             place
         } else {

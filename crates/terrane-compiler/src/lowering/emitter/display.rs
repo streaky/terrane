@@ -45,7 +45,8 @@ impl Emitter<'_> {
             return self.receiver_guard_expression(node);
         }
         if matches!(self.receiver_value_type(node), Some(ValueType::Scalar(_))) {
-            self.native_receiver_expression(node, false)
+            self.namespace_scalar_place(node)
+                .unwrap_or_else(|| self.native_receiver_expression(node, false))
         } else {
             self.receiver_guard_expression(node)
         }

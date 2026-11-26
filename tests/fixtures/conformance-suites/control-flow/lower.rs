@@ -2821,7 +2821,7 @@ fn test_scenario_terrane_name_aliasing() {
     let copy: String;
     local = String::from("function");
     copy = local;
-    println!("{}", terrane_scalar_support::scalar_text(& &* __TERRANE_F31_ALIAS));
+    println!("{}", terrane_scalar_support::scalar_text(&* __TERRANE_F31_ALIAS));
     println!("{}", terrane_scalar_support::scalar_text(&copy));
 }
 // Source: tests/integration/nested-collection-for-binding/case.trn
