@@ -177,20 +177,17 @@ impl Emitter<'_> {
             return None;
         };
         receiver.children.first().map(|source| {
-            let field = self.observed_field_place(source);
+            let place = self
+                .namespace_scalar_place(source)
+                .or_else(|| self.observed_field_place(source));
             if unit == crate::semantics::TextUnit::Bytes
-                && field.is_none()
+                && place.is_none()
                 && let Some(text) =
                     self.lower_borrowed_native_leaf(source, &ProjectedType::BorrowedString)
             {
                 return format!("({text}).len() as i128");
             }
-            if unit == crate::semantics::TextUnit::Graphemes
-                && let Some(place) = self.namespace_scalar_place(source)
-            {
-                return format!("terrane_string_support::length(&({place})) as i128");
-            }
-            let (setup, source) = field.map_or_else(
+            let (setup, source) = place.map_or_else(
                 || self.borrowed_receiver_parts(source),
                 |place| (String::new(), place),
             );
@@ -439,6 +436,9 @@ impl Emitter<'_> {
     ) -> String {
         // A grouped native receiver is still a place, not an owned expression.
         let receiver = crate::semantics::ungrouped_expression(receiver);
+        if !mutable && let Some(place) = self.namespace_scalar_place(receiver) {
+            return place;
+        }
         if let [holder, member] = receiver.children.as_slice()
             && receiver.kind == SyntaxKind::MemberExpression
             && let Some(ValueType::Object(identity)) = self.receiver_value_type(holder)
@@ -776,6 +776,9 @@ impl Emitter<'_> {
             && let [grouped] = receiver.children.as_slice()
         {
             return self.receiver_place_parts(grouped, mutable, scope);
+        }
+        if !mutable && let Some(place) = self.namespace_scalar_place(receiver) {
+            return (String::new(), place);
         }
         if let Some((setup, guard)) = self.static_receiver_parts(receiver) {
             return self.capture_read_guard(setup, guard, scope);

@@ -429,6 +429,9 @@ impl<'unit> Emitter<'unit> {
             return self.operand_reference_parts(inner, mutable);
         }
         let prefix = if mutable { "&mut " } else { "&" };
+        if !mutable && let Some(place) = self.namespace_scalar_place(operand) {
+            return (String::new(), format!("&{place}"));
+        }
         if mutable
             && matches!(
                 self.value_type(operand),
@@ -1439,6 +1442,9 @@ impl<'unit> Emitter<'unit> {
             && let Some(inner) = operand.children.first()
         {
             return self.reference_address_expression(inner);
+        }
+        if let Some(place) = self.namespace_scalar_place(operand) {
+            return format!("&{place}");
         }
         if self.reference_backed_name(operand).is_some() {
             return format!(

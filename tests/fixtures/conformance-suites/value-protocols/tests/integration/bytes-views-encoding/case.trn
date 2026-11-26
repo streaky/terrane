@@ -1,6 +1,9 @@
 namespace bytes-views-encoding
 from /core/errors import decode-error
 
+constant title string = 'héllo'
+constant sample-bytes bytes = b'h\xc3\xa9llo'
+
 function test-scenario;
   text string = 'é'
   print; text.length, text.bytes.length, text.scalars.length, text.graphemes.length
@@ -37,3 +40,14 @@ function test-scenario;
     print; ((move invalid).decode; utf8)
   catch decode-error as error
     print; error.message
+  print; title.bytes.length
+  print; title.scalars.length
+  print; title.graphemes.length
+  namespace-byte-count = 0
+  for byte in title.bytes
+    if byte == byte
+      namespace-byte-count = namespace-byte-count + 1
+  print; namespace-byte-count
+  print; sample-bytes[1]
+  print; (sample-bytes.decode; utf8)
+  print; (title.encode; utf8).length
