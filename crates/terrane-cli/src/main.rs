@@ -232,7 +232,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let profile_options = (command == CliCommand::Profile)
         .then(|| profile_command::parse_record(arguments))
         .transpose()?;
-    let view_build = command == CliCommand::Debug && arguments.get(1).is_some_and(|arg| arg == "--view-build");
+    let view_build =
+        command == CliCommand::Debug && arguments.get(1).is_some_and(|arg| arg == "--view-build");
     let mut view_package = None;
     let parsed = if profile_options.is_some() || view_build {
         ParsedInput {
@@ -248,7 +249,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             lint_name_style: false,
             lint_unused_functions: false,
             release: false,
-            embed_debug_sources: profile_options.as_ref().is_some_and(|options| options.embed_sources),
+            embed_debug_sources: profile_options
+                .as_ref()
+                .is_some_and(|options| options.embed_sources),
             embed_generated_sources: false,
             debug_build_only: view_build,
         }
@@ -840,6 +843,11 @@ fn artifact_identity(
     Ok(format!("{:x}", hash.finalize()))
 }
 
+fn record_artifact_identity(crate_dir: &Path, identity: &str) -> Result<(), CliFailure> {
+    fs::write(crate_dir.join(".artifact-identity"), identity)
+        .map_err(|error| CliFailure::backend(format!("cannot record artifact identity: {error}")))
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "artifact preparation forwards one complete Cargo build context without hidden state"
@@ -869,9 +877,7 @@ fn prepare_artifact(
                 CliFailure::backend(format!("cannot invalidate cached artifacts: {error}"))
             })?;
         }
-        fs::write(crate_dir.join(".artifact-identity"), &identity).map_err(|error| {
-            CliFailure::backend(format!("cannot record artifact identity: {error}"))
-        })?;
+        record_artifact_identity(crate_dir, &identity)?;
     }
     if command == CliCommand::Check {
         let stamp = crate_dir.join("artifacts/check-success");
@@ -886,13 +892,10 @@ fn prepare_artifact(
                 containment,
                 CargoProfile::Debug,
             )?;
-            fs::write(
-                crate_dir.join(".artifact-identity"),
-                artifact_identity(crate_dir, containment, artifact_kind, dependency_identity)?,
-            )
-            .map_err(|error| {
-                CliFailure::backend(format!("cannot record artifact identity: {error}"))
-            })?;
+            record_artifact_identity(
+                crate_dir,
+                &artifact_identity(crate_dir, containment, artifact_kind, dependency_identity)?,
+            )?;
             fs::create_dir_all(stamp.parent().expect("artifact stamp has a parent")).map_err(
                 |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
             )?;
@@ -914,7 +917,11 @@ fn prepare_artifact(
     );
     if !artifact.is_file() {
         run_cargo(
-            if artifact_kind == terrane_compiler::ArtifactKind::Library { "rustc" } else { "build" },
+            if artifact_kind == terrane_compiler::ArtifactKind::Library {
+                "rustc"
+            } else {
+                "build"
+            },
             crate_dir,
             target_dir,
             rust_files,
@@ -938,13 +945,10 @@ fn prepare_artifact(
         if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
             cache_import_library(&built, &artifact)?;
         }
-        fs::write(
-            crate_dir.join(".artifact-identity"),
-            artifact_identity(crate_dir, containment, artifact_kind, dependency_identity)?,
-        )
-        .map_err(|error| {
-            CliFailure::backend(format!("cannot record artifact identity: {error}"))
-        })?;
+        record_artifact_identity(
+            crate_dir,
+            &artifact_identity(crate_dir, containment, artifact_kind, dependency_identity)?,
+        )?;
     }
     if artifact_kind == terrane_compiler::ArtifactKind::Executable
         && profile != CargoProfile::Debugger
@@ -1940,7 +1944,7 @@ fn usage() -> String {
      terrane debug [--build-only] [--embed-sources] [--embed-generated-sources] <file-or-manifest> \
      [-- program arguments]\n\
      terrane debug --view-json <executable> <provenance> <source> <line> \
-     [--rust-only | <generated-source> <generated-line>]\n\
+     [--rust-only | <generated-source> <generated-line>] [--relocation <json>]\n\
      terrane debug --view-build <source> [--workspace <folder>]\n\
      terrane profile record ((--cpu|--allocations) [--memory-timeline]|--memory-timeline) \
      [--embed-sources] [--retain-arguments] [-o|--output <file>] <file-or-manifest> [-- program arguments]\n\

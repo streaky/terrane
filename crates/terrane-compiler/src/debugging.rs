@@ -12,7 +12,7 @@ use crate::rust_ir::RenderedFile;
 use crate::semantics::{SemanticPackage, SemanticUnit, ValueType};
 use crate::{Package, SourceFile, Span};
 
-pub const SCHEMA_VERSION: &str = "1.3";
+pub const SCHEMA_VERSION: &str = "1.4";
 const DEBUG_MARKER: &str = "/* terrane-debug-point:";
 
 pub type DebugArtifactProfile = ArtifactProfile;
@@ -561,11 +561,22 @@ fn text_line_column(text: &str, offset: usize) -> (usize, usize) {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct DependencySource {
+    identity: String,
+    path: PathBuf,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProvenanceManifest {
     pub schema_version: String,
     #[serde(flatten)]
     pub build: BuildProvenance,
     pub debug: DebugInformation,
+    /// Physical checkout roots, relative to `source_root` when inside that tree.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dependency_source_roots: BTreeMap<String, PathBuf>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    dependency_sources: BTreeMap<u32, DependencySource>,
 }
 
 impl std::ops::Deref for ProvenanceManifest {
@@ -590,31 +601,74 @@ impl ProvenanceManifest {
     /// Returns an error when the executable cannot be read for identity hashing.
     pub fn create(
         package: &Package,
-        mut debug: DebugInformation,
+        debug: DebugInformation,
         executable: &Path,
         build_root: &Path,
         build: DebugBuildIdentity,
     ) -> Result<Self, String> {
-        // Namespace assembly mounts dependency sources at logical paths. Those
-        // paths do not exist under the executable's root in a local checkout.
-        // Preserve root-relative paths for the application, but bind mounted
-        // files to the checkout that supplied this build's source bytes.
-        let mounted: BTreeMap<_, _> = package.units.iter()
-            .filter(|unit| unit.relative_path.starts_with("dependencies"))
-            .map(|unit| (unit.source.id(), unit.source.path()))
+        let build = BuildProvenance::create(package, executable, build_root, build)?;
+        let mounts: Vec<_> = package
+            .dependency_roots
+            .iter()
+            .map(|(identity, root)| {
+                (
+                    identity,
+                    root,
+                    crate::package::dependency_mount_path(identity),
+                )
+            })
             .collect();
-        for source in &mut debug.sources {
-            if let Some(path) = mounted.get(&source.id)
-                && let Ok(physical) = path.canonicalize()
-            {
-                source.uri = physical.strip_prefix(&package.root).unwrap_or(&physical)
-                    .to_string_lossy().into_owned();
+        let mut dependency_source_roots = BTreeMap::new();
+        let mut dependency_sources = BTreeMap::new();
+        for unit in &package.units {
+            if !package.library_source_ids.contains(&unit.source.id()) {
+                continue;
             }
+            // A transitive source can carry multiple logical mount prefixes.
+            // Match its innermost mount and its actual path within that checkout.
+            let (identity, root, path) = mounts
+                .iter()
+                .find_map(|(identity, root, mount)| {
+                    let path = unit.source.path().strip_prefix(root).ok()?;
+                    let logical_mount = unit
+                        .relative_path
+                        .ancestors()
+                        .nth(path.components().count())?;
+                    (logical_mount.ends_with(mount) && unit.relative_path.ends_with(path))
+                        .then_some((*identity, *root, path))
+                })
+                .ok_or_else(|| {
+                    format!(
+                        "no dependency checkout for {}",
+                        unit.relative_path.display()
+                    )
+                })?;
+            if !dependency_source_roots.contains_key(identity) {
+                let checkout = root.canonicalize().map_err(|error| {
+                    format!(
+                        "cannot resolve dependency checkout {}: {error}",
+                        root.display()
+                    )
+                })?;
+                let root = checkout
+                    .strip_prefix(&build.relocation.source_root)
+                    .unwrap_or(&checkout);
+                dependency_source_roots.insert(identity.clone(), root.to_path_buf());
+            }
+            dependency_sources.insert(
+                unit.source.id(),
+                DependencySource {
+                    identity: identity.clone(),
+                    path: path.to_path_buf(),
+                },
+            );
         }
         Ok(Self {
             schema_version: SCHEMA_VERSION.to_owned(),
-            build: BuildProvenance::create(package, executable, build_root, build)?,
+            build,
             debug,
+            dependency_source_roots,
+            dependency_sources,
         })
     }
 
@@ -633,6 +687,21 @@ impl ProvenanceManifest {
         })
     }
 
+    /// Resolves a logical source using the current package and dependency roots.
+    #[must_use]
+    pub fn source_path(&self, source: &SourceIdentity) -> PathBuf {
+        self.source_path_at(source, Path::new(&self.relocation.source_root))
+    }
+
+    fn source_path_at(&self, source: &SourceIdentity, root: &Path) -> PathBuf {
+        if let Some(dependency) = self.dependency_sources.get(&source.id)
+            && let Some(checkout) = self.dependency_source_roots.get(&dependency.identity)
+        {
+            return root.join(checkout).join(&dependency.path);
+        }
+        root.join(&source.uri)
+    }
+
     /// Returns logical source paths that are missing or differ from their build-time identity.
     #[must_use]
     pub fn validate_sources(&self, root: &Path) -> Vec<String> {
@@ -640,7 +709,7 @@ impl ProvenanceManifest {
             .sources
             .iter()
             .filter_map(|source| {
-                let path = root.join(PathBuf::from(&source.uri));
+                let path = self.source_path_at(source, root);
                 let actual = std::fs::read(&path).ok().map(|bytes| hash_bytes(&bytes));
                 (actual.as_deref() != Some(source.content_hash.as_str()))
                     .then(|| source.uri.clone())

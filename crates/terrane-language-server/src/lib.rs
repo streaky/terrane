@@ -1,6 +1,6 @@
 mod analysis;
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -8,10 +8,11 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
 use terrane_compiler::highlight::{Highlight, HighlightKind, highlight};
+use terrane_compiler::tooling::DiagnosticProjection;
 #[cfg(test)]
 use terrane_compiler::{Diagnostic as TerraneDiagnostic, Severity};
 use terrane_compiler::{SourceFile, Span};
-use tokio::sync::RwLock;
+use tokio::sync::{OwnedMutexGuard, RwLock};
 use tower_lsp_server::jsonrpc::{Error as JsonRpcError, Result};
 use tower_lsp_server::ls_types::request::{GotoImplementationParams, GotoImplementationResponse};
 use tower_lsp_server::ls_types::{
@@ -52,17 +53,18 @@ const SEMANTIC_REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from
 
 #[derive(Clone, Debug)]
 struct Document {
-    text: String,
+    text: Arc<str>,
     version: i32,
     snapshot_id: String,
     prepared_at: Option<std::time::Instant>,
+    published_diagnostics: Option<Arc<[DiagnosticProjection]>>,
 }
 
 #[derive(Debug)]
 struct Analysis {
     snapshot_id: String,
     source_texts: HashMap<String, String>,
-    diagnostics: Vec<terrane_compiler::tooling::DiagnosticProjection>,
+    diagnostics: Vec<DiagnosticProjection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,7 +87,9 @@ pub struct Backend {
     tooling: Arc<Mutex<terrane_compiler::tooling::ToolingEngine>>,
     position_encoding: Arc<Mutex<PositionEncodingKind>>,
     allow_consumer_execution: AtomicBool,
-    preparation: tokio::sync::Mutex<()>,
+    preparation: Arc<tokio::sync::Mutex<()>>,
+    // Order diagnostic notifications (including the close clear) with document edits.
+    publication: tokio::sync::Mutex<()>,
 }
 
 impl Backend {
@@ -100,21 +104,22 @@ impl Backend {
             ))),
             position_encoding: Arc::new(Mutex::new(PositionEncodingKind::UTF16)),
             allow_consumer_execution: AtomicBool::new(false),
-            preparation: tokio::sync::Mutex::new(()),
+            preparation: Arc::new(tokio::sync::Mutex::new(())),
+            publication: tokio::sync::Mutex::new(()),
         }
     }
 
-    async fn analyze(&self, uri: &Uri, text: &str) -> Analysis {
+    async fn analyze(&self, uri: &Uri, text: &Arc<str>) -> Analysis {
         let mut overlays = self
             .documents
             .read()
             .await
             .iter()
-            .map(|(uri, document)| (uri.to_string(), document.text.clone()))
+            .map(|(uri, document)| (uri.to_string(), document.text.to_string()))
             .collect::<HashMap<_, _>>();
-        overlays.insert(uri.to_string(), text.to_owned());
+        overlays.insert(uri.to_string(), text.to_string());
         let uri = uri.clone();
-        let text = text.to_owned();
+        let text = Arc::clone(text);
         let tooling = Arc::clone(&self.tooling);
         let trusted = self.allow_consumer_execution.load(Ordering::Relaxed);
         tokio::task::spawn_blocking(move || {
@@ -125,7 +130,11 @@ impl Backend {
     }
 
     async fn update_document(&self, uri: Uri, text: String, version: i32) {
+        // Each edit gets its own allocation, so a close/reopen with identical
+        // text and version cannot make pending analysis current again.
+        let text: Arc<str> = text.into();
         {
+            let _publication = self.publication.lock().await;
             let mut documents = self.documents.write().await;
             if documents
                 .get(&uri)
@@ -139,147 +148,214 @@ impl Backend {
             documents.insert(
                 uri.clone(),
                 Document {
-                    text: text.clone(),
+                    text: Arc::clone(&text),
                     version,
                     snapshot_id,
                     prepared_at: None,
+                    published_diagnostics: None,
                 },
             );
         }
-        let _preparation = self.preparation.lock().await;
+        let preparation = Arc::clone(&self.preparation).lock_owned().await;
         if self
             .documents
             .read()
             .await
             .get(&uri)
-            .is_none_or(|document| document.version != version || document.text != text)
+            .is_none_or(|document| !Arc::ptr_eq(&document.text, &text))
         {
             return;
         }
         let analysis = self.analyze(&uri, &text).await;
-        self.install_analysis(uri, text, version, analysis).await;
+        self.install_analysis(&uri, &text, analysis, preparation)
+            .await;
     }
 
     /// Consumer-owned inputs can change without a document notification. Reprepare at
     /// a bounded interval rather than loading the package on every semantic request.
     async fn semantic_document(&self, uri: &Uri) -> Option<Document> {
-        let _preparation = self.preparation.lock().await;
+        let preparation = Arc::clone(&self.preparation).lock_owned().await;
         let document = self.documents.read().await.get(uri)?.clone();
         let stale = document
             .prepared_at
             .is_none_or(|last| last.elapsed() >= SEMANTIC_REFRESH_INTERVAL);
         if stale {
             let analysis = self.analyze(uri, &document.text).await;
-            self.install_analysis(
-                uri.clone(),
-                document.text.clone(),
-                document.version,
-                analysis,
-            )
-            .await;
+            self.install_analysis(uri, &document.text, analysis, preparation)
+                .await;
         }
         let documents = self.documents.read().await;
         let current = documents.get(uri)?;
-        (current.version == document.version && current.text == document.text)
-            .then(|| current.clone())
+        Arc::ptr_eq(&current.text, &document.text).then(|| current.clone())
     }
 
-    async fn install_analysis(&self, uri: Uri, text: String, version: i32, analysis: Analysis) {
+    async fn sibling_diagnostics(
+        &self,
+        uri: &Uri,
+        text: &Arc<str>,
+        analysis: &Analysis,
+    ) -> Option<HashMap<String, Vec<DiagnosticProjection>>> {
+        let peer_uris = {
+            let documents = self.documents.read().await;
+            if !Arc::ptr_eq(&documents.get(uri)?.text, text) {
+                return None;
+            }
+            documents
+                .iter()
+                .filter(|(peer, document)| {
+                    *peer != uri
+                        && (document.snapshot_id != analysis.snapshot_id
+                            || document.prepared_at.is_none())
+                        && analysis.source_texts.get(peer.as_str()).map(String::as_str)
+                            == Some(&*document.text)
+                })
+                .map(|(peer, _)| peer.to_string())
+                .collect::<Vec<_>>()
+        };
+        if peer_uris.is_empty() {
+            return Some(HashMap::new());
+        }
+        let tooling = Arc::clone(&self.tooling);
+        let snapshot_id = analysis.snapshot_id.clone();
+        Some(
+            tokio::task::spawn_blocking(move || {
+                let tooling = tooling.lock().expect("tooling engine lock");
+                peer_uris
+                    .into_iter()
+                    .filter_map(|peer| {
+                        let diagnostics = tooling.editor_diagnostics(&snapshot_id, &peer).ok()?;
+                        Some((peer, diagnostics))
+                    })
+                    .collect()
+            })
+            .await
+            .expect("editor diagnostics worker"),
+        )
+    }
+
+    async fn install_analysis(
+        &self,
+        uri: &Uri,
+        text: &Arc<str>,
+        analysis: Analysis,
+        preparation: OwnedMutexGuard<()>,
+    ) {
+        let Some(mut projections) = self.sibling_diagnostics(uri, text, &analysis).await else {
+            self.retire_snapshots([analysis.snapshot_id], preparation)
+                .await
+                .expect("editor snapshot retirement worker");
+            return;
+        };
+        projections.insert(uri.to_string(), analysis.diagnostics);
+        let publication = self.publication.lock().await;
+        let mut documents = self.documents.write().await;
+        if !documents
+            .get(uri)
+            .is_some_and(|document| Arc::ptr_eq(&document.text, text))
+        {
+            drop(documents);
+            drop(publication);
+            self.retire_snapshots([analysis.snapshot_id], preparation)
+                .await
+                .expect("editor snapshot retirement worker");
+            return;
+        }
+        let mut expired = HashSet::new();
+        let mut publications = Vec::new();
+        let prepared_at = std::time::Instant::now();
+        for (open_uri, document) in &mut *documents {
+            let key = open_uri.as_str();
+            if open_uri != uri
+                && analysis.source_texts.get(key).map(String::as_str) != Some(&*document.text)
+            {
+                continue;
+            }
+            if document.snapshot_id != analysis.snapshot_id {
+                let previous =
+                    std::mem::replace(&mut document.snapshot_id, analysis.snapshot_id.clone());
+                if !previous.is_empty() {
+                    expired.insert(previous);
+                }
+                document.prepared_at = None;
+            } else if document.prepared_at.is_some() {
+                document.prepared_at = Some(prepared_at);
+            }
+            if let Some(diagnostics) = projections.remove(key) {
+                if document.published_diagnostics.as_deref() == Some(diagnostics.as_slice()) {
+                    document.prepared_at = Some(prepared_at);
+                    continue;
+                }
+                // Cancellation before send must not make the new snapshot look
+                // as though these diagnostics have already been published.
+                document.prepared_at = None;
+                publications.push((
+                    open_uri.clone(),
+                    Arc::clone(&document.text),
+                    document.version,
+                    diagnostics,
+                ));
+            }
+        }
+        drop(documents);
+        // Queue cleanup before the first send so cancellation cannot orphan
+        // the snapshots that were just displaced.
+        let retirement = (!expired.is_empty()).then(|| self.retire_snapshots(expired, preparation));
+
         let encoding = self
             .position_encoding
             .lock()
             .expect("position encoding lock")
             .clone();
-        let mut publications = vec![(
-            uri.clone(),
-            version,
-            analysis
-                .diagnostics
+        for (uri, text, version, diagnostics) in publications {
+            let projected = diagnostics
                 .iter()
                 .map(|diagnostic| tooling_lsp_diagnostic(&text, diagnostic, &encoding))
-                .collect(),
-        )];
-        let mut documents = self.documents.write().await;
-        if documents
-            .get(&uri)
-            .is_none_or(|document| document.version != version || document.text != text)
-        {
-            let snapshot_in_use = documents
-                .values()
-                .any(|document| document.snapshot_id == analysis.snapshot_id);
-            drop(documents);
-            if !snapshot_in_use {
-                let _ = self
-                    .tooling
-                    .lock()
-                    .expect("tooling engine lock")
-                    .close_snapshot(&analysis.snapshot_id);
-            }
-            return;
+                .collect();
+            self.client
+                .publish_diagnostics(uri.clone(), projected, Some(version))
+                .await;
+            // The publication gate still excludes edits and close for this URI.
+            let mut documents = self.documents.write().await;
+            let document = documents
+                .get_mut(&uri)
+                .expect("published document remains open");
+            document.published_diagnostics = Some(diagnostics.into());
+            document.prepared_at = Some(prepared_at);
         }
-        let old_snapshots = documents
-            .values()
-            .map(|document| document.snapshot_id.clone())
-            .collect::<std::collections::HashSet<_>>();
-        {
-            let tooling = self.tooling.lock().expect("tooling engine lock");
-            for (open_uri, document) in &mut *documents {
-                let open_uri_text = open_uri.to_string();
-                if analysis
-                    .source_texts
-                    .get(&open_uri_text)
-                    .is_some_and(|analyzed| analyzed == &document.text)
-                {
-                    if open_uri != &uri
-                        && document.snapshot_id != analysis.snapshot_id
-                        && let Ok(diagnostics) =
-                            tooling.editor_diagnostics(&analysis.snapshot_id, &open_uri_text)
-                    {
-                        publications.push((
-                            open_uri.clone(),
-                            document.version,
-                            diagnostics
-                                .iter()
-                                .map(|diagnostic| {
-                                    tooling_lsp_diagnostic(&document.text, diagnostic, &encoding)
-                                })
-                                .collect(),
-                        ));
-                    }
-                    document.snapshot_id.clone_from(&analysis.snapshot_id);
-                    document.prepared_at = Some(std::time::Instant::now());
+        drop(publication);
+        if let Some(retirement) = retirement {
+            retirement.await.expect("editor snapshot retirement worker");
+        }
+    }
+
+    fn retire_snapshots(
+        &self,
+        snapshots: impl IntoIterator<Item = String> + Send + 'static,
+        preparation: OwnedMutexGuard<()>,
+    ) -> tokio::task::JoinHandle<()> {
+        let documents = Arc::clone(&self.documents);
+        let tooling = Arc::clone(&self.tooling);
+        tokio::task::spawn_blocking(move || {
+            // Hold preparation even if the awaiting semantic request is cancelled.
+            let _preparation = preparation;
+            let expired = {
+                let documents = documents.blocking_read();
+                let retained: HashSet<_> = documents
+                    .values()
+                    .map(|document| document.snapshot_id.as_str())
+                    .collect();
+                snapshots
+                    .into_iter()
+                    .filter(|id| !retained.contains(id.as_str()))
+                    .collect::<Vec<_>>()
+            };
+            if !expired.is_empty() {
+                let mut tooling = tooling.lock().expect("tooling engine lock");
+                for snapshot in expired {
+                    let _ = tooling.close_snapshot(&snapshot);
                 }
             }
-        }
-        documents.insert(
-            uri.clone(),
-            Document {
-                text,
-                version,
-                snapshot_id: analysis.snapshot_id.clone(),
-                prepared_at: Some(std::time::Instant::now()),
-            },
-        );
-        let retained = documents
-            .values()
-            .map(|document| document.snapshot_id.as_str())
-            .collect::<std::collections::HashSet<_>>();
-        let expired = old_snapshots
-            .into_iter()
-            .filter(|snapshot| !retained.contains(snapshot.as_str()))
-            .collect::<Vec<_>>();
-        {
-            let mut tooling = self.tooling.lock().expect("tooling engine lock");
-            for snapshot in expired {
-                let _ = tooling.close_snapshot(&snapshot);
-            }
-        }
-        drop(documents);
-        for (uri, version, diagnostics) in publications {
-            self.client
-                .publish_diagnostics(uri, diagnostics, Some(version))
-                .await;
-        }
+        })
     }
     /// Finds generated Rust associated with the Terrane syntax at a document position.
     ///
@@ -303,7 +379,7 @@ impl Backend {
             };
             let overlays = documents
                 .iter()
-                .map(|(uri, document)| (uri.to_string(), document.text.clone()))
+                .map(|(uri, document)| (uri.to_string(), document.text.to_string()))
                 .collect::<HashMap<_, _>>();
             (document, overlays)
         };
@@ -436,24 +512,20 @@ impl LanguageServer for Backend {
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        let mut documents = self.documents.write().await;
-        let closed = documents.remove(&uri);
-        let snapshot_in_use = closed.as_ref().is_some_and(|closed| {
-            documents
-                .values()
-                .any(|document| document.snapshot_id == closed.snapshot_id)
-        });
-        drop(documents);
-        if let Some(document) = closed
-            && !snapshot_in_use
-        {
-            let _ = self
-                .tooling
-                .lock()
-                .expect("tooling engine lock")
-                .close_snapshot(&document.snapshot_id);
-        }
+        let publication = self.publication.lock().await;
+        let closed = self.documents.write().await.remove(&uri);
         self.client.publish_diagnostics(uri, Vec::new(), None).await;
+        drop(publication);
+        if let Some(document) = closed
+            && !document.snapshot_id.is_empty()
+        {
+            // Recheck under preparation: an in-flight analysis may have found
+            // this same content-addressed snapshot and shared it in the meantime.
+            let preparation = Arc::clone(&self.preparation).lock_owned().await;
+            self.retire_snapshots([document.snapshot_id], preparation)
+                .await
+                .expect("editor snapshot retirement worker");
+        }
     }
 
     async fn semantic_tokens_full(
@@ -839,8 +911,9 @@ impl LanguageServer for Backend {
             let Ok(edit_uri) = uri_text.parse::<Uri>() else {
                 return Ok(None);
             };
+            let disk_text;
             let (text, version) = if let Some(open) = documents.get(&edit_uri) {
-                (open.text.clone(), Some(open.version))
+                (open.text.as_ref(), Some(open.version))
             } else {
                 let Some(path) = edit_uri.to_file_path() else {
                     return Ok(None);
@@ -848,13 +921,14 @@ impl LanguageServer for Backend {
                 let Ok(text) = std::fs::read_to_string(path) else {
                     return Ok(None);
                 };
-                (text, None)
+                disk_text = text;
+                (disk_text.as_str(), None)
             };
             let text_edits = replacements
                 .into_iter()
                 .map(|replacement| {
                     OneOf::Left(TextEdit {
-                        range: range_for_public_span(&text, &replacement.span, &encoding),
+                        range: range_for_public_span(text, &replacement.span, &encoding),
                         new_text: replacement.text,
                     })
                 })
@@ -1223,9 +1297,9 @@ async fn lsp_location(
 ) -> Option<LspLocation> {
     let uri = location.uri.parse::<Uri>().ok()?;
     let text = if let Some(document) = documents.read().await.get(&uri) {
-        document.text.clone()
+        Arc::clone(&document.text)
     } else {
-        std::fs::read_to_string(uri.to_file_path()?).ok()?
+        std::fs::read_to_string(uri.to_file_path()?).ok()?.into()
     };
     Some(LspLocation {
         uri,
@@ -2111,7 +2185,11 @@ mod tests {
         let policy_uri = Uri::from_file_path(&policy_path).unwrap();
         let tooling = Mutex::new(terrane_compiler::tooling::ToolingEngine::default());
         let prepared = analysis::snapshot(&main_uri, main, &HashMap::new(), &tooling, true);
-        assert!(prepared.diagnostics.is_empty(), "{:?}", prepared.diagnostics);
+        assert!(
+            prepared.diagnostics.is_empty(),
+            "{:?}",
+            prepared.diagnostics
+        );
         {
             let tooling = tooling.lock().unwrap();
             let main_call = main.find("environment-setting").unwrap();
@@ -2122,7 +2200,10 @@ mod tests {
                 panic!("unopened same-namespace declaration should resolve");
             };
             assert_eq!(definition.uri, policy_uri.as_str());
-            assert_eq!(definition.span.start, policy.find("environment-setting").unwrap());
+            assert_eq!(
+                definition.span.start,
+                policy.find("environment-setting").unwrap()
+            );
             let Availability::Known(references) = tooling
                 .references(&prepared.snapshot_id, main_uri.as_str(), main_call)
                 .unwrap()
@@ -2130,9 +2211,11 @@ mod tests {
                 panic!("both call sites and declaration should resolve");
             };
             assert_eq!(references.len(), 3);
-            assert!(references.iter().any(|site| {
-                site.uri == main_uri.as_str() && site.span.start == main_call
-            }));
+            assert!(
+                references
+                    .iter()
+                    .any(|site| { site.uri == main_uri.as_str() && site.span.start == main_call })
+            );
             assert!(references.iter().any(|site| {
                 site.uri == policy_uri.as_str()
                     && site.span.start == policy.rfind("environment-setting").unwrap()
@@ -2142,11 +2225,15 @@ mod tests {
         let broken = policy.replace("return name", "return missing-name");
         let overlays = HashMap::from([(policy_uri.to_string(), broken)]);
         let blocked = analysis::snapshot(&main_uri, main, &overlays, &tooling, true);
-        assert!(blocked.diagnostics.iter().any(|diagnostic| {
-            diagnostic.span.is_none()
-                && diagnostic.message.contains("src/policy.trn")
-                && diagnostic.message.contains("missing-name")
-        }), "{:?}", blocked.diagnostics);
+        assert!(
+            blocked.diagnostics.iter().any(|diagnostic| {
+                diagnostic.span.is_none()
+                    && diagnostic.message.contains("src/policy.trn")
+                    && diagnostic.message.contains("missing-name")
+            }),
+            "{:?}",
+            blocked.diagnostics
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 }

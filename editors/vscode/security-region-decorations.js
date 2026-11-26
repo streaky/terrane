@@ -4,6 +4,9 @@ const { scanMarkers } = require('./security-markers');
 
 function registerSecurityRegions(vscode, context) {
   const supported = doc => doc.languageId === 'terrane' || doc.languageId === 'rust';
+  const configuration = doc => vscode.workspace.getConfiguration('terrane', doc.uri);
+  const scansMarkers = doc => supported(doc)
+    && (doc.languageId !== 'rust' || configuration(doc).get('securityRegions.rust', true));
   const diagnostics = vscode.languages.createDiagnosticCollection('terrane-security-markers');
   const decoration = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
@@ -16,6 +19,12 @@ function registerSecurityRegions(vscode, context) {
   const timers = new Map();
   function update(doc) {
     if (!supported(doc)) return;
+    if (!scansMarkers(doc)) {
+      cancel(doc);
+      if (cache.delete(doc)) diagnostics.delete(doc.uri);
+      decorate(doc, []);
+      return;
+    }
     let entry = cache.get(doc);
     if (entry?.version !== doc.version) {
       const { regions, issues } = scanMarkers(doc.getText().split(/\r?\n/), doc.languageId);
@@ -28,9 +37,12 @@ function registerSecurityRegions(vscode, context) {
       entry = { version: doc.version, ranges };
       cache.set(doc, entry);
     }
-    const enabled = vscode.workspace.getConfiguration('terrane', doc.uri).get('securityRegions.decorate', true);
+    const enabled = configuration(doc).get('securityRegions.decorate', true);
+    decorate(doc, enabled ? entry.ranges : []);
+  }
+  function decorate(doc, ranges) {
     for (const editor of vscode.window.visibleTextEditors) {
-      if (editor.document === doc) editor.setDecorations(decoration, enabled ? entry.ranges : []);
+      if (editor.document === doc) editor.setDecorations(decoration, ranges);
     }
   }
   const updateVisible = () => { for (const editor of vscode.window.visibleTextEditors) update(editor.document); };
@@ -39,12 +51,17 @@ function registerSecurityRegions(vscode, context) {
     vscode.workspace.onDidOpenTextDocument(update),
     vscode.workspace.onDidCloseTextDocument(doc => { cancel(doc); cache.delete(doc); diagnostics.delete(doc.uri); }),
     vscode.workspace.onDidChangeTextDocument(({ document, contentChanges }) => {
-      if (!supported(document) || !contentChanges.length) return;
+      if (!contentChanges.length || !scansMarkers(document)) return;
       cancel(document);
       timers.set(document, setTimeout(() => { timers.delete(document); update(document); }, 120));
     }),
     vscode.window.onDidChangeVisibleTextEditors(updateVisible),
     vscode.workspace.onDidChangeConfiguration(event => {
+      if (event.affectsConfiguration('terrane.securityRegions.rust')) {
+        for (const doc of vscode.workspace.textDocuments) {
+          if (doc.languageId === 'rust') update(doc);
+        }
+      }
       if (event.affectsConfiguration('terrane.securityRegions.decorate')) updateVisible();
     }),
     { dispose() { for (const timer of timers.values()) clearTimeout(timer); timers.clear(); } });

@@ -463,6 +463,7 @@ struct Snapshot {
     package: Package,
     semantic: Option<crate::SemanticPackage>,
     semantic_invalid: bool,
+    analysis_blocker: Option<DiagnosticProjection>,
     generated: Option<GeneratedSnapshot>,
     allow_consumer_execution: bool,
     bytes: usize,
@@ -765,7 +766,7 @@ impl ToolingEngine {
                     !matches!(diagnostic.code.as_ref(), "S0005" | "S2002" | "S2017")
                 });
             } else {
-                syntax_invalid |= !diagnostics.is_empty();
+                syntax_invalid |= diagnostics.iter().any(is_error);
                 units.push(SourceUnit {
                     relative_path: PathBuf::from(format!("snapshot/{file_id}.trn")),
                     source: source.clone(),
@@ -792,6 +793,7 @@ impl ToolingEngine {
         let mut authored_package =
             snapshot_package(snapshot_id.clone(), units, &options, manifest.as_ref())?;
         consumer_preparation::synchronize_documents(&mut authored_package, &mut documents);
+        let mut analysis_blocker = None;
         let mut preparation_failed = false;
         let mut package = if analyze_authored && !syntax_invalid {
             match consumer_preparation::prepare(
@@ -801,7 +803,7 @@ impl ToolingEngine {
             ) {
                 Ok(package) => package,
                 Err(failure) => {
-                    consumer_preparation::record_failure(
+                    analysis_blocker = consumer_preparation::record_failure(
                         &mut documents,
                         &authored_package,
                         failure,
@@ -814,9 +816,18 @@ impl ToolingEngine {
             authored_package.clone()
         };
         consumer_preparation::synchronize_documents(&mut package, &mut documents);
-        syntax_invalid |= documents
-            .values()
-            .any(|document| !document.diagnostics.is_empty());
+        if !preparation_failed
+            && let Some((origin, diagnostic)) = documents.values().find_map(|document| {
+                document
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| is_error(diagnostic))
+                    .map(|diagnostic| (document.source.path(), diagnostic))
+            })
+        {
+            syntax_invalid = true;
+            analysis_blocker = Some(project_analysis_blocker(&package.root, origin, diagnostic));
+        }
         let identities = documents
             .values()
             .map(|document| document.identity.clone())
@@ -836,7 +847,7 @@ impl ToolingEngine {
                 match crate::semantics::analyze(&package) {
                     Ok(semantic) => (Some(semantic), false),
                     Err(failure) => {
-                        consumer_preparation::record_failure(
+                        analysis_blocker = consumer_preparation::record_failure(
                             &mut documents,
                             &package,
                             crate::CompilationFailure {
@@ -940,6 +951,7 @@ impl ToolingEngine {
                 package: authored_package,
                 semantic,
                 semantic_invalid,
+                analysis_blocker,
                 generated,
                 allow_consumer_execution: options.allow_consumer_execution,
                 bytes,
@@ -1003,8 +1015,8 @@ impl ToolingEngine {
         Ok(())
     }
 
-    /// Reports why analysis of a source is unavailable, even when the first error
-    /// is elsewhere in its package.
+    /// Reports why analysis of a source is unavailable, even when the blocking
+    /// error originates elsewhere.
     ///
     /// # Errors
     ///
@@ -1022,27 +1034,10 @@ impl ToolingEngine {
             .map(project_diagnostic)
             .collect::<Vec<_>>();
         if snapshot.semantic_invalid
-            && !document
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-            && let Some((origin, error)) = snapshot.documents.values().find_map(|other| {
-                other
-                    .diagnostics
-                    .iter()
-                    .find(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-                    .map(|error| (other.source.path(), error))
-            })
+            && !document.diagnostics.iter().any(is_error)
+            && let Some(blocker) = &snapshot.analysis_blocker
         {
-            let mut blocker = project_diagnostic(error);
-            let origin = origin.strip_prefix(&snapshot.package.root).unwrap_or(origin);
-            blocker.message = format!(
-                "Package analysis blocked by an error in `{}`: {}",
-                origin.display(),
-                blocker.message
-            );
-            blocker.span = None;
-            diagnostics.push(blocker);
+            diagnostics.push(blocker.clone());
         }
         Ok(diagnostics)
     }
@@ -1260,16 +1255,16 @@ impl ToolingEngine {
                 continue;
             };
             walk_nodes(&document.tree.root, None, &mut |node, _field, _id| {
-                if node.kind == SyntaxKind::Name && node.name_override.is_none()
+                if node.kind == SyntaxKind::Name
+                    && node.name_override.is_none()
                     && spellings.contains(node_text(&document.source, node))
-                    && resolve_semantic_target(snapshot, document, node)
-                        .is_some_and(|candidate| {
-                            candidate.identity == target.identity
-                                && match (&target.function, &candidate.function) {
-                                    (Some(target), Some(candidate)) => target.span == candidate.span,
-                                    _ => true,
-                                }
-                        })
+                    && resolve_semantic_target(snapshot, document, node).is_some_and(|candidate| {
+                        candidate.identity == target.identity
+                            && match (&target.function, &candidate.function) {
+                                (Some(target), Some(candidate)) => target.span == candidate.span,
+                                _ => true,
+                            }
+                    })
                     && let Some(location) = location_for_span(snapshot, node.span)
                 {
                     locations.push(location);
@@ -1319,7 +1314,19 @@ impl ToolingEngine {
         };
         let mut locations = Vec::new();
         if let Some(function) = &target.function {
-            let contracts = method_interfaces(semantic, function, &owner);
+            let interface_method = function.owner_identity.as_ref().is_some_and(|identity| {
+                all_descriptors(semantic).any(|descriptor| {
+                    descriptor.kind == crate::semantics::ObjectKind::Interface
+                        && descriptor.identity == *identity
+                })
+            });
+            // Only concrete targets expand through their implemented contracts.
+            // An interface declaration denotes that interface, not its ancestors.
+            let contracts = if interface_method {
+                BTreeSet::new()
+            } else {
+                method_interfaces(semantic, function, &owner)
+            };
             for descriptor in all_descriptors(semantic).filter(|descriptor| {
                 descriptor.kind != crate::semantics::ObjectKind::Interface
                     && (descriptor.identity.qualified() != owner || !contracts.is_empty())
@@ -1339,7 +1346,9 @@ impl ToolingEngine {
                                 && owner.kind != crate::semantics::ObjectKind::Interface
                         })
                     })
-                    && (candidate.span != function.span || !contracts.is_empty())
+                    && (interface_method
+                        || candidate.span != function.span
+                        || !contracts.is_empty())
                     && let Some(location) =
                         declaration_location(snapshot, &function_target(semantic, candidate))
                 {
@@ -2273,6 +2282,16 @@ fn semantic_target_and_type(
     (target, value_type)
 }
 
+fn is_member_selector(parent: &SyntaxNode, name: &SyntaxNode) -> bool {
+    matches!(
+        parent.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+    ) && parent
+        .children
+        .last()
+        .is_some_and(|child| child.span == name.span)
+}
+
 fn resolve_semantic_target(
     snapshot: &Snapshot,
     document: &ParsedDocument,
@@ -2288,16 +2307,7 @@ fn resolve_semantic_target(
     if let Some(import) = parent.filter(|node| node.kind == SyntaxKind::ObjectImport) {
         return import_rename::export_target(semantic, unit, document, import);
     }
-    if let Some(parent) = parent
-        && matches!(
-            parent.kind,
-            SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
-        )
-        && parent
-            .children
-            .last()
-            .is_some_and(|child| child.span == name_node.span)
-    {
+    if let Some(parent) = parent.filter(|parent| is_member_selector(parent, name_node)) {
         return member_target(semantic, unit, parent, name);
     }
     if let Some(slot) = unit.associated_type_at(name_node.span.start, name) {
@@ -2343,16 +2353,20 @@ fn resolve_semantic_target(
         }
     }
     for function in all_functions(semantic) {
-        if function.name == name && function.span.file == name_node.span.file
-            && function.span.start <= name_node.span.start && name_node.span.end <= function.span.end
+        if function.name == name
+            && function.span.file == name_node.span.file
+            && function.span.start <= name_node.span.start
+            && name_node.span.end <= function.span.end
             && declaration_name_span(snapshot, function.span, name) == Some(name_node.span)
         {
             return Some(function_target(semantic, function));
         }
     }
     for descriptor in all_descriptors(semantic) {
-        if descriptor.name == name && descriptor.span.file == name_node.span.file
-            && descriptor.span.start <= name_node.span.start && name_node.span.end <= descriptor.span.end
+        if descriptor.name == name
+            && descriptor.span.file == name_node.span.file
+            && descriptor.span.start <= name_node.span.start
+            && name_node.span.end <= descriptor.span.end
             && declaration_name_span(snapshot, descriptor.span, name) == Some(name_node.span)
         {
             return Some(descriptor_target(descriptor));
@@ -2392,11 +2406,17 @@ fn symbol_target(
     }
     if matches!(
         symbol.kind,
-        SymbolKind::TypeDescriptor | SymbolKind::Class | SymbolKind::Interface
-            | SymbolKind::Trait | SymbolKind::Enum | SymbolKind::ErrorObject
+        SymbolKind::TypeDescriptor
+            | SymbolKind::Class
+            | SymbolKind::Interface
+            | SymbolKind::Trait
+            | SymbolKind::Enum
+            | SymbolKind::ErrorObject
     ) && let Some(descriptor) = all_descriptors(semantic).find(|descriptor| {
         descriptor.identity.qualified() == symbol.identity
-            && symbol.declaration_span.is_none_or(|span| descriptor.span == span)
+            && symbol
+                .declaration_span
+                .is_none_or(|span| descriptor.span == span)
     }) {
         return descriptor_target(descriptor);
     }
@@ -2771,8 +2791,8 @@ fn method_interfaces(
     function: &crate::FunctionContract,
     owner: &str,
 ) -> BTreeSet<String> {
-    let Some(descriptor) = all_descriptors(semantic)
-        .find(|descriptor| descriptor.identity.qualified() == owner)
+    let Some(descriptor) =
+        all_descriptors(semantic).find(|descriptor| descriptor.identity.qualified() == owner)
     else {
         return BTreeSet::new();
     };
@@ -2796,9 +2816,7 @@ fn unwrapped_value_type(value_type: &crate::ValueType) -> &crate::ValueType {
     match value_type {
         crate::ValueType::Reference(inner)
         | crate::ValueType::MutableReference(inner)
-        | crate::ValueType::SharedReference(inner) => {
-            unwrapped_value_type(inner.value_type_ref())
-        }
+        | crate::ValueType::SharedReference(inner) => unwrapped_value_type(inner.value_type_ref()),
         _ => value_type,
     }
 }
@@ -3547,6 +3565,26 @@ fn project_diagnostic(diagnostic: &Diagnostic) -> DiagnosticProjection {
     }
 }
 
+fn is_error(diagnostic: &Diagnostic) -> bool {
+    diagnostic.severity == crate::diagnostic::Severity::Error
+}
+
+fn project_analysis_blocker(
+    root: &Path,
+    origin: &Path,
+    diagnostic: &Diagnostic,
+) -> DiagnosticProjection {
+    let mut blocker = project_diagnostic(diagnostic);
+    let origin = origin.strip_prefix(root).unwrap_or(origin);
+    blocker.message = format!(
+        "Package analysis blocked by an error in `{}`: {}",
+        origin.display(),
+        blocker.message
+    );
+    blocker.span = None;
+    blocker
+}
+
 fn node_text<'a>(source: &'a SourceFile, node: &SyntaxNode) -> &'a str {
     source
         .text()
@@ -3881,6 +3919,50 @@ mod tests {
                 options,
             )
             .expect("snapshot should open")
+    }
+
+    #[test]
+    fn off_document_blocker_preserves_actual_origin() {
+        let mut engine = ToolingEngine::default();
+        let consumer_uri = "file:///workspace/generator/consumer.trn";
+        let consumer = open(
+            &mut engine,
+            consumer_uri,
+            "namespace consumer\nfunction broken int;\n    return missing-name\n",
+            SnapshotOptions::default(),
+        );
+        let failure =
+            crate::semantics::analyze(&engine.snapshot(&consumer.snapshot_id).unwrap().package)
+                .expect_err("the separately compiled consumer should fail");
+        let caller_uri = "file:///workspace/caller.trn";
+        let caller = open(
+            &mut engine,
+            caller_uri,
+            "namespace caller\n",
+            SnapshotOptions::default(),
+        );
+        let caller = engine.snapshots.get_mut(&caller.snapshot_id).unwrap();
+        // The consumer's source ID collides with the caller's first source ID,
+        // but it is not an authored document in this snapshot.
+        assert_eq!(
+            failure.source.id(),
+            caller.documents[caller_uri].source.id()
+        );
+        let blocker = consumer_preparation::record_failure(
+            &mut caller.documents,
+            &caller.package,
+            crate::CompilationFailure {
+                source: failure.source,
+                diagnostics: failure.diagnostics,
+            },
+        )
+        .expect("external compilation failure should produce a blocker");
+        assert!(
+            blocker.message.contains("generator/consumer.trn"),
+            "{blocker:?}"
+        );
+        assert!(blocker.message.contains("missing-name"), "{blocker:?}");
+        assert_eq!(blocker.span, None);
     }
 
     #[test]
@@ -4673,6 +4755,40 @@ mod tests {
     }
 
     #[test]
+    fn implementation_navigation_excludes_ancestor_only_classes() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/inherited-implementations.trn";
+        let text = "namespace inherited-implementations\n\ninterface base\n    function run int;\n\ninterface refined implements base\n    function run int;\n\nclass first implements base\n    function run int;\n        return 1\n\nclass second implements refined\n    function run int;\n        return 2\n";
+        let snapshot = open(
+            &mut engine,
+            uri,
+            text,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let locations: Vec<_> = text
+            .match_indices("run int")
+            .map(|(start, _)| Location {
+                uri: uri.to_owned(),
+                span: PublicSpan {
+                    start,
+                    end: start + "run".len(),
+                },
+            })
+            .collect();
+        for (method, expected) in [(0, &locations[2..]), (1, &locations[3..])] {
+            assert_eq!(
+                engine
+                    .implementations(&snapshot.snapshot_id, uri, locations[method].span.start)
+                    .unwrap(),
+                Availability::Known(expected.to_vec())
+            );
+        }
+    }
+
+    #[test]
     fn invalid_contract_rename_reports_the_first_preview_diagnostic() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/shared-method.trn";
@@ -4932,18 +5048,41 @@ mod tests {
         ] {
             let offset = text.rfind(spelling).unwrap();
             assert_eq!(
-                engine.definition(&snapshot.snapshot_id, uri, offset).unwrap(),
+                engine
+                    .definition(&snapshot.snapshot_id, uri, offset)
+                    .unwrap(),
                 Availability::Known(definition.clone())
             );
-            assert!(references.iter().any(|reference| {
-                reference.uri == uri && reference.span.start == offset
-            }));
+            assert!(
+                references
+                    .iter()
+                    .any(|reference| { reference.uri == uri && reference.span.start == offset })
+            );
         }
-        assert!(references.iter().all(|reference| reference.uri != unrelated_uri));
+        assert!(
+            references
+                .iter()
+                .all(|reference| reference.uri != unrelated_uri)
+        );
+        check_export_rename(&mut engine, &snapshot.snapshot_id, &sources);
+    }
+
+    fn check_export_rename(
+        engine: &mut ToolingEngine,
+        snapshot_id: &str,
+        sources: &[(&str, &str); 5],
+    ) {
+        let [
+            (library_uri, library),
+            _,
+            (_, plain),
+            (_, nested),
+            (_, unrelated),
+        ] = *sources;
         for new_name in ["Reply", "local-name"] {
             let proposal = engine
                 .propose_rename(
-                    &snapshot.snapshot_id,
+                    snapshot_id,
                     library_uri,
                     library.find("Answer").unwrap(),
                     new_name,

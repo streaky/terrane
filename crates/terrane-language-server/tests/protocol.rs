@@ -380,30 +380,39 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
         json!({"line": 2, "character": 15})
     );
 
-    send(
-        &mut stdin,
-        &json!({
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "textDocument/references",
-            "params": {
-                "textDocument": {"uri": "file:///tmp/navigation.trn"},
-                "position": {"line": 6, "character": 16},
-                "context": {"includeDeclaration": false}
-            }
-        }),
-    );
-    let references = receive_response(&mut stdout, 3);
-    assert_eq!(
-        references["result"],
-        json!([{
-            "uri": "file:///tmp/navigation.trn",
-            "range": {
-                "start": {"line": 6, "character": 16},
-                "end": {"line": 6, "character": 22}
-            }
-        }])
-    );
+    let use_site = json!({
+        "uri": "file:///tmp/navigation.trn",
+        "range": {
+            "start": {"line": 6, "character": 16},
+            "end": {"line": 6, "character": 22}
+        }
+    });
+    let declaration = json!({
+        "uri": "file:///tmp/navigation.trn",
+        "range": {
+            "start": {"line": 2, "character": 9},
+            "end": {"line": 2, "character": 15}
+        }
+    });
+    for (id, include_declaration, expected) in [
+        (3, false, json!([use_site])),
+        (13, true, json!([declaration, use_site])),
+    ] {
+        send(
+            &mut stdin,
+            &json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": "textDocument/references",
+                "params": {
+                    "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                    "position": {"line": 6, "character": 16},
+                    "context": {"includeDeclaration": include_declaration}
+                }
+            }),
+        );
+        assert_eq!(receive_response(&mut stdout, id)["result"], expected);
+    }
 
     send(
         &mut stdin,
@@ -444,23 +453,34 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
     assert!(names.contains(&"main"));
     assert!(!names.contains(&"async"));
 
-    send(
-        &mut stdin,
-        &json!({
-            "jsonrpc": "2.0",
-            "id": 6,
-            "method": "textDocument/implementation",
-            "params": {
-                "textDocument": {"uri": "file:///tmp/navigation.trn"},
-                "position": {"line": 11, "character": 25}
-            }
-        }),
-    );
-    let implementations = receive_response(&mut stdout, 6);
-    assert_eq!(
-        implementations["result"][0]["range"]["start"],
-        json!({"line": 11, "character": 6})
-    );
+    for (id, position, expected) in [
+        (
+            6,
+            json!({"line": 11, "character": 25}),
+            json!({"line": 11, "character": 6}),
+        ),
+        (
+            14,
+            json!({"line": 9, "character": 13}),
+            json!({"line": 12, "character": 13}),
+        ),
+    ] {
+        send(
+            &mut stdin,
+            &json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": "textDocument/implementation",
+                "params": {
+                    "textDocument": {"uri": "file:///tmp/navigation.trn"},
+                    "position": position
+                }
+            }),
+        );
+        let implementations = receive_response(&mut stdout, id);
+        assert_eq!(implementations["result"].as_array().unwrap().len(), 1);
+        assert_eq!(implementations["result"][0]["range"]["start"], expected);
+    }
 
     send(
         &mut stdin,
@@ -1135,4 +1155,143 @@ fn nested_expression_analysis_uses_default_worker_stack() {
     );
     drop(stdin);
     assert!(child.wait().unwrap().success());
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one protocol session tracks sibling diagnostics across edit, repair, and close"
+)]
+#[test]
+fn sibling_diagnostics_follow_edits_and_clear_on_close() {
+    use tower_lsp_server::ls_types::Uri;
+
+    let root = std::env::temp_dir().join(format!("terrane-lsp-publication-{}", std::process::id()));
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("package.toml"),
+        "package = 'publication'\n[namespaces]\npublication = 'src'\n",
+    )
+    .unwrap();
+    let main = "namespace publication\nfunction main;\n    _ = answer;\n";
+    let valid = "namespace publication\nfunction answer int;\n    return 1\n";
+    let invalid = valid.replace("return 1", "return missing-name");
+    let changed = valid.replace("return 1", "return 2");
+    let main_path = root.join("src/main.trn");
+    let helper_path = root.join("src/helper.trn");
+    std::fs::write(&main_path, main).unwrap();
+    std::fs::write(&helper_path, valid).unwrap();
+    let main_uri = Uri::from_file_path(main_path).unwrap().to_string();
+    let helper_uri = Uri::from_file_path(helper_path).unwrap().to_string();
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}),
+    );
+    let _ = receive_response(&mut stdout, 1);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
+    );
+    let next = |stdout: &mut BufReader<ChildStdout>| {
+        receive_notification(stdout, "textDocument/publishDiagnostics")["params"].clone()
+    };
+    for (uri, text, version) in [(&main_uri, main, 1), (&helper_uri, valid, 1)] {
+        send(
+            &mut stdin,
+            &json!({
+                "jsonrpc":"2.0","method":"textDocument/didOpen",
+                "params":{"textDocument":{"uri":uri,"languageId":"terrane","version":version,"text":text}}
+            }),
+        );
+        let diagnostics = next(&mut stdout);
+        assert_eq!(diagnostics["uri"], *uri);
+        assert_eq!(diagnostics["version"], version);
+        assert_eq!(diagnostics["diagnostics"], json!([]));
+    }
+    for (version, text) in [(2, invalid.as_str()), (3, valid), (4, changed.as_str())] {
+        send(
+            &mut stdin,
+            &json!({
+                "jsonrpc":"2.0","method":"textDocument/didChange",
+                "params":{"textDocument":{"uri":helper_uri,"version":version},"contentChanges":[{"text":text}]}
+            }),
+        );
+        let first = next(&mut stdout);
+        if version == 4 {
+            assert_eq!(first["uri"], helper_uri);
+            assert_eq!(first["version"], 4);
+            assert_eq!(first["diagnostics"], json!([]));
+            break;
+        }
+        let second = next(&mut stdout);
+        let (main, helper) = if first["uri"] == main_uri {
+            (first, second)
+        } else {
+            (second, first)
+        };
+        assert_eq!(main["uri"], main_uri);
+        assert_eq!(main["version"], 1);
+        assert_eq!(helper["uri"], helper_uri);
+        assert_eq!(helper["version"], version);
+        if version == 2 {
+            let blocker = main["diagnostics"][0]["message"].as_str().unwrap();
+            assert!(
+                blocker.starts_with("Package analysis blocked by an error in `src/helper.trn`:"),
+                "{blocker}"
+            );
+            assert!(blocker.contains("missing-name"), "{blocker}");
+            assert_eq!(
+                main["diagnostics"][0]["range"]["start"],
+                json!({"line":0,"character":0})
+            );
+            assert!(
+                helper["diagnostics"][0]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("missing-name")
+            );
+        } else {
+            assert_eq!(main["diagnostics"], json!([]));
+            assert_eq!(helper["diagnostics"], json!([]));
+        }
+    }
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","method":"textDocument/didClose",
+            "params":{"textDocument":{"uri":helper_uri}}
+        }),
+    );
+    let clear = next(&mut stdout);
+    assert_eq!(clear["uri"], helper_uri);
+    assert!(clear["version"].is_null());
+    assert_eq!(clear["diagnostics"], json!([]));
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":2,"method":"textDocument/definition",
+            "params":{"textDocument":{"uri":main_uri},"position":{"line":2,"character":9}}
+        }),
+    );
+    let definition = receive_response(&mut stdout, 2);
+    assert_eq!(definition["result"]["uri"], helper_uri);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":3,"method":"shutdown","params":null}),
+    );
+    let _ = receive_response(&mut stdout, 3);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"exit","params":null}),
+    );
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+    std::fs::remove_dir_all(root).unwrap();
 }

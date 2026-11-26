@@ -24,12 +24,12 @@ mod backend;
 mod source;
 #[path = "debug_command_steps.rs"]
 mod steps;
+#[path = "debug_command_targets.rs"]
+pub(super) mod targets;
 #[path = "debug_command_variables.rs"]
 mod variables;
 #[path = "debug_command_view.rs"]
 pub(super) mod view;
-#[path = "debug_command_targets.rs"]
-pub(super) mod targets;
 
 use backend::{Backend, add_rust_lldb_init_commands, discover_rust_lldb_formatter, event};
 use source::{
@@ -1052,6 +1052,25 @@ fn validate_provenance(
             provenance.relocation.source_root =
                 canonical_relocation_root(Path::new(source_root), "source")?;
         }
+        if let Some(roots) = relocation.get("dependencyRoots") {
+            let roots = roots.as_object().ok_or_else(|| {
+                debugger_failure("terraneRelocation.dependencyRoots must be an object".to_owned())
+            })?;
+            for (identity, root) in roots {
+                let recorded = provenance
+                    .dependency_source_roots
+                    .get_mut(identity)
+                    .ok_or_else(|| {
+                        debugger_failure(format!("unknown dependency source root {identity:?}"))
+                    })?;
+                let root = root.as_str().ok_or_else(|| {
+                    debugger_failure(format!(
+                        "expected a path for dependency source root {identity:?}"
+                    ))
+                })?;
+                *recorded = canonical_relocation_root(Path::new(root), "dependency source")?.into();
+            }
+        }
     }
     if provenance.schema_version != terrane_compiler::debugging::SCHEMA_VERSION {
         return Err(debugger_failure(format!(
@@ -1238,7 +1257,7 @@ mod tests {
 
     fn provenance() -> ProvenanceManifest {
         let mut provenance: ProvenanceManifest = serde_json::from_value(json!({
-            "schema_version": "1.3",
+            "schema_version": terrane_compiler::debugging::SCHEMA_VERSION,
             "compiler_version": env!("CARGO_PKG_VERSION"),
             "rust_toolchain": "system",
             "target": "x86_64-unknown-linux-gnu",
@@ -1252,7 +1271,7 @@ mod tests {
             "stripping": "none",
             "inputs": [],
             "debug": {
-                "schema_version": "1.3",
+                "schema_version": terrane_compiler::debugging::SCHEMA_VERSION,
                 "compiler_version": env!("CARGO_PKG_VERSION"),
                 "sources": [{
                     "id": 1,
@@ -1359,6 +1378,34 @@ mod tests {
         );
         assert_eq!(adjusted[0].source_line, 6);
         assert!(resolve_breakpoint(&provenance, Path::new("unknown.trn"), 4).is_empty());
+    }
+
+    #[test]
+    fn debugger_exact_starts_view_ranges() {
+        let mut provenance = provenance();
+        let file = &mut provenance.debug.generated_files[0];
+        // A multi-line statement followed by an enclosing compound region.
+        file.associations[0].generated.end_line = 11;
+        file.associations[2].generated.end_line = 17;
+        for line in [11, 16] {
+            assert!(source::generated_association(file, line).is_some());
+        }
+        let frame = |line| json!({"source": {"path": "/build/src/main.rs"}, "line": line});
+        for line in [11, 16] {
+            let raw = frame(line);
+            assert!(source::association_for_frame(&provenance, &raw).is_none());
+            let mut body = json!({"stackFrames": [raw]});
+            translate_stack_frames(&mut body, &provenance, false);
+            let translated = &body["stackFrames"][0];
+            assert_eq!(translated["line"], line);
+            assert_eq!(translated["presentationHint"], "subtle");
+            assert!(translated.get("terraneGenerated").is_none());
+        }
+        let mut body = json!({"stackFrames": [frame(10)]});
+        translate_stack_frames(&mut body, &provenance, false);
+        let translated = &body["stackFrames"][0];
+        assert_eq!(translated["line"], 4);
+        assert_eq!(translated["terraneGenerated"]["line"], 10);
     }
 
     #[test]

@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { isValidId, scanMarkers } = require('../security-markers');
+const markerCases = require('../../../tools/security-contracts/tests/fixtures/security-markers.json');
 
 const scan = (lines, languageId = 'rust') => scanMarkers(lines, languageId);
 const noMarkers = { regions: [], issues: [] };
@@ -10,6 +11,21 @@ const noMarkers = { regions: [], issues: [] };
 function assertIssues(result, expected) {
   assert.deepEqual(result.issues.map(({ line }) => line), expected.map(([line]) => line));
   for (const [index, [, message]] of expected.entries()) assert.match(result.issues[index].message, message);
+}
+
+for (const { name, path, source, regions, error } of markerCases) {
+  test(`shared marker corpus: ${name}`, () => {
+    const result = scan(source.split(/\r?\n/), path.endsWith('.trn') ? 'terrane' : 'rust');
+    if (error) {
+      assert.ok(result.issues.some(({ message }) => message.toLowerCase() === error),
+        `expected ${error}, got ${result.issues.map(({ message }) => message).join('; ')}`);
+    } else {
+      assert.deepEqual(result, {
+        regions: regions.map(([, start, end]) => ({ start: start - 1, end: end - 1 })),
+        issues: [],
+      });
+    }
+  });
 }
 
 test('validates exactly the checker identity grammar', () => {

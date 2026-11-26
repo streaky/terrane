@@ -30,6 +30,10 @@ pub fn dependency_identity_parts(identity: &str) -> Option<(&str, &str)> {
     (valid(owner) && valid(package) && !package.contains('/')).then_some((owner, package))
 }
 
+pub(crate) fn dependency_mount_path(identity: &str) -> PathBuf {
+    Path::new("dependencies").join(identity)
+}
+
 fn normalize_dependency_key(key: &str) -> Option<String> {
     dependency_identity_parts(key).map(|_| key.to_owned())
 }
@@ -1205,7 +1209,7 @@ fn merge_library(
             )]);
         }
     }
-    let prefix = Path::new("dependencies").join(&library.identity);
+    let prefix = dependency_mount_path(&library.identity);
     for mut unit in library.units.drain(..) {
         let id = package.next_source_id();
         unit.relative_path = prefix.join(&unit.relative_path);

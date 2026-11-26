@@ -2,7 +2,7 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
@@ -16,7 +16,7 @@
   },
   "scripts": {
     "package-server": "node ./scripts/package-server.js",
-    "check": "node --check extension.js && node --check debugger.js && node --check tests/debugger.integration.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check scripts/package-server.js && npm test",
+    "check": "node --check extension.js && node --check debugger.js && node --check tests/debugger.integration.js && node --check build-view.js && node --check rust-blocks.js && node --check rust-block-decorations.js && node --check security-markers.js && node --check security-region-decorations.js && node --check security-wrap.js && node --check scripts/package-server.js && npm test",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
@@ -189,7 +189,13 @@
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "description": "Highlight paired security-contract regions in Terrane and Rust. Marker warnings remain enabled."
+          "description": "Highlight paired security-contract regions in Terrane and in Rust files with marker scanning enabled. This setting does not affect marker warnings."
+        },
+        "terrane.securityRegions.rust": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Scan Rust files for security-contract marker warnings and region highlighting, including files outside a workspace. Turn off to disable automatic Rust marker scanning without affecting Terrane files or the Wrap Selection command."
         },
         "terrane.debugger.path": {
           "type": "string",
@@ -201,7 +207,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "description": "Path to the Terrane language server. A single-folder workspace can override this in its folder settings; multi-folder windows use one server from workspace or user settings. Empty uses the bundled server."
+          "description": "Path to the Terrane language server executable. In a single-folder workspace, relative paths resolve against the workspace folder. Otherwise use an absolute path. Leave empty to use the bundled server."
         },
         "terrane.rustBlocks.decorate": {
           "type": "boolean",

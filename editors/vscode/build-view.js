@@ -45,23 +45,34 @@ async function rustExcerpt(locations) {
 
 
 function registerBuildView(vscode, context, build) {
-  let panel, sourceColumn, artifact, cancellation, query, timer, revision = 0;
+  let panel, sourceColumn, sourceEditor, artifact, query, timer, endedSession, revision = 0;
   let showAssembly = false, selection;
   function invalidate() {
     clearTimeout(timer);
     query?.abort();
+    query = undefined;
     return ++revision;
+  }
+  function discardArtifact() {
+    artifact?.cancellation?.cancel();
+    artifact = undefined;
   }
   function reset() {
     invalidate();
-    cancellation?.cancel(); cancellation?.dispose(); cancellation = undefined;
-    artifact = undefined;
+    discardArtifact();
+    sourceEditor = undefined;
   }
+  const activeSession = () => {
+    const session = vscode.debug.activeDebugSession;
+    return session?.type === 'terrane' && session.id !== endedSession ? session : undefined;
+  };
   const message = text => { if (panel) panel.webview.html = page(text, '', showAssembly ? '' : null, false); };
   const terrane = editor => editor?.document.languageId === 'terrane' && editor.document.uri.scheme === 'file';
   function schedule(editor, item, delay = 0) {
     if (!panel) return;
     selection = { editor, item };
+    if (terrane(editor)) sourceEditor = editor;
+    if (artifact && (item || activeSession() || artifact.file !== editor?.document.uri.fsPath)) discardArtifact();
     const id = invalidate();
     timer = setTimeout(() => update(id, editor, item).catch(error => {
       if (id === revision) message(error.stderr?.trim() || error.message);
@@ -69,7 +80,7 @@ function registerBuildView(vscode, context, build) {
   }
   async function update(id, editor, item) {
     if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace to inspect native code.');
-    const session = item?.session?.type === 'terrane' ? item.session : vscode.debug.activeDebugSession;
+    const session = item?.session?.type === 'terrane' ? item.session : activeSession();
     let frame;
     if (item && session?.type === 'terrane') {
       const { stackFrames } = await session.customRequest('stackTrace', { threadId: item.threadId, ...(item.frameId === undefined ? { levels: 1 } : {}) });
@@ -80,6 +91,7 @@ function registerBuildView(vscode, context, build) {
       if (id !== revision) return;
       editor = await vscode.window.showTextDocument(doc, { viewColumn: sourceColumn, preserveFocus: true, preview: false });
       if (id !== revision) return;
+      sourceEditor = editor;
       const pos = new vscode.Position(frame.line - 1, 0);
       editor.selection = new vscode.Selection(pos, pos);
       editor.revealRange(editor.selection, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
@@ -88,14 +100,29 @@ function registerBuildView(vscode, context, build) {
     if (editor.document.isDirty) throw new Error('Save this source before comparing it with a debug build.');
     const file = editor.document.uri.fsPath;
     const line = frame?.line ?? editor.selection.active.line + 1;
-    const config = session?.type === 'terrane' ? session.configuration : undefined;
-    const built = config ? { ...config, command: config.__terraneCompiler } : await artifact;
+    const config = session?.configuration;
+    if (!config && !artifact) {
+      const cancellation = new vscode.CancellationTokenSource();
+      const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+      message('Building saved Terrane source…');
+      const request = { file, cancellation };
+      artifact = request;
+      request.promise = build(folder, file, cancellation.token).catch(error => {
+        if (artifact === request) artifact = undefined;
+        throw error;
+      }).finally(() => {
+        request.cancellation = undefined;
+        cancellation.dispose();
+      });
+    }
+    const built = config ? { ...config, command: config.__terraneCompiler } : await artifact.promise;
     if (id !== revision) return;
-    if (!built?.command) throw new Error('Open the build view again to build this source.');
+    if (!built?.command) throw new Error('The Terrane build did not provide a compiler for source inspection.');
     const controller = query = new AbortController();
     const args = ['debug', '--view-json', built.program, built.terraneProvenance, file, String(line)];
     if (frame) args.push(frame.terraneGenerated.path, String(frame.terraneGenerated.line));
     else if (!showAssembly) args.push('--rust-only');
+    if (config?.terraneRelocation) args.push('--relocation', JSON.stringify(config.terraneRelocation));
     const { stdout } = await exec(built.command, args, { signal: controller.signal, maxBuffer: 16 * 1024 * 1024 });
     if (id !== revision) return;
     const mapped = JSON.parse(stdout);
@@ -125,7 +152,7 @@ function registerBuildView(vscode, context, build) {
     if (id === revision) panel.webview.html = page(`${path.basename(file)}:${line}`, rust,
       asm ? `<pre>${asm}</pre>` : `<small>${escape(unavailable)}</small>`, !!frame);
   }
-  const command = vscode.commands.registerCommand('terrane.showBuildView', async () => {
+  const command = vscode.commands.registerCommand('terrane.showBuildView', () => {
     const editor = vscode.window.activeTextEditor;
     if (!terrane(editor) || !vscode.workspace.isTrusted) return;
     reset();
@@ -136,18 +163,8 @@ function registerBuildView(vscode, context, build) {
         { localResourceRoots: [], enableCommandUris: [toggleAssembly] });
       panel.onDidDispose(() => { panel = undefined; selection = undefined; showAssembly = false; reset(); });
     } else panel.reveal(panel.viewColumn, true);
-    const session = vscode.debug.activeDebugSession;
-    if (session?.type !== 'terrane' && !editor.document.isDirty) {
-      cancellation = new vscode.CancellationTokenSource();
-      const token = cancellation.token;
-      const file = editor.document.uri.fsPath;
-      const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-      message('Building saved Terrane source…');
-      artifact = build(folder, file, token);
-      artifact.catch(() => {}); // May be superseded by another selection before the view awaits it.
-    }
     const item = vscode.debug.activeStackItem;
-    schedule(editor, item?.session.type === 'terrane' ? item : undefined);
+    schedule(editor, item?.session.type === 'terrane' && item.session.id !== endedSession ? item : undefined);
   });
   context.subscriptions.push(command,
     vscode.commands.registerCommand(toggleAssembly, () => {
@@ -159,14 +176,31 @@ function registerBuildView(vscode, context, build) {
       if (terrane(event.textEditor) && event.kind !== vscode.TextEditorSelectionChangeKind.Command &&
           (!vscode.debug.activeStackItem || event.kind)) schedule(event.textEditor, undefined, 150);
     }),
+    vscode.window.onDidChangeActiveTextEditor(editor => {
+      if (terrane(editor) && !vscode.debug.activeStackItem) schedule(editor, undefined, 150);
+    }),
     vscode.workspace.onDidChangeTextDocument(event => {
-      if (panel && event.document.isDirty && terrane(vscode.window.activeTextEditor) && event.document === vscode.window.activeTextEditor.document) {
+      if (panel && event.document.isDirty && event.document === sourceEditor?.document) {
         invalidate(); message('Save this source before comparing it with a debug build.');
       }
     }),
+    vscode.workspace.onDidSaveTextDocument(document => {
+      if (!panel || document.languageId !== 'terrane' || document.uri.scheme !== 'file') return;
+      discardArtifact();
+      if (selection) schedule(sourceEditor, selection.item, 150);
+    }),
     vscode.debug.onDidChangeActiveStackItem(item => {
-      if (item?.session.type === 'terrane') schedule(undefined, item);
+      if (item?.session.type === 'terrane' && item.session.id !== endedSession) schedule(undefined, item);
+      else if (!activeSession() && terrane(sourceEditor)) schedule(sourceEditor, undefined);
       else if (panel) { selection = undefined; invalidate(); message('Select a Terrane source line or pause in a mapped frame.'); }
+    }),
+    vscode.debug.onDidTerminateDebugSession(session => {
+      if (session.type !== 'terrane') return;
+      const current = activeSession();
+      endedSession = session.id;
+      if (panel && (!current || current.id === session.id) && terrane(sourceEditor)) {
+        schedule(sourceEditor, undefined);
+      }
     }),
     { dispose() { panel?.dispose(); reset(); } });
 }

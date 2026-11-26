@@ -145,6 +145,7 @@ function hasMarkerCandidate(lines, terrane) {
 
 // Lexical states deliberately follow tools/security-contracts/src/markers.trn,
 // not TextMate. Markers are only recognized in comment tokens in source code.
+// Shared cases live in tools/security-contracts/tests/fixtures/security-markers.json.
 function scanMarkers(lines, languageId) {
   const regions = [];
   const issues = [];
