@@ -876,42 +876,42 @@ mod __terrane_trace {
         { Site { function: 17, file: 14, line: 13, column: 27, end_line: 13, end_column: 55 } },
         /* terrane-site-row: site 92: /core-regex::test-scenario (tests/integration/core-regex/case.trn:18:11-18:35) */
         { Site { function: 17, file: 14, line: 18, column: 11, end_line: 18, end_column: 35 } },
-        /* terrane-site-row: site 93: /core-regex::test-scenario (tests/integration/core-regex/case.trn:35:9-35:21) */
-        { Site { function: 17, file: 14, line: 35, column: 9, end_line: 35, end_column: 21 } },
-        /* terrane-site-row: site 94: /core-regex::test-scenario (tests/integration/core-regex/case.trn:39:16-39:66) */
-        { Site { function: 17, file: 14, line: 39, column: 16, end_line: 39, end_column: 66 } },
-        /* terrane-site-row: site 95: /core-regex::test-scenario (tests/integration/core-regex/case.trn:40:14-40:58) */
-        { Site { function: 17, file: 14, line: 40, column: 14, end_line: 40, end_column: 58 } },
-        /* terrane-site-row: site 96: /core-regex::test-scenario (tests/integration/core-regex/case.trn:46:11-46:52) */
-        { Site { function: 17, file: 14, line: 46, column: 11, end_line: 46, end_column: 52 } },
-        /* terrane-site-row: site 97: /core-regex::test-scenario (tests/integration/core-regex/case.trn:48:14-48:53) */
-        { Site { function: 17, file: 14, line: 48, column: 14, end_line: 48, end_column: 53 } },
-        /* terrane-site-row: site 98: /core-regex::test-scenario (tests/integration/core-regex/case.trn:49:11-49:40) */
-        { Site { function: 17, file: 14, line: 49, column: 11, end_line: 49, end_column: 40 } },
-        /* terrane-site-row: site 99: /core-regex::test-scenario (tests/integration/core-regex/case.trn:50:11-50:41) */
-        { Site { function: 17, file: 14, line: 50, column: 11, end_line: 50, end_column: 41 } },
-        /* terrane-site-row: site 100: /core-regex::test-scenario (tests/integration/core-regex/case.trn:51:16-51:42) */
-        { Site { function: 17, file: 14, line: 51, column: 16, end_line: 51, end_column: 42 } },
-        /* terrane-site-row: site 101: /core-regex::test-scenario (tests/integration/core-regex/case.trn:52:11-52:42) */
-        { Site { function: 17, file: 14, line: 52, column: 11, end_line: 52, end_column: 42 } },
-        /* terrane-site-row: site 102: /core-regex::test-scenario (tests/integration/core-regex/case.trn:54:15-54:40) */
-        { Site { function: 17, file: 14, line: 54, column: 15, end_line: 54, end_column: 40 } },
-        /* terrane-site-row: site 103: /core-regex::test-scenario (tests/integration/core-regex/case.trn:57:9-57:33) */
-        { Site { function: 17, file: 14, line: 57, column: 9, end_line: 57, end_column: 33 } },
-        /* terrane-site-row: site 104: /core-regex::test-scenario (tests/integration/core-regex/case.trn:61:9-61:31) */
-        { Site { function: 17, file: 14, line: 61, column: 9, end_line: 61, end_column: 31 } },
-        /* terrane-site-row: site 105: /core-regex::test-scenario (tests/integration/core-regex/case.trn:65:9-65:34) */
-        { Site { function: 17, file: 14, line: 65, column: 9, end_line: 65, end_column: 34 } },
-        /* terrane-site-row: site 106: /core-regex::test-scenario (tests/integration/core-regex/case.trn:68:11-68:35) */
-        { Site { function: 17, file: 14, line: 68, column: 11, end_line: 68, end_column: 35 } },
-        /* terrane-site-row: site 107: /core-regex::test-scenario (tests/integration/core-regex/case.trn:70:13-70:57) */
-        { Site { function: 17, file: 14, line: 70, column: 13, end_line: 70, end_column: 57 } },
-        /* terrane-site-row: site 108: /core-regex::test-scenario (tests/integration/core-regex/case.trn:71:11-71:37) */
-        { Site { function: 17, file: 14, line: 71, column: 11, end_line: 71, end_column: 37 } },
-        /* terrane-site-row: site 109: /core-regex::test-scenario (tests/integration/core-regex/case.trn:73:12-73:28) */
-        { Site { function: 17, file: 14, line: 73, column: 12, end_line: 73, end_column: 28 } },
-        /* terrane-site-row: site 110: /core-regex::test-scenario (tests/integration/core-regex/case.trn:75:11-75:37) */
-        { Site { function: 17, file: 14, line: 75, column: 11, end_line: 75, end_column: 37 } },
+        /* terrane-site-row: site 93: /core-regex::test-scenario (tests/integration/core-regex/case.trn:40:9-40:21) */
+        { Site { function: 17, file: 14, line: 40, column: 9, end_line: 40, end_column: 21 } },
+        /* terrane-site-row: site 94: /core-regex::test-scenario (tests/integration/core-regex/case.trn:44:16-44:66) */
+        { Site { function: 17, file: 14, line: 44, column: 16, end_line: 44, end_column: 66 } },
+        /* terrane-site-row: site 95: /core-regex::test-scenario (tests/integration/core-regex/case.trn:45:14-45:58) */
+        { Site { function: 17, file: 14, line: 45, column: 14, end_line: 45, end_column: 58 } },
+        /* terrane-site-row: site 96: /core-regex::test-scenario (tests/integration/core-regex/case.trn:51:11-51:52) */
+        { Site { function: 17, file: 14, line: 51, column: 11, end_line: 51, end_column: 52 } },
+        /* terrane-site-row: site 97: /core-regex::test-scenario (tests/integration/core-regex/case.trn:53:14-53:53) */
+        { Site { function: 17, file: 14, line: 53, column: 14, end_line: 53, end_column: 53 } },
+        /* terrane-site-row: site 98: /core-regex::test-scenario (tests/integration/core-regex/case.trn:54:11-54:40) */
+        { Site { function: 17, file: 14, line: 54, column: 11, end_line: 54, end_column: 40 } },
+        /* terrane-site-row: site 99: /core-regex::test-scenario (tests/integration/core-regex/case.trn:55:11-55:41) */
+        { Site { function: 17, file: 14, line: 55, column: 11, end_line: 55, end_column: 41 } },
+        /* terrane-site-row: site 100: /core-regex::test-scenario (tests/integration/core-regex/case.trn:56:16-56:42) */
+        { Site { function: 17, file: 14, line: 56, column: 16, end_line: 56, end_column: 42 } },
+        /* terrane-site-row: site 101: /core-regex::test-scenario (tests/integration/core-regex/case.trn:57:11-57:42) */
+        { Site { function: 17, file: 14, line: 57, column: 11, end_line: 57, end_column: 42 } },
+        /* terrane-site-row: site 102: /core-regex::test-scenario (tests/integration/core-regex/case.trn:59:15-59:40) */
+        { Site { function: 17, file: 14, line: 59, column: 15, end_line: 59, end_column: 40 } },
+        /* terrane-site-row: site 103: /core-regex::test-scenario (tests/integration/core-regex/case.trn:62:9-62:33) */
+        { Site { function: 17, file: 14, line: 62, column: 9, end_line: 62, end_column: 33 } },
+        /* terrane-site-row: site 104: /core-regex::test-scenario (tests/integration/core-regex/case.trn:66:9-66:31) */
+        { Site { function: 17, file: 14, line: 66, column: 9, end_line: 66, end_column: 31 } },
+        /* terrane-site-row: site 105: /core-regex::test-scenario (tests/integration/core-regex/case.trn:70:9-70:34) */
+        { Site { function: 17, file: 14, line: 70, column: 9, end_line: 70, end_column: 34 } },
+        /* terrane-site-row: site 106: /core-regex::test-scenario (tests/integration/core-regex/case.trn:73:11-73:35) */
+        { Site { function: 17, file: 14, line: 73, column: 11, end_line: 73, end_column: 35 } },
+        /* terrane-site-row: site 107: /core-regex::test-scenario (tests/integration/core-regex/case.trn:75:13-75:57) */
+        { Site { function: 17, file: 14, line: 75, column: 13, end_line: 75, end_column: 57 } },
+        /* terrane-site-row: site 108: /core-regex::test-scenario (tests/integration/core-regex/case.trn:76:11-76:37) */
+        { Site { function: 17, file: 14, line: 76, column: 11, end_line: 76, end_column: 37 } },
+        /* terrane-site-row: site 109: /core-regex::test-scenario (tests/integration/core-regex/case.trn:78:12-78:28) */
+        { Site { function: 17, file: 14, line: 78, column: 12, end_line: 78, end_column: 28 } },
+        /* terrane-site-row: site 110: /core-regex::test-scenario (tests/integration/core-regex/case.trn:80:11-80:37) */
+        { Site { function: 17, file: 14, line: 80, column: 11, end_line: 80, end_column: 37 } },
         /* terrane-site-row: site 111: /declared-union-reaching-arm::observe (tests/integration/declared-union-reaching-arm/case.trn:15:16-15:25) */
         { Site { function: 18, file: 15, line: 15, column: 16, end_line: 15, end_column: 25 } },
         /* terrane-site-row: site 112: /exact-float-narrowing::test-scenario (tests/integration/exact-float-narrowing/case.trn:4:20-4:26) */

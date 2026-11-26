@@ -20,7 +20,12 @@ function test-scenario;
     source = 'reassigned'
     full = found.group; 0
     if full != none
-      print; full.bytes.end
+      start int = full.bytes.start
+      end int = full.bytes.end
+      print; end
+      print; end - start
+      print; full.scalars.end - full.scalars.start
+      print; full.graphemes.end - full.graphemes.start
     print; ((found.group; 1) == none)
     call = found.named-group; 'call'
     if call != none

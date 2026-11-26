@@ -1410,7 +1410,7 @@ impl Emitter<'_> {
             boundary @ ("start" | "end")
                 if matches!(receiver_type, Some(ValueType::TextRangeView(_))) =>
             {
-                let method = match (receiver_type.clone(), boundary) {
+                let method = match (receiver_type, boundary) {
                     (
                         Some(ValueType::TextRangeView(crate::semantics::TextUnit::Bytes)),
                         "start",
@@ -1436,7 +1436,7 @@ impl Emitter<'_> {
                     ) => "grapheme_end",
                     _ => unreachable!("semantic analysis validated text-range boundary"),
                 };
-                format!("({receiver}).{method}() as i128")
+                format!("terrane_int_support::Int::from(({receiver}).{method}() as i128)")
             }
             "length" => match &receiver_type {
                 Some(
