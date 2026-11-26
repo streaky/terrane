@@ -1961,7 +1961,7 @@ fn own_closure() -> terrane_int_support::Int {
     ) -> terrane_int_support::Int {
         let local: terrane_int_support::Int;
         let callback: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
-        local = &value + &&*__TERRANE_F21_SHARED;
+        local = &value + &*__TERRANE_F21_SHARED;
         callback = {
             let local = local.clone();
             std::sync::Arc::new(move || -> terrane_int_support::Int {
