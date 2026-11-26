@@ -139,8 +139,8 @@ impl CliCommand {
 }
 
 fn main() -> ExitCode {
-    if let Some(warning) = development_provenance::warning() {
-        eprint!("{warning}");
+    if let Some(code) = development_provenance::check_before_dispatch() {
+        return code;
     }
     match run(&std::env::args_os().skip(1).collect::<Vec<_>>()) {
         Ok(code) => code,
