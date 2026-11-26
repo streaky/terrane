@@ -65,7 +65,8 @@ pub(super) fn add_from(item: &mut ProjectedItem) {
         static_methods,
         generic_parameters,
         ..
-    }) = &mut item.kind else {
+    }) = &mut item.kind
+    else {
         return;
     };
     if !generic_parameters.is_empty()

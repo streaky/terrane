@@ -382,7 +382,7 @@ fn main() {
                 update_observed.append(__terrane_collection_argument_0);
             };
         }
-        update_index = update_index.clone() + terrane_int_support::Int::from(1_i128)
+        update_index = &update_index + &terrane_int_support::Int::from(1_i128)
             + terrane_int_support::Int::from(update_observed.length())
             - terrane_int_support::Int::from(update_observed.length());
     }

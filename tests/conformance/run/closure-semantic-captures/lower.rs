@@ -22,7 +22,7 @@ fn main() {
             outer: terrane_int_support::Int,
         | -> terrane_int_support::Int {
             let local: terrane_int_support::Int;
-            local = outer.clone() + terrane_int_support::Int::from(1_i128);
+            local = &outer + &terrane_int_support::Int::from(1_i128);
             return local.clone();
         })
     };

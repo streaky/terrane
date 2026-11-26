@@ -907,7 +907,7 @@ fn main() {
         let mut changes = changes.clone();
         TerraneOwnedMutableInputsM::new(move |(incoming,): (&mut MutableEvent,)| -> () {
             let current: &mut MutableEvent;
-            changes = changes.clone() + terrane_int_support::Int::from(1_i128);
+            changes = &changes + &terrane_int_support::Int::from(1_i128);
             current = &mut *incoming;
             {
                 let __terrane_value: bool = changes

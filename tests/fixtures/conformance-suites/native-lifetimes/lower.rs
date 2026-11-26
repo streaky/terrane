@@ -2985,7 +2985,7 @@ fn test_scenario_terrane_native_field_copy_clone_conversion() -> Result<
             } } (), 124 /* terrane-site: tests/integration/native-field-copy-clone-conversion/case.trn:19:17-19:26 */)
             ?)
         );
-        i = i.clone() + terrane_int_support::Int::from(1_i128);
+        i = &i + &terrane_int_support::Int::from(1_i128);
     }
     println!(
         "{}",
@@ -4147,7 +4147,7 @@ fn test_scenario_terrane_native_loan_finally_copy_rebind() {
                 __terrane_generated_defect("non-continuing try produced continue")
             }
         }
-        i = i.clone() + terrane_int_support::Int::from(1_i128);
+        i = &i + &terrane_int_support::Int::from(1_i128);
     }
 }
 // Source: tests/integration/native-loan-fluent-nested-rebind/case.trn
@@ -4705,7 +4705,7 @@ fn test_scenario_terrane_native_loan_loop_refreshed() {
             );
             w.inner = Some(__terrane_value);
         }
-        i = i.clone() + terrane_int_support::Int::from(1_i128);
+        i = &i + &terrane_int_support::Int::from(1_i128);
     }
 }
 // Source: tests/integration/native-loan-map-set-lender/case.trn
@@ -6797,7 +6797,7 @@ fn twice(value: &mut CloneEnum) -> Result<u64, TerraneError> {
     )?;
     return Ok(
         __terrane_raised_err(
-            terrane_int_support::coerce::<u64>(&(first.clone() + second.clone())),
+            terrane_int_support::coerce::<u64>(&(&first + &second)),
 
                 319 /* terrane-site: tests/integration/native-ref-clone-repeat/case.trn:6:12-6:26 */,
         )?,
@@ -8090,7 +8090,7 @@ fn test_scenario_terrane_native_try_local_consume() {
                 __terrane_generated_defect("non-continuing try produced continue")
             }
         }
-        i = i.clone() + terrane_int_support::Int::from(1_i128);
+        i = &i + &terrane_int_support::Int::from(1_i128);
     }
 }
 // Source: tests/integration/native-try-unconditional-rewrite-control/case.trn
@@ -10672,8 +10672,8 @@ fn observe_ref(values: &terrane_collection_support::List<CopyView>) {
         );
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
-        .clone().length()))
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from((*
+        values).length()))
     );
 }
 fn test_scenario_terrane_native_view_value_iteration() {

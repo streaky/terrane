@@ -177,13 +177,20 @@ impl Emitter<'_> {
             return None;
         };
         receiver.children.first().map(|source| {
+            let place = self
+                .namespace_scalar_place(source)
+                .or_else(|| self.observed_field_place(source));
             if unit == crate::semantics::TextUnit::Bytes
+                && place.is_none()
                 && let Some(text) =
                     self.lower_borrowed_native_leaf(source, &ProjectedType::BorrowedString)
             {
                 return format!("({text}).len() as i128");
             }
-            let (setup, source) = self.borrowed_receiver_parts(source);
+            let (setup, source) = place.map_or_else(
+                || self.borrowed_receiver_parts(source),
+                |place| (String::new(), place),
+            );
             let length = match unit {
                 crate::semantics::TextUnit::Bytes => format!("({source}).len() as i128"),
                 crate::semantics::TextUnit::Scalars => {
@@ -338,6 +345,80 @@ impl Emitter<'_> {
         }
     }
 
+    fn plain_reference_receiver_place(&mut self, receiver: &SyntaxNode) -> Option<String> {
+        let receiver = crate::semantics::ungrouped_expression(receiver);
+        let item = match self.value_type(receiver)? {
+            ValueType::Reference(item) => item,
+            ValueType::MutableReference(item) => {
+                let name = self.text(receiver);
+                if receiver.kind != SyntaxKind::Name
+                    || self.assignment_target
+                    || self.receiver_needs_live_guard(receiver)
+                    || self.async_mutable_captures.contains(name)
+                    || (self.closure_depth != 0 && name == "this")
+                    || (self.closure_depth != 0
+                        && self
+                            .unit
+                            .functions_containing(receiver.span)
+                            .any(|contract| {
+                                contract.is_anonymous
+                                    && contract.captures.iter().any(|capture| capture == name)
+                            }))
+                {
+                    return None;
+                }
+                item
+            }
+            _ => return None,
+        };
+        if !matches!(item.value_type_ref(), ValueType::TypeParameter(_))
+            && !self.reference_uses_shared_storage(receiver)
+            && self.borrowed_key_name(receiver).is_none()
+        {
+            Some(format!("(*({}))", self.expression(receiver)))
+        } else {
+            None
+        }
+    }
+
+    // Only walk physical instance fields rooted in an ordinary, unguarded loan.
+    // Owned reads still snapshot, and accessor-backed fields keep their slot semantics.
+    fn observed_field_place(&mut self, node: &SyntaxNode) -> Option<String> {
+        let node = crate::semantics::ungrouped_expression(node);
+        if self.assignment_target || node.kind != SyntaxKind::MemberExpression {
+            return None;
+        }
+        let [holder, member] = node.children.as_slice() else {
+            return None;
+        };
+        let holder = crate::semantics::ungrouped_expression(holder);
+        let ValueType::Object(identity) = self.receiver_value_type(holder)? else {
+            return None;
+        };
+        object_member_type(self.unit, &identity, self.text(member), false)?;
+        if self.is_throwable_value(holder)
+            || self
+                .native_field_type(node)
+                .is_some_and(|ty| !ty.has_identity_representation())
+        {
+            return None;
+        }
+        let base = match self.value_type(holder)? {
+            ValueType::Reference(_) | ValueType::MutableReference(_)
+                if holder.kind == SyntaxKind::Name
+                    && self.static_storage_name(holder).is_none()
+                    && self.reference_backed_name(holder).is_none()
+                    && !(self.shared_async_receiver && self.text(holder) == "this") =>
+            {
+                self.plain_reference_receiver_place(holder)?
+            }
+            ValueType::Object(_) => self.observed_field_place(holder)?,
+            _ => return None,
+        };
+        let (place, accessor) = self.object_field_place(holder, member, false, &base);
+        (!accessor).then_some(place)
+    }
+
     pub(super) fn consuming_native_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         if receiver.kind == SyntaxKind::GroupExpression
             && let [grouped] = receiver.children.as_slice()
@@ -378,6 +459,9 @@ impl Emitter<'_> {
     ) -> String {
         // A grouped native receiver is still a place, not an owned expression.
         let receiver = crate::semantics::ungrouped_expression(receiver);
+        if !mutable && let Some(place) = self.namespace_scalar_place(receiver) {
+            return place;
+        }
         if let [holder, member] = receiver.children.as_slice()
             && receiver.kind == SyntaxKind::MemberExpression
             && let Some(ValueType::Object(identity)) = self.receiver_value_type(holder)
@@ -715,6 +799,9 @@ impl Emitter<'_> {
             && let [grouped] = receiver.children.as_slice()
         {
             return self.receiver_place_parts(grouped, mutable, scope);
+        }
+        if !mutable && let Some(place) = self.namespace_scalar_place(receiver) {
+            return (String::new(), place);
         }
         if let Some((setup, guard)) = self.static_receiver_parts(receiver) {
             return self.capture_read_guard(setup, guard, scope);
@@ -1372,6 +1459,55 @@ impl Emitter<'_> {
             };
         }
         let receiver_node = receiver;
+        let member_name = self.text(member);
+        let callable_length = member_name == "length"
+            && matches!(
+                self.value_type(node),
+                Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+            );
+        let observation_source = match (member_name, &receiver_type) {
+            ("start" | "end", Some(ValueType::TextRangeView(_))) => {
+                // A range view is represented by its source range. Borrow it
+                // for a boundary read without changing standalone view values.
+                let view = crate::semantics::ungrouped_expression(receiver_node);
+                match view.children.as_slice() {
+                    [source, axis]
+                        if view.kind == SyntaxKind::MemberExpression
+                            && matches!(self.text(axis), "bytes" | "scalars" | "graphemes")
+                            && self.receiver_value_type(source) == Some(ValueType::TextRange) =>
+                    {
+                        Some(source)
+                    }
+                    _ => None,
+                }
+            }
+            ("text", Some(ValueType::TextRange))
+            | ("bytes" | "scalars" | "graphemes", Some(ValueType::Scalar(ScalarType::String)))
+            | ("key" | "value", Some(ValueType::Entry(_, _)))
+            | ("mantissa" | "exponent", Some(ValueType::FloatDecomposition(_))) => {
+                Some(receiver_node)
+            }
+            ("length", Some(ty))
+                if !callable_length
+                    && (Self::length_yields_int(ty)
+                        || matches!(
+                            ty,
+                            ValueType::Scalar(ScalarType::Bytes | ScalarType::String)
+                                | ValueType::StringView(_)
+                                | ValueType::StringList
+                                | ValueType::TextRangeList
+                        )) =>
+            {
+                Some(receiver_node)
+            }
+            (name, Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64)))
+                if float_member_contract(name)
+                    .is_some_and(|contract| contract.parameters.is_none()) =>
+            {
+                Some(receiver_node)
+            }
+            _ => None,
+        };
         let receiver = if explicit_field_move && required_field {
             let (setup, place) =
                 self.receiver_place_parts(receiver_node, true, GuardScope::Expression);
@@ -1380,15 +1516,18 @@ impl Emitter<'_> {
             } else {
                 format!("{{ {setup}{place} }}")
             }
+        } else if !self.assignment_target
+            && let Some(place) = observation_source.and_then(|source| {
+                self.namespace_scalar_place(source)
+                    .or_else(|| self.plain_reference_receiver_place(source))
+                    .or_else(|| self.observed_field_place(source))
+            })
+        {
+            place
         } else {
             self.receiver_expression(receiver_node)
         };
-        if self.text(member) == "length"
-            && matches!(
-                self.value_type(node),
-                Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
-            )
-        {
+        if callable_length {
             return format!("({receiver}).length");
         }
         match self.text(member) {
@@ -1410,7 +1549,7 @@ impl Emitter<'_> {
             boundary @ ("start" | "end")
                 if matches!(receiver_type, Some(ValueType::TextRangeView(_))) =>
             {
-                let method = match (receiver_type.clone(), boundary) {
+                let method = match (receiver_type, boundary) {
                     (
                         Some(ValueType::TextRangeView(crate::semantics::TextUnit::Bytes)),
                         "start",
@@ -1436,7 +1575,7 @@ impl Emitter<'_> {
                     ) => "grapheme_end",
                     _ => unreachable!("semantic analysis validated text-range boundary"),
                 };
-                format!("({receiver}).{method}() as i128")
+                format!("terrane_int_support::Int::from(({receiver}).{method}() as i128)")
             }
             "length" => match &receiver_type {
                 Some(
@@ -1572,6 +1711,7 @@ impl Emitter<'_> {
             ),
             Some(ValueType::DocumentDecodeOutcome(_)) => matches!(name, "value" | "diagnostics"),
             Some(ValueType::DocumentDiagnostic) => true,
+            Some(ValueType::TextRange) => name == "text",
             Some(ValueType::Entry(_, _)) => matches!(name, "key" | "value"),
             Some(ValueType::Object(_)) if self.is_throwable_value(receiver) => {
                 matches!(name, "descriptor" | "message" | "cause" | "render")

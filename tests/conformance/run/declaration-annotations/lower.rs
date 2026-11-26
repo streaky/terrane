@@ -81,7 +81,7 @@ impl ParentStorage {
         &self,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return value.clone() + terrane_int_support::Int::from(1_i128);
+        return &value + &terrane_int_support::Int::from(1_i128);
     }
     pub fn hidden(&self, value: terrane_int_support::Int) -> terrane_int_support::Int {
         return value.clone();
@@ -175,7 +175,7 @@ impl Child {
         &self,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return value.clone() + terrane_int_support::Int::from(1_i128);
+        return &value + &terrane_int_support::Int::from(1_i128);
     }
     pub fn hidden(&self, value: terrane_int_support::Int) -> terrane_int_support::Int {
         return value.clone();
@@ -199,7 +199,7 @@ impl OverrideChild {
         &self,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        return value.clone() + terrane_int_support::Int::from(2_i128);
+        return &value + &terrane_int_support::Int::from(2_i128);
     }
     pub fn hidden(&self, value: terrane_int_support::Int) -> terrane_int_support::Int {
         return value.clone();
@@ -220,7 +220,7 @@ impl NoneTarget {
     }
 }
 fn helper(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() * terrane_int_support::Int::from(2_i128);
+    return &value * &terrane_int_support::Int::from(2_i128);
 }
 fn main() {
     let item: Child;

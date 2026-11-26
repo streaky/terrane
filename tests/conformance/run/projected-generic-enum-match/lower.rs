@@ -35,8 +35,8 @@ fn main() {
             );
             value = __terrane_pattern_228_value;
             println!(
-                "{}", terrane_scalar_support::scalar_text(&(value.clone() +
-                terrane_int_support::Int::from(1_i128)))
+                "{}", terrane_scalar_support::scalar_text(&(&value +
+                &terrane_int_support::Int::from(1_i128)))
             );
         }
         witness::Choice::Named { value: _, enabled: _ } => {

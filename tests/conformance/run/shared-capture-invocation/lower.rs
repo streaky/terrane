@@ -14,8 +14,8 @@ impl Counter {
     }
     pub fn add(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value: terrane_int_support::Int = self.value.clone()
-                + amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.value.clone()
+                + &amount;
             self.value = __terrane_value;
         }
     }

@@ -134,7 +134,7 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        total = total.clone() + item.clone();
+        total = &total + &item;
         copy = hb.clone();
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));
@@ -157,7 +157,7 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        total = total.clone() + item.clone();
+        total = &total + &item;
         copy = hb.clone();
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));
@@ -174,7 +174,7 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        total = total.clone() + item.clone();
+        total = &total + &item;
         copy = ha.clone();
     }
     println!(

@@ -1,5 +1,23 @@
 namespace integer-move
 
+from /core/testing import assert
+
+constant base int = 41
+
+function constant-operands; local int
+    assert; base + 1 == 42 and local + base == 43 and base + base == 82
+    assert; base - local == 39 and local - base == -39 and base - base == 0
+    assert; base * local == 82 and local * base == 82 and base * base == 1681
+    assert; base == 41 and base < 42 and not (base == local) and local < base
+    assert; not (base < local)
+
+function print-bitwise; x int, y int
+    print; x & y
+    print; base & 3
+    print; x & base
+    print; x | y
+    print; x ^ y
+
 function compact;
     owned = 1
     transferred = move owned
@@ -16,6 +34,12 @@ function large;
     owned = 340282366920938463463374607431768211456
     transferred = move owned
     owned = 340282366920938463463374607431768211457
+    sum = transferred + owned
+    difference = owned - transferred
+    product = (transferred) * (owned)
+    assert; sum == 680564733841876926926749214863536422913
+    assert; difference == 1
+    assert; product == 115792089237316195423570985008687907853610267032561502502920958615344897851392
     print; transferred
     print; owned
 
@@ -29,6 +53,8 @@ function from-parameter int; owned int
     return move owned
 
 function test-scenario;
+    constant-operands; 2
+    print-bitwise; 6, 3
     compact;
     reassigned;
     large;

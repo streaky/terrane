@@ -228,7 +228,7 @@ fn loop_exits() -> Result<(), TerraneError> {
     let mut index: terrane_int_support::Int;
     index = terrane_int_support::Int::from(0_i128);
     while index < terrane_int_support::Int::from(2_i128) {
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index = &index + &terrane_int_support::Int::from(1_i128);
         {
             let guard: Marker = __terrane_traced_err(
                 acquire(String::from("loop"), false),

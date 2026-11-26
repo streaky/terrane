@@ -567,7 +567,7 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                     __terrane_list_append_0.push(__terrane_collection_argument_0);
                 };
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
         }
     }
     return result;
@@ -627,7 +627,7 @@ pub fn normalise_path(subject: Path) -> Path {
                                 .get_or_error(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(
-                                            &(count.clone() - terrane_int_support::Int::from(1_i128)),
+                                            &(&count - &terrane_int_support::Int::from(1_i128)),
                                         ),
                                         2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                     ),
@@ -636,7 +636,7 @@ pub fn normalise_path(subject: Path) -> Path {
                         )
                         .as_str() != ".."
                 {
-                    count = count.clone() - terrane_int_support::Int::from(1_i128);
+                    count = &count - &terrane_int_support::Int::from(1_i128);
                 } else {
                     if !absolute {
                         if count < terrane_int_support::Int::from(kept.length()) {
@@ -661,7 +661,7 @@ pub fn normalise_path(subject: Path) -> Path {
                                 kept.append(__terrane_collection_argument_0);
                             };
                         }
-                        count = count.clone() + terrane_int_support::Int::from(1_i128);
+                        count = &count + &terrane_int_support::Int::from(1_i128);
                     }
                 }
             } else {
@@ -687,10 +687,10 @@ pub fn normalise_path(subject: Path) -> Path {
                         kept.append(__terrane_collection_argument_0);
                     };
                 }
-                count = count.clone() + terrane_int_support::Int::from(1_i128);
+                count = &count + &terrane_int_support::Int::from(1_i128);
             }
         }
-        part_index = part_index.clone() + terrane_int_support::Int::from(1_i128);
+        part_index = &part_index + &terrane_int_support::Int::from(1_i128);
     }
     result = String::from("");
     index = terrane_int_support::Int::from(0_i128);
@@ -727,7 +727,7 @@ pub fn normalise_path(subject: Path) -> Path {
             );
             __terrane_text
         };
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index = &index + &terrane_int_support::Int::from(1_i128);
     }
     if absolute {
         result = {
@@ -825,7 +825,7 @@ pub fn path_parent(subject: Path) -> Path {
             );
             __terrane_text
         };
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index = &index + &terrane_int_support::Int::from(1_i128);
     }
     absolute = path_is_absolute(normal);
     if absolute {
@@ -927,7 +927,7 @@ pub fn path_stem(subject: Path) -> String {
             );
             __terrane_text
         };
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index = &index + &terrane_int_support::Int::from(1_i128);
     }
     return result;
 }

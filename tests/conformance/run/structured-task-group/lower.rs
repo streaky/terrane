@@ -46,7 +46,7 @@ fn main() {
                         };
                         group.spawn(__terrane_child);
                     };
-                    index = index.clone() + terrane_int_support::Int::from(1_i128);
+                    index = &index + &terrane_int_support::Int::from(1_i128);
                 }
                 outcomes = __terrane_await(std::boxed::Box::pin(group.prepare_drain()))
                     .await;
@@ -64,19 +64,18 @@ fn main() {
                     };
                     value = outcome.value.clone();
                     if (&value).is_some() {
-                        total = total.clone()
-                            + match &value {
+                        total = &total
+                            + &*match &value {
                                 Some(value) => value,
                                 _ => unreachable!("flow-proven storage refinement"),
-                            }
-                                .clone();
+                            };
                         ordered = ordered
                             && *match &value {
                                 Some(value) => value,
                                 _ => unreachable!("flow-proven storage refinement"),
                             } == expected;
                     }
-                    expected = expected.clone() + terrane_int_support::Int::from(1_i128);
+                    expected = &expected + &terrane_int_support::Int::from(1_i128);
                 }
                 println!(
                     "{}{}", terrane_scalar_support::scalar_text(&total),

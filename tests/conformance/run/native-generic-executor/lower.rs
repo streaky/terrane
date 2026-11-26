@@ -553,7 +553,7 @@ fn execute_outlives() -> Result<i64, TerraneError> {
     };
     return Ok(
         __terrane_raised_err(
-            terrane_int_support::coerce::<i64>(&(first.clone() + second.clone())),
+            terrane_int_support::coerce::<i64>(&(&first + &second)),
             24 /* terrane-site: src/main.trn:60:12-60:26 */,
         )?,
     );

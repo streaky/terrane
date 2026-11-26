@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 fn add_two(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    return value.clone() + terrane_int_support::Int::from(2_i128);
+    return &value + &terrane_int_support::Int::from(2_i128);
 }
 fn keep_string(value: String) -> String {
     return value;
@@ -183,8 +183,7 @@ impl ProjectedCounter {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + delta.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone() + &delta;
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -256,8 +255,7 @@ impl ProjectedLocalCounter {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + delta.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone() + &delta;
             self.total = __terrane_value;
         }
         return self.total.clone();
@@ -1270,8 +1268,7 @@ fn main() {
             > {
                 let offset = offset.clone();
                 Box::pin(async move {
-                    return value.clone()
-                        + terrane_int_support::Int::from(offset as i128);
+                    return &value + &terrane_int_support::Int::from(offset as i128);
                 })
             })
         };

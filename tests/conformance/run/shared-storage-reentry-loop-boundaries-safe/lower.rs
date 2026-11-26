@@ -156,7 +156,7 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        total = total.clone() + outer_item.clone();
+        total = &total + &outer_item;
         let __terrane_iterable_3 = empty.clone();
         let mut __terrane_iterator_3 = terrane_collection_support::slice_iterator(
             __terrane_iterable_3.as_slice(),
@@ -167,7 +167,7 @@ fn main() {
                 terrane_collection_support::IterationStep::End => break,
             };
             copy = ha.clone();
-            total = total.clone()
+            total = &(total.clone()
                 + {
                     let __terrane_snapshot = copy
                         .lock()
@@ -175,7 +175,7 @@ fn main() {
                         .count
                         .clone();
                     __terrane_snapshot
-                } + inner_item.clone();
+                }) + &inner_item;
         }
         copy = hb.clone();
     }
@@ -198,7 +198,7 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        total = total.clone() + outer_item.clone();
+        total = &total + &outer_item;
         let __terrane_iterable_5 = terrane_collection_support::List::<
             terrane_int_support::Int,
         >::new(vec![terrane_int_support::Int::from(1_i128)]);
@@ -211,7 +211,7 @@ fn main() {
                 terrane_collection_support::IterationStep::End => break,
             };
             copy = ha.clone();
-            total = total.clone()
+            total = &(total.clone()
                 + {
                     let __terrane_snapshot = copy
                         .lock()
@@ -219,7 +219,7 @@ fn main() {
                         .count
                         .clone();
                     __terrane_snapshot
-                } + inner_item.clone();
+                }) + &inner_item;
         }
         copy = hb.clone();
     }

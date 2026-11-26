@@ -99,7 +99,7 @@ fn cycle_left(
         return cycle_right(
             second.clone(),
             first.clone(),
-            depth.clone() - terrane_int_support::Int::from(1_i128),
+            &depth - &terrane_int_support::Int::from(1_i128),
         );
     }
     return {
@@ -136,7 +136,7 @@ fn cycle_right(
         return cycle_left(
             first.clone(),
             second.clone(),
-            depth.clone() - terrane_int_support::Int::from(1_i128),
+            &depth - &terrane_int_support::Int::from(1_i128),
         );
     }
     return {

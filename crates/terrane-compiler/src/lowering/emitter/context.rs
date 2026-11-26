@@ -168,6 +168,21 @@ impl<'unit> Emitter<'unit> {
         )
     }
 
+    // Ordinary namespace reads yield &*STORAGE. A caller that supplies the
+    // borrow itself needs the payload place, not a reference to that place.
+    pub(super) fn namespace_scalar_place(&self, node: &SyntaxNode) -> Option<String> {
+        let node = crate::semantics::ungrouped_expression(node);
+        if node.kind != SyntaxKind::Name
+            || !matches!(
+                self.lazy_namespace_binding_type(node),
+                Some(ValueType::Scalar(_))
+            )
+        {
+            return None;
+        }
+        Some(format!("*{}", self.namespace_name(node)))
+    }
+
     pub(super) fn namespace_name(&self, node: &SyntaxNode) -> String {
         self.package
             .resolve_name_at(self.unit, node.span.start, self.text(node))
@@ -414,6 +429,9 @@ impl<'unit> Emitter<'unit> {
             return self.operand_reference_parts(inner, mutable);
         }
         let prefix = if mutable { "&mut " } else { "&" };
+        if !mutable && let Some(place) = self.namespace_scalar_place(operand) {
+            return (String::new(), format!("&{place}"));
+        }
         if mutable
             && matches!(
                 self.value_type(operand),
@@ -1424,6 +1442,9 @@ impl<'unit> Emitter<'unit> {
             && let Some(inner) = operand.children.first()
         {
             return self.reference_address_expression(inner);
+        }
+        if let Some(place) = self.namespace_scalar_place(operand) {
+            return format!("&{place}");
         }
         if self.reference_backed_name(operand).is_some() {
             return format!(

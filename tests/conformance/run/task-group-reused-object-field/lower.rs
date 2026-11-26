@@ -29,8 +29,7 @@ async fn work(
     offset: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
     {
-        let __terrane_value: terrane_int_support::Int = item.value.clone()
-            + offset.clone();
+        let __terrane_value: terrane_int_support::Int = &item.value.clone() + &offset;
         item.value = __terrane_value;
     }
     return item.value.clone();
@@ -75,7 +74,7 @@ fn main() {
                         };
                         group.spawn(__terrane_child);
                     };
-                    index = index.clone() + terrane_int_support::Int::from(1_i128);
+                    index = &index + &terrane_int_support::Int::from(1_i128);
                 }
                 outcomes = __terrane_await(std::boxed::Box::pin(group.prepare_drain()))
                     .await;
@@ -91,8 +90,8 @@ fn main() {
                     };
                     value = outcome.value.clone();
                     if (&value).is_some() {
-                        total = total.clone()
-                            + match value {
+                        total = &total
+                            + &*match &value {
                                 Some(value) => value,
                                 _ => unreachable!("flow-proven storage refinement"),
                             };

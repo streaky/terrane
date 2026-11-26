@@ -614,19 +614,19 @@ fn test_scenario_terrane_fizz_buzz() -> Result<(), TerraneError> {
     number = terrane_int_support::Int::from(1_i128);
     while number <= terrane_int_support::Int::from(15_i128) {
         if __terrane_raised_err(
-            number.clone().modulo(&terrane_int_support::Int::from(15_i128)),
+            number.modulo(&terrane_int_support::Int::from(15_i128)),
             12 /* terrane-site: tests/integration/fizz-buzz/case.trn:6:8-6:19 */,
         )? == terrane_int_support::Int::from(0_i128)
         {
             println!("{}", String::from("FizzBuzz"));
         } else if __terrane_raised_err(
-            number.clone().modulo(&terrane_int_support::Int::from(3_i128)),
+            number.modulo(&terrane_int_support::Int::from(3_i128)),
             13 /* terrane-site: tests/integration/fizz-buzz/case.trn:8:13-8:23 */,
         )? == terrane_int_support::Int::from(0_i128)
         {
             println!("{}", String::from("Fizz"));
         } else if __terrane_raised_err(
-            number.clone().modulo(&terrane_int_support::Int::from(5_i128)),
+            number.modulo(&terrane_int_support::Int::from(5_i128)),
             14 /* terrane-site: tests/integration/fizz-buzz/case.trn:10:13-10:23 */,
         )? == terrane_int_support::Int::from(0_i128)
         {
@@ -900,7 +900,7 @@ fn borrow_match(item: Choice) -> terrane_int_support::Int {
             value_2 = __terrane_pattern_238_value;
             println!("{}", terrane_scalar_support::scalar_text(&* value_2));
             result = terrane_int_support::Int::from(
-                terrane_string_support::length(&value_2.clone()) as i128,
+                terrane_string_support::length(&*value_2) as i128,
             );
         }
     }
@@ -983,10 +983,10 @@ fn finite_unions(choose_first: bool, choose_second: bool) {
     }
     if matches!(&&value, TerraneUnionF9S897::Arm1(_)) {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&(match value {
+            "{}", terrane_scalar_support::scalar_text(&(&* match &value {
             TerraneUnionF9S897::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } +
-            terrane_int_support::Int::from(4_i128)))
+            &terrane_int_support::Int::from(4_i128)))
         );
     } else if matches!(&&value, TerraneUnionF9S897::Arm2(_)) {
         println!(
@@ -1019,10 +1019,10 @@ fn loop_union(mut count: terrane_int_support::Int) {
     }
     if matches!(&&value, TerraneUnionF9S1273::Arm1(_)) {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&(match value {
+            "{}", terrane_scalar_support::scalar_text(&(&* match &value {
             TerraneUnionF9S1273::Arm1(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } +
-            terrane_int_support::Int::from(1_i128)))
+            &terrane_int_support::Int::from(1_i128)))
         );
     } else if matches!(&&value, TerraneUnionF9S1273::Arm2(_)) {
         println!(
@@ -1373,10 +1373,10 @@ fn branch_type_use(choose: bool) -> terrane_int_support::Int {
     let result: terrane_int_support::Int;
     if choose {
         x = TerraneUnionF11S1289::Arm0(terrane_int_support::Int::from(3_i128));
-        result = match x {
+        result = &*match &x {
             TerraneUnionF11S1289::Arm0(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
-        } + terrane_int_support::Int::from(1_i128);
+        } + &terrane_int_support::Int::from(1_i128);
     } else {
         x = TerraneUnionF11S1289::Arm1(String::from("cat"));
         result = terrane_int_support::Int::from(
@@ -1705,7 +1705,7 @@ fn subtract(
     left: terrane_int_support::Int,
     right: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    return left.clone() - right.clone();
+    return &left - &right;
 }
 #[allow(dead_code)]
 fn wrapped(first: String, second: String) -> String {
@@ -1925,7 +1925,7 @@ fn factorial() -> terrane_int_support::Int {
         if n <= terrane_int_support::Int::from(1_i128) {
             return terrane_int_support::Int::from(1_i128);
         }
-        return n.clone() * fact(n.clone() - terrane_int_support::Int::from(1_i128));
+        return n.clone() * fact(&n - &terrane_int_support::Int::from(1_i128));
     }
     return fact(terrane_int_support::Int::from(5_i128));
 }
@@ -1942,13 +1942,13 @@ fn parity(value: terrane_int_support::Int) -> terrane_int_support::Int {
         if n == terrane_int_support::Int::from(0_i128) {
             return true;
         }
-        return odd(n.clone() - terrane_int_support::Int::from(1_i128));
+        return odd(&n - &terrane_int_support::Int::from(1_i128));
     }
     fn odd(n: terrane_int_support::Int) -> bool {
         if n == terrane_int_support::Int::from(0_i128) {
             return false;
         }
-        return even(n.clone() - terrane_int_support::Int::from(1_i128));
+        return even(&n - &terrane_int_support::Int::from(1_i128));
     }
     if even(value.clone()) {
         return terrane_int_support::Int::from(1_i128);
@@ -1961,7 +1961,7 @@ fn own_closure() -> terrane_int_support::Int {
     ) -> terrane_int_support::Int {
         let local: terrane_int_support::Int;
         let callback: std::sync::Arc<dyn Fn() -> terrane_int_support::Int + Send + Sync>;
-        local = value.clone() + (*__TERRANE_F21_SHARED).clone();
+        local = &value + &*__TERRANE_F21_SHARED;
         callback = {
             let local = local.clone();
             std::sync::Arc::new(move || -> terrane_int_support::Int {
@@ -2375,26 +2375,24 @@ fn inferred() {
     count = terrane_int_support::Int::from(0_i128);
     total = terrane_int_support::Int::from(0_i128);
     while count < terrane_int_support::Int::from(3_i128) {
-        count = count.clone() + terrane_int_support::Int::from(1_i128);
+        count = &count + &terrane_int_support::Int::from(1_i128);
         if count > terrane_int_support::Int::from(1_i128) {
-            result = previous
+            result = &*previous
                 .as_ref()
                 .unwrap_or_else(|| __terrane_uninitialized_binding(
                     "previous",
                     "case.trn",
                     10,
                     22,
-                ))
-                .clone() + terrane_int_support::Int::from(1_i128);
-            typed_result = previous
+                )) + &terrane_int_support::Int::from(1_i128);
+            typed_result = &*previous
                 .as_ref()
                 .unwrap_or_else(|| __terrane_uninitialized_binding(
                     "previous",
                     "case.trn",
                     11,
                     32,
-                ))
-                .clone() + terrane_int_support::Int::from(1_i128);
+                )) + &terrane_int_support::Int::from(1_i128);
             step = previous
                 .as_ref()
                 .unwrap_or_else(|| __terrane_uninitialized_binding(
@@ -2404,9 +2402,9 @@ fn inferred() {
                     20,
                 ))
                 .clone();
-            composed = step.clone() * terrane_int_support::Int::from(2_i128)
+            composed = &step * &terrane_int_support::Int::from(2_i128)
                 + terrane_int_support::Int::from(1_i128);
-            chained = step.clone() + terrane_int_support::Int::from(1_i128)
+            chained = &step + &terrane_int_support::Int::from(1_i128)
                 + terrane_int_support::Int::from(1_i128)
                 + terrane_int_support::Int::from(1_i128)
                 + terrane_int_support::Int::from(1_i128)
@@ -2434,7 +2432,7 @@ fn inferred() {
                     15,
                     26,
                 )) > terrane_int_support::Int::from(1_i128);
-            total = total.clone() + step.clone();
+            total = &total + &step;
             println!("{}", terrane_scalar_support::scalar_text(&result));
             println!("{}", terrane_scalar_support::scalar_text(&typed_result));
             println!("{}", terrane_scalar_support::scalar_text(&composed));
@@ -2454,16 +2452,15 @@ fn typed() {
     '__terrane_break_0: while count < terrane_int_support::Int::from(4_i128) {
         '__terrane_continue_0: {
             if count > terrane_int_support::Int::from(1_i128) {
-                total = total.clone()
-                    + previous
+                total = &total
+                    + &*previous
                         .as_ref()
                         .unwrap_or_else(|| __terrane_uninitialized_binding(
                             "previous",
                             "case.trn",
                             29,
                             29,
-                        ))
-                        .clone();
+                        ));
             }
             let _ = previous.insert(count.clone());
         }
@@ -2824,7 +2821,7 @@ fn test_scenario_terrane_name_aliasing() {
     let copy: String;
     local = String::from("function");
     copy = local;
-    println!("{}", terrane_scalar_support::scalar_text(&&* __TERRANE_F31_ALIAS));
+    println!("{}", terrane_scalar_support::scalar_text(&* __TERRANE_F31_ALIAS));
     println!("{}", terrane_scalar_support::scalar_text(&copy));
 }
 // Source: tests/integration/nested-collection-for-binding/case.trn

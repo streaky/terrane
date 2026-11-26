@@ -4,7 +4,7 @@
 fn main() {
     fn helper(parameter: terrane_int_support::Int) -> terrane_int_support::Int {
         let local: terrane_int_support::Int;
-        local = parameter.clone() + terrane_int_support::Int::from(1_i128);
+        local = &parameter + &terrane_int_support::Int::from(1_i128);
         return parameter + local;
     }
     fn math() -> terrane_int_support::Int {

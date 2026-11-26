@@ -1,9 +1,59 @@
 namespace call-string-field-borrow
 from /core/collections import list
+function sample-range text-range;
+    matches list of text-range = list;
+    for hit in ('éx'.find.all; 'x')
+        matches.append; hit
+    return matches[0]
 class box
     value string = 'x'
+    items list of string = list; 'before', 'second'
+    name string = 'é'
+    hit text-range = sample-range;
+function observe; b ref box
+    print; b.items.length
+    print; b.name.length
+    print; b.name.bytes.length
+    print; b.hit.scalars.start
+function append-and-count int; items mutable ref list of string
+    items.append; 'q'
+    return items.length
+function observe-mutable; b mutable ref box, items mutable ref list of string, s mutable ref string
+    print; b.items.length
+    print; b.name.length
+    print; b.name.bytes.length
+    print; b.hit.scalars.start
+    print; s.length
+    print; items.length, ' ', (append-and-count; items)
+    print; items.length
+    items.append; 'next'
+    reader = mutable function int;
+        items.append; 'captured'
+        return items.length
+    print; (reader;)
+    print; items.length
+function observe-guarded; b shared ref box
+    print; b.items.length
+function snapshot list of string; b ref box
+    return b.items
+function snapshot-mutable list of string; b mutable ref box
+    return b.items
 function look string; a ref string, b string
     return a + b
 function test-scenario;
     o = instance box;
     print; (look; o.value, o.value)
+    observe; o
+    saved = snapshot; o
+    o.items = list; 'after'
+    print; saved[0]
+    print; o.items[0]
+    items list of string = list; 'first', 'second'
+    text = 'éx'
+    observe-mutable; o, items, text
+    saved-mutable = snapshot-mutable; o
+    o.items = list; 'replaced'
+    print; saved-mutable[0]
+    print; o.items[0]
+    shared-box = shared ref (instance box;)
+    observe-guarded; shared-box

@@ -35,7 +35,7 @@ fn collisions(
             let source_value_3: terrane_int_support::Int = terrane_int_support::Int::from(
                 7_i128,
             );
-            return source_value.clone() + source_value_3.clone();
+            return &source_value + &source_value_3;
         })
     };
     println!("{}", terrane_scalar_support::scalar_text(&nested()));
@@ -164,8 +164,8 @@ fn nested_parameter_collision() {
         std::sync::Arc::new(move |
             source_value_2: terrane_int_support::Int,
         | -> terrane_int_support::Int {
-            return terrane_int_support::Int::from(source_value as i128)
-                + source_value_2.clone();
+            return &terrane_int_support::Int::from(source_value as i128)
+                + &source_value_2;
         })
     };
     println!(

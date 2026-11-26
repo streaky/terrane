@@ -51,7 +51,7 @@ impl Calculator {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            result = result.clone() + value.clone();
+            result = &result + &value;
         }
         return result.clone();
     }
@@ -90,7 +90,7 @@ fn total(
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        result = result.clone() + value.clone();
+        result = &result + &value;
     }
     return result.clone();
 }
@@ -110,7 +110,7 @@ fn offset_total(
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        result = result.clone() + value.clone();
+        result = &result + &value;
     }
     return result.clone();
 }

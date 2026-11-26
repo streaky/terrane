@@ -20,8 +20,8 @@ impl CounterStorage {
     }
     pub fn bump(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone()
+                + &amount;
             self.total = __terrane_value;
         }
     }
@@ -102,8 +102,8 @@ impl DerivedCounter {
     }
     pub fn bump(&mut self, amount: terrane_int_support::Int) {
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + amount.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone()
+                + &amount;
             self.total = __terrane_value;
         }
     }

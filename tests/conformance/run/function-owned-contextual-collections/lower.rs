@@ -53,8 +53,8 @@ fn main() {
             .as_ref().expect("flow-proven available binding") {
             TerraneUnionF0S135::Arm0(value) => value, _ =>
             unreachable!("flow-proven storage refinement") }
-            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&(index
-            .clone() - terrane_int_support::Int::from(1_i128))), 0 /* terrane-site: case.trn:9:16-9:32 */)), 0 /* terrane-site: case.trn:9:16-9:32 */))
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&(&index
+            - &terrane_int_support::Int::from(1_i128))), 0 /* terrane-site: case.trn:9:16-9:32 */)), 0 /* terrane-site: case.trn:9:16-9:32 */))
         );
     }
     let __terrane_iterable_1 = terrane_collection_support::List::<

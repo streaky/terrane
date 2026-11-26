@@ -542,9 +542,10 @@ pub struct Block {
 struct CanonicalizeExpressions;
 
 fn compact_borrow_tokens(tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-    tokens
-        .into_iter()
-        .map(|token| match token {
+    let mut tokens = tokens.into_iter().peekable();
+    std::iter::from_fn(|| {
+        let token = tokens.next()?;
+        Some(match token {
             proc_macro2::TokenTree::Group(group) => {
                 let mut compact = proc_macro2::Group::new(
                     group.delimiter(),
@@ -553,14 +554,22 @@ fn compact_borrow_tokens(tokens: proc_macro2::TokenStream) -> proc_macro2::Token
                 compact.set_span(group.span());
                 proc_macro2::TokenTree::Group(compact)
             }
-            proc_macro2::TokenTree::Punct(punctuation) if punctuation.as_char() == '&' => {
+            // Tighten spacing only when it cannot form a different Rust operator.
+            // In particular, binary `&` followed by a borrow must not become `&&`.
+            proc_macro2::TokenTree::Punct(punctuation)
+                if punctuation.as_char() == '&'
+                    && punctuation.spacing() == proc_macro2::Spacing::Alone
+                    && !matches!(tokens.peek(), Some(proc_macro2::TokenTree::Punct(next))
+                        if matches!(next.as_char(), '&' | '=')) =>
+            {
                 let mut compact = proc_macro2::Punct::new('&', proc_macro2::Spacing::Joint);
                 compact.set_span(punctuation.span());
                 proc_macro2::TokenTree::Punct(compact)
             }
             token => token,
         })
-        .collect()
+    })
+    .collect()
 }
 
 impl syn::fold::Fold for CanonicalizeExpressions {

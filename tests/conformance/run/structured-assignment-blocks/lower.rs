@@ -95,8 +95,8 @@ fn make(width: terrane_int_support::Int) -> Settings {
     return {
         let mut instance = Settings::terrane_construct(width.clone());
         {
-            let __terrane_value: terrane_int_support::Int = width.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let __terrane_value: terrane_int_support::Int = &width
+                + &terrane_int_support::Int::from(1_i128);
             instance.height = __terrane_value;
         }
         instance

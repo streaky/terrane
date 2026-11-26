@@ -20,8 +20,7 @@ impl Worker {
                     &__terrane_finally_guard_0,
                     async {
                         let __terrane_try_0: TerraneCompletion<()> = async {
-                            index = index.clone()
-                                + terrane_int_support::Int::from(1_i128);
+                            index = &index + &terrane_int_support::Int::from(1_i128);
                             if index == terrane_int_support::Int::from(1_i128) {
                                 println!("{}", String::from("loop-continue"));
                                 return TerraneCompletion::Continue;
@@ -96,8 +95,7 @@ impl Worker {
                                     async {
                                         let __terrane_try_2: TerraneCompletion<()> = async {
                                             println!("{}", String::from("try-in-loop"));
-                                            index = index.clone()
-                                                + terrane_int_support::Int::from(1_i128);
+                                            index = &index + &terrane_int_support::Int::from(1_i128);
                                             if index == terrane_int_support::Int::from(1_i128) {
                                                 return TerraneCompletion::Continue;
                                             }
@@ -214,7 +212,7 @@ impl Worker {
         }
         index = terrane_int_support::Int::from(0_i128);
         while index < terrane_int_support::Int::from(3_i128) {
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
             let mut __terrane_finally_guard_3 = __terrane_finally_guard();
             let __terrane_maybe_completion_3: Option<TerraneCompletion<()>> = __terrane_cancel_operation(
                     &__terrane_finally_guard_3,
@@ -359,8 +357,7 @@ impl Worker {
                     &__terrane_finally_guard_5,
                     async {
                         let __terrane_try_5: TerraneCompletion<()> = async {
-                            index = index.clone()
-                                + terrane_int_support::Int::from(1_i128);
+                            index = &index + &terrane_int_support::Int::from(1_i128);
                             if index == terrane_int_support::Int::from(1_i128) {
                                 println!("{}", String::from("loop-continue"));
                                 return TerraneCompletion::Continue;
@@ -435,8 +432,7 @@ impl Worker {
                                     async {
                                         let __terrane_try_7: TerraneCompletion<()> = async {
                                             println!("{}", String::from("try-in-loop"));
-                                            index = index.clone()
-                                                + terrane_int_support::Int::from(1_i128);
+                                            index = &index + &terrane_int_support::Int::from(1_i128);
                                             if index == terrane_int_support::Int::from(1_i128) {
                                                 return TerraneCompletion::Continue;
                                             }
@@ -553,7 +549,7 @@ impl Worker {
         }
         index = terrane_int_support::Int::from(0_i128);
         while index < terrane_int_support::Int::from(3_i128) {
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
             let mut __terrane_finally_guard_8 = __terrane_finally_guard();
             let __terrane_maybe_completion_8: Option<TerraneCompletion<()>> = __terrane_cancel_operation(
                     &__terrane_finally_guard_8,
@@ -691,7 +687,7 @@ impl Worker {
         let mut index: terrane_int_support::Int;
         index = terrane_int_support::Int::from(0_i128);
         while index < terrane_int_support::Int::from(3_i128) {
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
             let mut __terrane_finally_guard_10 = __terrane_finally_guard();
             let __terrane_maybe_completion_10: Option<
                 TerraneCompletion<terrane_int_support::Int>,
@@ -776,7 +772,7 @@ impl Worker {
         let mut index: terrane_int_support::Int;
         index = terrane_int_support::Int::from(0_i128);
         while index < terrane_int_support::Int::from(3_i128) {
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index = &index + &terrane_int_support::Int::from(1_i128);
             let mut __terrane_finally_guard_11 = __terrane_finally_guard();
             let __terrane_maybe_completion_11: Option<
                 TerraneCompletion<terrane_int_support::Int>,

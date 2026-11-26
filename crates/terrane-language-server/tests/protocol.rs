@@ -695,7 +695,11 @@ fn generated_native_from(
         .clone()
 }
 
-fn assert_native_from_hover(stdin: &mut ChildStdin, stdout: &mut BufReader<ChildStdout>, uri: &str) {
+fn assert_native_from_hover(
+    stdin: &mut ChildStdin,
+    stdout: &mut BufReader<ChildStdout>,
+    uri: &str,
+) {
     send(
         stdin,
         &json!({

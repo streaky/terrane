@@ -16,8 +16,7 @@ impl State {
     }
     pub fn record(&mut self, value: terrane_int_support::Int) {
         {
-            let __terrane_value: terrane_int_support::Int = self.total.clone()
-                + value.clone();
+            let __terrane_value: terrane_int_support::Int = &self.total.clone() + &value;
             self.total = __terrane_value;
         }
         {

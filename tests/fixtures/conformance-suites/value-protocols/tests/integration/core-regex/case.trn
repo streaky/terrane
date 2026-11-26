@@ -1,9 +1,22 @@
 namespace core-regex
 
+from /core/collections import list
 from /core/regex import compile, regex-pattern, regex-error, regex-match-error
 
 function first-match text-range|none throws regex-match-error; pattern regex-pattern, text string
   return pattern.match; text
+
+function scalar-end int; hit ref text-range
+  return hit.scalars.end
+
+function matched-text string; hit ref text-range
+  return hit.text
+
+function item-count int; items ref list of int
+  return items.length
+
+function grapheme-count int; text ref string
+  return text.graphemes.length
 
 function test-scenario;
   pattern = compile; '([0-9]+)?(?<call>[a-z]+)()\(', case-insensitive=true
@@ -14,13 +27,21 @@ function test-scenario;
   if first != none
     print; first.bytes.start
     print; first.scalars.start
-    print; first.text
+    print; (matched-text; first)
   found = pattern.captures; source
   if found != none
     source = 'reassigned'
     full = found.group; 0
     if full != none
-      print; full.bytes.end
+      start int = full.bytes.start
+      end int = full.bytes.end
+      boundaries = list; start, end
+      if (item-count; boundaries) != 2
+        print; 'incorrect boundary count'
+      print; end
+      print; end - start
+      print; (scalar-end; full)
+      print; full.graphemes.end + 1
     print; ((found.group; 1) == none)
     call = found.named-group; 'call'
     if call != none
@@ -73,4 +94,4 @@ function test-scenario;
   scalar = compile; '\A.\z'
   decomposed = "e\u{301}"
   print; (scalar.matches; decomposed)
-  print; decomposed.length
+  print; (grapheme-count; decomposed)

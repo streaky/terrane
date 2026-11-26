@@ -23,7 +23,7 @@ fn main() {
             std::sync::Arc::new(move |
                 mut value: terrane_int_support::Int,
             | -> terrane_int_support::Int {
-                value = value.clone() + terrane_int_support::Int::from(1_i128);
+                value = &value + &terrane_int_support::Int::from(1_i128);
                 return value.clone();
             })
         };
@@ -33,8 +33,8 @@ fn main() {
             TerraneMutableCallable::new(move |
                 (mut value,): (terrane_int_support::Int,),
             | -> terrane_int_support::Int {
-                value = value.clone() * terrane_int_support::Int::from(2_i128);
-                total = total.clone() + value.clone();
+                value = &value * &terrane_int_support::Int::from(2_i128);
+                total = &total + &value;
                 return total.clone();
             })
         };
@@ -45,7 +45,7 @@ fn main() {
                 Box<dyn Future<Output = terrane_int_support::Int> + Send>,
             > {
                 Box::pin(async move {
-                    value = value.clone() + terrane_int_support::Int::from(3_i128);
+                    value = &value + &terrane_int_support::Int::from(3_i128);
                     return value.clone();
                 })
             })

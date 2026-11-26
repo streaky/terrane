@@ -35,7 +35,7 @@ fn left(
         return right(
             second.clone(),
             first.clone(),
-            depth.clone() - terrane_int_support::Int::from(1_i128),
+            &depth - &terrane_int_support::Int::from(1_i128),
         );
     }
     return {
@@ -58,7 +58,7 @@ fn right(
         return left(
             first.clone(),
             second.clone(),
-            depth.clone() - terrane_int_support::Int::from(1_i128),
+            &depth - &terrane_int_support::Int::from(1_i128),
         );
     }
     return terrane_int_support::Int::from(0_i128);
