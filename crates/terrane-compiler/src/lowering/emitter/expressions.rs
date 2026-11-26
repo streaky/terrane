@@ -1957,6 +1957,11 @@ impl Emitter<'_> {
         {
             return None;
         }
+        // Namespace reads normally produce &*STORAGE, but operators borrow
+        // their operand places themselves. Use the LazyLock's payload here.
+        if self.lazy_namespace_binding_type(node) == Some(ValueType::Scalar(ScalarType::Int)) {
+            return Some(format!("*{}", self.namespace_name(node)));
+        }
         let binding = self.local_typed_binding(node)?;
         if self.reference_backed(binding) {
             return None;
