@@ -338,6 +338,19 @@ impl Emitter<'_> {
         }
     }
 
+    fn plain_reference_receiver_place(&mut self, receiver: &SyntaxNode) -> Option<String> {
+        let receiver = crate::semantics::ungrouped_expression(receiver);
+        if let Some(ValueType::Reference(item)) = self.value_type(receiver)
+            && !matches!(item.value_type_ref(), ValueType::TypeParameter(_))
+            && !self.reference_uses_shared_storage(receiver)
+            && self.borrowed_key_name(receiver).is_none()
+        {
+            Some(format!("(*({}))", self.expression(receiver)))
+        } else {
+            None
+        }
+    }
+
     pub(super) fn consuming_native_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         if receiver.kind == SyntaxKind::GroupExpression
             && let [grouped] = receiver.children.as_slice()
@@ -1372,6 +1385,55 @@ impl Emitter<'_> {
             };
         }
         let receiver_node = receiver;
+        let member_name = self.text(member);
+        let callable_length = member_name == "length"
+            && matches!(
+                self.value_type(node),
+                Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+            );
+        let observation_source = match (member_name, &receiver_type) {
+            ("start" | "end", Some(ValueType::TextRangeView(_))) => {
+                // A range view is represented by its source range. Borrow it
+                // for a boundary read without changing standalone view values.
+                let view = crate::semantics::ungrouped_expression(receiver_node);
+                match view.children.as_slice() {
+                    [source, axis]
+                        if view.kind == SyntaxKind::MemberExpression
+                            && matches!(self.text(axis), "bytes" | "scalars" | "graphemes")
+                            && self.receiver_value_type(source) == Some(ValueType::TextRange) =>
+                    {
+                        Some(source)
+                    }
+                    _ => None,
+                }
+            }
+            ("text", Some(ValueType::TextRange))
+            | ("bytes" | "scalars" | "graphemes", Some(ValueType::Scalar(ScalarType::String)))
+            | ("key" | "value", Some(ValueType::Entry(_, _)))
+            | ("mantissa" | "exponent", Some(ValueType::FloatDecomposition(_))) => {
+                Some(receiver_node)
+            }
+            ("length", Some(ty))
+                if !callable_length
+                    && (Self::length_yields_int(ty)
+                        || matches!(
+                            ty,
+                            ValueType::Scalar(ScalarType::Bytes | ScalarType::String)
+                                | ValueType::StringView(_)
+                                | ValueType::StringList
+                                | ValueType::TextRangeList
+                        )) =>
+            {
+                Some(receiver_node)
+            }
+            (name, Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64)))
+                if float_member_contract(name)
+                    .is_some_and(|contract| contract.parameters.is_none()) =>
+            {
+                Some(receiver_node)
+            }
+            _ => None,
+        };
         let receiver = if explicit_field_move && required_field {
             let (setup, place) =
                 self.receiver_place_parts(receiver_node, true, GuardScope::Expression);
@@ -1380,15 +1442,15 @@ impl Emitter<'_> {
             } else {
                 format!("{{ {setup}{place} }}")
             }
+        } else if !self.assignment_target
+            && let Some(place) =
+                observation_source.and_then(|source| self.plain_reference_receiver_place(source))
+        {
+            place
         } else {
             self.receiver_expression(receiver_node)
         };
-        if self.text(member) == "length"
-            && matches!(
-                self.value_type(node),
-                Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
-            )
-        {
+        if callable_length {
             return format!("({receiver}).length");
         }
         match self.text(member) {
@@ -1572,6 +1634,7 @@ impl Emitter<'_> {
             ),
             Some(ValueType::DocumentDecodeOutcome(_)) => matches!(name, "value" | "diagnostics"),
             Some(ValueType::DocumentDiagnostic) => true,
+            Some(ValueType::TextRange) => name == "text",
             Some(ValueType::Entry(_, _)) => matches!(name, "key" | "value"),
             Some(ValueType::Object(_)) if self.is_throwable_value(receiver) => {
                 matches!(name, "descriptor" | "message" | "cause" | "render")
