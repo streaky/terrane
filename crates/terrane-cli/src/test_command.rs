@@ -20,8 +20,13 @@ const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const OUTPUT_CLOSE_TIMEOUT: Duration = Duration::from_millis(250);
 const REPORT_SCHEMA_VERSION: &str = "1.2.0";
 const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(30);
-const TEST_COMPILER_ENVIRONMENT: &[&str] =
-    &["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN"];
+const TEST_COMPILER_ENVIRONMENT: &[&str] = &[
+    "PATH",
+    "HOME",
+    "CARGO_HOME",
+    "RUSTUP_HOME",
+    "RUSTUP_TOOLCHAIN",
+];
 
 #[derive(Clone, Debug)]
 enum TestSelector {
@@ -99,7 +104,9 @@ struct TestCompiler {
 impl TestCompiler {
     fn capture() -> Result<Self, CliFailure> {
         let executable = std::env::current_exe().map_err(|error| {
-            CliFailure::backend(format!("cannot resolve invoking Terrane executable: {error}"))
+            CliFailure::backend(format!(
+                "cannot resolve invoking Terrane executable: {error}"
+            ))
         })?;
         let environment = TEST_COMPILER_ENVIRONMENT
             .iter()
@@ -635,7 +642,10 @@ fn execute_case(
         .env("TERRANE_TEST_PACKAGE_ROOT", paths.package_root)
         .env("TERRANE_TEST_SEED", deterministic_seed(&case.identity))
         .env("TMPDIR", &directory)
-        .env("TERRANE_TEST_DEADLINE_NANOSECONDS", timeout.as_nanos().to_string())
+        .env(
+            "TERRANE_TEST_DEADLINE_NANOSECONDS",
+            timeout.as_nanos().to_string(),
+        )
         .env("TERRANE_TEST_RESULT", directory.join(".terrane-result"))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
