@@ -177,7 +177,9 @@ impl Emitter<'_> {
             return None;
         };
         receiver.children.first().map(|source| {
+            let field = self.observed_field_place(source);
             if unit == crate::semantics::TextUnit::Bytes
+                && field.is_none()
                 && let Some(text) =
                     self.lower_borrowed_native_leaf(source, &ProjectedType::BorrowedString)
             {
@@ -188,7 +190,10 @@ impl Emitter<'_> {
             {
                 return format!("terrane_string_support::length(&({place})) as i128");
             }
-            let (setup, source) = self.borrowed_receiver_parts(source);
+            let (setup, source) = field.map_or_else(
+                || self.borrowed_receiver_parts(source),
+                |place| (String::new(), place),
+            );
             let length = match unit {
                 crate::semantics::TextUnit::Bytes => format!("({source}).len() as i128"),
                 crate::semantics::TextUnit::Scalars => {
@@ -354,6 +359,44 @@ impl Emitter<'_> {
         } else {
             None
         }
+    }
+
+    // Only walk physical instance fields rooted in an ordinary, unguarded loan.
+    // Owned reads still snapshot, and accessor-backed fields keep their slot semantics.
+    fn observed_field_place(&mut self, node: &SyntaxNode) -> Option<String> {
+        let node = crate::semantics::ungrouped_expression(node);
+        if self.assignment_target || node.kind != SyntaxKind::MemberExpression {
+            return None;
+        }
+        let [holder, member] = node.children.as_slice() else {
+            return None;
+        };
+        let holder = crate::semantics::ungrouped_expression(holder);
+        let ValueType::Object(identity) = self.receiver_value_type(holder)? else {
+            return None;
+        };
+        object_member_type(self.unit, &identity, self.text(member), false)?;
+        if self.is_throwable_value(holder)
+            || self
+                .native_field_type(node)
+                .is_some_and(|ty| !ty.has_identity_representation())
+        {
+            return None;
+        }
+        let base = match self.value_type(holder)? {
+            ValueType::Reference(_)
+                if holder.kind == SyntaxKind::Name
+                    && self.static_storage_name(holder).is_none()
+                    && self.reference_backed_name(holder).is_none()
+                    && !(self.shared_async_receiver && self.text(holder) == "this") =>
+            {
+                self.plain_reference_receiver_place(holder)?
+            }
+            ValueType::Object(_) => self.observed_field_place(holder)?,
+            _ => return None,
+        };
+        let (place, accessor) = self.object_field_place(holder, member, false, &base);
+        (!accessor).then_some(place)
     }
 
     pub(super) fn consuming_native_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
@@ -1451,6 +1494,7 @@ impl Emitter<'_> {
             && let Some(place) = observation_source.and_then(|source| {
                 self.namespace_scalar_place(source)
                     .or_else(|| self.plain_reference_receiver_place(source))
+                    .or_else(|| self.observed_field_place(source))
             })
         {
             place

@@ -1,9 +1,29 @@
 namespace call-string-field-borrow
 from /core/collections import list
+function sample-range text-range;
+    matches list of text-range = list;
+    for hit in ('éx'.find.all; 'x')
+        matches.append; hit
+    return matches[0]
 class box
     value string = 'x'
+    items list of string = list; 'before', 'second'
+    name string = 'é'
+    hit text-range = sample-range;
+function observe; b ref box
+    print; b.items.length
+    print; b.name.length
+    print; b.name.bytes.length
+    print; b.hit.scalars.start
+function snapshot list of string; b ref box
+    return b.items
 function look string; a ref string, b string
     return a + b
 function test-scenario;
     o = instance box;
     print; (look; o.value, o.value)
+    observe; o
+    saved = snapshot; o
+    o.items = list; 'after'
+    print; saved[0]
+    print; o.items[0]
