@@ -347,8 +347,31 @@ impl Emitter<'_> {
 
     fn plain_reference_receiver_place(&mut self, receiver: &SyntaxNode) -> Option<String> {
         let receiver = crate::semantics::ungrouped_expression(receiver);
-        if let Some(ValueType::Reference(item)) = self.value_type(receiver)
-            && !matches!(item.value_type_ref(), ValueType::TypeParameter(_))
+        let item = match self.value_type(receiver)? {
+            ValueType::Reference(item) => item,
+            ValueType::MutableReference(item) => {
+                let name = self.text(receiver);
+                if receiver.kind != SyntaxKind::Name
+                    || self.assignment_target
+                    || self.receiver_needs_live_guard(receiver)
+                    || self.async_mutable_captures.contains(name)
+                    || (self.closure_depth != 0 && name == "this")
+                    || (self.closure_depth != 0
+                        && self
+                            .unit
+                            .functions_containing(receiver.span)
+                            .any(|contract| {
+                                contract.is_anonymous
+                                    && contract.captures.iter().any(|capture| capture == name)
+                            }))
+                {
+                    return None;
+                }
+                item
+            }
+            _ => return None,
+        };
+        if !matches!(item.value_type_ref(), ValueType::TypeParameter(_))
             && !self.reference_uses_shared_storage(receiver)
             && self.borrowed_key_name(receiver).is_none()
         {
@@ -381,7 +404,7 @@ impl Emitter<'_> {
             return None;
         }
         let base = match self.value_type(holder)? {
-            ValueType::Reference(_)
+            ValueType::Reference(_) | ValueType::MutableReference(_)
                 if holder.kind == SyntaxKind::Name
                     && self.static_storage_name(holder).is_none()
                     && self.reference_backed_name(holder).is_none()
