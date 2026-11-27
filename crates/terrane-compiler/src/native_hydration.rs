@@ -85,14 +85,20 @@ pub(crate) fn hydrate_locked_crates(root: &Path) -> Result<(), String> {
     run_cargo(directory, &["fetch", "--locked"])
 }
 
-pub(crate) fn lock_contains_registry_package(root: &Path, name: &str, version: &str) -> bool {
+pub(crate) fn lock_contains_registry_package(
+    root: &Path,
+    name: &str,
+    version: Option<&str>,
+) -> bool {
     fs::read_to_string(root.join(DEPENDENCY_LOCK_FILE))
         .ok()
         .and_then(|text| parse_lock(&text).ok())
         .is_some_and(|lock| {
             validate_projection_root(&lock).is_ok()
-                && registry_packages(&lock)
-                    .is_ok_and(|packages| packages.contains_key(&(name, version)))
+                && registry_packages(&lock).is_ok_and(|packages| match version {
+                    Some(version) => packages.contains_key(&(name, version)),
+                    None => packages.keys().any(|&(locked, _)| locked == name),
+                })
         })
 }
 

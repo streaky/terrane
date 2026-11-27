@@ -130,7 +130,7 @@ fn failed_resolve_keeps_lock() {
 }
 
 #[test]
-fn hint_requires_locked_archive() {
+fn hint_requires_locked_crate() {
     let root =
         std::env::temp_dir().join(format!("terrane-offline-fetch-hint-{}", std::process::id()));
     fs::create_dir_all(&root).unwrap();
@@ -149,6 +149,10 @@ fn hint_requires_locked_archive() {
     )
     .unwrap();
     assert!(offline_fetch_hint(&root, missing).contains("terrane fetch"));
+    assert!(
+        offline_fetch_hint(&root, "error: no matching package named `fixture` found")
+            .contains("terrane fetch")
+    );
     assert_eq!(
         offline_fetch_hint(&root, &missing.replace("1.2.3", "1.2.4")),
         ""

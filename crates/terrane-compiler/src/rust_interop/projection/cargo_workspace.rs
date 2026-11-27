@@ -78,19 +78,25 @@ pub(super) fn fetch_offline(root: &Path, workspace: &Path) -> Result<(), Project
 }
 
 fn offline_fetch_hint(root: &Path, stderr: &str) -> &'static str {
-    // Cargo also mentions offline mode when it cannot resolve the manifest at all.
-    // Only a download blocked by offline mode for an already locked crate can be
-    // repaired by hydrating the operator lock.
-    if stderr.contains("but --offline was specified")
-        && stderr.lines().any(|line| {
+    // A cold index reports only a name; a missing archive identifies the version too.
+    // Fetch hydrates the published lock, not new dependencies added to the manifest.
+    if stderr.lines().any(|line| {
+        let identity = if let Some(name) = line
+            .strip_prefix("error: no matching package named `")
+            .and_then(|rest| rest.strip_suffix("` found"))
+        {
+            Some((name, None))
+        } else {
             line.strip_prefix("error: failed to download `")
-                .and_then(|identity| identity.strip_suffix('`'))
-                .and_then(|identity| identity.rsplit_once(" v"))
-                .is_some_and(|(name, version)| {
-                    crate::native_hydration::lock_contains_registry_package(root, name, version)
-                })
+                .and_then(|rest| rest.strip_suffix('`'))
+                .and_then(|id| id.rsplit_once(" v"))
+                .filter(|_| stderr.contains("but --offline was specified"))
+                .map(|(name, version)| (name, Some(version)))
+        };
+        identity.is_some_and(|(name, version)| {
+            crate::native_hydration::lock_contains_registry_package(root, name, version)
         })
-    {
+    }) {
         "\nWarm the locked Cargo cache with `terrane fetch <package>` and retry."
     } else {
         ""
