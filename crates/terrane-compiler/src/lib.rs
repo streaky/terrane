@@ -82,7 +82,7 @@ pub fn platform_support_manifest() -> String {
 fn platform_support_manifest_from(source: &str) -> String {
     let dependencies = support_manifest_dependencies(source);
     format!(
-        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[features]\ndefault = []\nchild-process = [\"tokio/process\"]\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n"
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[features]\ndefault = []\nchild-process = [\"tokio/process\"]\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n\n[target.'cfg(target_os = \"linux\")'.dependencies]\nrustix = {{ version = \"1\", features = [\"process\"] }}\n"
     )
 }
 
@@ -144,6 +144,7 @@ mod manifest_tests {
 
         assert!(with_features.contains("base64 = \"0.22\""));
         assert!(with_features.contains("child-process = [\"tokio/process\"]"));
+        assert!(with_features.contains("rustix = { version = \"1\", features = [\"process\"] }"));
         assert!(!with_features.contains("rcgen"));
         assert!(without_following_section.contains("base64 = \"0.22\""));
         assert!(without_following_section.contains("[features]"));

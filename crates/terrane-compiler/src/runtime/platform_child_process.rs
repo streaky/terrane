@@ -20,6 +20,7 @@ pub async fn terrane_platform_child_spawn(
     environment: &[String],
     remove_environment: &[String],
     inherit: bool,
+    new_process_group: bool,
 ) -> TerranePlatformResult {
     terrane_platform_support::child_spawn(terrane_platform_support::ChildLaunch {
         program,
@@ -28,6 +29,7 @@ pub async fn terrane_platform_child_spawn(
         env: environment,
         remove_env: remove_environment,
         inherit,
+        new_process_group,
     }).await
 }
 
@@ -38,6 +40,7 @@ pub fn terrane_platform_child_capture(
     environment: &[String],
     remove_environment: &[String],
     inherit: bool,
+    new_process_group: bool,
     input: &[u8],
     timeout_ms: terrane_int_support::Int,
     stdout_limit: terrane_int_support::Int,
@@ -55,6 +58,7 @@ pub fn terrane_platform_child_capture(
             env: environment,
             remove_env: remove_environment,
             inherit,
+            new_process_group,
         },
         options,
     )
@@ -67,6 +71,7 @@ pub async fn terrane_platform_child_capture_async(
     environment: &[String],
     remove_environment: &[String],
     inherit: bool,
+    new_process_group: bool,
     input: &[u8],
     timeout_ms: terrane_int_support::Int,
     stdout_limit: terrane_int_support::Int,
@@ -84,6 +89,7 @@ pub async fn terrane_platform_child_capture_async(
             env: environment,
             remove_env: remove_environment,
             inherit,
+            new_process_group,
         },
         options,
     ).await
@@ -105,6 +111,13 @@ pub async fn terrane_platform_child_wait(
 
 pub fn terrane_platform_child_terminate(handle: &TerranePlatformCapability) -> TerranePlatformResult {
     terrane_platform_support::child_terminate(handle)
+}
+
+pub async fn terrane_platform_child_send_signal(
+    handle: &TerranePlatformCapability,
+    signal: &str,
+) -> TerranePlatformResult {
+    terrane_platform_support::child_send_signal(handle, signal).await
 }
 
 pub async fn terrane_platform_child_write(

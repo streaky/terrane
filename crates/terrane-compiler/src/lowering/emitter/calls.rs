@@ -1212,10 +1212,12 @@ impl Emitter<'_> {
                     let value = self.expression(value);
                     match (name, index) {
                         ("spawn" | "capture" | "capture-async", 1 | 3 | 4)
-                        | ("capture" | "capture-async", 6)
+                        | ("capture" | "capture-async", 7)
                         | ("write", 1) => format!("({value}).as_slice()"),
                         ("result-data", _) => value,
-                        ("spawn" | "capture" | "capture-async", 2) | (_, 0) => {
+                        ("spawn" | "capture" | "capture-async", 2)
+                        | ("send-signal", 1)
+                        | (_, 0) => {
                             format!("&({value})")
                         }
                         _ => value,
@@ -1667,6 +1669,9 @@ impl Emitter<'_> {
         if self.is_builtin(callee, "intrinsic:adapters::system-host-name") {
             return "terrane_platform_support::system_host_name()".to_owned();
         }
+        if self.is_builtin(callee, "intrinsic:adapters::process-current-executable") {
+            return "terrane_platform_support::process_current_executable()".to_owned();
+        }
         let adapter_result_field = [
             ("result-failed", "failed", false),
             ("result-bool", "flag", false),
@@ -1767,6 +1772,8 @@ impl Emitter<'_> {
             ("filesystem-rename", "filesystem_rename"),
             ("filesystem-remove", "filesystem_remove"),
             ("process-arguments", "process_arguments"),
+            ("process-id", "process_id"),
+            ("process-group-id", "process_group_id"),
             ("environment-entries", "environment_entries"),
             ("process-exit", "process_exit"),
         ];

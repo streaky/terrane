@@ -1,6 +1,7 @@
 namespace core/process
 
 from /core/collections import list
+from /core/errors import throwable
 
 class native-string
     is-text bool = true
@@ -19,6 +20,27 @@ class environment-entry
     function construct; name native-string, entry-value native-string
         this.name = name
         this.value = entry-value
+
+class process-identity-error implements throwable
+    message string = ''
+
+    private function construct; detail string
+        this.message = detail
+
+    function render string;
+        return this.message
+
+function current-process-id int;
+    return host-process-id;
+
+function current-process-group-id int;
+    return host-process-group-id;
+
+function current-executable native-string throws process-identity-error;
+    raw = host-process-current-executable;
+    if (host-result-failed; raw)
+        throw instance process-identity-error; (host-result-message; raw)
+    return instance native-string; (host-result-text; raw)
 
 class process-host-name-result
     failed bool = false

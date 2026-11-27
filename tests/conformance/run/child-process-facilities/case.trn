@@ -1,7 +1,8 @@
 namespace conformance/child-process-facilities
 
 from /core/collections import list, range
-from /core/process import arguments, environment, environment-pair, native-text, make-exit-status, exit
+from /core/errors import throwable
+from /core/process import arguments, current-executable, environment, environment-pair, native-text, native-text-value, make-exit-status, exit
 from /core/process/child import process-options, process-error, spawn-process, run-process, run-process-async
 from /core/process/child import child-output-stream
 from /core/streams import stdin, stdout, stderr
@@ -102,12 +103,14 @@ async function exercise-streaming throws process-error; executable string
     terminated = await another.wait;
     print; (terminated.exited and not terminated.timed-out and not (exit-is; terminated.exit-code, 7))
 
-async function main throws process-error;
+async function main throws throwable;
     argv = arguments;
     if argv.length > 0
         await child-mode; argv[0].text
     else
-        executable string = rust
-            std::env::current_exe().expect("fixture executable").into_os_string().into_string().expect("Unicode fixture path")
-        await exercise-capture; executable
-        await exercise-streaming; executable
+        executable = native-text-value; (current-executable;)
+        if executable != none
+            await exercise-capture; executable
+            await exercise-streaming; executable
+        else
+            exit; (make-exit-status; 98)

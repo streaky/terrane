@@ -21,8 +21,8 @@ mod networking_transport;
 #[cfg(feature = "child-process")]
 pub use child_process::{
     ChildCapture, ChildLaunch, child_capture, child_capture_async, child_close_input, child_poll,
-    child_read_stderr, child_read_stdout, child_release, child_spawn, child_terminate, child_wait,
-    child_write,
+    child_read_stderr, child_read_stdout, child_release, child_send_signal, child_spawn,
+    child_terminate, child_wait, child_write,
 };
 pub use networking_native::{
     NativeTcpListener, NativeTcpStream, into_native_tcp_listener, into_native_tcp_stream,
@@ -217,6 +217,23 @@ pub fn system_host_name() -> ResultValue {
             ..ResultValue::default()
         },
         Err(error) => ResultValue::error(format!("cannot read the system host name: {error}")),
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn process_group_id() -> i32 {
+    rustix::process::getpgrp().as_raw_pid()
+}
+
+pub fn process_current_executable() -> ResultValue {
+    match std::env::current_exe() {
+        Ok(path) => ResultValue {
+            text: platform_value(path.into_os_string()),
+            ..ResultValue::default()
+        },
+        Err(error) => {
+            ResultValue::error(format!("cannot read the current executable path: {error}"))
+        }
     }
 }
 

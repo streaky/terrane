@@ -662,6 +662,7 @@ pub(in crate::semantics) fn synchronize_execution_requirements(package: &mut Sem
             "host-child-spawn",
             "host-child-capture-async",
             "host-child-wait",
+            "host-child-send-signal",
             "host-child-write",
             "host-child-close-input",
             "host-child-read-stdout",

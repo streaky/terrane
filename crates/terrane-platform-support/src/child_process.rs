@@ -1,4 +1,5 @@
 use super::{Capability, CapabilityInner, ResultValue};
+use rustix::process::{Pid, Signal, kill_process};
 use std::ffi::OsString;
 use std::io;
 use std::process::{ExitStatus, Stdio};
@@ -6,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
-use tokio::sync::{Mutex as AsyncMutex, oneshot, watch};
+use tokio::sync::{Mutex as AsyncMutex, mpsc, oneshot, watch};
 
 #[derive(Clone, Copy)]
 pub struct ChildLaunch<'a> {
@@ -16,6 +17,7 @@ pub struct ChildLaunch<'a> {
     pub env: &'a [String],
     pub remove_env: &'a [String],
     pub inherit: bool,
+    pub new_process_group: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -28,15 +30,17 @@ pub struct ChildCapture<'a> {
 
 type Outcome = Result<ExitStatus, String>;
 
+type SignalRequest = (Signal, oneshot::Sender<io::Result<()>>);
+
 pub(super) struct ChildState {
     stdin: AsyncMutex<Option<ChildStdin>>,
     stdout: AsyncMutex<ChildStdout>,
     stderr: AsyncMutex<ChildStderr>,
     status: watch::Receiver<Option<Outcome>>,
     terminate: Mutex<Option<oneshot::Sender<()>>>,
+    signals: mpsc::Sender<SignalRequest>,
 }
 
-#[cfg(target_os = "linux")]
 fn native_value(value: &str) -> io::Result<OsString> {
     use std::os::unix::ffi::OsStringExt as _;
 
@@ -52,12 +56,14 @@ fn native_value(value: &str) -> io::Result<OsString> {
 }
 
 //# SECURITY-BEGIN [process.direct-execution]
-#[cfg(target_os = "linux")]
 fn launch(request: ChildLaunch<'_>) -> io::Result<Child> {
     let mut command = Command::new(request.program);
     command.args(request.args);
     if !request.directory.is_empty() {
         command.current_dir(request.directory);
+    }
+    if request.new_process_group {
+        command.process_group(0);
     }
     if !request.inherit {
         command.env_clear();
@@ -81,14 +87,6 @@ fn launch(request: ChildLaunch<'_>) -> io::Result<Child> {
         .stderr(Stdio::piped())
         .kill_on_drop(true)
         .spawn()
-}
-
-#[cfg(not(target_os = "linux"))]
-fn launch(_: ChildLaunch<'_>) -> io::Result<Child> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "child process launch is supported only on Linux",
-    ))
 }
 //# SECURITY-END [process.direct-execution]
 
@@ -119,6 +117,23 @@ async fn terminate_and_reap(child: &mut Child) -> io::Result<ExitStatus> {
     child.wait().await
 }
 
+fn signal_child(child: &mut Child, signal: Signal) -> io::Result<()> {
+    // Only the supervisor can reap this child; it cannot poll wait again until
+    // delivery returns. An exit in the meantime leaves the PID reserved.
+    if child.try_wait()?.is_some() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "child process has exited",
+        ));
+    }
+    let pid = child
+        .id()
+        .and_then(|id| i32::try_from(id).ok())
+        .and_then(Pid::from_raw)
+        .ok_or_else(|| io::Error::other("missing child process ID"))?;
+    kill_process(pid, signal).map_err(Into::into)
+}
+
 // Async because pipe registration and child supervision require a live reactor.
 pub async fn child_spawn(request: ChildLaunch<'_>) -> ResultValue {
     let mut child = match launch(request) {
@@ -130,10 +145,17 @@ pub async fn child_spawn(request: ChildLaunch<'_>) -> ResultValue {
     let stderr = child.stderr.take().expect("piped child stderr");
     let (status_tx, status) = watch::channel(None);
     let (terminate, mut terminated) = oneshot::channel();
+    let (signals, mut pending_signals) = mpsc::channel::<SignalRequest>(1);
     tokio::spawn(async move {
-        let result = tokio::select! {
-            status = child.wait() => status,
-            _ = &mut terminated => terminate_and_reap(&mut child).await,
+        let result = loop {
+            tokio::select! {
+                biased;
+                status = child.wait() => break status,
+                _ = &mut terminated => break terminate_and_reap(&mut child).await,
+                Some((signal, reply)) = pending_signals.recv() => {
+                    let _ = reply.send(signal_child(&mut child, signal));
+                }
+            }
         };
         status_tx.send_replace(Some(result.map_err(|error| error.to_string())));
     });
@@ -145,6 +167,7 @@ pub async fn child_spawn(request: ChildLaunch<'_>) -> ResultValue {
                 stderr: AsyncMutex::new(stderr),
                 status,
                 terminate: Mutex::new(Some(terminate)),
+                signals,
             }),
         )))),
         ..ResultValue::default()
@@ -212,6 +235,37 @@ pub fn child_terminate(cap: &Capability) -> ResultValue {
         let _ = request.send(());
     }
     ResultValue::default()
+}
+
+pub async fn child_send_signal(cap: &Capability, signal: &str) -> ResultValue {
+    let state = match child_state(cap) {
+        Ok(state) => state,
+        Err(error) => return error,
+    };
+    let signal = match signal {
+        "interrupt" => Signal::INT,
+        "terminate" => Signal::TERM,
+        "hangup" => Signal::HUP,
+        "quit" => Signal::QUIT,
+        _ => return ResultValue::error("invalid child process signal"),
+    };
+    let stopped = || {
+        let outcome = state.status.borrow();
+        match outcome.as_ref() {
+            Some(Ok(_)) => ResultValue::error("child process has exited"),
+            Some(Err(error)) => ResultValue::error(error.clone()),
+            None => ResultValue::error("child process supervisor stopped"),
+        }
+    };
+    let (reply, response) = oneshot::channel();
+    if state.signals.send((signal, reply)).await.is_err() {
+        return stopped();
+    }
+    match response.await {
+        Ok(Ok(())) => ResultValue::default(),
+        Ok(Err(error)) => ResultValue::error(format!("cannot signal child: {error}")),
+        Err(_) => stopped(),
+    }
 }
 
 pub fn child_release(cap: &Capability) {

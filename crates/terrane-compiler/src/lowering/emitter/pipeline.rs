@@ -392,15 +392,20 @@ fn lower_with_tests(
         .iter()
         .any(|unit| unit.namespace == "/core/streams")
         && !package_uses_advanced_streams(package);
+    let uses_process_signals = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/core/process-signals");
+    let omit_simple_stream_dependency = |namespace: &str| {
+        simple_standard_streams
+            && (namespace == "/core/io" || namespace == "/core/time" && !uses_process_signals)
+    };
     let has_async = package
         .units
         .iter()
         .filter(|unit| {
-            !simple_standard_streams
-                || !matches!(
-                    unit.namespace.as_str(),
-                    "/core/streams" | "/core/io" | "/core/time"
-                )
+            !(omit_simple_stream_dependency(&unit.namespace)
+                || simple_standard_streams && unit.namespace == "/core/streams")
         })
         .any(|unit| {
             unit.functions
@@ -644,11 +649,12 @@ fn lower_with_tests(
     let mut uses_concurrency = false;
     let mut uses_logging = false;
     let mut uses_time = false;
-    let mut uses_process_signals = false;
     let mut uses_child_process = false;
-    for unit in package.units.iter().filter(|unit| {
-        !simple_standard_streams || !matches!(unit.namespace.as_str(), "/core/io" | "/core/time")
-    }) {
+    for unit in package
+        .units
+        .iter()
+        .filter(|unit| !omit_simple_stream_dependency(&unit.namespace))
+    {
         match unit.namespace.as_str() {
             "/core/streams" => uses_streams = true,
             "/core/filesystem" => uses_filesystem = true,
@@ -666,13 +672,9 @@ fn lower_with_tests(
             "/core/concurrency" => uses_concurrency = true,
             "/core/logging" | "/core/logging/async" => uses_logging = true,
             "/core/time" => uses_time = true,
-            "/core/process-signals" => uses_process_signals = true,
             "/core/process/child" => uses_child_process = true,
             _ => {}
         }
-    }
-    if simple_standard_streams {
-        uses_time = false;
     }
     if uses_time || tests.is_some() {
         let (source_file, source) = if tests.is_some() {
@@ -974,10 +976,7 @@ fn lower_with_tests(
     let mut modules = package
         .units
         .iter()
-        .filter(|unit| {
-            !simple_standard_streams
-                || !matches!(unit.namespace.as_str(), "/core/io" | "/core/time")
-        })
+        .filter(|unit| !omit_simple_stream_dependency(&unit.namespace))
         .map(|unit| {
             if unit.bundled && unit.namespace.starts_with("/deps/") {
                 let mut emitter = Emitter::new(&registry, package, unit, debug_information);

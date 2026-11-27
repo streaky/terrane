@@ -1554,6 +1554,7 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:child::child-spawn"
                     | "intrinsic:child::child-capture-async"
                     | "intrinsic:child::child-wait"
+                    | "intrinsic:child::child-send-signal"
                     | "intrinsic:child::child-write"
                     | "intrinsic:child::child-close-input"
                     | "intrinsic:child::child-read-stdout"
@@ -1622,6 +1623,7 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:concurrency::thread-local-int-set"
                     | "intrinsic:adapters::platform-result"
                     | "intrinsic:adapters::system-host-name"
+                    | "intrinsic:adapters::process-current-executable"
                     | "intrinsic:process-signals::process-signal-subscribe"
                     | "intrinsic:process-signals::process-signal-close" => {
                         Some(ValueType::PlatformResult)
@@ -1758,6 +1760,8 @@ fn infer_nonbinary_value_type(
                     )),
                     "intrinsic:logging::log-discarded-count"
                     | "intrinsic:system::result-int"
+                    | "intrinsic:system::process-id"
+                    | "intrinsic:system::process-group-id"
                     | "intrinsic:data::document-exponent"
                     | "intrinsic:data::document-length"
                     | "intrinsic:data::url-query-length"

@@ -41,6 +41,9 @@ zstd = "0.13"
 [target.'cfg(unix)'.dependencies]
 terrane-signal-support = { path = "../terrane-signal-support" }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1", features = ["process"] }
+
 [dev-dependencies]
 rcgen = "0.14"
 

@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fs;
 use std::io::{BufRead as _, Write as _};
+use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use terrane_compiler::native_build::{
@@ -512,15 +513,10 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     let separator = arguments.iter().position(|argument| argument == "--");
     let program_arguments = separator.map_or(&[][..], |index| &arguments[index + 1..]);
-    let status = Command::new(executable)
-        .args(program_arguments)
-        .status()
-        .map_err(|error| {
-            CliFailure::backend(format!("failed to run generated program: {error}"))
-        })?;
-    Ok(ExitCode::from(
-        u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
-    ))
+    let error = Command::new(executable).args(program_arguments).exec();
+    Err(CliFailure::backend(format!(
+        "failed to run generated program: {error}"
+    )))
 }
 
 fn run_declaration_interface(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {

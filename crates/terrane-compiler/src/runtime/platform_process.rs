@@ -55,6 +55,15 @@ pub fn terrane_process_arguments() -> Vec<String> {
     std::env::args_os().skip(1).map(terrane_platform_value).collect()
 }
 
+pub fn terrane_process_id() -> terrane_int_support::Int {
+    terrane_int_support::Int::from(i64::from(std::process::id()))
+}
+
+#[cfg(target_os = "linux")]
+pub fn terrane_process_group_id() -> terrane_int_support::Int {
+    terrane_int_support::Int::from(i64::from(terrane_platform_support::process_group_id()))
+}
+
 pub fn terrane_environment_entries() -> Vec<String> {
     std::env::vars_os()
         .flat_map(|(name, value)| [terrane_platform_value(name), terrane_platform_value(value)])

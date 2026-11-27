@@ -1,0 +1,94 @@
+namespace conformance/child-process-policy
+
+from /core/collections import list, set
+from /core/encodings import utf8
+from /core/errors import throwable
+from /core/process import arguments, current-executable, current-process-group-id, current-process-id, exit, make-exit-status, native-text-value
+from /core/process/child import process-error, process-options, spawn-process, run-process, run-process-async
+from /core/process-signals import process-signal, process-signal-error, process-signals
+from /core/streams import stdout
+
+async function handle-termination throws process-signal-error;
+    signal = process-signal::terminate;
+    subscription = process-signals; (set; signal)
+    output = stdout;
+    ready = output.write-all; b'R'
+    ready-flush = output.flush;
+    if ready.failed or ready-flush.failed
+        exit; (make-exit-status; 98)
+    event = await subscription.next;
+    if event.signal.name == 'terminate'
+        written = output.write-all; b'T'
+        delivered = output.flush;
+        if not written.failed and not delivered.failed
+            exit; (make-exit-status; 23)
+    exit; (make-exit-status; 99)
+
+function exit-is bool; code int|none, expected int
+    if code != none
+        return code == expected
+    return false
+
+async function exercise-signals throws process-error; executable string
+    options = instance process-options;
+    options.new-process-group = true
+    child = await spawn-process; executable, (list; 'handle'), options
+    ready = await child.read-stdout; 1
+    print; (ready.data == b'R')
+    await child.send-signal; (process-signal::terminate;)
+    graceful = await child.wait; 3000
+    print; (graceful.exited and not graceful.timed-out and (exit-is; graceful.exit-code, 23))
+    if graceful.exited
+        delivered = await child.read-stdout; 1
+        print; (delivered.data == b'T')
+        rejected bool = false
+        try
+            await child.send-signal; (process-signal::terminate;)
+        catch process-error
+            rejected = true
+        print; rejected
+    forced-child = await spawn-process; executable, (list; 'handle'), options
+    forced-ready = await forced-child.read-stdout; 1
+    forced-child.terminate;
+    forced = await forced-child.wait; 3000
+    print; (forced-ready.data == b'R' and forced.exited and not forced.timed-out and forced.exit-code == none)
+    if forced.exited
+        output = await forced-child.read-stdout; 1
+        print; (output.end and output.data == b'')
+
+async function exercise-groups throws process-error; executable string
+    parent-group = current-process-group-id;
+    group-line = (parent-group.to-string;) + "\n"
+    expected = group-line.encode; utf8
+    inherited = run-process; executable, (list; 'group-id')
+    print; ((exit-is; inherited.status.exit-code, 0) and inherited.stdout == expected)
+    options = instance process-options;
+    options.new-process-group = true
+    isolated = await run-process-async; executable, (list; 'group-leader'), options
+    print; ((exit-is; isolated.status.exit-code, 0) and isolated.stdout == b'true\n')
+    spawned = await spawn-process; executable, (list; 'group-leader'), options
+    spawned-status = await spawned.wait; 3000
+    if spawned-status.exited
+        spawned-output = await spawned.read-stdout; 100
+        print; ((exit-is; spawned-status.exit-code, 0) and spawned-output.data == b'true\n')
+
+async function main throws throwable;
+    argv = arguments;
+    if argv.length > 0
+        mode = argv[0].text
+        if mode == 'group-id'
+            print; (current-process-group-id;)
+        else if mode == 'group-leader'
+            print; ((current-process-group-id;) == (current-process-id;))
+        else
+            try
+                await handle-termination;
+            catch process-signal-error
+                exit; (make-exit-status; 97)
+    else
+        executable = native-text-value; (current-executable;)
+        if executable != none
+            await exercise-groups; executable
+            await exercise-signals; executable
+        else
+            exit; (make-exit-status; 95)
