@@ -320,9 +320,6 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             "Terrane library packages are lowered with an application; use `check` or `rust` directly",
         ));
     }
-    if command == CliCommand::Build && !package.rust_dependencies.is_empty() {
-        toolchain_command::ensure_projection_toolchain()?;
-    }
     if let Some(progress) = &mut progress {
         progress.advance("compiling Terrane sources");
     }
@@ -572,6 +569,7 @@ fn rust_build_identity(
     purpose: &str,
 ) -> Result<terrane_compiler::provenance::BuildIdentity, CliFailure> {
     let verbose = Command::new("rustc")
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .arg("-vV")
         .current_dir(crate_dir)
         .output()
@@ -600,6 +598,7 @@ fn rust_build_identity(
         })?
         .to_owned();
     let sysroot = Command::new("rustc")
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .args(["--print", "sysroot"])
         .current_dir(crate_dir)
         .output()
@@ -840,6 +839,7 @@ fn artifact_identity(
         })?;
     }
     let compiler = Command::new("rustc")
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .arg("-vV")
         .current_dir(crate_dir)
         .output()
@@ -1310,6 +1310,16 @@ fn ensure_rust_toolchain(
         (Command::new("cargo"), "")
     };
     let status = command.arg("--version").output().map_err(|error| {
+        if build_toolchain == terrane_compiler::BuildToolchain::Pinned
+            && error.kind() == std::io::ErrorKind::NotFound
+        {
+            return CliFailure::diagnostic(
+                PathBuf::from("<toolchain>"),
+                "S9001",
+                toolchain_command::RUSTUP_NOT_FOUND.to_owned(),
+                4,
+            );
+        }
         CliFailure::diagnostic(
             PathBuf::from("<toolchain>"),
             "S9001",

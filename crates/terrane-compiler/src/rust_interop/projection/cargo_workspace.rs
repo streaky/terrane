@@ -35,6 +35,7 @@ pub(super) fn persist_dependency_lock(
 }
 
 pub(super) fn write_workspace_with_bound_dependencies(
+    root: &Path,
     workspace: &Path,
     dependencies: &[RustDependency],
     bound_dependencies: &[ProjectedBoundDependency],
@@ -63,13 +64,39 @@ pub(super) fn write_workspace_with_bound_dependencies(
         }
     }
     write_workspace(workspace, &dependencies)?;
-    run_cargo(
+    fetch_offline(root, workspace)
+}
+
+pub(super) fn fetch_offline(root: &Path, workspace: &Path) -> Result<(), ProjectionError> {
+    run_cargo_with_fetch_root(
         workspace,
         &["fetch", "--offline"],
         CargoToolchain::Default,
         CargoExecution::Host,
+        Some(root),
     )
 }
+
+fn offline_fetch_hint(root: &Path, stderr: &str) -> &'static str {
+    // Cargo also mentions offline mode when it cannot resolve the manifest at all.
+    // Only a download blocked by offline mode for an already locked crate can be
+    // repaired by hydrating the operator lock.
+    if stderr.contains("but --offline was specified")
+        && stderr.lines().any(|line| {
+            line.strip_prefix("error: failed to download `")
+                .and_then(|identity| identity.strip_suffix('`'))
+                .and_then(|identity| identity.rsplit_once(" v"))
+                .is_some_and(|(name, version)| {
+                    crate::native_hydration::lock_contains_registry_package(root, name, version)
+                })
+        })
+    {
+        "\nWarm the locked Cargo cache with `terrane fetch <package>` and retry."
+    } else {
+        ""
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(super) enum CargoToolchain {
     Default,
@@ -121,6 +148,16 @@ pub(super) fn run_cargo(
     toolchain: CargoToolchain,
     execution: CargoExecution,
 ) -> Result<(), ProjectionError> {
+    run_cargo_with_fetch_root(directory, arguments, toolchain, execution, None)
+}
+
+fn run_cargo_with_fetch_root(
+    directory: &Path,
+    arguments: &[&str],
+    toolchain: CargoToolchain,
+    execution: CargoExecution,
+    fetch_root: Option<&Path>,
+) -> Result<(), ProjectionError> {
     let sandboxed = matches!(execution, CargoExecution::Contained);
     let canonical_directory = if sandboxed {
         Some(
@@ -158,15 +195,18 @@ pub(super) fn run_cargo(
         Command::new("cargo")
     };
     crate::rust_interop::configure_projection_cargo_command(&mut command);
-    if matches!(toolchain, CargoToolchain::RustdocNightly) {
+    let toolchain_hint = if matches!(toolchain, CargoToolchain::RustdocNightly) {
         command.arg(format!("+{RUSTDOC_TOOLCHAIN}"));
-    }
+        "\nIf the pinned projection toolchain or its components are missing, run `terrane toolchain install`."
+    } else {
+        ""
+    };
     let output = command
         .args(arguments)
         .current_dir(working_directory)
         .output()
         .map_err(|error| ProjectionError {
-            message: format!("cannot run Cargo dependency projection: {error}"),
+            message: format!("cannot run Cargo dependency projection: {error}{toolchain_hint}"),
         })?;
     if output.status.success() {
         if arguments.first() == Some(&"rustdoc") {
@@ -175,17 +215,10 @@ pub(super) fn run_cargo(
         return Ok(());
     }
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let hint = if arguments.starts_with(&["fetch", "--offline"])
-        && crate::native_hydration::is_offline_cache_miss(&stderr)
-        && directory.join("../..").join(DEPENDENCY_LOCK_FILE).is_file()
-    {
-        "\nWarm the locked Cargo cache with `terrane fetch <package>` and retry."
-    } else {
-        ""
-    };
+    let hint = fetch_root.map_or("", |root| offline_fetch_hint(root, &stderr));
     Err(ProjectionError {
         message: format!(
-            "Cargo dependency projection failed: {}{hint}",
+            "Cargo dependency projection failed: {}{toolchain_hint}{hint}",
             stderr.trim()
         ),
     })

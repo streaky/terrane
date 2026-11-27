@@ -273,19 +273,34 @@ fn build_host_executable(
     owner: &Package,
     package: &Package,
 ) -> Result<PathBuf, CompilationFailure> {
-    let mut rustc = Command::new("rustc");
-    if package.build_toolchain == crate::BuildToolchain::Pinned {
-        rustc.env("RUSTUP_TOOLCHAIN", crate::BUILD_TOOLCHAIN);
-    }
-    let output = rustc
-        .arg("-vV")
-        .output()
-        .map_err(|error| failure(owner, format!("cannot query rustc host target: {error}")))?;
+    let pinned = package.build_toolchain == crate::BuildToolchain::Pinned;
+    let mut rustc = if pinned {
+        let mut command = Command::new("rustup");
+        command
+            .args(["run", crate::BUILD_TOOLCHAIN, "rustc"])
+            .env("RUSTUP_AUTO_INSTALL", "0");
+        command
+    } else {
+        Command::new("rustc")
+    };
+    let output = rustc.arg("-vV").output().map_err(|error| {
+        let message = if pinned && error.kind() == std::io::ErrorKind::NotFound {
+            "rustup was not found on PATH; install it from https://rustup.rs/ and retry".to_owned()
+        } else {
+            format!("cannot query rustc host target: {error}")
+        };
+        failure(owner, message)
+    })?;
     if !output.status.success() {
+        let hint = if pinned {
+            "; if the pinned toolchain or its components are missing, run `terrane toolchain install`"
+        } else {
+            ""
+        };
         return Err(failure(
             owner,
             format!(
-                "rustc host target query failed: {}",
+                "rustc host target query failed: {}{hint}",
                 String::from_utf8_lossy(&output.stderr).trim()
             ),
         ));

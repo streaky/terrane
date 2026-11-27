@@ -42,6 +42,7 @@ pub fn configure_cargo_command(command: &mut Command) {
 
 pub fn configure_projection_cargo_command(command: &mut Command) {
     configure_cargo_command(command);
+    command.env("RUSTUP_AUTO_INSTALL", "0");
     for variable in [
         "CARGO_ENCODED_RUSTFLAGS",
         "CARGO_ENCODED_RUSTDOCFLAGS",

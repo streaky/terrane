@@ -15,6 +15,8 @@ const USAGE: &str = concat!(
 );
 const INSTALL_HINT: &str =
     "run `terrane toolchain install` to install the pinned Rust prerequisites";
+pub(super) const RUSTUP_NOT_FOUND: &str =
+    "rustup was not found on PATH; install it from https://rustup.rs/ and retry";
 const BUILD_COMPONENTS: &[&str] = &["cargo", "rustc", "rust-std"];
 const PROJECTION_COMPONENTS: &[&str] = &["cargo", "rustc", "rust-std", "rust-src"];
 
@@ -86,26 +88,6 @@ pub(super) fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         });
     }
     Ok(ExitCode::SUCCESS)
-}
-
-pub(super) fn ensure_projection_toolchain() -> Result<(), CliFailure> {
-    let not_installed = || {
-        failure(format!(
-            "pinned projection Rust toolchain {RUSTDOC_TOOLCHAIN} is not installed; {INSTALL_HINT}"
-        ))
-    };
-    let inventory = Inventory::read(false)?.ok_or_else(not_installed)?;
-    if !inventory.contains(RUSTDOC_TOOLCHAIN) {
-        return Err(not_installed());
-    }
-    let missing = missing_components(RUSTDOC_TOOLCHAIN, &inventory.host, PROJECTION_COMPONENTS)?;
-    if !missing.is_empty() {
-        return Err(failure(format!(
-            "pinned projection Rust toolchain {RUSTDOC_TOOLCHAIN} is missing components: {}; {INSTALL_HINT}",
-            missing.join(", ")
-        )));
-    }
-    Ok(())
 }
 
 struct Inventory {
@@ -231,7 +213,7 @@ fn rustup_install(args: &[&str]) -> Result<(), CliFailure> {
 
 fn spawn_failure(args: &[&str], error: &io::Error) -> CliFailure {
     if error.kind() == io::ErrorKind::NotFound {
-        failure("rustup was not found on PATH; install it from https://rustup.rs/ and retry")
+        failure(RUSTUP_NOT_FOUND)
     } else {
         failure(format!(
             "could not run `rustup {}`: {error}",

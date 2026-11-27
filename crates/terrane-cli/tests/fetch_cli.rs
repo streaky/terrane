@@ -91,9 +91,10 @@ impl Fixture {
         // Native build workspaces include Terrane's support crates, separate
         // from the application/consumer projection locks. Supply the runtime
         // registry inputs already cached by this test binary's own build.
-        let host_home = std::env::var_os("CARGO_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap()).join(".cargo"));
+        let host_home = std::env::var_os("CARGO_HOME").map_or_else(
+            || PathBuf::from(std::env::var_os("HOME").unwrap()).join(".cargo"),
+            PathBuf::from,
+        );
         let host_registry = host_home.join("registry");
         let host_indexes = fs::read_dir(host_registry.join("index"))
             .unwrap()
@@ -299,12 +300,7 @@ fn crate_archive(name: &str, value: u8) -> Vec<u8> {
     archive.into_inner().unwrap().finish().unwrap()
 }
 
-#[test]
-fn fetch_warms_locked_application_and_consumer_crates_without_running_the_consumer() {
-    let fixture = Fixture::new();
-    let registry = Registry::new();
-    registry.configure(&fixture, "seed-home");
-    registry.configure(&fixture, "test-home");
+fn write_application_and_consumer(fixture: &Fixture) {
     fixture.write(
         "app/package.toml",
         format!(
@@ -362,6 +358,15 @@ pub fn write() {
 }
 "###,
     );
+}
+
+#[test]
+fn fetch_warms_locked_application_and_consumer_crates_without_running_the_consumer() {
+    let fixture = Fixture::new();
+    let registry = Registry::new();
+    registry.configure(&fixture, "seed-home");
+    registry.configure(&fixture, "test-home");
+    write_application_and_consumer(&fixture);
     let app_lock = fixture.seed_lock("app", APP_CRATE);
     let tool_lock = fixture.seed_lock("provider/generator", TOOL_CRATE);
     let check_locks = || {

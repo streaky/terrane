@@ -185,7 +185,7 @@ fn check_does_not_initialize_an_absent_rustup_home() {
     assert!(!missing.status.success(), "{report}");
     assert!(report.contains(BUILD_TOOLCHAIN), "{report}");
     assert!(report.contains(RUSTDOC_TOOLCHAIN), "{report}");
-    assert!(rustup.log("calls").is_empty());
+    assert_eq!(rustup.log("calls"), "");
     assert!(!rustup.rustup_home().exists());
 }
 
@@ -197,7 +197,7 @@ fn fresh_check_is_read_only_and_install_provisions_the_exact_pins() {
     assert!(!missing.status.success(), "{report}");
     assert!(report.contains(BUILD_TOOLCHAIN), "{report}");
     assert!(report.contains(RUSTDOC_TOOLCHAIN), "{report}");
-    assert!(rustup.log("mutations").is_empty());
+    assert_eq!(rustup.log("mutations"), "");
 
     let installed = rustup.run(&["install"], "online");
     assert!(installed.status.success(), "{}", diagnostic(&installed));
@@ -224,7 +224,7 @@ fn partial_install_adds_only_the_missing_component_and_toolchain() {
     assert!(!missing.status.success(), "{report}");
     assert!(report.contains(BUILD_TOOLCHAIN), "{report}");
     assert!(report.contains("rust-src"), "{report}");
-    assert!(rustup.log("mutations").is_empty());
+    assert_eq!(rustup.log("mutations"), "");
 
     let installed = rustup.run(&["install"], "online");
     assert!(installed.status.success(), "{}", diagnostic(&installed));
@@ -257,7 +257,7 @@ fn partial_install_repairs_each_missing_host_component_without_reinstalling() {
                 report.contains(pin) && report.contains(component),
                 "{report}"
             );
-            assert!(rustup.log("mutations").is_empty());
+            assert_eq!(rustup.log("mutations"), "");
 
             let installed = rustup.run(&["install"], "online");
             assert!(installed.status.success(), "{}", diagnostic(&installed));
@@ -278,7 +278,7 @@ fn complete_check_and_repeated_installs_need_no_mutating_rustup_commands() {
         let output = rustup.run(&[action], "offline");
         assert!(output.status.success(), "{action}: {}", diagnostic(&output));
     }
-    assert!(rustup.log("mutations").is_empty());
+    assert_eq!(rustup.log("mutations"), "");
 }
 
 #[test]
@@ -293,7 +293,7 @@ fn rustup_inventory_and_install_errors_surface_to_the_caller() {
             "{report}"
         );
     }
-    assert!(rustup.log("mutations").is_empty());
+    assert_eq!(rustup.log("mutations"), "");
 
     let output = rustup.run(&["install"], "fail-write");
     let report = diagnostic(&output);
@@ -319,5 +319,37 @@ fn invalid_toolchain_usage_never_invokes_rustup() {
             "{report}"
         );
     }
-    assert!(rustup.log("calls").is_empty());
+    assert_eq!(rustup.log("calls"), "");
+}
+
+#[test]
+fn build_reports_missing_rustup_before_invoking_cargo() {
+    let fixture = FakeRustup::new(&[]);
+    fs::remove_file(fixture.0.join("bin/rustup")).unwrap();
+    fs::create_dir(fixture.0.join("src")).unwrap();
+    fs::write(
+        fixture.0.join("package.toml"),
+        "package = 'missing-rustup'\nprelude = false\n[namespaces]\napp = 'src'\n",
+    )
+    .unwrap();
+    fs::write(
+        fixture.0.join("src/main.trn"),
+        "namespace app\nfrom /core/output import print\nfunction main;\n  print; 'hello'\n",
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["build", "package.toml"])
+        .current_dir(&fixture.0)
+        .env_clear()
+        .env("PATH", fixture.0.join("bin"))
+        .env("HOME", fixture.0.join("home"))
+        .output()
+        .unwrap();
+    let report = diagnostic(&output);
+    assert_eq!(output.status.code(), Some(4), "{report}");
+    assert!(report.contains("S9001"), "{report}");
+    assert!(report.contains("rustup was not found on PATH"), "{report}");
+    assert!(report.contains("https://rustup.rs/"), "{report}");
+    assert!(!report.contains("terrane toolchain install"), "{report}");
 }

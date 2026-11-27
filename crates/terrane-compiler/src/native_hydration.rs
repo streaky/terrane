@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub(crate) const DEPENDENCY_LOCK_FILE: &str = "terrane-dependencies.lock";
@@ -85,8 +85,15 @@ pub(crate) fn hydrate_locked_crates(root: &Path) -> Result<(), String> {
     run_cargo(directory, &["fetch", "--locked"])
 }
 
-pub(crate) fn is_offline_cache_miss(stderr: &str) -> bool {
-    stderr.contains("offline mode") || stderr.contains("but --offline was specified")
+pub(crate) fn lock_contains_registry_package(root: &Path, name: &str, version: &str) -> bool {
+    fs::read_to_string(root.join(DEPENDENCY_LOCK_FILE))
+        .ok()
+        .and_then(|text| parse_lock(&text).ok())
+        .is_some_and(|lock| {
+            validate_projection_root(&lock).is_ok()
+                && registry_packages(&lock)
+                    .is_ok_and(|packages| packages.contains_key(&(name, version)))
+        })
 }
 
 #[derive(serde::Deserialize)]
@@ -169,7 +176,7 @@ fn registry_packages(lock: &Lock) -> Result<BTreeMap<(&str, &str), &str>, String
 }
 
 fn run_cargo(directory: &Path, arguments: &[&str]) -> Result<(), String> {
-    let execute = |offline| {
+    offline_first(|offline| {
         let mut command = Command::new("cargo");
         crate::rust_interop::configure_projection_cargo_command(&mut command);
         command.args(arguments).current_dir(directory);
@@ -179,11 +186,16 @@ fn run_cargo(directory: &Path, arguments: &[&str]) -> Result<(), String> {
         command
             .output()
             .map_err(|error| format!("cannot run Cargo hydration: {error}"))
-    };
-    let mut output = execute(true)?;
-    if !output.status.success() && is_offline_cache_miss(&String::from_utf8_lossy(&output.stderr)) {
-        output = execute(false)?;
+    })
+}
+
+fn offline_first(mut execute: impl FnMut(bool) -> Result<Output, String>) -> Result<(), String> {
+    if execute(true)?.status.success() {
+        return Ok(());
     }
+    // Cargo's failure text is not stable. Let the second attempt report the error if
+    // access to the network does not resolve it, while respecting Cargo's own config.
+    let output = execute(false)?;
     if output.status.success() {
         Ok(())
     } else {
@@ -217,5 +229,52 @@ impl Scratch {
 impl Drop for Scratch {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::process::ExitStatusExt as _;
+
+    fn cargo_output(exit: i32, stderr: &str) -> Output {
+        Output {
+            status: std::process::ExitStatus::from_raw(exit << 8),
+            stdout: Vec::new(),
+            stderr: stderr.as_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn successful_hydration_stays_offline() {
+        offline_first(|offline| {
+            assert!(offline);
+            Ok(cargo_output(0, ""))
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn opaque_offline_failure_retries_and_uses_online_diagnostic() {
+        for exit in [0, 101] {
+            let mut attempts = [true, false].into_iter();
+            let result = offline_first(|offline| {
+                assert_eq!(attempts.next(), Some(offline));
+                Ok(if offline {
+                    cargo_output(101, "unrecognized wording")
+                } else {
+                    cargo_output(exit, "online diagnostic")
+                })
+            });
+            assert_eq!(attempts.next(), None);
+            if exit == 0 {
+                result.unwrap();
+            } else {
+                assert_eq!(
+                    result.unwrap_err(),
+                    "locked Cargo hydration failed: online diagnostic"
+                );
+            }
+        }
     }
 }

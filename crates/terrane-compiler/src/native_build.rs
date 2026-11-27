@@ -520,6 +520,8 @@ fn configure_generated_toolchain(command: &mut Command, crate_dir: &Path) {
         return;
     };
     if toolchain != "system" {
-        command.arg(format!("+{toolchain}"));
+        command
+            .arg(format!("+{toolchain}"))
+            .env("RUSTUP_AUTO_INSTALL", "0");
     }
 }

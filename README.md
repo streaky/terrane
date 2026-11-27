@@ -20,7 +20,7 @@ terrane --version
 
 The installer asks rustup for the stable build tools and the nightly Rustdoc tools (including `rust-src`) pinned by this Terrane binary. It skips requirements already installed. In CI or an offline environment, use `terrane toolchain check` to verify the image without downloading anything.
 
-For a package with locked Rust dependencies, run `terrane fetch <package>` while connected to prepare Cargo's cache for the package and its build-time consumers. This is separate from installing the toolchain.
+`terrane fetch <package>` downloads the crates in the package's and build-time consumers' projection locks without compiling them. It does not fetch every Rust support crate needed by generated code. To prepare an offline builder, also run `terrane build <package>` once while connected with the same target, profile, and Cargo cache you will use offline.
 
 Save this as `total.trn`:
 

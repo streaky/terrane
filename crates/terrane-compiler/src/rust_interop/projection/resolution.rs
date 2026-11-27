@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
+use super::cargo_workspace::fetch_offline;
 use super::{
     CargoExecution, CargoToolchain, DeclinedItem, ProjectedDependency, ProjectedKind, Projection,
     ProjectionCacheIdentity, ProjectionError, ProjectionResolution, ProjectionSource,
@@ -86,12 +87,7 @@ pub fn resolve(
         root.display(),
     );
     if workspace.join("Cargo.lock").exists() {
-        run_cargo(
-            &workspace,
-            &["fetch", "--offline"],
-            CargoToolchain::Default,
-            CargoExecution::Host,
-        )?;
+        fetch_offline(root, &workspace)?;
     } else {
         run_cargo(
             &workspace,
@@ -146,6 +142,7 @@ pub fn resolve(
                 }],
             };
             write_workspace_with_bound_dependencies(
+                root,
                 &workspace,
                 dependencies,
                 &cached.bound_dependencies,
@@ -185,6 +182,7 @@ pub fn resolve(
                 events: resolution_events,
             };
             write_workspace_with_bound_dependencies(
+                root,
                 &workspace,
                 dependencies,
                 &projection.bound_dependencies,
@@ -615,6 +613,7 @@ pub fn resolve(
     }
     debug_assert!(projection.inventories_are_sorted());
     write_workspace_with_bound_dependencies(
+        root,
         &workspace,
         dependencies,
         &projection.bound_dependencies,
