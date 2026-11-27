@@ -431,13 +431,14 @@ fn load_core_rustdoc(
 ) -> Result<(rustdoc_types::Crate, PathBuf), AnalysisError> {
     let sysroot_output = Command::new("rustc")
         .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .args(["--print", "sysroot"])
         .output()
         .map_err(io_error("run pinned rustc for sysroot discovery"))?;
     if !sysroot_output.status.success() {
         return Err(AnalysisError {
             message: format!(
-                "cannot discover pinned Rust sysroot: {}",
+                "cannot discover pinned Rust sysroot for `{RUSTDOC_TOOLCHAIN}` (run `terrane toolchain install`): {}",
                 String::from_utf8_lossy(&sysroot_output.stderr).trim()
             ),
         });
@@ -457,7 +458,7 @@ fn load_core_rustdoc_from_source(
     if !source.is_file() {
         return Err(AnalysisError {
             message: format!(
-                "pinned Rust sysroot source `{}` is unavailable; install the `rust-src` component for `{RUSTDOC_TOOLCHAIN}`",
+                "pinned Rust sysroot source `{}` is unavailable; run `terrane toolchain install` to install `rust-src` for `{RUSTDOC_TOOLCHAIN}`",
                 source.display()
             ),
         });

@@ -14,8 +14,11 @@ On Linux, install [Rust through rustup](https://rustup.rs/) and a native linker.
 
 ```sh
 cargo install --locked --path crates/terrane-cli
+terrane toolchain install
 terrane --version
 ```
+
+The installer asks rustup for the stable build tools and the nightly Rustdoc tools (including `rust-src`) pinned by this Terrane binary. It skips requirements already installed. In CI or an offline environment, use `terrane toolchain check` to verify the image without downloading anything.
 
 Save this as `total.trn`:
 

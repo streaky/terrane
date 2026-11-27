@@ -6,6 +6,7 @@ mod development_provenance;
 mod profile_command;
 mod reference_snapshot;
 mod test_command;
+mod toolchain_command;
 
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -107,6 +108,7 @@ enum CliCommand {
     Format,
     Package,
     ProjectionCensus,
+    Toolchain,
     Toolchains,
     Help,
     Version,
@@ -130,6 +132,7 @@ impl CliCommand {
             "fmt" => Some(Self::Format),
             "package" => Some(Self::Package),
             "projection-census" => Some(Self::ProjectionCensus),
+            "toolchain" => Some(Self::Toolchain),
             "toolchains" => Some(Self::Toolchains),
             "--help" | "-h" => Some(Self::Help),
             "--version" | "-V" => Some(Self::Version),
@@ -196,6 +199,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             );
             return Ok(ExitCode::SUCCESS);
         }
+        CliCommand::Toolchain => return toolchain_command::run(&arguments[1..]),
         CliCommand::Toolchains => {
             report_toolchains();
             return Ok(ExitCode::SUCCESS);
@@ -312,6 +316,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         return Err(CliFailure::usage_with(
             "Terrane library packages are lowered with an application; use `check` or `rust` directly",
         ));
+    }
+    if command == CliCommand::Build && !package.rust_dependencies.is_empty() {
+        toolchain_command::ensure_projection_toolchain()?;
     }
     if let Some(progress) = &mut progress {
         progress.advance("compiling Terrane sources");
@@ -1284,17 +1291,27 @@ fn write_if_changed(path: &Path, content: &[u8]) -> std::io::Result<()> {
 fn ensure_rust_toolchain(
     build_toolchain: terrane_compiler::BuildToolchain,
 ) -> Result<(), CliFailure> {
-    let mut command = Command::new("cargo");
-    if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
+    let (mut command, install_hint) = if build_toolchain == terrane_compiler::BuildToolchain::Pinned
+    {
         record_toolchain_pin(terrane_compiler::BUILD_TOOLCHAIN)?;
-        command.arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN));
-    }
+        // `run` without `--install` also prevents implicit download on older rustup.
+        let mut command = Command::new("rustup");
+        command
+            .args(["run", terrane_compiler::BUILD_TOOLCHAIN, "cargo"])
+            .env("RUSTUP_AUTO_INSTALL", "0");
+        (
+            command,
+            "; run `terrane toolchain install` to install the pinned Rust prerequisites",
+        )
+    } else {
+        (Command::new("cargo"), "")
+    };
     let status = command.arg("--version").output().map_err(|error| {
         CliFailure::diagnostic(
             PathBuf::from("<toolchain>"),
             "S9001",
             format!(
-                "Cargo with Rust {} is required to compile generated Rust: {error}",
+                "Cargo with Rust {} is required to compile generated Rust: {error}{install_hint}",
                 if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
                     terrane_compiler::BUILD_TOOLCHAIN.to_owned()
                 } else {
@@ -1309,7 +1326,7 @@ fn ensure_rust_toolchain(
             PathBuf::from("<toolchain>"),
             "S9001",
             format!(
-                "Cargo prerequisite check failed; generated Rust requires Rust {}",
+                "Cargo prerequisite check failed; generated Rust requires Rust {}{install_hint}",
                 terrane_compiler::BUILD_TOOLCHAIN
             ),
             4,
@@ -1971,6 +1988,7 @@ fn usage() -> String {
      terrane projection-census <package> <version> --target <triple> --root <directory> \
      [--alias <name>] [--features <comma-list>] [--no-default-features] \
      [--target-condition <cargo-cfg>]\n\
+     terrane toolchain <check|install>\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
@@ -1991,6 +2009,7 @@ fn usage() -> String {
      package  hash or install directory, tagged-Git, and source-archive Terrane libraries\n  \
      projection-census  compare native public surface with real compiler projection admission;\n\
        versions are normalized to exact requirements and aliases default to package names with hyphens replaced by underscores\n  \
+     toolchain  check (offline) or install pinned Rust prerequisites\n  \
      toolchains  report Rust toolchains previously requested by Terrane\n"
         .to_owned()
 }
@@ -2208,6 +2227,7 @@ mod tests {
             "tooling",
             "query",
             "fmt",
+            "toolchain",
             "toolchains",
             "--help",
             "-h",
