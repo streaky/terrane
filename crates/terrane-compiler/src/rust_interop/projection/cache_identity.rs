@@ -35,8 +35,7 @@ pub(super) fn cache_identity(
         .or_else(|_| fs::read(root.join("Cargo.lock")))
         .unwrap_or_default();
     let lock = projection_lock_identity(&lock)?;
-    let build_selector = format!("+{}", crate::BUILD_TOOLCHAIN);
-    let rustc_verbose = tool_version("rustc", &[&build_selector, "-vV"])?;
+    let rustc_verbose = stable_rustc_verbose()?;
     let target = selected_target(workspace, &rustc_verbose)?;
     let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
     let mut hash = Sha256::new();
@@ -73,18 +72,8 @@ pub(super) fn selected_target(
     {
         return Ok(target);
     }
-    let output = Command::new("cargo")
-        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
-        .args([
-            "-Z",
-            "unstable-options",
-            "config",
-            "get",
-            "build.target",
-            "--format",
-            "json",
-        ])
-        .current_dir(workspace)
+    let output = crate::cache_identity::cargo_config_command(workspace)
+        .args(["build.target", "--format", "json"])
         .output()
         .map_err(|error| ProjectionError {
             message: format!("cannot inspect Cargo build target configuration: {error}"),
@@ -119,7 +108,7 @@ pub(super) fn selected_target(
     if !stderr.contains("config value `build.target` is not set") {
         return Err(ProjectionError {
             message: format!(
-                "cannot inspect Cargo build target configuration: {}",
+                "cannot inspect Cargo build target configuration: {}; if the pinned projection toolchain or its Cargo component is missing, run `terrane toolchain install`",
                 stderr.trim()
             ),
         });
@@ -142,17 +131,8 @@ fn resolve_configured_target(workspace: &Path, target: &str) -> Result<String, P
     if path.is_absolute() || path.extension().is_none_or(|extension| extension != "json") {
         return Ok(target.to_owned());
     }
-    let output = Command::new("cargo")
-        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
-        .args([
-            "-Z",
-            "unstable-options",
-            "config",
-            "get",
-            "build.target",
-            "--show-origin",
-        ])
-        .current_dir(workspace)
+    let output = crate::cache_identity::cargo_config_command(workspace)
+        .args(["build.target", "--show-origin"])
         .output()
         .map_err(|error| ProjectionError {
             message: format!("cannot inspect Cargo build target origin: {error}"),
@@ -160,7 +140,7 @@ fn resolve_configured_target(workspace: &Path, target: &str) -> Result<String, P
     if !output.status.success() {
         return Err(ProjectionError {
             message: format!(
-                "cannot inspect Cargo build target origin: {}",
+                "cannot inspect Cargo build target origin: {}; if the pinned projection toolchain or its Cargo component is missing, run `terrane toolchain install`",
                 String::from_utf8_lossy(&output.stderr).trim()
             ),
         });
@@ -194,17 +174,23 @@ fn resolve_configured_target(workspace: &Path, target: &str) -> Result<String, P
         })
 }
 
-fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionError> {
-    let output = Command::new(program)
-        .args(arguments)
+fn stable_rustc_verbose() -> Result<String, ProjectionError> {
+    let output = Command::new("rustup")
+        .args(["run", crate::BUILD_TOOLCHAIN, "rustc", "-vV"])
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .output()
         .map_err(|error| ProjectionError {
-            message: format!("cannot inspect dependency projection toolchain: {error}"),
+            message: if error.kind() == std::io::ErrorKind::NotFound {
+                "rustup was not found on PATH; install it from https://rustup.rs/ and retry"
+                    .to_owned()
+            } else {
+                format!("cannot inspect dependency projection toolchain: {error}")
+            },
         })?;
     if !output.status.success() {
         return Err(ProjectionError {
             message: format!(
-                "cannot inspect dependency projection toolchain: {}",
+                "cannot inspect dependency projection toolchain: {}; if the pinned toolchain is missing, run `terrane toolchain install`",
                 String::from_utf8_lossy(&output.stderr).trim()
             ),
         });

@@ -10,7 +10,7 @@ use super::{
     Containment, ProjectedBoundDependency, ProjectionError, RUSTDOC_TOOLCHAIN, RustDependency,
     io_error, write_cache_atomically, write_if_changed,
 };
-pub(super) const DEPENDENCY_LOCK_FILE: &str = "terrane-dependencies.lock";
+pub(super) use crate::native_hydration::DEPENDENCY_LOCK_FILE;
 
 pub(super) fn seed_dependency_lock(root: &Path, workspace: &Path) -> Result<(), ProjectionError> {
     let path = root.join(DEPENDENCY_LOCK_FILE);
@@ -35,6 +35,7 @@ pub(super) fn persist_dependency_lock(
 }
 
 pub(super) fn write_workspace_with_bound_dependencies(
+    root: &Path,
     workspace: &Path,
     dependencies: &[RustDependency],
     bound_dependencies: &[ProjectedBoundDependency],
@@ -63,13 +64,45 @@ pub(super) fn write_workspace_with_bound_dependencies(
         }
     }
     write_workspace(workspace, &dependencies)?;
-    run_cargo(
+    fetch_offline(root, workspace)
+}
+
+pub(super) fn fetch_offline(root: &Path, workspace: &Path) -> Result<(), ProjectionError> {
+    run_cargo_with_fetch_root(
         workspace,
         &["fetch", "--offline"],
         CargoToolchain::Default,
         CargoExecution::Host,
+        Some(root),
     )
 }
+
+fn offline_fetch_hint(root: &Path, stderr: &str) -> &'static str {
+    // A cold index reports only a name; a missing archive identifies the version too.
+    // Fetch hydrates the published lock, not new dependencies added to the manifest.
+    if stderr.lines().any(|line| {
+        let identity = if let Some(name) = line
+            .strip_prefix("error: no matching package named `")
+            .and_then(|rest| rest.strip_suffix("` found"))
+        {
+            Some((name, None))
+        } else {
+            line.strip_prefix("error: failed to download `")
+                .and_then(|rest| rest.strip_suffix('`'))
+                .and_then(|id| id.rsplit_once(" v"))
+                .filter(|_| stderr.contains("but --offline was specified"))
+                .map(|(name, version)| (name, Some(version)))
+        };
+        identity.is_some_and(|(name, version)| {
+            crate::native_hydration::lock_contains_registry_package(root, name, version)
+        })
+    }) {
+        "\nWarm the locked Cargo cache with `terrane fetch <package>` and retry."
+    } else {
+        ""
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(super) enum CargoToolchain {
     Default,
@@ -121,6 +154,16 @@ pub(super) fn run_cargo(
     toolchain: CargoToolchain,
     execution: CargoExecution,
 ) -> Result<(), ProjectionError> {
+    run_cargo_with_fetch_root(directory, arguments, toolchain, execution, None)
+}
+
+fn run_cargo_with_fetch_root(
+    directory: &Path,
+    arguments: &[&str],
+    toolchain: CargoToolchain,
+    execution: CargoExecution,
+    fetch_root: Option<&Path>,
+) -> Result<(), ProjectionError> {
     let sandboxed = matches!(execution, CargoExecution::Contained);
     let canonical_directory = if sandboxed {
         Some(
@@ -158,15 +201,18 @@ pub(super) fn run_cargo(
         Command::new("cargo")
     };
     crate::rust_interop::configure_projection_cargo_command(&mut command);
-    if matches!(toolchain, CargoToolchain::RustdocNightly) {
+    let toolchain_hint = if matches!(toolchain, CargoToolchain::RustdocNightly) {
         command.arg(format!("+{RUSTDOC_TOOLCHAIN}"));
-    }
+        "\nIf the pinned projection toolchain or its components are missing, run `terrane toolchain install`."
+    } else {
+        ""
+    };
     let output = command
         .args(arguments)
         .current_dir(working_directory)
         .output()
         .map_err(|error| ProjectionError {
-            message: format!("cannot run Cargo dependency projection: {error}"),
+            message: format!("cannot run Cargo dependency projection: {error}{toolchain_hint}"),
         })?;
     if output.status.success() {
         if arguments.first() == Some(&"rustdoc") {
@@ -174,10 +220,12 @@ pub(super) fn run_cargo(
         }
         return Ok(());
     }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let hint = fetch_root.map_or("", |root| offline_fetch_hint(root, &stderr));
     Err(ProjectionError {
         message: format!(
-            "Cargo dependency projection failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
+            "Cargo dependency projection failed: {}{toolchain_hint}{hint}",
+            stderr.trim()
         ),
     })
 }

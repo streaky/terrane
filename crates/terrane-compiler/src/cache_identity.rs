@@ -8,6 +8,18 @@ use crate::cache_io::HashWriter;
 
 pub(crate) const COMPILER: &str = env!("TERRANE_COMPILER_CACHE_ID");
 
+/// Query effective Cargo configuration, including includes and overrides.
+/// Cargo gates this read-only command on nightly even when validating a cache hit.
+pub(crate) fn cargo_config_command(workspace: &Path) -> Command {
+    let mut command = Command::new("rustup");
+    command
+        .args(["run", crate::RUSTDOC_TOOLCHAIN, "cargo"])
+        .env("RUSTUP_AUTO_INSTALL", "0")
+        .args(["-Z", "unstable-options", "config", "get"])
+        .current_dir(workspace);
+    command
+}
+
 /// Hash local package contents, excluding Cargo outputs and compiler/VCS bookkeeping.
 /// Cargo's package include/exclude rules do not cover all build-script input files, so
 /// other directories remain conservatively included; large path dependencies cost more.
@@ -17,6 +29,7 @@ pub(crate) fn local_rust_sources(workspace: &Path) -> Result<String, String> {
         .canonicalize()
         .map_err(|error| error.to_string())?;
     let output = Command::new("cargo")
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .args([
             "metadata",
             "--offline",
@@ -53,22 +66,13 @@ pub(crate) fn local_rust_sources(workspace: &Path) -> Result<String, String> {
     paths.sort();
     let mut hash = HashWriter::new();
     // Hash effective configuration, including included config files and environment overrides.
-    let configuration = Command::new("cargo")
-        .arg(format!("+{}", terrane_rust_analysis::RUSTDOC_TOOLCHAIN))
-        .args([
-            "-Z",
-            "unstable-options",
-            "config",
-            "get",
-            "--format",
-            "json",
-        ])
-        .current_dir(workspace)
+    let configuration = cargo_config_command(workspace)
+        .args(["--format", "json"])
         .output()
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| format!("cannot query Cargo configuration: {error}"))?;
     if !configuration.status.success() {
         return Err(format!(
-            "cannot fingerprint Cargo configuration: {}",
+            "cannot fingerprint Cargo configuration: {}; if the pinned projection toolchain is missing, run `terrane toolchain install`",
             String::from_utf8_lossy(&configuration.stderr).trim()
         ));
     }

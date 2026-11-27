@@ -57,21 +57,67 @@ pub(crate) fn executable_for(
     owner: &Package,
     config: &ConsumerConfig,
 ) -> Result<PathBuf, CompilationFailure> {
-    let ConsumerExecutable::Buildable {
-        dependency, tool, ..
-    } = &config.executable
-    else {
-        if let ConsumerExecutable::Command { executable, .. } = &config.executable {
-            return resolve_command(owner, executable);
+    match &config.executable {
+        ConsumerExecutable::Command { executable, .. } => resolve_command(owner, executable),
+        ConsumerExecutable::Buildable {
+            dependency, tool, ..
+        } => {
+            let manifest = buildable_manifest(owner, &config.name, dependency, tool)?;
+            let package = load_buildable_package(owner, dependency, tool, &manifest)?;
+            let _guard = BuildActionGuard::enter(&manifest, owner)?;
+            build_host_executable(owner, &package)
         }
-        unreachable!();
-    };
+    }
+}
+
+pub(crate) fn discover_native_roots(
+    owner: &Package,
+    manifest: &Path,
+) -> Result<BTreeSet<PathBuf>, CompilationFailure> {
+    let mut roots = BTreeSet::new();
+    let _guard = BuildActionGuard::enter(manifest, owner)?;
+    visit_native_roots(owner, &mut BTreeSet::new(), &mut roots)?;
+    Ok(roots)
+}
+
+fn visit_native_roots(
+    owner: &Package,
+    visited: &mut BTreeSet<PathBuf>,
+    roots: &mut BTreeSet<PathBuf>,
+) -> Result<(), CompilationFailure> {
+    // Loaded libraries contribute their Rust dependencies to this package's projection lock.
+    if !owner.rust_dependencies.is_empty() {
+        roots.insert(owner.root.clone());
+    }
+    for config in &owner.consumer_configs {
+        let ConsumerExecutable::Buildable {
+            dependency, tool, ..
+        } = &config.executable
+        else {
+            continue;
+        };
+        let manifest = buildable_manifest(owner, &config.name, dependency, tool)?;
+        if !visited.contains(&manifest) {
+            let _guard = BuildActionGuard::enter(&manifest, owner)?;
+            let package = load_buildable_package(owner, dependency, tool, &manifest)?;
+            visit_native_roots(&package, visited, roots)?;
+            visited.insert(manifest);
+        }
+    }
+    Ok(())
+}
+
+fn buildable_manifest(
+    owner: &Package,
+    consumer: &str,
+    dependency: &str,
+    tool: &str,
+) -> Result<PathBuf, CompilationFailure> {
     let Some(root) = owner.dependency_roots.get(dependency) else {
         return Err(failure(
             owner,
             format!(
-                "consumer `{}` names undeclared or unresolved tool dependency `{dependency}`",
-                config.name
+                "consumer `{consumer}` names undeclared or unresolved tool dependency `{dependency}`"
             ),
         ));
     };
@@ -105,13 +151,21 @@ pub(crate) fn executable_for(
             ),
         ));
     }
-    let tool_manifest = tool_manifest.canonicalize().map_err(|error| {
+    tool_manifest.canonicalize().map_err(|error| {
         failure(
             owner,
             format!("cannot resolve consumer tool manifest: {error}"),
         )
-    })?;
-    let package = crate::Package::load(&tool_manifest).map_err(|errors| {
+    })
+}
+
+fn load_buildable_package(
+    owner: &Package,
+    dependency: &str,
+    tool: &str,
+    manifest: &Path,
+) -> Result<Package, CompilationFailure> {
+    let package = Package::load(manifest).map_err(|errors| {
         failure(
             owner,
             format!(
@@ -130,8 +184,7 @@ pub(crate) fn executable_for(
             format!("consumer tool `{dependency}::{tool}` must be an executable package"),
         ));
     }
-    let _guard = BuildActionGuard::enter(&tool_manifest, owner)?;
-    build_host_executable(owner, &package)
+    Ok(package)
 }
 
 fn resolve_command(owner: &Package, executable: &Path) -> Result<PathBuf, CompilationFailure> {
@@ -220,19 +273,34 @@ fn build_host_executable(
     owner: &Package,
     package: &Package,
 ) -> Result<PathBuf, CompilationFailure> {
-    let mut rustc = Command::new("rustc");
-    if package.build_toolchain == crate::BuildToolchain::Pinned {
-        rustc.env("RUSTUP_TOOLCHAIN", crate::BUILD_TOOLCHAIN);
-    }
-    let output = rustc
-        .arg("-vV")
-        .output()
-        .map_err(|error| failure(owner, format!("cannot query rustc host target: {error}")))?;
+    let pinned = package.build_toolchain == crate::BuildToolchain::Pinned;
+    let mut rustc = if pinned {
+        let mut command = Command::new("rustup");
+        command
+            .args(["run", crate::BUILD_TOOLCHAIN, "rustc"])
+            .env("RUSTUP_AUTO_INSTALL", "0");
+        command
+    } else {
+        Command::new("rustc")
+    };
+    let output = rustc.arg("-vV").output().map_err(|error| {
+        let message = if pinned && error.kind() == std::io::ErrorKind::NotFound {
+            "rustup was not found on PATH; install it from https://rustup.rs/ and retry".to_owned()
+        } else {
+            format!("cannot query rustc host target: {error}")
+        };
+        failure(owner, message)
+    })?;
     if !output.status.success() {
+        let hint = if pinned {
+            "; if the pinned toolchain or its components are missing, run `terrane toolchain install`"
+        } else {
+            ""
+        };
         return Err(failure(
             owner,
             format!(
-                "rustc host target query failed: {}",
+                "rustc host target query failed: {}{hint}",
                 String::from_utf8_lossy(&output.stderr).trim()
             ),
         ));

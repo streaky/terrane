@@ -368,6 +368,37 @@ impl Package {
         load_package_graph(&package_manifest_path(path.as_ref()))
     }
 
+    /// Fetch the locked native dependencies of a package and its buildable consumer tools.
+    ///
+    /// Accepts a package directory or manifest path. This does not compile, project, or
+    /// execute consumers, and does not create or update dependency locks.
+    ///
+    /// # Errors
+    ///
+    /// Returns diagnostics for invalid package graphs, missing locks, or unavailable crates.
+    pub fn fetch(path: &Path) -> Result<(), String> {
+        let manifest = package_manifest_path(path);
+        let package = load_package_graph(&manifest).map_err(|errors| {
+            errors
+                .into_iter()
+                .map(|error| error.diagnostic.render(&error.source))
+                .collect::<String>()
+        })?;
+        let roots = crate::consumer_tools::discover_native_roots(&package, &manifest).map_err(
+            |failure| {
+                failure
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| diagnostic.render(&failure.source))
+                    .collect::<String>()
+            },
+        )?;
+        for root in roots {
+            crate::native_hydration::hydrate_locked_crates(&root)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn load_for_testing(path: &Path) -> Result<Self, Vec<PackageLoadError>> {
         use crate::testing::test_load_error;
 

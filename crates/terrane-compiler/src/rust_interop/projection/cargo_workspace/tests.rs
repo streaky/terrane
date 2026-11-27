@@ -86,6 +86,7 @@ fn failed_resolve_keeps_lock() {
             effects: Vec::new(),
         }];
         write_workspace_with_bound_dependencies(
+            &root,
             &workspace,
             &dependencies,
             &[ProjectedBoundDependency {
@@ -126,4 +127,42 @@ fn failed_resolve_keeps_lock() {
         );
         fs::remove_dir_all(root).unwrap();
     }
+}
+
+#[test]
+fn hint_requires_locked_crate() {
+    let root =
+        std::env::temp_dir().join(format!("terrane-offline-fetch-hint-{}", std::process::id()));
+    fs::create_dir_all(&root).unwrap();
+    let missing = "error: failed to download `fixture v1.2.3`\n\nCaused by:\n  attempting to make an HTTP request, but --offline was specified";
+    assert_eq!(offline_fetch_hint(&root, missing), "");
+    fs::write(
+        root.join(DEPENDENCY_LOCK_FILE),
+        format!(
+            "version = 4\n\
+             [[package]]\nname = 'terrane_dependency_projection'\nversion = '0.0.0'\n\
+             [[package]]\nname = 'fixture'\nversion = '1.2.3'\n\
+             source = 'registry+https://github.com/rust-lang/crates.io-index'\n\
+             checksum = '{}'\n",
+            "a".repeat(64)
+        ),
+    )
+    .unwrap();
+    assert!(offline_fetch_hint(&root, missing).contains("terrane fetch"));
+    assert!(
+        offline_fetch_hint(&root, "error: no matching package named `fixture` found")
+            .contains("terrane fetch")
+    );
+    assert_eq!(
+        offline_fetch_hint(&root, &missing.replace("1.2.3", "1.2.4")),
+        ""
+    );
+    assert_eq!(
+        offline_fetch_hint(
+            &root,
+            "error: no matching package named `new-dependency` found\nnote: offline mode can sometimes cause surprising resolution failures"
+        ),
+        ""
+    );
+    fs::remove_dir_all(root).unwrap();
 }

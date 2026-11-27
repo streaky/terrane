@@ -6,6 +6,7 @@ mod development_provenance;
 mod profile_command;
 mod reference_snapshot;
 mod test_command;
+mod toolchain_command;
 
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -95,6 +96,7 @@ enum CliCommand {
     Check,
     Rust,
     Build,
+    Fetch,
     Run,
     Debug,
     Profile,
@@ -107,6 +109,7 @@ enum CliCommand {
     Format,
     Package,
     ProjectionCensus,
+    Toolchain,
     Toolchains,
     Help,
     Version,
@@ -118,6 +121,7 @@ impl CliCommand {
             "check" => Some(Self::Check),
             "rust" => Some(Self::Rust),
             "build" => Some(Self::Build),
+            "fetch" => Some(Self::Fetch),
             "test" => Some(Self::Test),
             "declaration-interface" => Some(Self::DeclarationInterface),
             "reference-snapshot" => Some(Self::ReferenceSnapshot),
@@ -130,6 +134,7 @@ impl CliCommand {
             "fmt" => Some(Self::Format),
             "package" => Some(Self::Package),
             "projection-census" => Some(Self::ProjectionCensus),
+            "toolchain" => Some(Self::Toolchain),
             "toolchains" => Some(Self::Toolchains),
             "--help" | "-h" => Some(Self::Help),
             "--version" | "-V" => Some(Self::Version),
@@ -196,6 +201,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             );
             return Ok(ExitCode::SUCCESS);
         }
+        CliCommand::Toolchain => return toolchain_command::run(&arguments[1..]),
         CliCommand::Toolchains => {
             report_toolchains();
             return Ok(ExitCode::SUCCESS);
@@ -210,6 +216,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
         CliCommand::Package => return run_package(arguments),
+        CliCommand::Fetch => return run_fetch(&arguments[1..]),
         CliCommand::ProjectionCensus => return census_command::run(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::DebugAdapter => return debug_command::adapter::run_adapter(arguments),
@@ -562,6 +569,7 @@ fn rust_build_identity(
     purpose: &str,
 ) -> Result<terrane_compiler::provenance::BuildIdentity, CliFailure> {
     let verbose = Command::new("rustc")
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .arg("-vV")
         .current_dir(crate_dir)
         .output()
@@ -590,6 +598,7 @@ fn rust_build_identity(
         })?
         .to_owned();
     let sysroot = Command::new("rustc")
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .args(["--print", "sysroot"])
         .current_dir(crate_dir)
         .output()
@@ -830,6 +839,7 @@ fn artifact_identity(
         })?;
     }
     let compiler = Command::new("rustc")
+        .env("RUSTUP_AUTO_INSTALL", "0")
         .arg("-vV")
         .current_dir(crate_dir)
         .output()
@@ -1284,17 +1294,37 @@ fn write_if_changed(path: &Path, content: &[u8]) -> std::io::Result<()> {
 fn ensure_rust_toolchain(
     build_toolchain: terrane_compiler::BuildToolchain,
 ) -> Result<(), CliFailure> {
-    let mut command = Command::new("cargo");
-    if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
+    let (mut command, install_hint) = if build_toolchain == terrane_compiler::BuildToolchain::Pinned
+    {
         record_toolchain_pin(terrane_compiler::BUILD_TOOLCHAIN)?;
-        command.arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN));
-    }
+        // `run` without `--install` also prevents implicit download on older rustup.
+        let mut command = Command::new("rustup");
+        command
+            .args(["run", terrane_compiler::BUILD_TOOLCHAIN, "cargo"])
+            .env("RUSTUP_AUTO_INSTALL", "0");
+        (
+            command,
+            "; run `terrane toolchain install` to install the pinned Rust prerequisites",
+        )
+    } else {
+        (Command::new("cargo"), "")
+    };
     let status = command.arg("--version").output().map_err(|error| {
+        if build_toolchain == terrane_compiler::BuildToolchain::Pinned
+            && error.kind() == std::io::ErrorKind::NotFound
+        {
+            return CliFailure::diagnostic(
+                PathBuf::from("<toolchain>"),
+                "S9001",
+                toolchain_command::RUSTUP_NOT_FOUND.to_owned(),
+                4,
+            );
+        }
         CliFailure::diagnostic(
             PathBuf::from("<toolchain>"),
             "S9001",
             format!(
-                "Cargo with Rust {} is required to compile generated Rust: {error}",
+                "Cargo with Rust {} is required to compile generated Rust: {error}{install_hint}",
                 if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
                     terrane_compiler::BUILD_TOOLCHAIN.to_owned()
                 } else {
@@ -1309,7 +1339,7 @@ fn ensure_rust_toolchain(
             PathBuf::from("<toolchain>"),
             "S9001",
             format!(
-                "Cargo prerequisite check failed; generated Rust requires Rust {}",
+                "Cargo prerequisite check failed; generated Rust requires Rust {}{install_hint}",
                 terrane_compiler::BUILD_TOOLCHAIN
             ),
             4,
@@ -1938,6 +1968,26 @@ fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
 }
 
+fn run_fetch(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    const USAGE: &str = "usage: terrane fetch <package-or-manifest>\n";
+    match arguments {
+        [help] if help == "--help" || help == "-h" => print!("{USAGE}"),
+        [path] if !path.as_encoded_bytes().starts_with(b"-") => {
+            terrane_compiler::Package::fetch(Path::new(path)).map_err(|message| CliFailure {
+                code: 3,
+                message: format!("{}\n", message.trim_end()),
+            })?;
+        }
+        _ => {
+            return Err(CliFailure {
+                code: 2,
+                message: USAGE.to_owned(),
+            });
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--lint-unused-functions] [--release] <file-or-manifest> [-- program arguments]\n\
@@ -1956,6 +2006,7 @@ fn usage() -> String {
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
      [--show-output] [--report <json-file>] [<package-or-manifest>]\n\
+     terrane fetch <package-or-manifest>\n\
      terrane declaration-interface <package-or-source> --output <interface.json>\n\
      terrane reference-snapshot <package-or-source> --scope <namespace|all> --output <snapshot.json>\n\
      terrane <file-or-manifest> [program arguments]\n\
@@ -1971,6 +2022,7 @@ fn usage() -> String {
      terrane projection-census <package> <version> --target <triple> --root <directory> \
      [--alias <name>] [--features <comma-list>] [--no-default-features] \
      [--target-condition <cargo-cfg>]\n\
+     terrane toolchain <check|install>\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
@@ -1986,11 +2038,13 @@ fn usage() -> String {
      profile  record optimized CPU, allocation, and process-memory evidence, or show source-attributed reports\n\
      debug-adapter  serve the Terrane DAP translation layer over standard input/output\n  \
      test   discover, compile, and isolate Terrane test functions\n  \
+     fetch  download locked Rust dependencies without building the package or its consumer tools\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
      package  hash or install directory, tagged-Git, and source-archive Terrane libraries\n  \
      projection-census  compare native public surface with real compiler projection admission;\n\
        versions are normalized to exact requirements and aliases default to package names with hyphens replaced by underscores\n  \
+     toolchain  check (offline) or install pinned Rust prerequisites\n  \
      toolchains  report Rust toolchains previously requested by Terrane\n"
         .to_owned()
 }
@@ -2204,10 +2258,12 @@ mod tests {
             "check",
             "rust",
             "build",
+            "fetch",
             "run",
             "tooling",
             "query",
             "fmt",
+            "toolchain",
             "toolchains",
             "--help",
             "-h",

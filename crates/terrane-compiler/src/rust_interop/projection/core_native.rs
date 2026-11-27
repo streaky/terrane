@@ -139,6 +139,7 @@ pub(crate) fn prepare_runtime(
             .insert(rust.to_owned(), owner);
     }
     super::cargo_workspace::write_workspace_with_bound_dependencies(
+        &package.root,
         &workspace,
         &package.rust_dependencies,
         &projection.bound_dependencies,
