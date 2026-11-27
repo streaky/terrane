@@ -10,7 +10,7 @@ use super::{
     Containment, ProjectedBoundDependency, ProjectionError, RUSTDOC_TOOLCHAIN, RustDependency,
     io_error, write_cache_atomically, write_if_changed,
 };
-pub(super) const DEPENDENCY_LOCK_FILE: &str = "terrane-dependencies.lock";
+pub(super) use crate::native_hydration::DEPENDENCY_LOCK_FILE;
 
 pub(super) fn seed_dependency_lock(root: &Path, workspace: &Path) -> Result<(), ProjectionError> {
     let path = root.join(DEPENDENCY_LOCK_FILE);
@@ -174,10 +174,19 @@ pub(super) fn run_cargo(
         }
         return Ok(());
     }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let hint = if arguments.starts_with(&["fetch", "--offline"])
+        && crate::native_hydration::is_offline_cache_miss(&stderr)
+        && directory.join("../..").join(DEPENDENCY_LOCK_FILE).is_file()
+    {
+        "\nWarm the locked Cargo cache with `terrane fetch <package>` and retry."
+    } else {
+        ""
+    };
     Err(ProjectionError {
         message: format!(
-            "Cargo dependency projection failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
+            "Cargo dependency projection failed: {}{hint}",
+            stderr.trim()
         ),
     })
 }

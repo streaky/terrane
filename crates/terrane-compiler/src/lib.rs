@@ -16,6 +16,7 @@ mod invocation;
 pub mod lexer;
 mod lowering;
 pub mod native_build;
+mod native_hydration;
 pub mod package;
 pub mod parser;
 mod platform_support;

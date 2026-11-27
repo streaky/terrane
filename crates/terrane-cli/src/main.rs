@@ -96,6 +96,7 @@ enum CliCommand {
     Check,
     Rust,
     Build,
+    Fetch,
     Run,
     Debug,
     Profile,
@@ -120,6 +121,7 @@ impl CliCommand {
             "check" => Some(Self::Check),
             "rust" => Some(Self::Rust),
             "build" => Some(Self::Build),
+            "fetch" => Some(Self::Fetch),
             "test" => Some(Self::Test),
             "declaration-interface" => Some(Self::DeclarationInterface),
             "reference-snapshot" => Some(Self::ReferenceSnapshot),
@@ -214,6 +216,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
         CliCommand::Package => return run_package(arguments),
+        CliCommand::Fetch => return run_fetch(&arguments[1..]),
         CliCommand::ProjectionCensus => return census_command::run(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
         CliCommand::DebugAdapter => return debug_command::adapter::run_adapter(arguments),
@@ -1955,6 +1958,26 @@ fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
 }
 
+fn run_fetch(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    const USAGE: &str = "usage: terrane fetch <package-or-manifest>\n";
+    match arguments {
+        [help] if help == "--help" || help == "-h" => print!("{USAGE}"),
+        [path] if !path.as_encoded_bytes().starts_with(b"-") => {
+            terrane_compiler::Package::fetch(Path::new(path)).map_err(|message| CliFailure {
+                code: 3,
+                message: format!("{}\n", message.trim_end()),
+            })?;
+        }
+        _ => {
+            return Err(CliFailure {
+                code: 2,
+                message: USAGE.to_owned(),
+            });
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--lint-unused-functions] [--release] <file-or-manifest> [-- program arguments]\n\
@@ -1973,6 +1996,7 @@ fn usage() -> String {
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
      [--show-output] [--report <json-file>] [<package-or-manifest>]\n\
+     terrane fetch <package-or-manifest>\n\
      terrane declaration-interface <package-or-source> --output <interface.json>\n\
      terrane reference-snapshot <package-or-source> --scope <namespace|all> --output <snapshot.json>\n\
      terrane <file-or-manifest> [program arguments]\n\
@@ -2004,6 +2028,7 @@ fn usage() -> String {
      profile  record optimized CPU, allocation, and process-memory evidence, or show source-attributed reports\n\
      debug-adapter  serve the Terrane DAP translation layer over standard input/output\n  \
      test   discover, compile, and isolate Terrane test functions\n  \
+     fetch  download locked Rust dependencies without building the package or its consumer tools\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
      package  hash or install directory, tagged-Git, and source-archive Terrane libraries\n  \
@@ -2223,6 +2248,7 @@ mod tests {
             "check",
             "rust",
             "build",
+            "fetch",
             "run",
             "tooling",
             "query",
