@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn opaque_offline_failure_retries_and_uses_online_diagnostic() {
+    fn retry_reports_online_error() {
         for exit in [0, 101] {
             let mut attempts = [true, false].into_iter();
             let result = offline_first(|offline| {
