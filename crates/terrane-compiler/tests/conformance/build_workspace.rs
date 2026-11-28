@@ -145,7 +145,7 @@ impl ConformanceBuild {
         let path = toml::Value::String(platform.to_string_lossy().into_owned());
         writeln!(
             manifest,
-            "terrane-platform-support = {{ path = {path}, features = [\"child-process\"] }}"
+            "terrane-platform-support = {{ path = {path}, features = [\"child-process\", \"process-signals\"] }}"
         )
         .unwrap();
         for dependency in terrane_compiler::with_tokio_runtime(
@@ -306,6 +306,6 @@ fn write_support_crates(directory: &Path) -> io::Result<()> {
     ] {
         write_if_changed(path, contents)?;
     }
-    terrane_compiler::write_platform_support(directory)?;
+    terrane_compiler::write_platform_support(directory, true)?;
     Ok(())
 }

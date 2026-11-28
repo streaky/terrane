@@ -488,6 +488,7 @@ fn write_host_workspace(
             uses_platform_support: compilation.requires_platform_support,
             uses_regex_support: compilation.requires_regex_support,
             uses_child_process: compilation.requires_child_process,
+            uses_process_signals: compilation.requires_process_signals,
             uses_async_runtime: compilation.requires_async_runtime,
             uses_tokio_blocking: compilation.requires_blocking_runtime,
             uses_tokio_sync: compilation.requires_runtime_sync,

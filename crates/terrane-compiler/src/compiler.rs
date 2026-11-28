@@ -74,6 +74,7 @@ pub struct Compilation {
     /// Whether emitted code uses Terrane's bundled regex engine.
     pub requires_regex_support: bool,
     pub requires_child_process: bool,
+    pub requires_process_signals: bool,
     pub requires_async_runtime: bool,
     pub requires_blocking_runtime: bool,
     pub requires_runtime_sync: bool,
@@ -796,6 +797,7 @@ pub(crate) fn compile_analyzed_package(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_child_process: rust_ir.requires_child_process,
+        requires_process_signals: rust_ir.requires_process_signals,
         requires_async_runtime: rust_ir.requires_async_runtime,
         requires_blocking_runtime: rust_ir.requires_blocking_runtime,
         requires_runtime_sync: rust_ir.requires_runtime_sync,
@@ -1231,6 +1233,7 @@ fn lower_test_tier(
         entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         requires_child_process: rust_ir.requires_child_process,
+        requires_process_signals: rust_ir.requires_process_signals,
         requires_async_runtime: rust_ir.requires_async_runtime,
         requires_blocking_runtime: rust_ir.requires_blocking_runtime,
         requires_runtime_sync: rust_ir.requires_runtime_sync,

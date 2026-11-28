@@ -59,7 +59,6 @@ pub fn terrane_process_id() -> terrane_int_support::Int {
     terrane_int_support::Int::from(i64::from(std::process::id()))
 }
 
-#[cfg(target_os = "linux")]
 pub fn terrane_process_group_id() -> terrane_int_support::Int {
     terrane_int_support::Int::from(i64::from(terrane_platform_support::process_group_id()))
 }

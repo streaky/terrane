@@ -57,6 +57,7 @@ async fn exercise_signals(executable: String) -> Result<(), TerraneError> {
     let graceful: ProcessObservation;
     let delivered: ProcessOutput;
     let mut rejected: bool;
+    let mut error: Option<TerraneError> = None;
     let forced_child: ChildProcess;
     let forced_ready: ProcessOutput;
     let forced: ProcessObservation;
@@ -139,7 +140,14 @@ async fn exercise_signals(executable: String) -> Result<(), TerraneError> {
                             == TerraneErrorKind::Custom(DescriptorId(0))
                     {
                         __terrane_handled_0 = true;
-                        rejected = true;
+                        let _ = error.insert(__terrane_error_0.clone());
+                        rejected = {
+                            let __terrane_error_text_0 = error
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                                .message();
+                            __terrane_error_text_0 == "child process has exited"
+                        };
                     }
                     if !__terrane_handled_0 {
                         return TerraneCompletion::Error(__terrane_error_0);

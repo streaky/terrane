@@ -296,7 +296,16 @@ fn lower_with_tests(
     );
     let mut runtime = Vec::new();
     let mut globals = String::new();
-    let registry = LoweringRegistry::default();
+    let uses_process_signals = package_uses_process_signals(package);
+    let simple_standard_streams = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/core/streams")
+        && !package_uses_advanced_streams(package, uses_process_signals);
+    let registry = LoweringRegistry {
+        simple_standard_streams,
+        ..LoweringRegistry::default()
+    };
     for unit in &package.units {
         let emitter = Emitter::new(&registry, package, unit, false);
         let mut nodes = vec![&unit.tree.root];
@@ -387,25 +396,16 @@ fn lower_with_tests(
         unit.namespace.starts_with("/deps/")
             && unit.functions.iter().any(|function| function.is_async)
     });
-    let simple_standard_streams = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/core/streams")
-        && !package_uses_advanced_streams(package);
-    let uses_process_signals = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/core/process-signals");
-    let omit_simple_stream_dependency = |namespace: &str| {
-        simple_standard_streams
-            && (namespace == "/core/io" || namespace == "/core/time" && !uses_process_signals)
+    let omit_unit = |unit: &SemanticUnit| {
+        !uses_process_signals && is_process_subscription_unit(unit)
+            || simple_standard_streams
+                && matches!(unit.namespace.as_str(), "/core/io" | "/core/time")
     };
     let has_async = package
         .units
         .iter()
         .filter(|unit| {
-            !(omit_simple_stream_dependency(&unit.namespace)
-                || simple_standard_streams && unit.namespace == "/core/streams")
+            !(omit_unit(unit) || simple_standard_streams && unit.namespace == "/core/streams")
         })
         .any(|unit| {
             unit.functions
@@ -650,11 +650,7 @@ fn lower_with_tests(
     let mut uses_logging = false;
     let mut uses_time = false;
     let mut uses_child_process = false;
-    for unit in package
-        .units
-        .iter()
-        .filter(|unit| !omit_simple_stream_dependency(&unit.namespace))
-    {
+    for unit in package.units.iter().filter(|unit| !omit_unit(unit)) {
         match unit.namespace.as_str() {
             "/core/streams" => uses_streams = true,
             "/core/filesystem" => uses_filesystem = true,
@@ -976,7 +972,7 @@ fn lower_with_tests(
     let mut modules = package
         .units
         .iter()
-        .filter(|unit| !omit_simple_stream_dependency(&unit.namespace))
+        .filter(|unit| !omit_unit(unit))
         .map(|unit| {
             if unit.bundled && unit.namespace.starts_with("/deps/") {
                 let mut emitter = Emitter::new(&registry, package, unit, debug_information);
@@ -1139,6 +1135,7 @@ fn lower_with_tests(
         version: crate::VERSION,
         requires_platform_support,
         requires_child_process: uses_child_process,
+        requires_process_signals: uses_process_signals,
         // Async support includes Tokio-typed destructor machinery even when the
         // entrypoint is synchronous (for example, a duration-only program).
         requires_async_runtime: has_async_entry

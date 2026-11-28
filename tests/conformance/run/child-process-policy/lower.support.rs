@@ -484,9 +484,9 @@ mod __terrane_trace {
     pub static FILES: [&str; 6] = [
         "case.trn",
         "core/process.trn",
-        "core/process_signals.trn",
         "core/process_child.trn",
         "core/streams.trn",
+        "core/process_signals.trn",
         "core/time.trn",
     ];
     pub static FUNCTIONS: [&str; 42] = [
@@ -498,9 +498,6 @@ mod __terrane_trace {
         "/core/process::arguments",
         "/core/process::environment",
         "/core/process::parse-command-line",
-        "/core/process-signals::next",
-        "/core/process-signals::close",
-        "/core/process-signals::process-signals",
         "/core/process/child::write",
         "/core/process/child::close",
         "/core/process/child::read",
@@ -523,6 +520,9 @@ mod __terrane_trace {
         "/core/streams::read-exact",
         "/core/streams::read-all",
         "/core/streams::read-async",
+        "/core/process-signals::next",
+        "/core/process-signals::close",
+        "/core/process-signals::process-signals",
         "/core/time::multiply",
         "/core/time::seconds",
         "/core/time::milliseconds",
@@ -592,58 +592,58 @@ mod __terrane_trace {
         { Site { function: 7, file: 1, line: 112, column: 20, end_line: 112, end_column: 35 } },
         /* terrane-site-row: site 28: /core/process::parse-command-line (core/process.trn:127:43-127:62) */
         { Site { function: 7, file: 1, line: 127, column: 43, end_line: 127, end_column: 62 } },
-        /* terrane-site-row: site 29: /core/process-signals::next (core/process_signals.trn:56:13-56:91) */
-        { Site { function: 8, file: 2, line: 56, column: 13, end_line: 56, end_column: 91 } },
-        /* terrane-site-row: site 30: /core/process-signals::close (core/process_signals.trn:62:13-62:91) */
-        { Site { function: 9, file: 2, line: 62, column: 13, end_line: 62, end_column: 91 } },
-        /* terrane-site-row: site 31: /core/process-signals::process-signals (core/process_signals.trn:71:9-71:87) */
-        { Site { function: 10, file: 2, line: 71, column: 9, end_line: 71, end_column: 87 } },
-        /* terrane-site-row: site 32: /core/process/child::write (core/process_child.trn:67:9-67:96) */
-        { Site { function: 11, file: 3, line: 67, column: 9, end_line: 67, end_column: 96 } },
-        /* terrane-site-row: site 33: /core/process/child::close (core/process_child.trn:72:9-72:96) */
-        { Site { function: 12, file: 3, line: 72, column: 9, end_line: 72, end_column: 96 } },
-        /* terrane-site-row: site 34: /core/process/child::read (core/process_child.trn:85:20-85:36) */
-        { Site { function: 13, file: 3, line: 85, column: 20, end_line: 85, end_column: 36 } },
-        /* terrane-site-row: site 35: /core/process/child::read (core/process_child.trn:87:16-87:32) */
-        { Site { function: 13, file: 3, line: 87, column: 16, end_line: 87, end_column: 32 } },
-        /* terrane-site-row: site 36: /core/process/child::poll (core/process_child.trn:99:16-99:55) */
-        { Site { function: 14, file: 3, line: 99, column: 16, end_line: 99, end_column: 55 } },
-        /* terrane-site-row: site 37: /core/process/child::wait (core/process_child.trn:103:16-103:28) */
-        { Site { function: 15, file: 3, line: 103, column: 16, end_line: 103, end_column: 28 } },
-        /* terrane-site-row: site 38: /core/process/child::terminate (core/process_child.trn:107:9-107:96) */
-        { Site { function: 16, file: 3, line: 107, column: 9, end_line: 107, end_column: 96 } },
-        /* terrane-site-row: site 39: /core/process/child::send-signal (core/process_child.trn:111:9-111:96) */
-        { Site { function: 17, file: 3, line: 111, column: 9, end_line: 111, end_column: 96 } },
-        /* terrane-site-row: site 40: /core/process/child::write-input (core/process_child.trn:124:9-124:96) */
-        { Site { function: 18, file: 3, line: 124, column: 9, end_line: 124, end_column: 96 } },
-        /* terrane-site-row: site 41: /core/process/child::close-input (core/process_child.trn:129:9-129:96) */
-        { Site { function: 19, file: 3, line: 129, column: 9, end_line: 129, end_column: 96 } },
-        /* terrane-site-row: site 42: /core/process/child::read-stdout (core/process_child.trn:133:16-133:32) */
-        { Site { function: 20, file: 3, line: 133, column: 16, end_line: 133, end_column: 32 } },
-        /* terrane-site-row: site 43: /core/process/child::read-stderr (core/process_child.trn:137:16-137:32) */
-        { Site { function: 21, file: 3, line: 137, column: 16, end_line: 137, end_column: 32 } },
-        /* terrane-site-row: site 44: /core/process/child::check-process-result (core/process_child.trn:141:9-141:45) */
-        { Site { function: 22, file: 3, line: 141, column: 9, end_line: 141, end_column: 45 } },
-        /* terrane-site-row: site 45: /core/process/child::observe (core/process_child.trn:144:5-144:92) */
-        { Site { function: 23, file: 3, line: 144, column: 5, end_line: 144, end_column: 92 } },
-        /* terrane-site-row: site 46: /core/process/child::read-output (core/process_child.trn:148:5-148:92) */
-        { Site { function: 24, file: 3, line: 148, column: 5, end_line: 148, end_column: 92 } },
-        /* terrane-site-row: site 47: /core/process/child::capture-output (core/process_child.trn:154:5-154:92) */
-        { Site { function: 25, file: 3, line: 154, column: 5, end_line: 154, end_column: 92 } },
-        /* terrane-site-row: site 48: /core/process/child::spawn-process (core/process_child.trn:185:5-185:92) */
-        { Site { function: 26, file: 3, line: 185, column: 5, end_line: 185, end_column: 92 } },
-        /* terrane-site-row: site 49: /core/process/child::run-process (core/process_child.trn:191:12-191:31) */
-        { Site { function: 27, file: 3, line: 191, column: 12, end_line: 191, end_column: 31 } },
-        /* terrane-site-row: site 50: /core/process/child::run-process-async (core/process_child.trn:196:12-196:31) */
-        { Site { function: 28, file: 3, line: 196, column: 12, end_line: 196, end_column: 31 } },
-        /* terrane-site-row: site 51: /core/streams::read (core/streams.trn:381:23-381:50) */
-        { Site { function: 29, file: 4, line: 381, column: 23, end_line: 381, end_column: 50 } },
-        /* terrane-site-row: site 52: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
-        { Site { function: 30, file: 4, line: 403, column: 23, end_line: 403, end_column: 46 } },
-        /* terrane-site-row: site 53: /core/streams::read-all (core/streams.trn:422:23-422:46) */
-        { Site { function: 31, file: 4, line: 422, column: 23, end_line: 422, end_column: 46 } },
-        /* terrane-site-row: site 54: /core/streams::read-async (core/streams.trn:427:23-427:50) */
-        { Site { function: 32, file: 4, line: 427, column: 23, end_line: 427, end_column: 50 } },
+        /* terrane-site-row: site 29: /core/process/child::write (core/process_child.trn:67:9-67:96) */
+        { Site { function: 8, file: 2, line: 67, column: 9, end_line: 67, end_column: 96 } },
+        /* terrane-site-row: site 30: /core/process/child::close (core/process_child.trn:72:9-72:96) */
+        { Site { function: 9, file: 2, line: 72, column: 9, end_line: 72, end_column: 96 } },
+        /* terrane-site-row: site 31: /core/process/child::read (core/process_child.trn:85:20-85:36) */
+        { Site { function: 10, file: 2, line: 85, column: 20, end_line: 85, end_column: 36 } },
+        /* terrane-site-row: site 32: /core/process/child::read (core/process_child.trn:87:16-87:32) */
+        { Site { function: 10, file: 2, line: 87, column: 16, end_line: 87, end_column: 32 } },
+        /* terrane-site-row: site 33: /core/process/child::poll (core/process_child.trn:99:16-99:55) */
+        { Site { function: 11, file: 2, line: 99, column: 16, end_line: 99, end_column: 55 } },
+        /* terrane-site-row: site 34: /core/process/child::wait (core/process_child.trn:103:16-103:28) */
+        { Site { function: 12, file: 2, line: 103, column: 16, end_line: 103, end_column: 28 } },
+        /* terrane-site-row: site 35: /core/process/child::terminate (core/process_child.trn:107:9-107:96) */
+        { Site { function: 13, file: 2, line: 107, column: 9, end_line: 107, end_column: 96 } },
+        /* terrane-site-row: site 36: /core/process/child::send-signal (core/process_child.trn:111:9-111:96) */
+        { Site { function: 14, file: 2, line: 111, column: 9, end_line: 111, end_column: 96 } },
+        /* terrane-site-row: site 37: /core/process/child::write-input (core/process_child.trn:124:9-124:96) */
+        { Site { function: 15, file: 2, line: 124, column: 9, end_line: 124, end_column: 96 } },
+        /* terrane-site-row: site 38: /core/process/child::close-input (core/process_child.trn:129:9-129:96) */
+        { Site { function: 16, file: 2, line: 129, column: 9, end_line: 129, end_column: 96 } },
+        /* terrane-site-row: site 39: /core/process/child::read-stdout (core/process_child.trn:133:16-133:32) */
+        { Site { function: 17, file: 2, line: 133, column: 16, end_line: 133, end_column: 32 } },
+        /* terrane-site-row: site 40: /core/process/child::read-stderr (core/process_child.trn:137:16-137:32) */
+        { Site { function: 18, file: 2, line: 137, column: 16, end_line: 137, end_column: 32 } },
+        /* terrane-site-row: site 41: /core/process/child::check-process-result (core/process_child.trn:141:9-141:45) */
+        { Site { function: 19, file: 2, line: 141, column: 9, end_line: 141, end_column: 45 } },
+        /* terrane-site-row: site 42: /core/process/child::observe (core/process_child.trn:144:5-144:92) */
+        { Site { function: 20, file: 2, line: 144, column: 5, end_line: 144, end_column: 92 } },
+        /* terrane-site-row: site 43: /core/process/child::read-output (core/process_child.trn:148:5-148:92) */
+        { Site { function: 21, file: 2, line: 148, column: 5, end_line: 148, end_column: 92 } },
+        /* terrane-site-row: site 44: /core/process/child::capture-output (core/process_child.trn:154:5-154:92) */
+        { Site { function: 22, file: 2, line: 154, column: 5, end_line: 154, end_column: 92 } },
+        /* terrane-site-row: site 45: /core/process/child::spawn-process (core/process_child.trn:185:5-185:92) */
+        { Site { function: 23, file: 2, line: 185, column: 5, end_line: 185, end_column: 92 } },
+        /* terrane-site-row: site 46: /core/process/child::run-process (core/process_child.trn:191:12-191:31) */
+        { Site { function: 24, file: 2, line: 191, column: 12, end_line: 191, end_column: 31 } },
+        /* terrane-site-row: site 47: /core/process/child::run-process-async (core/process_child.trn:196:12-196:31) */
+        { Site { function: 25, file: 2, line: 196, column: 12, end_line: 196, end_column: 31 } },
+        /* terrane-site-row: site 48: /core/streams::read (core/streams.trn:381:23-381:50) */
+        { Site { function: 26, file: 3, line: 381, column: 23, end_line: 381, end_column: 50 } },
+        /* terrane-site-row: site 49: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
+        { Site { function: 27, file: 3, line: 403, column: 23, end_line: 403, end_column: 46 } },
+        /* terrane-site-row: site 50: /core/streams::read-all (core/streams.trn:422:23-422:46) */
+        { Site { function: 28, file: 3, line: 422, column: 23, end_line: 422, end_column: 46 } },
+        /* terrane-site-row: site 51: /core/streams::read-async (core/streams.trn:427:23-427:50) */
+        { Site { function: 29, file: 3, line: 427, column: 23, end_line: 427, end_column: 50 } },
+        /* terrane-site-row: site 52: /core/process-signals::next (core/process_signals.trn:38:13-38:91) */
+        { Site { function: 30, file: 4, line: 38, column: 13, end_line: 38, end_column: 91 } },
+        /* terrane-site-row: site 53: /core/process-signals::close (core/process_signals.trn:44:13-44:91) */
+        { Site { function: 31, file: 4, line: 44, column: 13, end_line: 44, end_column: 91 } },
+        /* terrane-site-row: site 54: /core/process-signals::process-signals (core/process_signals.trn:53:9-53:87) */
+        { Site { function: 32, file: 4, line: 53, column: 9, end_line: 53, end_column: 87 } },
         /* terrane-site-row: site 55: /core/time::multiply (core/time.trn:62:13-62:45) */
         { Site { function: 33, file: 5, line: 62, column: 13, end_line: 62, end_column: 45 } },
         /* terrane-site-row: site 56: /core/time::seconds (core/time.trn:38:13-38:45) */
@@ -1967,7 +1967,6 @@ pub fn terrane_process_arguments() -> Vec<String> {
 pub fn terrane_process_id() -> terrane_int_support::Int {
     terrane_int_support::Int::from(i64::from(std::process::id()))
 }
-#[cfg(target_os = "linux")]
 pub fn terrane_process_group_id() -> terrane_int_support::Int {
     terrane_int_support::Int::from(
         i64::from(terrane_platform_support::process_group_id()),
@@ -2710,28 +2709,8 @@ pub fn encode_native_string(value: NativeString) -> String {
     }
     return terrane_platform_value_from_bytes(&value.raw);
 }
-// Source: core/process_signals.trn
+// Source: core/process_signal.trn
 // Namespace: core/process-signals
-#[derive(Clone)]
-pub struct ProcessSignalError {
-    pub message: String,
-}
-impl ProcessSignalError {
-    pub fn terrane_construct(detail: String) -> Self {
-        let mut __terrane_constructed_value = Self { message: String::from("") };
-        __terrane_constructed_value.construct(detail);
-        __terrane_constructed_value
-    }
-    pub fn construct(&mut self, detail: String) {
-        {
-            let __terrane_value: String = detail;
-            self.message = __terrane_value;
-        }
-    }
-    pub fn render(&self) -> String {
-        return self.message.clone();
-    }
-}
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ProcessSignal {
     pub name: String,
@@ -2760,242 +2739,6 @@ impl ProcessSignal {
     pub fn terrane_static_quit() -> ProcessSignal {
         return ProcessSignal::terrane_construct(String::from("quit"));
     }
-}
-#[derive(Clone)]
-pub struct ProcessSignalEvent {
-    pub signal: ProcessSignal,
-    pub count: terrane_int_support::Int,
-    pub sequence: terrane_int_support::Int,
-    pub observed_at: MonotonicInstant,
-    pub overflowed: bool,
-}
-impl ProcessSignalEvent {
-    pub fn terrane_construct(
-        observed_signal: ProcessSignal,
-        occurrences: terrane_int_support::Int,
-        event_sequence: terrane_int_support::Int,
-        observed: MonotonicInstant,
-        did_overflow: bool,
-    ) -> Self {
-        let mut __terrane_constructed_value = Self {
-            signal: ProcessSignal::terrane_construct(String::from("")),
-            count: terrane_int_support::Int::from(0_i128),
-            sequence: terrane_int_support::Int::from(0_i128),
-            observed_at: Clock::terrane_static_monotonic(),
-            overflowed: false,
-        };
-        __terrane_constructed_value
-            .construct(
-                observed_signal,
-                occurrences,
-                event_sequence,
-                observed,
-                did_overflow,
-            );
-        __terrane_constructed_value
-    }
-    pub fn construct(
-        &mut self,
-        observed_signal: ProcessSignal,
-        occurrences: terrane_int_support::Int,
-        event_sequence: terrane_int_support::Int,
-        observed: MonotonicInstant,
-        did_overflow: bool,
-    ) {
-        {
-            let __terrane_value: ProcessSignal = observed_signal;
-            self.signal = __terrane_value;
-        }
-        {
-            let __terrane_value: terrane_int_support::Int = occurrences.clone();
-            self.count = __terrane_value;
-        }
-        {
-            let __terrane_value: terrane_int_support::Int = event_sequence.clone();
-            self.sequence = __terrane_value;
-        }
-        {
-            let __terrane_value: MonotonicInstant = observed;
-            self.observed_at = __terrane_value;
-        }
-        {
-            let __terrane_value: bool = did_overflow;
-            self.overflowed = __terrane_value;
-        }
-    }
-}
-#[derive(Clone)]
-pub struct ProcessSignalSubscription {
-    __terrane_lifetime: std::sync::Arc<()>,
-    pub handle: TerranePlatformCapability,
-}
-impl ProcessSignalSubscription {
-    pub fn terrane_construct(capability: TerranePlatformCapability) -> Self {
-        let mut __terrane_constructed_value = Self {
-            handle: TerranePlatformCapability::default(),
-            __terrane_lifetime: std::sync::Arc::new(()),
-        };
-        __terrane_constructed_value.construct(capability);
-        __terrane_constructed_value
-    }
-    pub fn terrane_separate(&self) -> Self {
-        let mut value = self.clone();
-        value.__terrane_lifetime = std::sync::Arc::new(());
-        value
-    }
-    pub fn construct(&mut self, capability: TerranePlatformCapability) {
-        {
-            let __terrane_value: TerranePlatformCapability = capability;
-            self.handle = __terrane_value;
-        }
-    }
-    pub async fn next(&mut self) -> Result<ProcessSignalEvent, TerraneError> {
-        let raw: TerranePlatformResult;
-        raw = __terrane_await(terrane_process_signal_next(&self.handle)).await;
-        if terrane_platform_result_failed(&raw) {
-            return Err({
-                let value = ProcessSignalError::terrane_construct(
-                    terrane_platform_result_message(&raw),
-                );
-                let rendered = value.render();
-                let original = &value.message;
-                let (message, rendered) = if &rendered == original {
-                    (rendered, None)
-                } else {
-                    (original.clone(), Some(rendered))
-                };
-                TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
-                    message,
-                    rendered,
-                    29 /* terrane-site: core/process_signals.trn:56:13-56:91 */,
-                )
-            });
-        }
-        return Ok(
-            ProcessSignalEvent::terrane_construct(
-                ProcessSignal::terrane_construct(terrane_platform_result_detail(&raw)),
-                terrane_process_signal_result_exact_int(&raw),
-                terrane_platform_result_int(&raw),
-                terrane_process_signal_result_observed(&raw),
-                terrane_platform_result_bool(&raw),
-            ),
-        );
-    }
-    pub async fn __terrane_shared_async_next(
-        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
-    ) -> Result<ProcessSignalEvent, TerraneError> {
-        let raw: TerranePlatformResult;
-        raw = __terrane_await(
-                terrane_process_signal_next(
-                    &{
-                        let __terrane_snapshot = __terrane_shared_handle
-                            .lock()
-                            .expect("shared async receiver lock poisoned")
-                            .handle
-                            .clone();
-                        __terrane_snapshot
-                    },
-                ),
-            )
-            .await;
-        if terrane_platform_result_failed(&raw) {
-            return Err({
-                let value = ProcessSignalError::terrane_construct(
-                    terrane_platform_result_message(&raw),
-                );
-                let rendered = value.render();
-                let original = &value.message;
-                let (message, rendered) = if &rendered == original {
-                    (rendered, None)
-                } else {
-                    (original.clone(), Some(rendered))
-                };
-                TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
-                    message,
-                    rendered,
-                    29 /* terrane-site: core/process_signals.trn:56:13-56:91 */,
-                )
-            });
-        }
-        return Ok(
-            ProcessSignalEvent::terrane_construct(
-                ProcessSignal::terrane_construct(terrane_platform_result_detail(&raw)),
-                terrane_process_signal_result_exact_int(&raw),
-                terrane_platform_result_int(&raw),
-                terrane_process_signal_result_observed(&raw),
-                terrane_platform_result_bool(&raw),
-            ),
-        );
-    }
-    pub fn close(self) -> Result<(), TerraneError> {
-        let raw: TerranePlatformResult;
-        raw = terrane_process_signal_close(&self.handle);
-        if terrane_platform_result_failed(&raw) {
-            return Err({
-                let value = ProcessSignalError::terrane_construct(
-                    terrane_platform_result_message(&raw),
-                );
-                let rendered = value.render();
-                let original = &value.message;
-                let (message, rendered) = if &rendered == original {
-                    (rendered, None)
-                } else {
-                    (original.clone(), Some(rendered))
-                };
-                TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
-                    message,
-                    rendered,
-                    30 /* terrane-site: core/process_signals.trn:62:13-62:91 */,
-                )
-            });
-        }
-        return Ok(());
-    }
-    pub fn destruct(&mut self) {
-        terrane_process_signal_close(&self.handle);
-    }
-}
-impl Drop for ProcessSignalSubscription {
-    fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
-            return;
-        }
-        self.destruct();
-    }
-}
-pub fn process_signals(
-    selected: terrane_collection_support::Set<ProcessSignal>,
-) -> Result<ProcessSignalSubscription, TerraneError> {
-    let raw: TerranePlatformResult;
-    raw = terrane_process_signal_subscribe(selected);
-    if terrane_platform_result_failed(&raw) {
-        return Err({
-            let value = ProcessSignalError::terrane_construct(
-                terrane_platform_result_message(&raw),
-            );
-            let rendered = value.render();
-            let original = &value.message;
-            let (message, rendered) = if &rendered == original {
-                (rendered, None)
-            } else {
-                (original.clone(), Some(rendered))
-            };
-            TerraneError::raised_with_rendered_message(
-                TerraneErrorKind::Custom(DescriptorId(1)),
-                message,
-                rendered,
-                31 /* terrane-site: core/process_signals.trn:71:9-71:87 */,
-            )
-        });
-    }
-    return Ok(
-        ProcessSignalSubscription::terrane_construct(
-            terrane_platform_result_capability(&raw),
-        ),
-    );
 }
 // Source: core/process_child.trn
 // Namespace: core/process/child
@@ -3209,7 +2952,7 @@ impl ChildInputStream {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            32 /* terrane-site: core/process_child.trn:67:9-67:96 */,
+            29 /* terrane-site: core/process_child.trn:67:9-67:96 */,
         )?;
         return Ok(terrane_platform_child_result_number(&raw));
     }
@@ -3239,7 +2982,7 @@ impl ChildInputStream {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            32 /* terrane-site: core/process_child.trn:67:9-67:96 */,
+            29 /* terrane-site: core/process_child.trn:67:9-67:96 */,
         )?;
         return Ok(terrane_platform_child_result_number(&raw));
     }
@@ -3256,7 +2999,7 @@ impl ChildInputStream {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            33 /* terrane-site: core/process_child.trn:72:9-72:96 */,
+            30 /* terrane-site: core/process_child.trn:72:9-72:96 */,
         )?;
         Ok(())
     }
@@ -3284,7 +3027,7 @@ impl ChildInputStream {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            33 /* terrane-site: core/process_child.trn:72:9-72:96 */,
+            30 /* terrane-site: core/process_child.trn:72:9-72:96 */,
         )?;
         Ok(())
     }
@@ -3329,7 +3072,7 @@ impl ChildOutputStream {
             return Ok(
                 __terrane_traced_err(
                     read_output(raw),
-                    34 /* terrane-site: core/process_child.trn:85:20-85:36 */,
+                    31 /* terrane-site: core/process_child.trn:85:20-85:36 */,
                 )?,
             );
         }
@@ -3343,7 +3086,7 @@ impl ChildOutputStream {
         return Ok(
             __terrane_traced_err(
                 read_output(raw),
-                35 /* terrane-site: core/process_child.trn:87:16-87:32 */,
+                32 /* terrane-site: core/process_child.trn:87:16-87:32 */,
             )?,
         );
     }
@@ -3378,7 +3121,7 @@ impl ChildOutputStream {
             return Ok(
                 __terrane_traced_err(
                     read_output(raw),
-                    34 /* terrane-site: core/process_child.trn:85:20-85:36 */,
+                    31 /* terrane-site: core/process_child.trn:85:20-85:36 */,
                 )?,
             );
         }
@@ -3401,7 +3144,7 @@ impl ChildOutputStream {
         return Ok(
             __terrane_traced_err(
                 read_output(raw),
-                35 /* terrane-site: core/process_child.trn:87:16-87:32 */,
+                32 /* terrane-site: core/process_child.trn:87:16-87:32 */,
             )?,
         );
     }
@@ -3447,7 +3190,7 @@ impl ChildProcess {
                         &self.handle.as_ref().expect("required field initialized"),
                     ),
                 ),
-                36 /* terrane-site: core/process_child.trn:99:16-99:55 */,
+                33 /* terrane-site: core/process_child.trn:99:16-99:55 */,
             )?,
         );
     }
@@ -3466,7 +3209,7 @@ impl ChildProcess {
         return Ok(
             __terrane_traced_err(
                 observe(raw),
-                37 /* terrane-site: core/process_child.trn:103:16-103:28 */,
+                34 /* terrane-site: core/process_child.trn:103:16-103:28 */,
             )?,
         );
     }
@@ -3494,7 +3237,7 @@ impl ChildProcess {
         return Ok(
             __terrane_traced_err(
                 observe(raw),
-                37 /* terrane-site: core/process_child.trn:103:16-103:28 */,
+                34 /* terrane-site: core/process_child.trn:103:16-103:28 */,
             )?,
         );
     }
@@ -3508,7 +3251,7 @@ impl ChildProcess {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            38 /* terrane-site: core/process_child.trn:107:9-107:96 */,
+            35 /* terrane-site: core/process_child.trn:107:9-107:96 */,
         )?;
         Ok(())
     }
@@ -3526,7 +3269,7 @@ impl ChildProcess {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            39 /* terrane-site: core/process_child.trn:111:9-111:96 */,
+            36 /* terrane-site: core/process_child.trn:111:9-111:96 */,
         )?;
         Ok(())
     }
@@ -3556,7 +3299,7 @@ impl ChildProcess {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            39 /* terrane-site: core/process_child.trn:111:9-111:96 */,
+            36 /* terrane-site: core/process_child.trn:111:9-111:96 */,
         )?;
         Ok(())
     }
@@ -3594,7 +3337,7 @@ impl ChildProcess {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            40 /* terrane-site: core/process_child.trn:124:9-124:96 */,
+            37 /* terrane-site: core/process_child.trn:124:9-124:96 */,
         )?;
         return Ok(terrane_platform_child_result_number(&raw));
     }
@@ -3624,7 +3367,7 @@ impl ChildProcess {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            40 /* terrane-site: core/process_child.trn:124:9-124:96 */,
+            37 /* terrane-site: core/process_child.trn:124:9-124:96 */,
         )?;
         return Ok(terrane_platform_child_result_number(&raw));
     }
@@ -3641,7 +3384,7 @@ impl ChildProcess {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            41 /* terrane-site: core/process_child.trn:129:9-129:96 */,
+            38 /* terrane-site: core/process_child.trn:129:9-129:96 */,
         )?;
         Ok(())
     }
@@ -3669,7 +3412,7 @@ impl ChildProcess {
                 terrane_platform_child_result_failed(&raw),
                 terrane_platform_child_result_message(&raw),
             ),
-            41 /* terrane-site: core/process_child.trn:129:9-129:96 */,
+            38 /* terrane-site: core/process_child.trn:129:9-129:96 */,
         )?;
         Ok(())
     }
@@ -3688,7 +3431,7 @@ impl ChildProcess {
         return Ok(
             __terrane_traced_err(
                 read_output(raw),
-                42 /* terrane-site: core/process_child.trn:133:16-133:32 */,
+                39 /* terrane-site: core/process_child.trn:133:16-133:32 */,
             )?,
         );
     }
@@ -3716,7 +3459,7 @@ impl ChildProcess {
         return Ok(
             __terrane_traced_err(
                 read_output(raw),
-                42 /* terrane-site: core/process_child.trn:133:16-133:32 */,
+                39 /* terrane-site: core/process_child.trn:133:16-133:32 */,
             )?,
         );
     }
@@ -3735,7 +3478,7 @@ impl ChildProcess {
         return Ok(
             __terrane_traced_err(
                 read_output(raw),
-                43 /* terrane-site: core/process_child.trn:137:16-137:32 */,
+                40 /* terrane-site: core/process_child.trn:137:16-137:32 */,
             )?,
         );
     }
@@ -3763,7 +3506,7 @@ impl ChildProcess {
         return Ok(
             __terrane_traced_err(
                 read_output(raw),
-                43 /* terrane-site: core/process_child.trn:137:16-137:32 */,
+                40 /* terrane-site: core/process_child.trn:137:16-137:32 */,
             )?,
         );
     }
@@ -3794,7 +3537,7 @@ pub fn check_process_result(failed: bool, detail: String) -> Result<(), TerraneE
                 TerraneErrorKind::Custom(DescriptorId(0)),
                 message,
                 rendered,
-                44 /* terrane-site: core/process_child.trn:141:9-141:45 */,
+                41 /* terrane-site: core/process_child.trn:141:9-141:45 */,
             )
         });
     }
@@ -3806,7 +3549,7 @@ pub fn observe(raw: TerranePlatformResult) -> Result<ProcessObservation, Terrane
             terrane_platform_child_result_failed(&raw),
             terrane_platform_child_result_message(&raw),
         ),
-        45 /* terrane-site: core/process_child.trn:144:5-144:92 */,
+        42 /* terrane-site: core/process_child.trn:144:5-144:92 */,
     )?;
     return Ok(
         ProcessObservation::terrane_construct(
@@ -3825,7 +3568,7 @@ pub fn read_output(raw: TerranePlatformResult) -> Result<ProcessOutput, TerraneE
             terrane_platform_child_result_failed(&raw),
             terrane_platform_child_result_message(&raw),
         ),
-        46 /* terrane-site: core/process_child.trn:148:5-148:92 */,
+        43 /* terrane-site: core/process_child.trn:148:5-148:92 */,
     )?;
     end = terrane_platform_child_result_flag(&raw);
     data = terrane_platform_child_result_data(raw);
@@ -3840,7 +3583,7 @@ pub fn capture_output(
             terrane_platform_child_result_failed(&raw),
             terrane_platform_child_result_message(&raw),
         ),
-        47 /* terrane-site: core/process_child.trn:154:5-154:92 */,
+        44 /* terrane-site: core/process_child.trn:154:5-154:92 */,
     )?;
     status = ProcessObservation::terrane_construct(
         true,
@@ -3965,7 +3708,7 @@ pub async fn spawn_process(
             terrane_platform_child_result_failed(&raw),
             terrane_platform_child_result_message(&raw),
         ),
-        48 /* terrane-site: core/process_child.trn:185:5-185:92 */,
+        45 /* terrane-site: core/process_child.trn:185:5-185:92 */,
     )?;
     return Ok(
         ChildProcess::terrane_construct(terrane_platform_child_result_capability(&raw)),
@@ -3999,7 +3742,7 @@ pub fn run_process(
     return Ok(
         __terrane_traced_err(
             capture_output(raw),
-            49 /* terrane-site: core/process_child.trn:191:12-191:31 */,
+            46 /* terrane-site: core/process_child.trn:191:12-191:31 */,
         )?,
     );
 }
@@ -4034,7 +3777,7 @@ pub async fn run_process_async(
     return Ok(
         __terrane_traced_err(
             capture_output(raw),
-            50 /* terrane-site: core/process_child.trn:196:12-196:31 */,
+            47 /* terrane-site: core/process_child.trn:196:12-196:31 */,
         )?,
     );
 }
@@ -5594,7 +5337,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
-                51 /* terrane-site: core/streams.trn:381:23-381:50 */,
+                48 /* terrane-site: core/streams.trn:381:23-381:50 */,
             )?
         };
         return Ok(
@@ -5663,7 +5406,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&data, __terrane_string_argument_0),
-                52 /* terrane-site: core/streams.trn:403:23-403:46 */,
+                49 /* terrane-site: core/streams.trn:403:23-403:46 */,
             )?
         };
         return Ok(
@@ -5728,7 +5471,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&data, __terrane_string_argument_0),
-                53 /* terrane-site: core/streams.trn:422:23-422:46 */,
+                50 /* terrane-site: core/streams.trn:422:23-422:46 */,
             )?
         };
         return Ok(
@@ -5760,7 +5503,7 @@ impl TextReader {
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
                 terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
-                54 /* terrane-site: core/streams.trn:427:23-427:50 */,
+                51 /* terrane-site: core/streams.trn:427:23-427:50 */,
             )?
         };
         return Ok(
@@ -5808,7 +5551,7 @@ impl TextReader {
             };
             __terrane_raised_err(
                 terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
-                54 /* terrane-site: core/streams.trn:427:23-427:50 */,
+                51 /* terrane-site: core/streams.trn:427:23-427:50 */,
             )?
         };
         return Ok(
@@ -6050,6 +5793,399 @@ pub fn stdout() -> ByteWriter {
 }
 pub fn stderr() -> ByteWriter {
     return ByteWriter::terrane_construct(terrane_platform_acquire_stderr());
+}
+// Source: core/process_signals.trn
+// Namespace: core/process-signals
+#[derive(Clone)]
+pub struct ProcessSignalError {
+    pub message: String,
+}
+impl ProcessSignalError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(detail);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, detail: String) {
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+#[derive(Clone)]
+pub struct ProcessSignalEvent {
+    pub signal: ProcessSignal,
+    pub count: terrane_int_support::Int,
+    pub sequence: terrane_int_support::Int,
+    pub observed_at: MonotonicInstant,
+    pub overflowed: bool,
+}
+impl ProcessSignalEvent {
+    pub fn terrane_construct(
+        observed_signal: ProcessSignal,
+        occurrences: terrane_int_support::Int,
+        event_sequence: terrane_int_support::Int,
+        observed: MonotonicInstant,
+        did_overflow: bool,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            signal: ProcessSignal::terrane_construct(String::from("")),
+            count: terrane_int_support::Int::from(0_i128),
+            sequence: terrane_int_support::Int::from(0_i128),
+            observed_at: Clock::terrane_static_monotonic(),
+            overflowed: false,
+        };
+        __terrane_constructed_value
+            .construct(
+                observed_signal,
+                occurrences,
+                event_sequence,
+                observed,
+                did_overflow,
+            );
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        observed_signal: ProcessSignal,
+        occurrences: terrane_int_support::Int,
+        event_sequence: terrane_int_support::Int,
+        observed: MonotonicInstant,
+        did_overflow: bool,
+    ) {
+        {
+            let __terrane_value: ProcessSignal = observed_signal;
+            self.signal = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = occurrences.clone();
+            self.count = __terrane_value;
+        }
+        {
+            let __terrane_value: terrane_int_support::Int = event_sequence.clone();
+            self.sequence = __terrane_value;
+        }
+        {
+            let __terrane_value: MonotonicInstant = observed;
+            self.observed_at = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = did_overflow;
+            self.overflowed = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct ProcessSignalSubscription {
+    __terrane_lifetime: std::sync::Arc<()>,
+    pub handle: TerranePlatformCapability,
+}
+impl ProcessSignalSubscription {
+    pub fn terrane_construct(capability: TerranePlatformCapability) -> Self {
+        let mut __terrane_constructed_value = Self {
+            handle: TerranePlatformCapability::default(),
+            __terrane_lifetime: std::sync::Arc::new(()),
+        };
+        __terrane_constructed_value.construct(capability);
+        __terrane_constructed_value
+    }
+    pub fn terrane_separate(&self) -> Self {
+        let mut value = self.clone();
+        value.__terrane_lifetime = std::sync::Arc::new(());
+        value
+    }
+    pub fn construct(&mut self, capability: TerranePlatformCapability) {
+        {
+            let __terrane_value: TerranePlatformCapability = capability;
+            self.handle = __terrane_value;
+        }
+    }
+    pub async fn next(&mut self) -> Result<ProcessSignalEvent, TerraneError> {
+        let raw: TerranePlatformResult;
+        raw = __terrane_await(terrane_process_signal_next(&self.handle)).await;
+        if terrane_platform_result_failed(&raw) {
+            return Err({
+                let value = ProcessSignalError::terrane_construct(
+                    terrane_platform_result_message(&raw),
+                );
+                let rendered = value.render();
+                let original = &value.message;
+                let (message, rendered) = if &rendered == original {
+                    (rendered, None)
+                } else {
+                    (original.clone(), Some(rendered))
+                };
+                TerraneError::raised_with_rendered_message(
+                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    message,
+                    rendered,
+                    52 /* terrane-site: core/process_signals.trn:38:13-38:91 */,
+                )
+            });
+        }
+        return Ok(
+            ProcessSignalEvent::terrane_construct(
+                ProcessSignal::terrane_construct(terrane_platform_result_detail(&raw)),
+                terrane_process_signal_result_exact_int(&raw),
+                terrane_platform_result_int(&raw),
+                terrane_process_signal_result_observed(&raw),
+                terrane_platform_result_bool(&raw),
+            ),
+        );
+    }
+    pub async fn __terrane_shared_async_next(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+    ) -> Result<ProcessSignalEvent, TerraneError> {
+        let raw: TerranePlatformResult;
+        raw = __terrane_await(
+                terrane_process_signal_next(
+                    &{
+                        let __terrane_snapshot = __terrane_shared_handle
+                            .lock()
+                            .expect("shared async receiver lock poisoned")
+                            .handle
+                            .clone();
+                        __terrane_snapshot
+                    },
+                ),
+            )
+            .await;
+        if terrane_platform_result_failed(&raw) {
+            return Err({
+                let value = ProcessSignalError::terrane_construct(
+                    terrane_platform_result_message(&raw),
+                );
+                let rendered = value.render();
+                let original = &value.message;
+                let (message, rendered) = if &rendered == original {
+                    (rendered, None)
+                } else {
+                    (original.clone(), Some(rendered))
+                };
+                TerraneError::raised_with_rendered_message(
+                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    message,
+                    rendered,
+                    52 /* terrane-site: core/process_signals.trn:38:13-38:91 */,
+                )
+            });
+        }
+        return Ok(
+            ProcessSignalEvent::terrane_construct(
+                ProcessSignal::terrane_construct(terrane_platform_result_detail(&raw)),
+                terrane_process_signal_result_exact_int(&raw),
+                terrane_platform_result_int(&raw),
+                terrane_process_signal_result_observed(&raw),
+                terrane_platform_result_bool(&raw),
+            ),
+        );
+    }
+    pub fn close(self) -> Result<(), TerraneError> {
+        let raw: TerranePlatformResult;
+        raw = terrane_process_signal_close(&self.handle);
+        if terrane_platform_result_failed(&raw) {
+            return Err({
+                let value = ProcessSignalError::terrane_construct(
+                    terrane_platform_result_message(&raw),
+                );
+                let rendered = value.render();
+                let original = &value.message;
+                let (message, rendered) = if &rendered == original {
+                    (rendered, None)
+                } else {
+                    (original.clone(), Some(rendered))
+                };
+                TerraneError::raised_with_rendered_message(
+                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    message,
+                    rendered,
+                    53 /* terrane-site: core/process_signals.trn:44:13-44:91 */,
+                )
+            });
+        }
+        return Ok(());
+    }
+    pub fn destruct(&mut self) {
+        terrane_process_signal_close(&self.handle);
+    }
+}
+impl Drop for ProcessSignalSubscription {
+    fn drop(&mut self) {
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
+            return;
+        }
+        self.destruct();
+    }
+}
+pub fn process_signals(
+    selected: terrane_collection_support::Set<ProcessSignal>,
+) -> Result<ProcessSignalSubscription, TerraneError> {
+    let raw: TerranePlatformResult;
+    raw = terrane_process_signal_subscribe(selected);
+    if terrane_platform_result_failed(&raw) {
+        return Err({
+            let value = ProcessSignalError::terrane_construct(
+                terrane_platform_result_message(&raw),
+            );
+            let rendered = value.render();
+            let original = &value.message;
+            let (message, rendered) = if &rendered == original {
+                (rendered, None)
+            } else {
+                (original.clone(), Some(rendered))
+            };
+            TerraneError::raised_with_rendered_message(
+                TerraneErrorKind::Custom(DescriptorId(1)),
+                message,
+                rendered,
+                54 /* terrane-site: core/process_signals.trn:53:9-53:87 */,
+            )
+        });
+    }
+    return Ok(
+        ProcessSignalSubscription::terrane_construct(
+            terrane_platform_result_capability(&raw),
+        ),
+    );
+}
+// Source: core/io.trn
+// Namespace: core/io
+#[derive(Clone)]
+pub struct CancellationToken {
+    pub handle: TerranePlatformCapability,
+}
+impl CancellationToken {
+    pub fn terrane_construct() -> Self {
+        Self {
+            handle: terrane_platform_cancellation_token(),
+        }
+    }
+}
+#[derive(Clone)]
+pub struct IoOperationResult {
+    pub failed: bool,
+    pub deadline_exceeded: bool,
+    pub message: String,
+}
+impl IoOperationResult {
+    pub fn terrane_construct(
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            failed: false,
+            deadline_exceeded: false,
+            message: String::from(""),
+        };
+        __terrane_constructed_value.construct(failed, deadline_exceeded, message);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, failed: bool, deadline_exceeded: bool, message: String) {
+        {
+            let __terrane_value: bool = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value: bool = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value: String = message;
+            self.message = __terrane_value;
+        }
+    }
+}
+#[derive(Clone)]
+pub struct IoOperationOptions {
+    pub deadline: Option<Deadline>,
+    pub cancellation: Option<CancellationToken>,
+}
+impl IoOperationOptions {
+    pub fn terrane_construct(
+        requested: Option<Deadline>,
+        cancellation: Option<CancellationToken>,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self {
+            deadline: None,
+            cancellation: None,
+        };
+        __terrane_constructed_value.construct(requested, cancellation);
+        __terrane_constructed_value
+    }
+    pub fn construct(
+        &mut self,
+        requested: Option<Deadline>,
+        cancellation: Option<CancellationToken>,
+    ) {
+        {
+            let __terrane_value: Option<Deadline> = requested;
+            self.deadline = __terrane_value;
+        }
+        {
+            let __terrane_value: Option<CancellationToken> = cancellation;
+            self.cancellation = __terrane_value;
+        }
+    }
+}
+pub fn operation_cancellation(
+    options: Option<IoOperationOptions>,
+) -> Option<TerranePlatformCapability> {
+    let selected: Option<CancellationToken>;
+    if (&options).is_some() {
+        selected = match &options {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        }
+            .cancellation
+            .clone();
+        if (&selected).is_some() {
+            return Some(
+                match &selected {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                }
+                    .handle
+                    .clone(),
+            );
+        }
+    }
+    return None;
+}
+pub fn operation_deadline(
+    options: Option<IoOperationOptions>,
+) -> terrane_int_support::Int {
+    let selected: Option<Deadline>;
+    let remaining: Option<Duration>;
+    if (&options).is_some() {
+        selected = match &options {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        }
+            .deadline
+            .clone();
+        if (&selected).is_some() {
+            remaining = match &selected {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            }
+                .remaining();
+            if (&remaining).is_some() {
+                return match &remaining {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                }
+                    .total_nanoseconds
+                    .clone();
+            }
+            return terrane_int_support::Int::from(0_i128);
+        }
+    }
+    return terrane_int_support::Int::from(-1_i128);
 }
 // Source: core/time.trn
 // Namespace: core/time
@@ -6813,139 +6949,4 @@ impl Clock {
         }
         return Ok(Ticker::terrane_construct(period));
     }
-}
-// Source: core/io.trn
-// Namespace: core/io
-#[derive(Clone)]
-pub struct CancellationToken {
-    pub handle: TerranePlatformCapability,
-}
-impl CancellationToken {
-    pub fn terrane_construct() -> Self {
-        Self {
-            handle: terrane_platform_cancellation_token(),
-        }
-    }
-}
-#[derive(Clone)]
-pub struct IoOperationResult {
-    pub failed: bool,
-    pub deadline_exceeded: bool,
-    pub message: String,
-}
-impl IoOperationResult {
-    pub fn terrane_construct(
-        failed: bool,
-        deadline_exceeded: bool,
-        message: String,
-    ) -> Self {
-        let mut __terrane_constructed_value = Self {
-            failed: false,
-            deadline_exceeded: false,
-            message: String::from(""),
-        };
-        __terrane_constructed_value.construct(failed, deadline_exceeded, message);
-        __terrane_constructed_value
-    }
-    pub fn construct(&mut self, failed: bool, deadline_exceeded: bool, message: String) {
-        {
-            let __terrane_value: bool = failed;
-            self.failed = __terrane_value;
-        }
-        {
-            let __terrane_value: bool = deadline_exceeded;
-            self.deadline_exceeded = __terrane_value;
-        }
-        {
-            let __terrane_value: String = message;
-            self.message = __terrane_value;
-        }
-    }
-}
-#[derive(Clone)]
-pub struct IoOperationOptions {
-    pub deadline: Option<Deadline>,
-    pub cancellation: Option<CancellationToken>,
-}
-impl IoOperationOptions {
-    pub fn terrane_construct(
-        requested: Option<Deadline>,
-        cancellation: Option<CancellationToken>,
-    ) -> Self {
-        let mut __terrane_constructed_value = Self {
-            deadline: None,
-            cancellation: None,
-        };
-        __terrane_constructed_value.construct(requested, cancellation);
-        __terrane_constructed_value
-    }
-    pub fn construct(
-        &mut self,
-        requested: Option<Deadline>,
-        cancellation: Option<CancellationToken>,
-    ) {
-        {
-            let __terrane_value: Option<Deadline> = requested;
-            self.deadline = __terrane_value;
-        }
-        {
-            let __terrane_value: Option<CancellationToken> = cancellation;
-            self.cancellation = __terrane_value;
-        }
-    }
-}
-pub fn operation_cancellation(
-    options: Option<IoOperationOptions>,
-) -> Option<TerranePlatformCapability> {
-    let selected: Option<CancellationToken>;
-    if (&options).is_some() {
-        selected = match &options {
-            Some(value) => value,
-            _ => unreachable!("flow-proven storage refinement"),
-        }
-            .cancellation
-            .clone();
-        if (&selected).is_some() {
-            return Some(
-                match &selected {
-                    Some(value) => value,
-                    _ => unreachable!("flow-proven storage refinement"),
-                }
-                    .handle
-                    .clone(),
-            );
-        }
-    }
-    return None;
-}
-pub fn operation_deadline(
-    options: Option<IoOperationOptions>,
-) -> terrane_int_support::Int {
-    let selected: Option<Deadline>;
-    let remaining: Option<Duration>;
-    if (&options).is_some() {
-        selected = match &options {
-            Some(value) => value,
-            _ => unreachable!("flow-proven storage refinement"),
-        }
-            .deadline
-            .clone();
-        if (&selected).is_some() {
-            remaining = match &selected {
-                Some(value) => value,
-                _ => unreachable!("flow-proven storage refinement"),
-            }
-                .remaining();
-            if (&remaining).is_some() {
-                return match &remaining {
-                    Some(value) => value,
-                    _ => unreachable!("flow-proven storage refinement"),
-                }
-                    .total_nanoseconds
-                    .clone();
-            }
-            return terrane_int_support::Int::from(0_i128);
-        }
-    }
-    return terrane_int_support::Int::from(-1_i128);
 }

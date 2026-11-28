@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi, terrane-platform-support, terrane-signal-support
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi, terrane-platform-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -465,11 +465,10 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 4] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/process/child::process-error",
         "/core/process::process-identity-error",
         "/core/time::invalid-duration",
-        "/core/process-signals::process-signal-error",
     ];
 }
 mod __terrane_trace {
@@ -481,15 +480,14 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 6] = [
+    pub static FILES: [&str; 5] = [
         "case.trn",
         "core/process.trn",
         "core/process_child.trn",
         "core/streams.trn",
         "core/time.trn",
-        "core/process_signals.trn",
     ];
-    pub static FUNCTIONS: [&str; 43] = [
+    pub static FUNCTIONS: [&str; 40] = [
         "/conformance/child-process-facilities::child-mode",
         "/conformance/child-process-facilities::exercise-capture",
         "/conformance/child-process-facilities::received-expected",
@@ -530,11 +528,8 @@ mod __terrane_trace {
         "/core/time::at",
         "/core/time::sleep-until",
         "/core/time::interval",
-        "/core/process-signals::next",
-        "/core/process-signals::close",
-        "/core/process-signals::process-signals",
     ];
-    pub static SITES: [Site; 68] = [
+    pub static SITES: [Site; 65] = [
         /* terrane-site-row: site 0: /conformance/child-process-facilities::child-mode (case.trn:13:30-13:50) */
         { Site { function: 0, file: 0, line: 13, column: 30, end_line: 13, end_column: 50 } },
         /* terrane-site-row: site 1: /conformance/child-process-facilities::child-mode (case.trn:35:23-35:37) */
@@ -665,12 +660,6 @@ mod __terrane_trace {
         { Site { function: 38, file: 4, line: 161, column: 13, end_line: 161, end_column: 45 } },
         /* terrane-site-row: site 64: /core/time::interval (core/time.trn:172:13-172:45) */
         { Site { function: 39, file: 4, line: 172, column: 13, end_line: 172, end_column: 45 } },
-        /* terrane-site-row: site 65: /core/process-signals::next (core/process_signals.trn:56:13-56:91) */
-        { Site { function: 40, file: 5, line: 56, column: 13, end_line: 56, end_column: 91 } },
-        /* terrane-site-row: site 66: /core/process-signals::close (core/process_signals.trn:62:13-62:91) */
-        { Site { function: 41, file: 5, line: 62, column: 13, end_line: 62, end_column: 91 } },
-        /* terrane-site-row: site 67: /core/process-signals::process-signals (core/process_signals.trn:71:9-71:87) */
-        { Site { function: 42, file: 5, line: 71, column: 9, end_line: 71, end_column: 87 } },
     ];
     #[cold]
     #[inline(never)]
@@ -2261,7 +2250,6 @@ pub fn terrane_process_arguments() -> Vec<String> {
 pub fn terrane_process_id() -> terrane_int_support::Int {
     terrane_int_support::Int::from(i64::from(std::process::id()))
 }
-#[cfg(target_os = "linux")]
 pub fn terrane_process_group_id() -> terrane_int_support::Int {
     terrane_int_support::Int::from(
         i64::from(terrane_platform_support::process_group_id()),
@@ -2416,48 +2404,6 @@ fn terrane_platform_time_mod(
     value
         .modulo(&divisor.into_time_int())
         .expect("bundled time arithmetic divisors must be nonzero")
-}
-#[cfg(not(unix))]
-compile_error!("`/core/process-signals` is unsupported on this host family");
-fn terrane_process_signal_subscribe(
-    names: terrane_collection_support::Set<ProcessSignal>,
-) -> TerranePlatformResult {
-    let mut iterator = terrane_collection_support::Iterable::terrane_iterator(&names);
-    let mut signal_names = Vec::new();
-    loop {
-        match iterator.next() {
-            terrane_collection_support::IterationStep::Item(signal) => {
-                signal_names.push(signal.name);
-            }
-            terrane_collection_support::IterationStep::End => break,
-        }
-    }
-    terrane_platform_support::process_signal_subscribe(&signal_names)
-}
-async fn terrane_process_signal_next(
-    capability: &TerranePlatformCapability,
-) -> TerranePlatformResult {
-    terrane_platform_support::process_signal_next(capability).await
-}
-fn terrane_process_signal_close(
-    capability: &TerranePlatformCapability,
-) -> TerranePlatformResult {
-    terrane_platform_support::process_signal_close(capability)
-}
-fn terrane_process_signal_result_exact_int(
-    result: &TerranePlatformResult,
-) -> terrane_int_support::Int {
-    terrane_int_support::Int::from_decimal(&result.exact_number)
-}
-fn terrane_process_signal_result_observed(
-    result: &TerranePlatformResult,
-) -> MonotonicInstant {
-    MonotonicInstant {
-        domain: terrane_time_domain(),
-        elapsed_nanoseconds: terrane_int_support::Int::from_decimal(
-            &result.secondary_exact_number,
-        ),
-    }
 }
 fn terrane_child_capture_options<'a>(
     input: &'a [u8],
@@ -7084,28 +7030,8 @@ impl Clock {
         return Ok(Ticker::terrane_construct(period));
     }
 }
-// Source: core/process_signals.trn
+// Source: core/process_signal.trn
 // Namespace: core/process-signals
-#[derive(Clone)]
-pub struct ProcessSignalError {
-    pub message: String,
-}
-impl ProcessSignalError {
-    pub fn terrane_construct(detail: String) -> Self {
-        let mut __terrane_constructed_value = Self { message: String::from("") };
-        __terrane_constructed_value.construct(detail);
-        __terrane_constructed_value
-    }
-    pub fn construct(&mut self, detail: String) {
-        {
-            let __terrane_value: String = detail;
-            self.message = __terrane_value;
-        }
-    }
-    pub fn render(&self) -> String {
-        return self.message.clone();
-    }
-}
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ProcessSignal {
     pub name: String,
@@ -7134,242 +7060,6 @@ impl ProcessSignal {
     pub fn terrane_static_quit() -> ProcessSignal {
         return ProcessSignal::terrane_construct(String::from("quit"));
     }
-}
-#[derive(Clone)]
-pub struct ProcessSignalEvent {
-    pub signal: ProcessSignal,
-    pub count: terrane_int_support::Int,
-    pub sequence: terrane_int_support::Int,
-    pub observed_at: MonotonicInstant,
-    pub overflowed: bool,
-}
-impl ProcessSignalEvent {
-    pub fn terrane_construct(
-        observed_signal: ProcessSignal,
-        occurrences: terrane_int_support::Int,
-        event_sequence: terrane_int_support::Int,
-        observed: MonotonicInstant,
-        did_overflow: bool,
-    ) -> Self {
-        let mut __terrane_constructed_value = Self {
-            signal: ProcessSignal::terrane_construct(String::from("")),
-            count: terrane_int_support::Int::from(0_i128),
-            sequence: terrane_int_support::Int::from(0_i128),
-            observed_at: Clock::terrane_static_monotonic(),
-            overflowed: false,
-        };
-        __terrane_constructed_value
-            .construct(
-                observed_signal,
-                occurrences,
-                event_sequence,
-                observed,
-                did_overflow,
-            );
-        __terrane_constructed_value
-    }
-    pub fn construct(
-        &mut self,
-        observed_signal: ProcessSignal,
-        occurrences: terrane_int_support::Int,
-        event_sequence: terrane_int_support::Int,
-        observed: MonotonicInstant,
-        did_overflow: bool,
-    ) {
-        {
-            let __terrane_value: ProcessSignal = observed_signal;
-            self.signal = __terrane_value;
-        }
-        {
-            let __terrane_value: terrane_int_support::Int = occurrences.clone();
-            self.count = __terrane_value;
-        }
-        {
-            let __terrane_value: terrane_int_support::Int = event_sequence.clone();
-            self.sequence = __terrane_value;
-        }
-        {
-            let __terrane_value: MonotonicInstant = observed;
-            self.observed_at = __terrane_value;
-        }
-        {
-            let __terrane_value: bool = did_overflow;
-            self.overflowed = __terrane_value;
-        }
-    }
-}
-#[derive(Clone)]
-pub struct ProcessSignalSubscription {
-    __terrane_lifetime: std::sync::Arc<()>,
-    pub handle: TerranePlatformCapability,
-}
-impl ProcessSignalSubscription {
-    pub fn terrane_construct(capability: TerranePlatformCapability) -> Self {
-        let mut __terrane_constructed_value = Self {
-            handle: TerranePlatformCapability::default(),
-            __terrane_lifetime: std::sync::Arc::new(()),
-        };
-        __terrane_constructed_value.construct(capability);
-        __terrane_constructed_value
-    }
-    pub fn terrane_separate(&self) -> Self {
-        let mut value = self.clone();
-        value.__terrane_lifetime = std::sync::Arc::new(());
-        value
-    }
-    pub fn construct(&mut self, capability: TerranePlatformCapability) {
-        {
-            let __terrane_value: TerranePlatformCapability = capability;
-            self.handle = __terrane_value;
-        }
-    }
-    pub async fn next(&mut self) -> Result<ProcessSignalEvent, TerraneError> {
-        let raw: TerranePlatformResult;
-        raw = __terrane_await(terrane_process_signal_next(&self.handle)).await;
-        if terrane_platform_result_failed(&raw) {
-            return Err({
-                let value = ProcessSignalError::terrane_construct(
-                    terrane_platform_result_message(&raw),
-                );
-                let rendered = value.render();
-                let original = &value.message;
-                let (message, rendered) = if &rendered == original {
-                    (rendered, None)
-                } else {
-                    (original.clone(), Some(rendered))
-                };
-                TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(3)),
-                    message,
-                    rendered,
-                    65 /* terrane-site: core/process_signals.trn:56:13-56:91 */,
-                )
-            });
-        }
-        return Ok(
-            ProcessSignalEvent::terrane_construct(
-                ProcessSignal::terrane_construct(terrane_platform_result_detail(&raw)),
-                terrane_process_signal_result_exact_int(&raw),
-                terrane_platform_result_int(&raw),
-                terrane_process_signal_result_observed(&raw),
-                terrane_platform_result_bool(&raw),
-            ),
-        );
-    }
-    pub async fn __terrane_shared_async_next(
-        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
-    ) -> Result<ProcessSignalEvent, TerraneError> {
-        let raw: TerranePlatformResult;
-        raw = __terrane_await(
-                terrane_process_signal_next(
-                    &{
-                        let __terrane_snapshot = __terrane_shared_handle
-                            .lock()
-                            .expect("shared async receiver lock poisoned")
-                            .handle
-                            .clone();
-                        __terrane_snapshot
-                    },
-                ),
-            )
-            .await;
-        if terrane_platform_result_failed(&raw) {
-            return Err({
-                let value = ProcessSignalError::terrane_construct(
-                    terrane_platform_result_message(&raw),
-                );
-                let rendered = value.render();
-                let original = &value.message;
-                let (message, rendered) = if &rendered == original {
-                    (rendered, None)
-                } else {
-                    (original.clone(), Some(rendered))
-                };
-                TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(3)),
-                    message,
-                    rendered,
-                    65 /* terrane-site: core/process_signals.trn:56:13-56:91 */,
-                )
-            });
-        }
-        return Ok(
-            ProcessSignalEvent::terrane_construct(
-                ProcessSignal::terrane_construct(terrane_platform_result_detail(&raw)),
-                terrane_process_signal_result_exact_int(&raw),
-                terrane_platform_result_int(&raw),
-                terrane_process_signal_result_observed(&raw),
-                terrane_platform_result_bool(&raw),
-            ),
-        );
-    }
-    pub fn close(self) -> Result<(), TerraneError> {
-        let raw: TerranePlatformResult;
-        raw = terrane_process_signal_close(&self.handle);
-        if terrane_platform_result_failed(&raw) {
-            return Err({
-                let value = ProcessSignalError::terrane_construct(
-                    terrane_platform_result_message(&raw),
-                );
-                let rendered = value.render();
-                let original = &value.message;
-                let (message, rendered) = if &rendered == original {
-                    (rendered, None)
-                } else {
-                    (original.clone(), Some(rendered))
-                };
-                TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(3)),
-                    message,
-                    rendered,
-                    66 /* terrane-site: core/process_signals.trn:62:13-62:91 */,
-                )
-            });
-        }
-        return Ok(());
-    }
-    pub fn destruct(&mut self) {
-        terrane_process_signal_close(&self.handle);
-    }
-}
-impl Drop for ProcessSignalSubscription {
-    fn drop(&mut self) {
-        if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 {
-            return;
-        }
-        self.destruct();
-    }
-}
-pub fn process_signals(
-    selected: terrane_collection_support::Set<ProcessSignal>,
-) -> Result<ProcessSignalSubscription, TerraneError> {
-    let raw: TerranePlatformResult;
-    raw = terrane_process_signal_subscribe(selected);
-    if terrane_platform_result_failed(&raw) {
-        return Err({
-            let value = ProcessSignalError::terrane_construct(
-                terrane_platform_result_message(&raw),
-            );
-            let rendered = value.render();
-            let original = &value.message;
-            let (message, rendered) = if &rendered == original {
-                (rendered, None)
-            } else {
-                (original.clone(), Some(rendered))
-            };
-            TerraneError::raised_with_rendered_message(
-                TerraneErrorKind::Custom(DescriptorId(3)),
-                message,
-                rendered,
-                67 /* terrane-site: core/process_signals.trn:71:9-71:87 */,
-            )
-        });
-    }
-    return Ok(
-        ProcessSignalSubscription::terrane_construct(
-            terrane_platform_result_capability(&raw),
-        ),
-    );
 }
 // Source: core/io.trn
 // Namespace: core/io

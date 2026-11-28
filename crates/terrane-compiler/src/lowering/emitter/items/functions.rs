@@ -35,7 +35,7 @@ impl Emitter<'_> {
     pub(in crate::lowering::emitter) fn function(&mut self, node: &SyntaxNode) {
         if self.unit.bundled
             && self.unit.namespace == "/core/streams"
-            && !crate::lowering::helpers::package_uses_advanced_streams(self.package)
+            && self.registry.simple_standard_streams
             && self
                 .unit
                 .functions

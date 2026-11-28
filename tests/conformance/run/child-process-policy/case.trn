@@ -44,8 +44,8 @@ async function exercise-signals throws process-error; executable string
         rejected bool = false
         try
             await child.send-signal; (process-signal::terminate;)
-        catch process-error
-            rejected = true
+        catch process-error as error
+            rejected = error.message == 'child process has exited'
         print; rejected
     forced-child = await spawn-process; executable, (list; 'handle'), options
     forced-ready = await forced-child.read-stdout; 1

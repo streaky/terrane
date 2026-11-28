@@ -160,6 +160,7 @@ pub struct Program {
     pub version: &'static str,
     pub requires_platform_support: bool,
     pub requires_child_process: bool,
+    pub requires_process_signals: bool,
     pub requires_async_runtime: bool,
     pub requires_blocking_runtime: bool,
     pub requires_runtime_sync: bool,
@@ -1343,11 +1344,7 @@ impl Program {
             .expect("compiler must produce syntactically valid Rust tokens");
         let mut vendored_support = 0;
         vendored_support_mask(tokens, &mut vendored_support);
-        if self
-            .runtime
-            .iter()
-            .any(|module| module.source_files.contains(&"platform_signals.rs"))
-        {
+        if self.requires_process_signals {
             vendored_support |= SIGNAL_SUPPORT_BIT;
         }
         RenderedProgram {
@@ -1514,6 +1511,7 @@ mod tests {
             version: "test",
             requires_platform_support: false,
             requires_child_process: false,
+            requires_process_signals: false,
             requires_async_runtime: true,
             requires_blocking_runtime: false,
             requires_runtime_sync: false,
@@ -1576,6 +1574,7 @@ mod tests {
             version: "test",
             requires_platform_support: false,
             requires_child_process: false,
+            requires_process_signals: false,
             requires_async_runtime: false,
             requires_blocking_runtime: false,
             requires_runtime_sync: false,

@@ -30,7 +30,14 @@ pub struct ChildCapture<'a> {
 
 type Outcome = Result<ExitStatus, String>;
 
-type SignalRequest = (Signal, oneshot::Sender<io::Result<()>>);
+enum SignalError {
+    Exited,
+    Io(io::Error),
+}
+
+type SignalRequest = (Signal, oneshot::Sender<Result<(), SignalError>>);
+
+const CHILD_EXITED: &str = "child process has exited";
 
 pub(super) struct ChildState {
     stdin: AsyncMutex<Option<ChildStdin>>,
@@ -117,23 +124,23 @@ async fn terminate_and_reap(child: &mut Child) -> io::Result<ExitStatus> {
     child.wait().await
 }
 
-fn signal_child(child: &mut Child, signal: Signal) -> io::Result<()> {
-    // Only the supervisor can reap this child; it cannot poll wait again until
-    // delivery returns. An exit in the meantime leaves the PID reserved.
-    if child.try_wait()?.is_some() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "child process has exited",
-        ));
+//# SECURITY-BEGIN [process.owned-child-signalling]
+fn signal_child(child: &mut Child, signal: Signal) -> Result<(), SignalError> {
+    // The supervisor is the sole reaper for this Child. It cannot poll wait
+    // again until delivery returns, so an intervening exit leaves the PID reserved.
+    if child.try_wait().map_err(SignalError::Io)?.is_some() {
+        return Err(SignalError::Exited);
     }
     let pid = child
         .id()
         .and_then(|id| i32::try_from(id).ok())
         .and_then(Pid::from_raw)
-        .ok_or_else(|| io::Error::other("missing child process ID"))?;
-    kill_process(pid, signal).map_err(Into::into)
+        .ok_or_else(|| SignalError::Io(io::Error::other("missing child process ID")))?;
+    kill_process(pid, signal).map_err(|error| SignalError::Io(error.into()))
 }
+//# SECURITY-END [process.owned-child-signalling]
 
+//# SECURITY-BEGIN [process.owned-child-signalling]
 // Async because pipe registration and child supervision require a live reactor.
 pub async fn child_spawn(request: ChildLaunch<'_>) -> ResultValue {
     let mut child = match launch(request) {
@@ -146,6 +153,7 @@ pub async fn child_spawn(request: ChildLaunch<'_>) -> ResultValue {
     let (status_tx, status) = watch::channel(None);
     let (terminate, mut terminated) = oneshot::channel();
     let (signals, mut pending_signals) = mpsc::channel::<SignalRequest>(1);
+    // Wait, termination, and signal delivery share exclusive ownership of the Child.
     tokio::spawn(async move {
         let result = loop {
             tokio::select! {
@@ -173,6 +181,7 @@ pub async fn child_spawn(request: ChildLaunch<'_>) -> ResultValue {
         ..ResultValue::default()
     }
 }
+//# SECURITY-END [process.owned-child-signalling]
 
 fn observed(status: &Outcome) -> ResultValue {
     match status {
@@ -237,6 +246,8 @@ pub fn child_terminate(cap: &Capability) -> ResultValue {
     ResultValue::default()
 }
 
+//# SECURITY-BEGIN [process.owned-child-signalling]
+// Resolve the opaque child capability, never a caller-supplied PID.
 pub async fn child_send_signal(cap: &Capability, signal: &str) -> ResultValue {
     let state = match child_state(cap) {
         Ok(state) => state,
@@ -252,7 +263,7 @@ pub async fn child_send_signal(cap: &Capability, signal: &str) -> ResultValue {
     let stopped = || {
         let outcome = state.status.borrow();
         match outcome.as_ref() {
-            Some(Ok(_)) => ResultValue::error("child process has exited"),
+            Some(Ok(_)) => ResultValue::error(CHILD_EXITED),
             Some(Err(error)) => ResultValue::error(error.clone()),
             None => ResultValue::error("child process supervisor stopped"),
         }
@@ -263,10 +274,14 @@ pub async fn child_send_signal(cap: &Capability, signal: &str) -> ResultValue {
     }
     match response.await {
         Ok(Ok(())) => ResultValue::default(),
-        Ok(Err(error)) => ResultValue::error(format!("cannot signal child: {error}")),
+        Ok(Err(SignalError::Exited)) => ResultValue::error(CHILD_EXITED),
+        Ok(Err(SignalError::Io(error))) => {
+            ResultValue::error(format!("cannot signal child: {error}"))
+        }
         Err(_) => stopped(),
     }
 }
+//# SECURITY-END [process.owned-child-signalling]
 
 pub fn child_release(cap: &Capability) {
     let _ = child_terminate(cap);

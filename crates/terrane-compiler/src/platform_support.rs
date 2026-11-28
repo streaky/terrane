@@ -4,22 +4,17 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-/// Write the platform and sibling signal support crates into a generated program's support root.
-///
-/// `directory` is the directory containing `terrane-platform-support/` and
-/// `terrane-signal-support/`.
+/// Write the platform support crate and, when requested, its sibling signal support crate.
 ///
 /// # Errors
 ///
 /// Returns filesystem errors encountered while creating directories or publishing native sources.
-pub fn write_platform_support(directory: &Path) -> io::Result<()> {
+pub fn write_platform_support(directory: &Path, uses_process_signals: bool) -> io::Result<()> {
     let platform = directory.join("terrane-platform-support");
-    let signal = directory.join("terrane-signal-support");
     fs::create_dir_all(platform.join("src"))?;
-    fs::create_dir_all(signal.join("src"))?;
     write_if_changed(
         &platform.join("Cargo.toml"),
-        crate::platform_support_manifest().as_bytes(),
+        crate::platform_support_manifest(uses_process_signals).as_bytes(),
     )?;
     for (name, bytes) in [
         (
@@ -51,24 +46,34 @@ pub fn write_platform_support(directory: &Path) -> io::Result<()> {
             include_bytes!("../../terrane-platform-support/src/networking_transport.rs").as_slice(),
         ),
         (
-            "signals.rs",
-            include_bytes!("../../terrane-platform-support/src/signals.rs").as_slice(),
-        ),
-        (
             "temporary.rs",
             include_bytes!("../../terrane-platform-support/src/temporary.rs").as_slice(),
         ),
     ] {
         write_if_changed(&platform.join("src").join(name), bytes)?;
     }
-    write_if_changed(
-        &signal.join("Cargo.toml"),
-        crate::signal_support_manifest().as_bytes(),
-    )?;
-    write_if_changed(
-        &signal.join("src/lib.rs"),
-        include_bytes!("../../terrane-signal-support/src/lib.rs"),
-    )?;
+    if uses_process_signals {
+        write_if_changed(
+            &platform.join("src/signals.rs"),
+            include_bytes!("../../terrane-platform-support/src/signals.rs"),
+        )?;
+        let signal = directory.join("terrane-signal-support");
+        fs::create_dir_all(signal.join("src"))?;
+        write_if_changed(
+            &signal.join("Cargo.toml"),
+            crate::signal_support_manifest().as_bytes(),
+        )?;
+        write_if_changed(
+            &signal.join("src/lib.rs"),
+            include_bytes!("../../terrane-signal-support/src/lib.rs"),
+        )?;
+    } else {
+        match fs::remove_file(platform.join("src/signals.rs")) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
     Ok(())
 }
 

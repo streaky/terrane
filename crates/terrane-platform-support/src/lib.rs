@@ -32,7 +32,7 @@ use networking_transport::io_error;
 use networking_transport::ordered_socket_candidates;
 pub use networking_transport::*;
 mod observability;
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 mod signals;
 pub mod temporary;
 use networking_state::{ListenerState, TcpState, UdpState};
@@ -163,7 +163,7 @@ enum CapabilityInner {
     Buffer(tokio::sync::Mutex<ReadBuffer>),
     #[cfg(feature = "child-process")]
     ChildProcess(Box<child_process::ChildState>),
-    #[cfg(unix)]
+    #[cfg(feature = "process-signals")]
     SignalSubscription(Arc<signals::Subscription>),
 }
 impl Default for Capability {
@@ -220,7 +220,6 @@ pub fn system_host_name() -> ResultValue {
     }
 }
 
-#[cfg(target_os = "linux")]
 pub fn process_group_id() -> i32 {
     rustix::process::getpgrp().as_raw_pid()
 }
@@ -292,34 +291,19 @@ pub fn wall_time() -> ResultValue {
     }
 }
 
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 pub fn process_signal_subscribe(names: &[String]) -> ResultValue {
     signals::subscribe(names)
 }
 
-#[cfg(not(unix))]
-pub fn process_signal_subscribe(_names: &[String]) -> ResultValue {
-    ResultValue::error("process signals are not supported on this host family")
-}
-
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 pub async fn process_signal_next(capability: &Capability) -> ResultValue {
     signals::next(capability).await
 }
 
-#[cfg(not(unix))]
-pub async fn process_signal_next(_capability: &Capability) -> ResultValue {
-    ResultValue::error("process signals are not supported on this host family")
-}
-
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 pub fn process_signal_close(capability: &Capability) -> ResultValue {
     signals::close(capability)
-}
-
-#[cfg(not(unix))]
-pub fn process_signal_close(_capability: &Capability) -> ResultValue {
-    ResultValue::error("process signals are not supported on this host family")
 }
 
 pub async fn sleep(duration: Duration) {

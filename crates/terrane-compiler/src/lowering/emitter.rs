@@ -49,6 +49,7 @@ type CallbackParameterKey = ((u32, usize, usize), usize);
 
 #[derive(Default)]
 pub(super) struct LoweringRegistry {
+    pub(super) simple_standard_streams: bool,
     pub(super) files: RefCell<Vec<String>>,
     pub(super) functions: RefCell<Vec<String>>,
     pub(super) sites: RefCell<Vec<LoweringSite>>,

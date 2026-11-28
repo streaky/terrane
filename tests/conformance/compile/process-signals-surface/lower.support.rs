@@ -509,12 +509,12 @@ mod __terrane_trace {
         { Site { function: 1, file: 0, line: 14, column: 20, end_line: 14, end_column: 45 } },
         /* terrane-site-row: site 3: /process-signals-surface::main (case.trn:15:21-15:42) */
         { Site { function: 1, file: 0, line: 15, column: 21, end_line: 15, end_column: 42 } },
-        /* terrane-site-row: site 4: /core/process-signals::next (core/process_signals.trn:56:13-56:91) */
-        { Site { function: 2, file: 1, line: 56, column: 13, end_line: 56, end_column: 91 } },
-        /* terrane-site-row: site 5: /core/process-signals::close (core/process_signals.trn:62:13-62:91) */
-        { Site { function: 3, file: 1, line: 62, column: 13, end_line: 62, end_column: 91 } },
-        /* terrane-site-row: site 6: /core/process-signals::process-signals (core/process_signals.trn:71:9-71:87) */
-        { Site { function: 4, file: 1, line: 71, column: 9, end_line: 71, end_column: 87 } },
+        /* terrane-site-row: site 4: /core/process-signals::next (core/process_signals.trn:38:13-38:91) */
+        { Site { function: 2, file: 1, line: 38, column: 13, end_line: 38, end_column: 91 } },
+        /* terrane-site-row: site 5: /core/process-signals::close (core/process_signals.trn:44:13-44:91) */
+        { Site { function: 3, file: 1, line: 44, column: 13, end_line: 44, end_column: 91 } },
+        /* terrane-site-row: site 6: /core/process-signals::process-signals (core/process_signals.trn:53:9-53:87) */
+        { Site { function: 4, file: 1, line: 53, column: 9, end_line: 53, end_column: 87 } },
         /* terrane-site-row: site 7: /core/time::multiply (core/time.trn:62:13-62:45) */
         { Site { function: 5, file: 2, line: 62, column: 13, end_line: 62, end_column: 45 } },
         /* terrane-site-row: site 8: /core/time::seconds (core/time.trn:38:13-38:45) */
@@ -1048,28 +1048,8 @@ fn terrane_process_signal_result_observed(
         ),
     }
 }
-// Source: core/process_signals.trn
+// Source: core/process_signal.trn
 // Namespace: core/process-signals
-#[derive(Clone)]
-pub struct ProcessSignalError {
-    pub message: String,
-}
-impl ProcessSignalError {
-    pub fn terrane_construct(detail: String) -> Self {
-        let mut __terrane_constructed_value = Self { message: String::from("") };
-        __terrane_constructed_value.construct(detail);
-        __terrane_constructed_value
-    }
-    pub fn construct(&mut self, detail: String) {
-        {
-            let __terrane_value: String = detail;
-            self.message = __terrane_value;
-        }
-    }
-    pub fn render(&self) -> String {
-        return self.message.clone();
-    }
-}
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ProcessSignal {
     pub name: String,
@@ -1097,6 +1077,28 @@ impl ProcessSignal {
     }
     pub fn terrane_static_quit() -> ProcessSignal {
         return ProcessSignal::terrane_construct(String::from("quit"));
+    }
+}
+// Source: core/process_signals.trn
+// Namespace: core/process-signals
+#[derive(Clone)]
+pub struct ProcessSignalError {
+    pub message: String,
+}
+impl ProcessSignalError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(detail);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, detail: String) {
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
     }
 }
 #[derive(Clone)]
@@ -1206,7 +1208,7 @@ impl ProcessSignalSubscription {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    4 /* terrane-site: core/process_signals.trn:56:13-56:91 */,
+                    4 /* terrane-site: core/process_signals.trn:38:13-38:91 */,
                 )
             });
         }
@@ -1253,7 +1255,7 @@ impl ProcessSignalSubscription {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    4 /* terrane-site: core/process_signals.trn:56:13-56:91 */,
+                    4 /* terrane-site: core/process_signals.trn:38:13-38:91 */,
                 )
             });
         }
@@ -1286,7 +1288,7 @@ impl ProcessSignalSubscription {
                     TerraneErrorKind::Custom(DescriptorId(0)),
                     message,
                     rendered,
-                    5 /* terrane-site: core/process_signals.trn:62:13-62:91 */,
+                    5 /* terrane-site: core/process_signals.trn:44:13-44:91 */,
                 )
             });
         }
@@ -1325,7 +1327,7 @@ pub fn process_signals(
                 TerraneErrorKind::Custom(DescriptorId(0)),
                 message,
                 rendered,
-                6 /* terrane-site: core/process_signals.trn:71:9-71:87 */,
+                6 /* terrane-site: core/process_signals.trn:53:9-53:87 */,
             )
         });
     }
