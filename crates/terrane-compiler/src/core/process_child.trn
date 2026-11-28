@@ -3,6 +3,7 @@ namespace core/process/child
 from /core/collections import list
 from /core/errors import throwable
 from /core/process import native-string, environment-entry, encode-native-string
+from /core/process-signals import process-signal
 
 class process-error implements throwable
     message string = ''
@@ -18,6 +19,7 @@ class process-options
     inherit-environment bool = true
     environment list of environment-entry
     remove-environment list of native-string
+    new-process-group bool = false
 
 class process-observation
     exited bool = false
@@ -104,6 +106,10 @@ class child-process
         raw = host-child-terminate; this.handle
         check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
 
+    async function send-signal throws process-error; signal process-signal
+        raw = await host-child-send-signal; this.handle, signal.name
+        check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
+
     function input child-input-stream;
         return instance child-input-stream; this.handle
 
@@ -175,16 +181,16 @@ private function encode-removals list of string; names list of native-string
 
 async function spawn-process child-process throws process-error; program string, args (list of string)|none = none, options process-options|none = none
     settings = capture-options; options
-    raw = await host-child-spawn; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment
+    raw = await host-child-spawn; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment, settings.new-process-group
     check-process-result; (host-child-result-failed; raw), (host-child-result-message; raw)
     return instance child-process; (host-child-result-capability; raw)
 
 function run-process process-capture throws process-error; program string, args (list of string)|none = none, options process-options|none = none, input bytes = b'', timeout-ms int = 30000, stdout-limit int = 1048576, stderr-limit int = 1048576
     settings = capture-options; options
-    raw = host-child-capture; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment, input, timeout-ms, stdout-limit, stderr-limit
+    raw = host-child-capture; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment, settings.new-process-group, input, timeout-ms, stdout-limit, stderr-limit
     return capture-output; raw
 
 async function run-process-async process-capture throws process-error; program string, args (list of string)|none = none, options process-options|none = none, input bytes = b'', timeout-ms int = 30000, stdout-limit int = 1048576, stderr-limit int = 1048576
     settings = capture-options; options
-    raw = await host-child-capture-async; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment, input, timeout-ms, stdout-limit, stderr-limit
+    raw = await host-child-capture-async; program, (process-arguments; args), settings.directory, (encode-environment; settings.environment), (encode-removals; settings.remove-environment), settings.inherit-environment, settings.new-process-group, input, timeout-ms, stdout-limit, stderr-limit
     return capture-output; raw

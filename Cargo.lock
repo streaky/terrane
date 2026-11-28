@@ -1992,6 +1992,7 @@ dependencies = [
  "rand_chacha",
  "rand_core",
  "rcgen",
+ "rustix",
  "rustls",
  "serde",
  "serde_json",

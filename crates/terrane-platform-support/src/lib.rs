@@ -21,8 +21,8 @@ mod networking_transport;
 #[cfg(feature = "child-process")]
 pub use child_process::{
     ChildCapture, ChildLaunch, child_capture, child_capture_async, child_close_input, child_poll,
-    child_read_stderr, child_read_stdout, child_release, child_spawn, child_terminate, child_wait,
-    child_write,
+    child_read_stderr, child_read_stdout, child_release, child_send_signal, child_spawn,
+    child_terminate, child_wait, child_write,
 };
 pub use networking_native::{
     NativeTcpListener, NativeTcpStream, into_native_tcp_listener, into_native_tcp_stream,
@@ -32,7 +32,7 @@ use networking_transport::io_error;
 use networking_transport::ordered_socket_candidates;
 pub use networking_transport::*;
 mod observability;
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 mod signals;
 pub mod temporary;
 use networking_state::{ListenerState, TcpState, UdpState};
@@ -163,7 +163,7 @@ enum CapabilityInner {
     Buffer(tokio::sync::Mutex<ReadBuffer>),
     #[cfg(feature = "child-process")]
     ChildProcess(Box<child_process::ChildState>),
-    #[cfg(unix)]
+    #[cfg(feature = "process-signals")]
     SignalSubscription(Arc<signals::Subscription>),
 }
 impl Default for Capability {
@@ -217,6 +217,22 @@ pub fn system_host_name() -> ResultValue {
             ..ResultValue::default()
         },
         Err(error) => ResultValue::error(format!("cannot read the system host name: {error}")),
+    }
+}
+
+pub fn process_group_id() -> i32 {
+    rustix::process::getpgrp().as_raw_pid()
+}
+
+pub fn process_current_executable() -> ResultValue {
+    match std::env::current_exe() {
+        Ok(path) => ResultValue {
+            text: platform_value(path.into_os_string()),
+            ..ResultValue::default()
+        },
+        Err(error) => {
+            ResultValue::error(format!("cannot read the current executable path: {error}"))
+        }
     }
 }
 
@@ -275,34 +291,19 @@ pub fn wall_time() -> ResultValue {
     }
 }
 
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 pub fn process_signal_subscribe(names: &[String]) -> ResultValue {
     signals::subscribe(names)
 }
 
-#[cfg(not(unix))]
-pub fn process_signal_subscribe(_names: &[String]) -> ResultValue {
-    ResultValue::error("process signals are not supported on this host family")
-}
-
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 pub async fn process_signal_next(capability: &Capability) -> ResultValue {
     signals::next(capability).await
 }
 
-#[cfg(not(unix))]
-pub async fn process_signal_next(_capability: &Capability) -> ResultValue {
-    ResultValue::error("process signals are not supported on this host family")
-}
-
-#[cfg(unix)]
+#[cfg(feature = "process-signals")]
 pub fn process_signal_close(capability: &Capability) -> ResultValue {
     signals::close(capability)
-}
-
-#[cfg(not(unix))]
-pub fn process_signal_close(_capability: &Capability) -> ResultValue {
-    ResultValue::error("process signals are not supported on this host family")
 }
 
 pub async fn sleep(duration: Duration) {

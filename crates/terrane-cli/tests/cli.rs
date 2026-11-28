@@ -183,7 +183,7 @@ fn executable_shebang_script_runs_through_implicit_command() {
     let script = directory.path().join("thing.trn");
     fs::write(
         &script,
-        "#!/usr/bin/env terrane\nfunction main;\n  print; >hello\n",
+        "#!/usr/bin/env terrane\nfrom /core/process import current-process-id\n\nfunction main;\n    print; (current-process-id;)\n",
     )
     .unwrap();
     let mut permissions = fs::metadata(&script).unwrap().permissions();
@@ -193,13 +193,17 @@ fn executable_shebang_script_runs_through_implicit_command() {
     if let Some(path) = std::env::var_os("PATH") {
         path_entries.extend(std::env::split_paths(&path));
     }
-    let output = Command::new(&script)
+    let child = Command::new(&script)
         .env("PATH", std::env::join_paths(path_entries).unwrap())
-        .output()
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
         .unwrap();
+    let pid = child.id();
+    let output = child.wait_with_output().unwrap();
 
     assert!(output.status.success(), "{output:?}");
-    assert_eq!(output.stdout, b"hello\n");
+    assert_eq!(output.stdout, format!("{pid}\n").as_bytes());
     assert_eq!(output.stderr, b"", "{output:?}");
 }
 

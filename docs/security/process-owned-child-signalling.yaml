@@ -1,0 +1,52 @@
+format: 1
+id: process.owned-child-signalling
+kind: security-contract
+surface: null
+lifecycle:
+  status: current
+  stability: experimental
+  since: "0.1"
+  deprecated-since: null
+  removed-in: null
+  replacement: null
+documentation:
+  status: complete
+  title: Signals target only the owned direct child
+  title-style: text
+  summary: Child-process signal requests use an opaque child handle and cannot target an arbitrary PID or process group.
+  tags: [security, process]
+  sections: []
+  see-also: []
+security:
+  audiences: [core, application]
+  invariant: |-
+    On Linux, child-process signal delivery targets only the owned, still-unreaped direct child. The supervisor serializes delivery with reaping and checks the child with `try_wait` before signalling. If the child exits after that check, its PID stays reserved until it is reaped, so reuse cannot redirect the signal.
+  threats:
+    - A stale child handle must not deliver a signal to an unrelated process that reused the child's PID.
+    - A caller must not be able to use this API to signal an arbitrary PID or a process group.
+  assumptions:
+    - The supervisor is the sole reaper of this child. The host retains the child's PID until reaping, and the parent has not enabled automatic reaping.
+  limitations:
+    - This contract covers Linux and the direct child only, not its process group or descendants. Successful delivery does not prove that the child handled the signal.
+    - This does not protect against another reaper in the same process, such as a native dependency calling `waitpid(-1)`.
+    - The conformance case checks rejection after observed exit; it does not force PID reuse or prove safety against a competing reaper.
+  guidance: |-
+    Retain the child handle returned by spawn and use it for signalling. Do not combine supervised children with native code that reaps children it does not own.
+  review:
+    considerations:
+      - Preserve exclusive ownership of the Child and serialize waiting, termination, and signal delivery. Keep the `try_wait` check and the signal syscall together without a reaping path between them.
+      - Preserve capability-only access and delivery to a single direct child PID. Run the child-process-policy conformance case.
+  files:
+    - path: crates/terrane-platform-support/src/child_process.rs
+      role: enforcement
+      detail: Resolves the child capability, serializes signal requests and reaping in the supervisor, and checks child status before signalling its PID.
+    - path: crates/terrane-compiler/src/core/process_child.trn
+      role: dependency
+      detail: Passes the opaque child handle and the requested signal kind across the host boundary.
+    - path: tests/conformance/run/child-process-policy/case.trn
+      role: evidence
+      detail: Checks that the direct child handles a signal and that signalling through its handle after observed exit reports the exited-child diagnostic.
+provenance:
+  specification: []
+  conformance: []
+  compiler: null

@@ -484,21 +484,33 @@ fn augment_units_with_projection_inner(
         )?);
     }
     let mut index = 0;
+    let mut loaded_process_signals = false;
     while index < units.len() {
-        let mut targets = imports_in_tree(&units[index])?
+        let imports = imports_in_tree(&units[index])?;
+        // The always-loaded value unit provides process-signal. Let normal name
+        // resolution consult the subscription unit for every other import.
+        let signals = &crate::bundled::PROCESS_SIGNALS;
+        let load_process_signals = !loaded_process_signals
+            && imports.iter().any(|import| {
+                import.target == signals.namespace
+                    && (import.namespace_wide || import.object != "process-signal")
+            });
+        loaded_process_signals |= load_process_signals;
+        let mut targets = imports
             .into_iter()
             .map(|import| import.target)
             .collect::<BTreeSet<_>>();
         if units[index].prelude && has_modifier_applications(&units[index].tree.root) {
             targets.insert("/core/modifiers".to_owned());
         }
-        for target in targets {
-            let Some(bundled) = crate::bundled::source(&target) else {
-                continue;
-            };
-            if !loaded.insert(target) {
-                continue;
-            }
+        let bundled = targets
+            .into_iter()
+            .filter_map(|target| {
+                let bundled = crate::bundled::source(&target)?;
+                loaded.insert(target).then_some(bundled)
+            })
+            .chain(load_process_signals.then_some(signals));
+        for bundled in bundled {
             let source = SourceFile::new(
                 next_source_id,
                 std::path::PathBuf::from(format!("<terrane>/{}", bundled.path)),

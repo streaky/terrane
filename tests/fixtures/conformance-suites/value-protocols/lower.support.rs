@@ -474,7 +474,7 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 11] = [
+    pub static DESCRIPTORS: [&str; 12] = [
         "/core/regex::regex-error",
         "/core/regex::regex-match-error",
         "/initialized-async-callable-field::failure",
@@ -485,6 +485,7 @@ mod __terrane_error_registry {
         "/typed-json-boundaries::policy-error",
         "/core/testing::test-failure",
         "/core/testing::test-skip",
+        "/core/process::process-identity-error",
         "/core/time::invalid-duration",
     ];
 }
@@ -560,7 +561,7 @@ mod __terrane_trace {
         "core/process.trn",
         "core/time.trn",
     ];
-    pub static FUNCTIONS: [&str; 134] = [
+    pub static FUNCTIONS: [&str; 135] = [
         "/bounded-arithmetic-families::test-scenario",
         "/byte-index-and-slice::test-scenario",
         "/bytes-and-legacy-digests::test-scenario",
@@ -683,6 +684,7 @@ mod __terrane_trace {
         "/core/documents::decode-document",
         "/core/urls::get",
         "/core/urls::get-all",
+        "/core/process::current-executable",
         "/core/process::arguments",
         "/core/process::environment",
         "/core/process::parse-command-line",
@@ -696,7 +698,7 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 496] = [
+    pub static SITES: [Site; 497] = [
         /* terrane-site-row: site 0: /bounded-arithmetic-families::test-scenario (tests/integration/bounded-arithmetic-families/case.trn:8:10-8:26) */
         { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 26 } },
         /* terrane-site-row: site 1: /bounded-arithmetic-families::test-scenario (tests/integration/bounded-arithmetic-families/case.trn:14:11-14:26) */
@@ -1661,34 +1663,36 @@ mod __terrane_trace {
         { Site { function: 121, file: 58, line: 32, column: 16, end_line: 32, end_column: 32 } },
         /* terrane-site-row: site 481: /core/urls::get-all (core/urls.trn:33:32-33:50) */
         { Site { function: 121, file: 58, line: 33, column: 32, end_line: 33, end_column: 50 } },
-        /* terrane-site-row: site 482: /core/process::arguments (core/process.trn:45:49-45:63) */
-        { Site { function: 122, file: 59, line: 45, column: 49, end_line: 45, end_column: 63 } },
-        /* terrane-site-row: site 483: /core/process::environment (core/process.trn:54:40-54:54) */
-        { Site { function: 123, file: 59, line: 54, column: 40, end_line: 54, end_column: 54 } },
-        /* terrane-site-row: site 484: /core/process::environment (core/process.trn:55:41-55:59) */
-        { Site { function: 123, file: 59, line: 55, column: 41, end_line: 55, end_column: 59 } },
-        /* terrane-site-row: site 485: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
-        { Site { function: 124, file: 59, line: 90, column: 20, end_line: 90, end_column: 35 } },
-        /* terrane-site-row: site 486: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
-        { Site { function: 124, file: 59, line: 105, column: 43, end_line: 105, end_column: 62 } },
-        /* terrane-site-row: site 487: /core/time::multiply (core/time.trn:62:13-62:45) */
-        { Site { function: 125, file: 60, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 488: /core/time::seconds (core/time.trn:38:13-38:45) */
-        { Site { function: 126, file: 60, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 489: /core/time::milliseconds (core/time.trn:43:13-43:45) */
-        { Site { function: 127, file: 60, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 490: /core/time::microseconds (core/time.trn:48:13-48:45) */
-        { Site { function: 128, file: 60, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 491: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
-        { Site { function: 129, file: 60, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 492: /core/time::duration-until (core/time.trn:76:13-76:45) */
-        { Site { function: 130, file: 60, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 493: /core/time::at (core/time.trn:105:13-105:45) */
-        { Site { function: 131, file: 60, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 494: /core/time::sleep-until (core/time.trn:161:13-161:45) */
-        { Site { function: 132, file: 60, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 495: /core/time::interval (core/time.trn:172:13-172:45) */
-        { Site { function: 133, file: 60, line: 172, column: 13, end_line: 172, end_column: 45 } },
+        /* terrane-site-row: site 482: /core/process::current-executable (core/process.trn:42:9-42:74) */
+        { Site { function: 122, file: 59, line: 42, column: 9, end_line: 42, end_column: 74 } },
+        /* terrane-site-row: site 483: /core/process::arguments (core/process.trn:67:49-67:63) */
+        { Site { function: 123, file: 59, line: 67, column: 49, end_line: 67, end_column: 63 } },
+        /* terrane-site-row: site 484: /core/process::environment (core/process.trn:76:40-76:54) */
+        { Site { function: 124, file: 59, line: 76, column: 40, end_line: 76, end_column: 54 } },
+        /* terrane-site-row: site 485: /core/process::environment (core/process.trn:77:41-77:59) */
+        { Site { function: 124, file: 59, line: 77, column: 41, end_line: 77, end_column: 59 } },
+        /* terrane-site-row: site 486: /core/process::parse-command-line (core/process.trn:112:20-112:35) */
+        { Site { function: 125, file: 59, line: 112, column: 20, end_line: 112, end_column: 35 } },
+        /* terrane-site-row: site 487: /core/process::parse-command-line (core/process.trn:127:43-127:62) */
+        { Site { function: 125, file: 59, line: 127, column: 43, end_line: 127, end_column: 62 } },
+        /* terrane-site-row: site 488: /core/time::multiply (core/time.trn:62:13-62:45) */
+        { Site { function: 126, file: 60, line: 62, column: 13, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 489: /core/time::seconds (core/time.trn:38:13-38:45) */
+        { Site { function: 127, file: 60, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 490: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        { Site { function: 128, file: 60, line: 43, column: 13, end_line: 43, end_column: 45 } },
+        /* terrane-site-row: site 491: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        { Site { function: 129, file: 60, line: 48, column: 13, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 492: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        { Site { function: 130, file: 60, line: 53, column: 13, end_line: 53, end_column: 45 } },
+        /* terrane-site-row: site 493: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        { Site { function: 131, file: 60, line: 76, column: 13, end_line: 76, end_column: 45 } },
+        /* terrane-site-row: site 494: /core/time::at (core/time.trn:105:13-105:45) */
+        { Site { function: 132, file: 60, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 495: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        { Site { function: 133, file: 60, line: 161, column: 13, end_line: 161, end_column: 45 } },
+        /* terrane-site-row: site 496: /core/time::interval (core/time.trn:172:13-172:45) */
+        { Site { function: 134, file: 60, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -2179,6 +2183,14 @@ pub fn terrane_platform_value_bytes(value: &str) -> Vec<u8> {
 }
 pub fn terrane_process_arguments() -> Vec<String> {
     std::env::args_os().skip(1).map(terrane_platform_value).collect()
+}
+pub fn terrane_process_id() -> terrane_int_support::Int {
+    terrane_int_support::Int::from(i64::from(std::process::id()))
+}
+pub fn terrane_process_group_id() -> terrane_int_support::Int {
+    terrane_int_support::Int::from(
+        i64::from(terrane_platform_support::process_group_id()),
+    )
 }
 pub fn terrane_environment_entries() -> Vec<String> {
     std::env::vars_os()
@@ -7080,6 +7092,55 @@ impl EnvironmentEntry {
     }
 }
 #[derive(Clone)]
+pub struct ProcessIdentityError {
+    pub message: String,
+}
+impl ProcessIdentityError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(detail);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, detail: String) {
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+pub fn current_process_id() -> terrane_int_support::Int {
+    return terrane_process_id();
+}
+pub fn current_process_group_id() -> terrane_int_support::Int {
+    return terrane_process_group_id();
+}
+pub fn current_executable() -> Result<NativeString, TerraneError> {
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_support::process_current_executable();
+    if raw.failed {
+        return Err({
+            let value = ProcessIdentityError::terrane_construct(raw.message.clone());
+            let rendered = value.render();
+            let original = &value.message;
+            let (message, rendered) = if &rendered == original {
+                (rendered, None)
+            } else {
+                (original.clone(), Some(rendered))
+            };
+            TerraneError::raised_with_rendered_message(
+                TerraneErrorKind::Custom(DescriptorId(10)),
+                message,
+                rendered,
+                482 /* terrane-site: core/process.trn:42:9-42:74 */,
+            )
+        });
+    }
+    return Ok(NativeString::terrane_construct(raw.text.clone()));
+}
+#[derive(Clone)]
 pub struct ProcessHostNameResult {
     pub failed: bool,
     pub available: bool,
@@ -7155,7 +7216,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                             let __terrane_receiver = &encoded;
                             let __terrane_index = __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                482 /* terrane-site: core/process.trn:45:49-45:63 */,
+                                483 /* terrane-site: core/process.trn:67:49-67:63 */,
                             );
                             __terrane_receiver
                                 .get(__terrane_index)
@@ -7164,7 +7225,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                     __terrane_index,
                                 ))
                         },
-                        482 /* terrane-site: core/process.trn:45:49-45:63 */,
+                        483 /* terrane-site: core/process.trn:67:49-67:63 */,
                     ),
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
@@ -7194,7 +7255,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         let __terrane_receiver = &encoded;
                         let __terrane_index = __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            483 /* terrane-site: core/process.trn:54:40-54:54 */,
+                            484 /* terrane-site: core/process.trn:76:40-76:54 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -7203,7 +7264,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    483 /* terrane-site: core/process.trn:54:40-54:54 */,
+                    484 /* terrane-site: core/process.trn:76:40-76:54 */,
                 ),
             );
             value = NativeString::terrane_construct(
@@ -7214,7 +7275,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(&index + &terrane_int_support::Int::from(1_i128)),
                             ),
-                            484 /* terrane-site: core/process.trn:55:41-55:59 */,
+                            485 /* terrane-site: core/process.trn:77:41-77:59 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -7223,7 +7284,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    484 /* terrane-site: core/process.trn:55:41-55:59 */,
+                    485 /* terrane-site: core/process.trn:77:41-77:59 */,
                 ),
             );
             {
@@ -7344,10 +7405,10 @@ pub fn parse_command_line(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            485 /* terrane-site: core/process.trn:90:20-90:35 */,
+                            486 /* terrane-site: core/process.trn:112:20-112:35 */,
                         ),
                     ),
-                485 /* terrane-site: core/process.trn:90:20-90:35 */,
+                486 /* terrane-site: core/process.trn:112:20-112:35 */,
             );
             if !argument.is_text {
                 {
@@ -7414,10 +7475,10 @@ pub fn parse_command_line(
                                             terrane_collection_support::index_from_int(
                                                 &(&index + &terrane_int_support::Int::from(1_i128)),
                                             ),
-                                            486 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                            487 /* terrane-site: core/process.trn:127:43-127:62 */,
                                         ),
                                     ),
-                                486 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                487 /* terrane-site: core/process.trn:127:43-127:62 */,
                             );
                             __terrane_list_append_6
                                 .push(__terrane_collection_argument_0);
@@ -7674,10 +7735,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    487 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    488 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -7703,10 +7764,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    488 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    489 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -7731,10 +7792,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    489 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    490 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -7760,10 +7821,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    490 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    491 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -7789,10 +7850,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    491 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    492 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -7860,10 +7921,10 @@ impl MonotonicInstant {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    492 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    493 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -7967,10 +8028,10 @@ impl Deadline {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    493 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    494 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -8268,10 +8329,10 @@ impl Clock {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    494 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    495 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -8304,10 +8365,10 @@ impl Clock {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(10)),
+                    TerraneErrorKind::Custom(DescriptorId(11)),
                     message,
                     rendered,
-                    495 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    496 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

@@ -388,8 +388,7 @@ impl<'a> Emitter<'a> {
             self.line(&format!("pub type {name} = {native};"));
             return;
         }
-        let advanced_streams = self.unit.namespace != "/core/streams"
-            || crate::lowering::helpers::package_uses_advanced_streams(self.package);
+        let advanced_streams = !self.registry.simple_standard_streams;
         if Self::omit_advanced_stream_object(advanced_streams, self.unit, object) {
             return;
         }

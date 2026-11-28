@@ -1659,7 +1659,13 @@ fn changed_native_inputs_invalidate_check_stamps_and_remove_unused_platform_supp
     fs::write(&adapter, "pub const VALUE: u8 = 1;\n").unwrap();
     fs::write(
         package.0.join("app/main.trn"),
-        "namespace cli/app\nfrom /core/process import arguments\nfunction main;\n  ignored = arguments;\n",
+        concat!(
+            "namespace cli/app\n",
+            "from /core/collections import set\n",
+            "from /core/process-signals import process-signal, process-signals\n",
+            "async function main;\n",
+            "  ignored = process-signals; (set; (process-signal::terminate;))\n",
+        ),
     )
     .unwrap();
     let invoke = |command| {
@@ -1676,6 +1682,40 @@ fn changed_native_inputs_invalidate_check_stamps_and_remove_unused_platform_supp
     assert!(stamp.is_file());
     for name in ["terrane-platform-support", "terrane-signal-support"] {
         assert!(application.join("support").join(name).is_dir());
+    }
+    for source in [
+        concat!(
+            "namespace cli/app\n",
+            "from /core/process import arguments\n",
+            "from /core/process-signals import process-signal\n",
+            "function main;\n",
+            "  ignored = arguments;\n",
+            "  signal = process-signal::terminate;\n",
+        ),
+        concat!(
+            "namespace cli/app\n",
+            "import /core/process-signals\n",
+            "from /core/process/child import process-error, run-process\n",
+            "function main;\n",
+            "  signal = process-signal::terminate;\n",
+            "  try\n",
+            "    run-process; 'true'\n",
+            "  catch process-error\n",
+            "    return\n",
+        ),
+    ] {
+        fs::write(package.0.join("app/main.trn"), source).unwrap();
+        let checked = invoke("check");
+        assert!(checked.status.success(), "{source}\n{checked:?}");
+        assert!(
+            application
+                .join("support/terrane-platform-support")
+                .is_dir()
+        );
+        assert!(
+            !application.join("support/terrane-signal-support").exists(),
+            "{source}"
+        );
     }
     fs::write(
         package.0.join("app/main.trn"),

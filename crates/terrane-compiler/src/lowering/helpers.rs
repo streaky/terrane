@@ -108,15 +108,67 @@ fn references_advanced_symbol(
             .iter()
             .any(|child| references_advanced_symbol(package, unit, child))
 }
-pub(crate) fn package_uses_advanced_streams(package: &SemanticPackage) -> bool {
+pub(super) fn is_process_subscription_unit(unit: &SemanticUnit) -> bool {
+    unit.bundled && unit.source_path == crate::bundled::PROCESS_SIGNALS.path
+}
+
+pub(super) fn package_uses_process_signals(package: &SemanticPackage) -> bool {
+    // Lowering emits declarations before any optional function reachability pass.
+    // Actual uses of subscription types also need their definitions (including
+    // the subscription's close-on-drop implementation); imports alone do not.
+    fn references_subscription(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        subscription_file: u32,
+    ) -> bool {
+        if matches!(
+            node.kind,
+            SyntaxKind::ImportDeclaration | SyntaxKind::NamespaceDeclaration
+        ) {
+            return false;
+        }
+        (node.kind == SyntaxKind::Name
+            && package
+                .resolve_name_at(
+                    unit,
+                    node.span.start,
+                    &unit.source.text()[node.span.start..node.span.end],
+                )
+                .and_then(|symbol| symbol.declaration_span)
+                .is_some_and(|span| span.file == subscription_file))
+            || node
+                .children
+                .iter()
+                .any(|child| references_subscription(package, unit, child, subscription_file))
+    }
+
+    let Some(subscription) = package
+        .units
+        .iter()
+        .find(|unit| is_process_subscription_unit(unit))
+    else {
+        return false;
+    };
+    let file = subscription.source.id();
+    package.units.iter().any(|unit| {
+        unit.source.id() != file && references_subscription(package, unit, &unit.tree.root, file)
+    })
+}
+
+pub(super) fn package_uses_advanced_streams(
+    package: &SemanticPackage,
+    uses_process_signals: bool,
+) -> bool {
     // Retained bundled units only force this path for the IO/time declarations it drops.
     // Their own capability intrinsics and raw host types do not request async streams.
     for unit in package.units.iter().filter(|unit| {
-        !unit.bundled
-            || !matches!(
-                unit.namespace.as_str(),
-                "/core/streams" | "/core/io" | "/core/time"
-            )
+        (uses_process_signals || !is_process_subscription_unit(unit))
+            && (!unit.bundled
+                || !matches!(
+                    unit.namespace.as_str(),
+                    "/core/streams" | "/core/io" | "/core/time"
+                ))
     }) {
         if unit.bundled {
             if unit

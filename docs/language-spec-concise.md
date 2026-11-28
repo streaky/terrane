@@ -1169,12 +1169,13 @@ handles: linear resource transfer and idempotent host release shared with stream
 file_open_modes: `exclusive` creates only if absent; `append` writes at end via the host open mode; both require write access; available on path opens and confined opens
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
 snapshots: arguments and environment are explicit; environment returns paired native-string names/values
+process_identity: current-process-id and current-process-group-id return integer snapshots; current-executable returns a lossless native-string path or throws process-identity-error
 host_name: /core/process process-host-name returns process-host-name-result with failed/available/message plus a lossless native-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle
 cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
 cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
 exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates
-child_process: /core/process/child requires process; executable and separate argv values, no shell; optional cwd and environment policy
-child_io: spawn returns an owning process with independent async stdin/stdout/stderr; poll, wait with timeout, terminate, and observe terminal status; dropping the owner requests termination
+child_process: /core/process/child requires process; executable and separate argv values, no shell; optional cwd and environment policy; children inherit the caller's group unless process-options.new-process-group is true
+child_io: spawn returns an owning process with independent async stdin/stdout/stderr; poll, wait with timeout, terminate, or await child.send-signal to signal only the owned direct child; wait observes completion; dropping the owner requests termination
 child_capture: synchronous run-process and async run-process-async drain both byte streams concurrently with independent bounds and a deadline; nonzero exits are observations, not launch errors
 build_consumer_helpers: /core/build/consumer requires process; /core/build/consumer/cache requires filesystem and process
 rust_boundary: filesystem/descriptor syscalls, lossless OS argument/environment access, process exit
@@ -1237,6 +1238,7 @@ hash = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
 - A direct source CLI input (an existing non-manifest file or a path ending in `.trn`) is implicit package `single-file`, one unit, default prelude, and exempt from directory correspondence. If byte zero begins `#!`, the shebang is comment trivia and the script may omit an authored namespace; the compiler supplies an implementation-owned identity outside the authored namespace grammar, making source collision impossible. Manifest-discovered application sources never receive this exemption. `terrane <file-or-manifest>` is implicit `terrane run <file-or-manifest>`, forwards remaining arguments (with an optional leading `--`), and uses the same compilation/cache/execution pipeline.
+- Linux run and shebang invocations replace the CLI with the generated executable.
 - Compiler-bundled support source is copied into stable generated builds, fingerprinted with their native-artifact inputs, and referenced only by generated-project-relative Cargo paths; no registry, network, or installation absolute path enters reproducible output. Apply the same vendoring mechanism to admitted authored third-party dependencies.
 
 - Package import does not imply runtime mutation.

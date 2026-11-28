@@ -6,8 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 
 [features]
-default = ["child-process"]
+default = ["child-process", "process-signals"]
 child-process = ["tokio/process"]
+process-signals = ["dep:terrane-signal-support"]
 
 [dependencies]
 base64 = "0.22"
@@ -20,6 +21,7 @@ idna = "1"
 hmac = "0.12"
 rand_chacha = "0.9"
 rand_core = "0.9"
+rustix = { version = "1", features = ["process"] }
 rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
 sha2 = "0.10"
 md-5 = "0.10"
@@ -38,8 +40,9 @@ webpki-roots = "1"
 zeroize = "1"
 zstd = "0.13"
 
-[target.'cfg(unix)'.dependencies]
-terrane-signal-support = { path = "../terrane-signal-support" }
+[dependencies.terrane-signal-support]
+path = "../terrane-signal-support"
+optional = true
 
 [dev-dependencies]
 rcgen = "0.14"

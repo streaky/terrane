@@ -89,6 +89,7 @@ pub struct GeneratedCrateOptions {
     pub role: GeneratedCrateRole,
     pub panic: crate::PanicProfile,
     pub uses_child_process: bool,
+    pub uses_process_signals: bool,
     pub uses_platform_support: bool,
     pub uses_regex_support: bool,
     pub uses_async_runtime: bool,
@@ -192,7 +193,7 @@ pub fn write_generated_crate(
     })?;
     for (name, required) in [
         ("terrane-platform-support", options.uses_platform_support),
-        ("terrane-signal-support", options.uses_platform_support),
+        ("terrane-signal-support", options.uses_process_signals),
         ("terrane-regex-support", options.uses_regex_support),
     ] {
         let obsolete = directory.join("support").join(name);
@@ -288,11 +289,16 @@ fn write_runtime_dependencies(
     options: GeneratedCrateOptions,
 ) {
     if options.uses_platform_support {
-        manifest.push_str(if options.uses_child_process {
-            "terrane-platform-support = { path = \"support/terrane-platform-support\", default-features = false, features = [\"child-process\"] }\n"
-        } else {
-            "terrane-platform-support = { path = \"support/terrane-platform-support\", default-features = false }\n"
-        });
+        manifest.push_str("terrane-platform-support = { path = \"support/terrane-platform-support\", default-features = false");
+        match (options.uses_child_process, options.uses_process_signals) {
+            (true, true) => {
+                manifest.push_str(", features = [\"child-process\", \"process-signals\"]");
+            }
+            (true, false) => manifest.push_str(", features = [\"child-process\"]"),
+            (false, true) => manifest.push_str(", features = [\"process-signals\"]"),
+            (false, false) => {}
+        }
+        manifest.push_str(" }\n");
     }
     if options.uses_regex_support {
         manifest.push_str("terrane-regex-support = { path = \"support/terrane-regex-support\" }\n");
@@ -395,7 +401,7 @@ fn write_generated_support(
         include_bytes!("../../terrane-stream-abi/src/lib.rs"),
     )?;
     if options.uses_platform_support {
-        crate::write_platform_support(&directory.join("support"))?;
+        crate::write_platform_support(&directory.join("support"), options.uses_process_signals)?;
     }
     if options.uses_regex_support {
         write_regex_support(&directory.join("support"))?;

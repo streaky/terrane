@@ -1,0 +1,19 @@
+namespace core/process-signals
+
+class process-signal
+    name string = ''
+
+    private function construct; signal-name string
+        this.name = signal-name
+
+    static function interrupt process-signal;
+        return instance process-signal; 'interrupt'
+
+    static function terminate process-signal;
+        return instance process-signal; 'terminate'
+
+    static function hangup process-signal;
+        return instance process-signal; 'hangup'
+
+    static function quit process-signal;
+        return instance process-signal; 'quit'

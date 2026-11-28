@@ -17,6 +17,12 @@ pub(crate) const REGEX_HOST_FUNCTIONS: [(&str, &str); 8] = [
     ("named-capture", "named_capture"),
 ];
 
+pub(crate) const PROCESS_SIGNALS: BundledSource = BundledSource {
+    namespace: "/core/process-signals",
+    path: "core/process_signals.trn",
+    text: include_str!("core/process_signals.trn"),
+};
+
 const SOURCES: &[BundledSource] = &[
     BundledSource {
         namespace: "/core/display",
@@ -135,8 +141,8 @@ const SOURCES: &[BundledSource] = &[
     },
     BundledSource {
         namespace: "/core/process-signals",
-        path: "core/process_signals.trn",
-        text: include_str!("core/process_signals.trn"),
+        path: "core/process_signal.trn",
+        text: include_str!("core/process_signal.trn"),
     },
     BundledSource {
         namespace: "/core/concurrency",

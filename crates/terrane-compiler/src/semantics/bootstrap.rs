@@ -302,6 +302,8 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "system",
         [
             "process-arguments",
+            "process-id",
+            "process-group-id",
             "environment-entries",
             "process-exit",
             "platform-value-is-text",
@@ -348,6 +350,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         [
             "platform-result",
             "system-host-name",
+            "process-current-executable",
             "result-failed",
             "result-message",
             "result-text",
@@ -367,6 +370,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "child-poll",
             "child-wait",
             "child-terminate",
+            "child-send-signal",
             "child-write",
             "child-close-input",
             "child-read-stdout",

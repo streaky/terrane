@@ -21,7 +21,7 @@ async fn child_mode(mode: String) {
                             Duration::terrane_static_seconds(
                                 terrane_int_support::Int::from(2_i128),
                             ),
-                            0 /* terrane-site: case.trn:12:30-12:50 */,
+                            0 /* terrane-site: case.trn:13:30-13:50 */,
                         )
                         .total_nanoseconds
                         .clone(),
@@ -70,7 +70,7 @@ async fn child_mode(mode: String) {
                 terrane_int_support::Int::from(2048_i128),
                 terrane_int_support::Int::from(1_i64),
             ),
-            1 /* terrane-site: case.trn:34:23-34:37 */,
+            1 /* terrane-site: case.trn:35:23-35:37 */,
         );
         let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_1,
@@ -102,10 +102,10 @@ async fn child_mode(mode: String) {
             terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(argv
             .length()) == terrane_int_support::Int::from(3_i128) &&__terrane_raised(argv
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-            2 /* terrane-site: case.trn:38:38-38:45 */)), 2 /* terrane-site: case.trn:38:38-38:45 */).text.as_str() == "space ; $HOME *"
+            2 /* terrane-site: case.trn:39:38-39:45 */)), 2 /* terrane-site: case.trn:39:38-39:45 */).text.as_str() == "space ; $HOME *"
             &&__terrane_raised(argv
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-            3 /* terrane-site: case.trn:38:76-38:83 */)), 3 /* terrane-site: case.trn:38:76-38:83 */).text.as_str() == "" &&injected))
+            3 /* terrane-site: case.trn:39:76-39:83 */)), 3 /* terrane-site: case.trn:39:76-39:83 */).text.as_str() == "" &&injected))
         );
     }
 }
@@ -171,7 +171,7 @@ async fn exercise_capture(executable: String) -> Result<(), TerraneError> {
                 ),
             )
             .await,
-        4 /* terrane-site: case.trn:52:22-52:84 */,
+        4 /* terrane-site: case.trn:53:22-53:84 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(exit_is(captured.status.as_ref()
@@ -191,7 +191,7 @@ async fn exercise_capture(executable: String) -> Result<(), TerraneError> {
                 run_process(String::from("./no-such-terrane-child-binary"), None, None,
                 Vec::< u8 >::from([]), terrane_int_support::Int::from(30000_i128),
                 terrane_int_support::Int::from(1048576_i128),
-                terrane_int_support::Int::from(1048576_i128)), 5 /* terrane-site: case.trn:57:9-57:54 */
+                terrane_int_support::Int::from(1048576_i128)), 5 /* terrane-site: case.trn:58:9-58:54 */
             );
             TerraneCompletion::Normal
         })();
@@ -239,7 +239,7 @@ async fn exercise_capture(executable: String) -> Result<(), TerraneError> {
             terrane_int_support::Int::from(1048576_i128),
             terrane_int_support::Int::from(1048576_i128),
         ),
-        6 /* terrane-site: case.trn:61:14-61:73 */,
+        6 /* terrane-site: case.trn:62:14-62:73 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(exit_is(copied.status.as_ref()
@@ -265,7 +265,7 @@ async fn exercise_capture(executable: String) -> Result<(), TerraneError> {
                 ),
             )
             .await,
-        7 /* terrane-site: case.trn:63:21-63:83 */,
+        7 /* terrane-site: case.trn:64:21-64:83 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(expired.status.as_ref()
@@ -290,7 +290,7 @@ async fn exercise_capture(executable: String) -> Result<(), TerraneError> {
                 ),
             )
             .await,
-        8 /* terrane-site: case.trn:67:21-67:91 */,
+        8 /* terrane-site: case.trn:68:21-68:91 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(exit_is(ignored.status.as_ref()
@@ -308,7 +308,7 @@ async fn received_expected(
     let first: ProcessOutput;
     first = __terrane_traced_err(
         __terrane_await((&reader).read(terrane_int_support::Int::from(100_i128))).await,
-        9 /* terrane-site: case.trn:71:19-71:35 */,
+        9 /* terrane-site: case.trn:72:19-72:35 */,
     )?;
     return Ok(first.data == expected);
 }
@@ -346,15 +346,15 @@ async fn exercise_streaming(executable: String) -> Result<(), TerraneError> {
                 ),
             )
             .await,
-        10 /* terrane-site: case.trn:75:19-75:62 */,
+        10 /* terrane-site: case.trn:76:19-76:62 */,
     )?;
     initial = __terrane_traced_err(
         child.poll(),
-        11 /* terrane-site: case.trn:76:15-76:26 */,
+        11 /* terrane-site: case.trn:77:15-77:26 */,
     )?;
     elapsed = __terrane_traced_err(
         __terrane_await((&child).wait(terrane_int_support::Int::from(0_i128))).await,
-        12 /* terrane-site: case.trn:77:21-77:34 */,
+        12 /* terrane-site: case.trn:78:21-78:34 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(! initial.exited &&elapsed.timed_out
@@ -365,11 +365,11 @@ async fn exercise_streaming(executable: String) -> Result<(), TerraneError> {
     error_view = child.errors();
     written = __terrane_traced_err(
         __terrane_await((&input_view).write(Vec::<u8>::from([97, 98, 99]))).await,
-        13 /* terrane-site: case.trn:82:21-82:45 */,
+        13 /* terrane-site: case.trn:83:21-83:45 */,
     )?;
     __terrane_traced_err(
         __terrane_await((&input_view).close()).await,
-        14 /* terrane-site: case.trn:83:11-83:28 */,
+        14 /* terrane-site: case.trn:84:11-84:28 */,
     )?;
     scope = TerraneTaskScope::new(None);
     stdout_task = {
@@ -420,7 +420,7 @@ async fn exercise_streaming(executable: String) -> Result<(), TerraneError> {
     stderr_result = __terrane_await(scope.join(stderr_task)).await;
     done = __terrane_traced_err(
         __terrane_await((&child).wait(terrane_int_support::Int::from(30000_i128))).await,
-        17 /* terrane-site: case.trn:89:18-89:29 */,
+        17 /* terrane-site: case.trn:90:18-90:29 */,
     )?;
     stdout_matched = stdout_result.value.clone();
     stderr_matched = stderr_result.value.clone();
@@ -440,12 +440,12 @@ async fn exercise_streaming(executable: String) -> Result<(), TerraneError> {
     stdout_end = __terrane_traced_err(
         __terrane_await((&child).read_stdout(terrane_int_support::Int::from(100_i128)))
             .await,
-        18 /* terrane-site: case.trn:96:24-96:46 */,
+        18 /* terrane-site: case.trn:97:24-97:46 */,
     )?;
     stderr_end = __terrane_traced_err(
         __terrane_await((&child).read_stderr(terrane_int_support::Int::from(100_i128)))
             .await,
-        19 /* terrane-site: case.trn:97:24-97:46 */,
+        19 /* terrane-site: case.trn:98:24-98:46 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(written ==
@@ -469,16 +469,16 @@ async fn exercise_streaming(executable: String) -> Result<(), TerraneError> {
                 ),
             )
             .await,
-        20 /* terrane-site: case.trn:100:21-100:64 */,
+        20 /* terrane-site: case.trn:101:21-101:64 */,
     )?;
     __terrane_traced_err(
         another.terminate(),
-        21 /* terrane-site: case.trn:101:5-101:23 */,
+        21 /* terrane-site: case.trn:102:5-102:23 */,
     )?;
     terminated = __terrane_traced_err(
         __terrane_await((&another).wait(terrane_int_support::Int::from(30000_i128)))
             .await,
-        22 /* terrane-site: case.trn:102:24-102:37 */,
+        22 /* terrane-site: case.trn:103:24-103:37 */,
     )?;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(terminated.exited &&! terminated
@@ -490,7 +490,7 @@ async fn exercise_streaming(executable: String) -> Result<(), TerraneError> {
 fn main() {
     __terrane_run(async move {
         let argv: terrane_collection_support::List<NativeString>;
-        let executable: String;
+        let executable: Option<String>;
         argv = arguments();
         if terrane_int_support::Int::from(argv.length())
             > terrane_int_support::Int::from(0_i128)
@@ -504,10 +504,10 @@ fn main() {
                                             terrane_collection_support::index_from_int(
                                                 &terrane_int_support::Int::from(0_i128),
                                             ),
-                                            23 /* terrane-site: case.trn:108:27-108:34 */,
+                                            23 /* terrane-site: case.trn:109:27-109:34 */,
                                         ),
                                     ),
-                                23 /* terrane-site: case.trn:108:27-108:34 */,
+                                23 /* terrane-site: case.trn:109:27-109:34 */,
                             )
                             .text
                             .clone(),
@@ -515,19 +515,41 @@ fn main() {
                 )
                 .await;
         } else {
-            executable = std::env::current_exe()
-                .expect("fixture executable")
-                .into_os_string()
-                .into_string()
-                .expect("Unicode fixture path");
-            __terrane_traced(
-                __terrane_await(exercise_capture(executable.clone())).await,
-                24 /* terrane-site: case.trn:112:15-112:43 */,
+            executable = native_text_value(
+                __terrane_traced(
+                    current_executable(),
+                    24 /* terrane-site: case.trn:111:42-111:61 */,
+                ),
             );
-            __terrane_traced(
-                __terrane_await(exercise_streaming(executable)).await,
-                25 /* terrane-site: case.trn:113:15-113:45 */,
-            );
+            if (&executable).is_some() {
+                __terrane_traced(
+                    __terrane_await(
+                            exercise_capture(
+                                match &executable {
+                                    Some(value) => value,
+                                    _ => unreachable!("flow-proven storage refinement"),
+                                }
+                                    .clone(),
+                            ),
+                        )
+                        .await,
+                    25 /* terrane-site: case.trn:113:19-113:47 */,
+                );
+                __terrane_traced(
+                    __terrane_await(
+                            exercise_streaming(
+                                match executable {
+                                    Some(value) => value,
+                                    _ => unreachable!("flow-proven storage refinement"),
+                                },
+                            ),
+                        )
+                        .await,
+                    26 /* terrane-site: case.trn:114:19-114:49 */,
+                );
+            } else {
+                exit(make_exit_status(terrane_int_support::Int::from(98_i128)));
+            }
         }
     });
 }

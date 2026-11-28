@@ -75,21 +75,43 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BUILD_TOOLCHAIN: &str = "1.100.0";
 
 #[must_use]
-pub fn platform_support_manifest() -> String {
-    platform_support_manifest_from(include_str!("../../terrane-platform-support/Cargo.toml"))
-}
-
-fn platform_support_manifest_from(source: &str) -> String {
-    let dependencies = support_manifest_dependencies(source);
-    format!(
-        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n\n[features]\ndefault = []\nchild-process = [\"tokio/process\"]\n\n[target.'cfg(unix)'.dependencies]\nterrane-signal-support = {{ path = \"../terrane-signal-support\" }}\n"
+pub fn platform_support_manifest(uses_process_signals: bool) -> String {
+    platform_support_manifest_from(
+        include_str!("../../terrane-platform-support/Cargo.toml"),
+        uses_process_signals,
     )
 }
 
+fn platform_support_manifest_from(source: &str, uses_process_signals: bool) -> String {
+    let dependencies = support_manifest_dependencies(source);
+    // Both variants share the native source, even when Cargo cannot enable this feature.
+    let check_cfg = "unexpected_cfgs = { level = \"warn\", check-cfg = ['cfg(feature, values(\"process-signals\"))'] }";
+    let mut manifest = format!(
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n{check_cfg}\n\n[dependencies]\n{dependencies}\n\n[features]\ndefault = []\nchild-process = [\"tokio/process\"]\n"
+    );
+    // Cargo loads a path dependency's manifest even when the dependency is optional.
+    if uses_process_signals {
+        use std::fmt::Write as _;
+
+        let header = "[dependencies.terrane-signal-support]";
+        let dependency = support_manifest_section(source, header);
+        write!(
+            manifest,
+            "process-signals = [\"dep:terrane-signal-support\"]\n\n{header}\n{dependency}\n"
+        )
+        .expect("writing to a String cannot fail");
+    }
+    manifest
+}
+
 fn support_manifest_dependencies(source: &str) -> String {
+    support_manifest_section(source, "[dependencies]")
+}
+
+fn support_manifest_section(source: &str, header: &str) -> String {
     let (_, rest) = source
-        .split_once("[dependencies]")
-        .expect("support manifest must declare dependencies");
+        .split_once(header)
+        .unwrap_or_else(|| panic!("support manifest must declare {header}"));
     rest.lines()
         .skip_while(|line| line.trim().is_empty())
         .take_while(|line| !line.trim_start().starts_with('['))
@@ -107,8 +129,13 @@ pub(crate) fn regex_support_manifest() -> String {
 
 #[must_use]
 pub fn signal_support_manifest() -> String {
+    let header = "[target.'cfg(unix)'.dependencies]";
+    let dependencies = support_manifest_section(
+        include_str!("../../terrane-signal-support/Cargo.toml"),
+        header,
+    );
     format!(
-        "[package]\nname = \"terrane-signal-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n"
+        "[package]\nname = \"terrane-signal-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n{header}\n{dependencies}\n"
     )
 }
 
@@ -139,14 +166,54 @@ mod manifest_tests {
         let with_features = "[dependencies]\nbase64 = \"0.22\"\n\n[features]\ndefault = []\n\n[dev-dependencies]\nrcgen = \"0.14\"\n";
         let without_following_section = "[dependencies]\nbase64 = \"0.22\"\n";
 
-        let with_features = platform_support_manifest_from(with_features);
-        let without_following_section = platform_support_manifest_from(without_following_section);
+        let with_features = platform_support_manifest_from(with_features, false);
+        let without_following_section =
+            platform_support_manifest_from(without_following_section, false);
 
         assert!(with_features.contains("base64 = \"0.22\""));
         assert!(with_features.contains("child-process = [\"tokio/process\"]"));
         assert!(!with_features.contains("rcgen"));
         assert!(without_following_section.contains("base64 = \"0.22\""));
         assert!(without_following_section.contains("[features]"));
+    }
+
+    #[test]
+    fn generated_platform_dependencies_match_workspace_manifest() {
+        let source: toml::Value = include_str!("../../terrane-platform-support/Cargo.toml")
+            .parse()
+            .unwrap();
+        for uses_process_signals in [false, true] {
+            let generated: toml::Value = super::platform_support_manifest(uses_process_signals)
+                .parse()
+                .unwrap();
+            let mut expected_dependencies = source["dependencies"].as_table().unwrap().clone();
+            if !uses_process_signals {
+                expected_dependencies.remove("terrane-signal-support");
+            }
+            assert_eq!(
+                generated["dependencies"].as_table().unwrap(),
+                &expected_dependencies
+            );
+            let features = generated["features"].as_table().unwrap();
+            assert_eq!(features["default"].as_array().unwrap().as_slice(), []);
+            assert_eq!(
+                features["child-process"],
+                source["features"]["child-process"]
+            );
+            assert_eq!(
+                features.get("process-signals"),
+                uses_process_signals.then(|| &source["features"]["process-signals"])
+            );
+        }
+    }
+
+    #[test]
+    fn generated_signal_dependencies_match_workspace_manifest() {
+        let source: toml::Value = include_str!("../../terrane-signal-support/Cargo.toml")
+            .parse()
+            .unwrap();
+        let generated: toml::Value = super::signal_support_manifest().parse().unwrap();
+        assert_eq!(generated["target"], source["target"]);
     }
 
     #[test]
