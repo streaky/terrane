@@ -487,20 +487,13 @@ fn augment_units_with_projection_inner(
     let mut loaded_process_signals = false;
     while index < units.len() {
         let imports = imports_in_tree(&units[index])?;
-        // The value and subscription facilities share one public namespace,
-        // but importing only the value must not load the subscription unit.
+        // The always-loaded value unit provides process-signal. Let normal name
+        // resolution consult the subscription unit for every other import.
         let signals = &crate::bundled::PROCESS_SIGNALS;
         let load_process_signals = !loaded_process_signals
             && imports.iter().any(|import| {
                 import.target == signals.namespace
-                    && (import.namespace_wide
-                        || matches!(
-                            import.object.as_str(),
-                            "process-signals"
-                                | "process-signal-error"
-                                | "process-signal-event"
-                                | "process-signal-subscription"
-                        ))
+                    && (import.namespace_wide || import.object != "process-signal")
             });
         loaded_process_signals |= load_process_signals;
         let mut targets = imports

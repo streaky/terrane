@@ -120,6 +120,7 @@ pub(super) fn package_uses_process_signals(package: &SemanticPackage) -> bool {
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
+        subscription_file: u32,
     ) -> bool {
         if matches!(
             node.kind,
@@ -134,26 +135,25 @@ pub(super) fn package_uses_process_signals(package: &SemanticPackage) -> bool {
                     node.span.start,
                     &unit.source.text()[node.span.start..node.span.end],
                 )
-                .is_some_and(|symbol| {
-                    matches!(
-                        symbol.compiler_identity(),
-                        "/core/process-signals::process-signals"
-                            | "/core/process-signals::process-signal-error"
-                            | "/core/process-signals::process-signal-event"
-                            | "/core/process-signals::process-signal-subscription"
-                    )
-                }))
+                .and_then(|symbol| symbol.declaration_span)
+                .is_some_and(|span| span.file == subscription_file))
             || node
                 .children
                 .iter()
-                .any(|child| references_subscription(package, unit, child))
+                .any(|child| references_subscription(package, unit, child, subscription_file))
     }
 
-    package.units.iter().any(is_process_subscription_unit)
-        && package.units.iter().any(|unit| {
-            !is_process_subscription_unit(unit)
-                && references_subscription(package, unit, &unit.tree.root)
-        })
+    let Some(subscription) = package
+        .units
+        .iter()
+        .find(|unit| is_process_subscription_unit(unit))
+    else {
+        return false;
+    };
+    let file = subscription.source.id();
+    package.units.iter().any(|unit| {
+        unit.source.id() != file && references_subscription(package, unit, &unit.tree.root, file)
+    })
 }
 
 pub(super) fn package_uses_advanced_streams(
