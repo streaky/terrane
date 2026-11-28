@@ -22,6 +22,7 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
+    Custom(DescriptorId),
 }
 impl TerraneErrorKind {
     fn display_name(self) -> &'static str {
@@ -37,6 +38,9 @@ impl TerraneErrorKind {
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
             Self::SourceError => "error",
+            Self::Custom(descriptor) => {
+                __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)]
+            }
         }
     }
     fn default_message(self) -> &'static str {
@@ -56,6 +60,7 @@ impl TerraneErrorKind {
                 "integer shift count cannot be represented on this target"
             }
             Self::SourceError => "source error",
+            Self::Custom(_) => "source error",
         }
     }
 }
@@ -129,6 +134,15 @@ impl TerraneError {
                 }),
             ),
         }
+    }
+    #[cold]
+    #[inline(never)]
+    fn custom_raised(
+        descriptor: DescriptorId,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
     }
     #[cold]
     #[inline(never)]
@@ -451,7 +465,7 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
+    pub static DESCRIPTORS: [&str; 1] = ["/core/process::process-identity-error"];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -463,16 +477,17 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 2] = ["case.trn", "core/process.trn"];
-    pub static FUNCTIONS: [&str; 7] = [
+    pub static FUNCTIONS: [&str; 8] = [
         "/list-append-bulk-mutation::validate-return",
         "/list-append-bulk-mutation::validate-exit",
         "/list-append-bulk-mutation::validate-throw",
         "/list-append-bulk-mutation::main",
+        "/core/process::current-executable",
         "/core/process::arguments",
         "/core/process::environment",
         "/core/process::parse-command-line",
     ];
-    pub static SITES: [Site; 40] = [
+    pub static SITES: [Site; 41] = [
         /* terrane-site-row: site 0: /list-append-bulk-mutation::validate-return (case.trn:23:14-23:23) */
         { Site { function: 0, file: 0, line: 23, column: 14, end_line: 23, end_column: 23 } },
         /* terrane-site-row: site 1: /list-append-bulk-mutation::validate-return (case.trn:24:5-24:12) */
@@ -543,16 +558,18 @@ mod __terrane_trace {
         { Site { function: 3, file: 0, line: 264, column: 28, end_line: 264, end_column: 51 } },
         /* terrane-site-row: site 34: /list-append-bulk-mutation::main (case.trn:267:24-267:55) */
         { Site { function: 3, file: 0, line: 267, column: 24, end_line: 267, end_column: 55 } },
-        /* terrane-site-row: site 35: /core/process::arguments (core/process.trn:45:49-45:63) */
-        { Site { function: 4, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
-        /* terrane-site-row: site 36: /core/process::environment (core/process.trn:54:40-54:54) */
-        { Site { function: 5, file: 1, line: 54, column: 40, end_line: 54, end_column: 54 } },
-        /* terrane-site-row: site 37: /core/process::environment (core/process.trn:55:41-55:59) */
-        { Site { function: 5, file: 1, line: 55, column: 41, end_line: 55, end_column: 59 } },
-        /* terrane-site-row: site 38: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
-        { Site { function: 6, file: 1, line: 90, column: 20, end_line: 90, end_column: 35 } },
-        /* terrane-site-row: site 39: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
-        { Site { function: 6, file: 1, line: 105, column: 43, end_line: 105, end_column: 62 } },
+        /* terrane-site-row: site 35: /core/process::current-executable (core/process.trn:42:9-42:74) */
+        { Site { function: 4, file: 1, line: 42, column: 9, end_line: 42, end_column: 74 } },
+        /* terrane-site-row: site 36: /core/process::arguments (core/process.trn:67:49-67:63) */
+        { Site { function: 5, file: 1, line: 67, column: 49, end_line: 67, end_column: 63 } },
+        /* terrane-site-row: site 37: /core/process::environment (core/process.trn:76:40-76:54) */
+        { Site { function: 6, file: 1, line: 76, column: 40, end_line: 76, end_column: 54 } },
+        /* terrane-site-row: site 38: /core/process::environment (core/process.trn:77:41-77:59) */
+        { Site { function: 6, file: 1, line: 77, column: 41, end_line: 77, end_column: 59 } },
+        /* terrane-site-row: site 39: /core/process::parse-command-line (core/process.trn:112:20-112:35) */
+        { Site { function: 7, file: 1, line: 112, column: 20, end_line: 112, end_column: 35 } },
+        /* terrane-site-row: site 40: /core/process::parse-command-line (core/process.trn:127:43-127:62) */
+        { Site { function: 7, file: 1, line: 127, column: 43, end_line: 127, end_column: 62 } },
     ];
     #[cold]
     #[inline(never)]
@@ -705,6 +722,26 @@ impl EnvironmentEntry {
     }
 }
 #[derive(Clone)]
+pub struct ProcessIdentityError {
+    pub message: String,
+}
+impl ProcessIdentityError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(detail);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, detail: String) {
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+#[derive(Clone)]
 pub struct ProcessHostNameResult {
     pub failed: bool,
     pub available: bool,
@@ -770,7 +807,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                             let __terrane_receiver = &encoded;
                             let __terrane_index = __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                35 /* terrane-site: core/process.trn:45:49-45:63 */,
+                                36 /* terrane-site: core/process.trn:67:49-67:63 */,
                             );
                             __terrane_receiver
                                 .get(__terrane_index)
@@ -779,7 +816,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                     __terrane_index,
                                 ))
                         },
-                        35 /* terrane-site: core/process.trn:45:49-45:63 */,
+                        36 /* terrane-site: core/process.trn:67:49-67:63 */,
                     ),
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);

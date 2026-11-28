@@ -22,6 +22,7 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
+    Custom(DescriptorId),
 }
 impl TerraneErrorKind {
     fn display_name(self) -> &'static str {
@@ -37,6 +38,9 @@ impl TerraneErrorKind {
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
             Self::SourceError => "error",
+            Self::Custom(descriptor) => {
+                __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)]
+            }
         }
     }
     fn default_message(self) -> &'static str {
@@ -56,6 +60,7 @@ impl TerraneErrorKind {
                 "integer shift count cannot be represented on this target"
             }
             Self::SourceError => "source error",
+            Self::Custom(_) => "source error",
         }
     }
 }
@@ -129,6 +134,15 @@ impl TerraneError {
                 }),
             ),
         }
+    }
+    #[cold]
+    #[inline(never)]
+    fn custom_raised(
+        descriptor: DescriptorId,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
     }
     #[cold]
     #[inline(never)]
@@ -451,7 +465,7 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
+    pub static DESCRIPTORS: [&str; 1] = ["/core/process::process-identity-error"];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -463,13 +477,14 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 2] = ["case.trn", "core/process.trn"];
-    pub static FUNCTIONS: [&str; 4] = [
+    pub static FUNCTIONS: [&str; 5] = [
         "/conformance/process-facilities::main",
+        "/core/process::current-executable",
         "/core/process::arguments",
         "/core/process::environment",
         "/core/process::parse-command-line",
     ];
-    pub static SITES: [Site; 15] = [
+    pub static SITES: [Site; 16] = [
         /* terrane-site-row: site 0: /conformance/process-facilities::main (case.trn:9:27-9:36) */
         { Site { function: 0, file: 0, line: 9, column: 27, end_line: 9, end_column: 36 } },
         /* terrane-site-row: site 1: /conformance/process-facilities::main (case.trn:9:43-9:52) */
@@ -490,16 +505,18 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 19, column: 12, end_line: 19, end_column: 42 } },
         /* terrane-site-row: site 9: /conformance/process-facilities::main (case.trn:19:44-19:73) */
         { Site { function: 0, file: 0, line: 19, column: 44, end_line: 19, end_column: 73 } },
-        /* terrane-site-row: site 10: /core/process::arguments (core/process.trn:45:49-45:63) */
-        { Site { function: 1, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
-        /* terrane-site-row: site 11: /core/process::environment (core/process.trn:54:40-54:54) */
-        { Site { function: 2, file: 1, line: 54, column: 40, end_line: 54, end_column: 54 } },
-        /* terrane-site-row: site 12: /core/process::environment (core/process.trn:55:41-55:59) */
-        { Site { function: 2, file: 1, line: 55, column: 41, end_line: 55, end_column: 59 } },
-        /* terrane-site-row: site 13: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
-        { Site { function: 3, file: 1, line: 90, column: 20, end_line: 90, end_column: 35 } },
-        /* terrane-site-row: site 14: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
-        { Site { function: 3, file: 1, line: 105, column: 43, end_line: 105, end_column: 62 } },
+        /* terrane-site-row: site 10: /core/process::current-executable (core/process.trn:42:9-42:74) */
+        { Site { function: 1, file: 1, line: 42, column: 9, end_line: 42, end_column: 74 } },
+        /* terrane-site-row: site 11: /core/process::arguments (core/process.trn:67:49-67:63) */
+        { Site { function: 2, file: 1, line: 67, column: 49, end_line: 67, end_column: 63 } },
+        /* terrane-site-row: site 12: /core/process::environment (core/process.trn:76:40-76:54) */
+        { Site { function: 3, file: 1, line: 76, column: 40, end_line: 76, end_column: 54 } },
+        /* terrane-site-row: site 13: /core/process::environment (core/process.trn:77:41-77:59) */
+        { Site { function: 3, file: 1, line: 77, column: 41, end_line: 77, end_column: 59 } },
+        /* terrane-site-row: site 14: /core/process::parse-command-line (core/process.trn:112:20-112:35) */
+        { Site { function: 4, file: 1, line: 112, column: 20, end_line: 112, end_column: 35 } },
+        /* terrane-site-row: site 15: /core/process::parse-command-line (core/process.trn:127:43-127:62) */
+        { Site { function: 4, file: 1, line: 127, column: 43, end_line: 127, end_column: 62 } },
     ];
     #[cold]
     #[inline(never)]
@@ -614,6 +631,26 @@ impl EnvironmentEntry {
     }
 }
 #[derive(Clone)]
+pub struct ProcessIdentityError {
+    pub message: String,
+}
+impl ProcessIdentityError {
+    pub fn terrane_construct(detail: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(detail);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, detail: String) {
+        {
+            let __terrane_value: String = detail;
+            self.message = __terrane_value;
+        }
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+#[derive(Clone)]
 pub struct ProcessHostNameResult {
     pub failed: bool,
     pub available: bool,
@@ -679,7 +716,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                             let __terrane_receiver = &encoded;
                             let __terrane_index = __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                10 /* terrane-site: core/process.trn:45:49-45:63 */,
+                                11 /* terrane-site: core/process.trn:67:49-67:63 */,
                             );
                             __terrane_receiver
                                 .get(__terrane_index)
@@ -688,7 +725,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                     __terrane_index,
                                 ))
                         },
-                        10 /* terrane-site: core/process.trn:45:49-45:63 */,
+                        11 /* terrane-site: core/process.trn:67:49-67:63 */,
                     ),
                 );
                 __terrane_list_append_0.push(__terrane_collection_argument_0);
@@ -718,7 +755,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         let __terrane_receiver = &encoded;
                         let __terrane_index = __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            11 /* terrane-site: core/process.trn:54:40-54:54 */,
+                            12 /* terrane-site: core/process.trn:76:40-76:54 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -727,7 +764,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    11 /* terrane-site: core/process.trn:54:40-54:54 */,
+                    12 /* terrane-site: core/process.trn:76:40-76:54 */,
                 ),
             );
             value = NativeString::terrane_construct(
@@ -738,7 +775,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(&index + &terrane_int_support::Int::from(1_i128)),
                             ),
-                            12 /* terrane-site: core/process.trn:55:41-55:59 */,
+                            13 /* terrane-site: core/process.trn:77:41-77:59 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -747,7 +784,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    12 /* terrane-site: core/process.trn:55:41-55:59 */,
+                    13 /* terrane-site: core/process.trn:77:41-77:59 */,
                 ),
             );
             {
@@ -868,10 +905,10 @@ pub fn parse_command_line(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            13 /* terrane-site: core/process.trn:90:20-90:35 */,
+                            14 /* terrane-site: core/process.trn:112:20-112:35 */,
                         ),
                     ),
-                13 /* terrane-site: core/process.trn:90:20-90:35 */,
+                14 /* terrane-site: core/process.trn:112:20-112:35 */,
             );
             if !argument.is_text {
                 {
@@ -938,10 +975,10 @@ pub fn parse_command_line(
                                             terrane_collection_support::index_from_int(
                                                 &(&index + &terrane_int_support::Int::from(1_i128)),
                                             ),
-                                            14 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                            15 /* terrane-site: core/process.trn:127:43-127:62 */,
                                         ),
                                     ),
-                                14 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                15 /* terrane-site: core/process.trn:127:43-127:62 */,
                             );
                             __terrane_list_append_6
                                 .push(__terrane_collection_argument_0);
